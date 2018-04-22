@@ -26,9 +26,21 @@ class Gallery extends PluginAbstract {
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
-        $obj->Description = false;
-        $obj->SortByName = false;
         $obj->BigVideo = true;
+        $obj->Description = false;
+        $obj->CategoryDescription = false;
+        $obj->DateAdded = true;
+        $obj->DateAddedRowCount = 12;
+        $obj->MostWatched = true;
+        $obj->MostWatchedRowCount = 12;
+        $obj->MostPopular = true;
+        $obj->MostPopularRowCount = 12;
+        $obj->SortByName = false;
+        $obj->SortByNameRowCount = 12;
+        $obj->SubscribedChannels = true;
+        $obj->SubscribedChannelsRowCount = 12;
+        $obj->sortReverseable = false;
+        $obj->SubCategorys = false;
         return $obj;
     }
     

@@ -103,6 +103,14 @@ class User {
             return false;
         }
     }
+    
+    static function getEmail_() {
+        if (self::isLogged()) {
+            return $_SESSION['user']['email'];
+        } else {
+            return false;
+        }
+    }
 
     function getBdId() {
         return $this->id;
@@ -401,6 +409,20 @@ class User {
         }
         return $user;
     }
+    
+    static function findByEmail($email) {
+        global $global;
+
+        $sql = "SELECT * FROM users WHERE email = '$email'  LIMIT 1";
+        $res = $global['mysqli']->query($sql);
+
+        if ($res) {
+            $user = $res->fetch_assoc();
+        } else {
+            $user = false;
+        }
+        return $user;
+    }
 
     static private function getUserDb($id) {
         global $global;
@@ -466,8 +488,8 @@ class User {
         $this->photoURL = strip_tags($photoURL);
     }
 
-    static function getAllUsers() {
-        if (!self::isAdmin()) {
+    static function getAllUsers($ignoreAdmin = false) {
+        if (!self::isAdmin() && !$ignoreAdmin) {
             return false;
         }
         //will receive
@@ -485,6 +507,7 @@ class User {
             while ($row = $res->fetch_assoc()) {
                 $row['groups'] = UserGroups::getUserGroups($row['id']);
                 $row['tags'] = self::getTags($row['id']);
+                $row['name'] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/u', '', $row['name']);
                 $user[] = $row;
             }
             //$user = $res->fetch_all(MYSQLI_ASSOC);

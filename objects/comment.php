@@ -30,6 +30,14 @@ class Comment {
         $this->comments_id_pai = $comments_id_pai;
     }
     
+    function getComments_id_pai() {
+        return $this->comments_id_pai;
+    }
+        
+    function getUsers_id() {
+        return $this->users_id;
+    }
+        
     function setComment($comment) {
         $this->comment = $comment;
     }
@@ -83,6 +91,18 @@ class Comment {
         if(empty($resp)){
             die('Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
+        if (empty($this->id)) {
+            $id = $global['mysqli']->insert_id;
+            $this->id = $id;
+        } else {
+            $id = $this->id;
+        }
+        if(empty($this->comments_id_pai) || $this->comments_id_pai== 'NULL'){
+            YouPHPTubePlugin::afterNewComment($this->id);
+        }else{
+            YouPHPTubePlugin::afterNewResponse($this->id);
+        }
+        
         return $resp;
     }
 
@@ -166,7 +186,7 @@ class Comment {
         return $comment;
     }
 
-    static function getTotalComments($videoId = 0, $comments_id_pai = 'NULL') {
+    static function getTotalComments($videoId = 0, $comments_id_pai = 'NULL', $video_owner_users_id=0) {
         global $global;
         $sql = "SELECT c.id FROM comments c LEFT JOIN users as u ON u.id = users_id LEFT JOIN videos as v ON v.id = videos_id WHERE 1=1  ";
 
@@ -189,6 +209,10 @@ class Comment {
             $sql .= ") ";
         }else{
             $sql .= " AND comments_id_pai = {$comments_id_pai} ";
+        }
+        
+        if(!empty($video_owner_users_id)){
+            $sql .= " AND v.users_id = {$video_owner_users_id} ";
         }
         
         $sql .= BootGrid::getSqlSearchFromPost(array('name'));
@@ -215,5 +239,45 @@ class Comment {
         }
         return false;
     }
+    
+    static function getTotalCommentsThumbsUpFromUser($users_id, $startDate, $endDate) {
+        global $global;
+        $sql = "SELECT id from comments  WHERE users_id = {$users_id}  ";
+
+        $res = $global['mysqli']->query($sql);
+        
+        $r = array('thumbsUp'=>0, 'thumbsDown'=>0 );
+        
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $sql = "SELECT id from comments_likes WHERE comments_id = {$row['id']} AND `like` = 1  ";
+                if (!empty($startDate)) {
+                    $sql .= " AND `created` >= '{$startDate}' ";
+                }
+
+                if (!empty($endDate)) {
+                    $sql .= " AND `created` <= '{$endDate}' ";
+                }
+                $res2 = $global['mysqli']->query($sql);
+                
+                $r['thumbsUp']+=$res2->num_rows;
+                
+                $sql = "SELECT id from comments_likes WHERE comments_id = {$row['id']} AND `like` = -1  ";
+                if (!empty($startDate)) {
+                    $sql .= " AND `created` >= '{$startDate}' ";
+                }
+
+                if (!empty($endDate)) {
+                    $sql .= " AND `created` <= '{$endDate}' ";
+                }
+                $res2 = $global['mysqli']->query($sql);
+                $r['thumbsDown']+=$res2->num_rows;
+            }
+        } 
+        
+        return $r;
+    }
+    
+    
 
 }

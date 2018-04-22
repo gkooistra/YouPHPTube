@@ -6,7 +6,7 @@ class Hotkeys extends PluginAbstract {
 
     public function getDescription() {
         global $global;
-        return "Enable hotkeys for videos, like F for fullscreen, space for play/pause, etc..";
+        return "Enable hotkeys for videos, like F for fullscreen, space for play/pause, etc..<br />Author: <a href='http://hersche.github.io' target='_blank' >Vinzenz Hersche</a>";
     }
 
     public function getName() {
@@ -47,12 +47,13 @@ class Hotkeys extends PluginAbstract {
         $catUrlResult;
         preg_match("/cat\/(.*)\/video\/(.*)/", $url, $catUrlResult);
         if((strpos($url,substr($global['webSiteRootURL'],$httpSpacer)."video/")!==false)||(sizeof($catUrlResult)>0)){
-            
-            $tmp = "<script src=\"{$global['webSiteRootURL']}plugin/Hotkeys/videojs.hotkeys.min.js\"> </script>
-                    <script>
-                        videojs('mainVideo').ready(function() {
-                            this.hotkeys({
-                            seekStep: 5,";
+            $tmp = "<script src=\"{$global['webSiteRootURL']}plugin/Hotkeys/videojs.hotkeys.min.js\"> </script><script> $( document ).ready(function() {";
+            if($_SESSION['type']=="audio"){
+                $tmp .= "videojs('mainAudio').ready(function() {";
+            } else {
+                $tmp .= "videojs('mainVideo').ready(function() {";
+            }
+            $tmp .= "this.hotkeys({ seekStep: 5,";
                
             if($obj->Volume){
                 $tmp .= "enableVolumeScroll: true,";
@@ -85,7 +86,7 @@ class Hotkeys extends PluginAbstract {
                       });  
             });";
 
-            $tmp .= "</script>";
+            $tmp .= "});</script>";
             return $tmp;
         }
         return "";

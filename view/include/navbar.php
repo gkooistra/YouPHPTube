@@ -1,6 +1,7 @@
 <?php
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/category.php';
+$_GET['parentsOnly']="1";
 $categories = Category::getAllCategories();
 if (empty($_SESSION['language'])) {
     $lang = 'us';
@@ -8,9 +9,11 @@ if (empty($_SESSION['language'])) {
     $lang = $_SESSION['language'];
 }
 
-$json_file = file_get_contents("{$global['webSiteRootURL']}plugin/CustomizeAdvanced/advancedCustom.json.php");
+$json_file = url_get_contents("{$global['webSiteRootURL']}plugin/CustomizeAdvanced/advancedCustom.json.php");
 // convert the string to a json object
 $advancedCustom = json_decode($json_file);
+
+$updateFiles = getUpdatesFilesArray();
 ?>
 <nav class="navbar navbar-default navbar-fixed-top ">
     <ul class="items-container">
@@ -43,7 +46,7 @@ $advancedCustom = json_decode($json_file);
         <li>
             <div class="navbar-header">
                 <button type="button" class=" navbar-toggle btn btn-default navbar-btn" data-toggle="collapse" data-target="#myNavbar" style="padding: 6px 12px;">
-                    <span class="fa fa-bars"></span>                      
+                    <span class="fa fa-bars"></span>
                 </button>
             </div>
             <div class="collapse navbar-collapse" id="myNavbar">
@@ -52,8 +55,8 @@ $advancedCustom = json_decode($json_file);
                         <form class="navbar-form navbar-left" id="searchForm"  action="<?php echo $global['webSiteRootURL']; ?>" >
                             <div class="input-group" >
                                 <div class="form-inline">
-                                    <input class="form-control" type="text" name="search" placeholder="<?php echo __("Search"); ?>">
-                                    <button class="input-group-addon form-control"  style="width: 50px;" type="submit"><span class="glyphicon glyphicon-search"></span></button>
+                                    <input class="form-control" type="text" value="<?php if(!empty($_GET['search'])) { echo $_GET['search']; } ?>" name="search" placeholder="<?php echo __("Search"); ?>">
+                                    <button class="input-group-addon form-control hidden-xs"  style="width: 50px;" type="submit"><span class="glyphicon glyphicon-search"></span></button>
                                 </div>
                             </div>
                         </form>
@@ -68,7 +71,7 @@ $advancedCustom = json_decode($json_file);
 
                             <div class="btn-group">
                                 <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown">
-                                    <span class="fa fa-video-camera"></span> <span class="caret"></span>
+                                    <span class="<?php echo isset($advancedCustom->uploadButtonDropdownIcon)?$advancedCustom->uploadButtonDropdownIcon:"fa fa-video-camera"; ?>"></span> <?php echo !empty($advancedCustom->uploadButtonDropdownText)?$advancedCustom->uploadButtonDropdownText:""; ?> <span class="caret"></span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-right" role="menu" style="">
                                     <?php
@@ -102,7 +105,7 @@ $advancedCustom = json_decode($json_file);
                                         ?>
                                         <li>
                                             <a  href="<?php echo $global['webSiteRootURL']; ?>upload" >
-                                                <span class="fa fa-upload"></span> <?php echo __("Upload a MP4 video"); ?>
+                                                <span class="fa fa-upload"></span> <?php echo __("Direct upload"); ?>
                                             </a>
                                         </li>
                                         <?php
@@ -287,6 +290,11 @@ $advancedCustom = json_decode($json_file);
                                     <a href="<?php echo $global['webSiteRootURL']; ?>update">
                                         <span class="glyphicon glyphicon-refresh"></span>
                                         <?php echo __("Update version"); ?>
+                                        <?php
+                                        if(!empty($updateFiles)){
+                                            ?><span class="label label-danger"><?php echo count($updateFiles); ?></span><?php
+                                        }
+                                        ?>
                                     </a>
                                 </li>
                                 <li>
@@ -329,6 +337,9 @@ $advancedCustom = json_decode($json_file);
                 ?>
 
 
+                <?php
+                    if (empty($advancedCustom->doNotShowLeftMenuAudioAndVideoButtons)) {
+                ?>
                 <li>
                     <hr>
                 </li>
@@ -350,6 +361,9 @@ $advancedCustom = json_decode($json_file);
                         <?php echo __("Audios"); ?>
                     </a>
                 </li>
+                <?php
+                    }
+                ?>
                 
                 
                 <!-- Channels -->
@@ -370,10 +384,31 @@ $advancedCustom = json_decode($json_file);
                     <h3 class="text-danger"><?php echo __("Categories"); ?></h3>
                 </li>
                 <?php
+                
+                function mkSub($catId){
+                    global $global;
+                    unset($_GET['parentsOnly']);
+                    $subcats = Category::getChildCategories($catId);
+                    if(!empty($subcats)){
+                        echo "<ul style='margin-bottom: 0px; list-style-type: none;'>";
+                        foreach($subcats as $subcat){
+                                echo '<li class="' . ($subcat['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
+                                    . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $subcat['clean_name'] . '" >'
+                                    . '<span class="' . (empty($subcat['iconClass']) ? "fa fa-folder" : $subcat['iconClass']) . '"></span>  ' . $subcat['name'] . '</a></li>'; 
+                            mkSub($subcat['id']);
+                        }
+                        echo "</ul>";
+                    }
+                    
+                }
+                
                 foreach ($categories as $value) {
+                    
                     echo '<li class="' . ($value['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
                     . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $value['clean_name'] . '" >'
-                    . '<span class="' . (empty($value['iconClass']) ? "fa fa-folder" : $value['iconClass']) . '"></span>  ' . $value['name'] . '</a></li>';
+                    . '<span class="' . (empty($value['iconClass']) ? "fa fa-folder" : $value['iconClass']) . '"></span>  ' . $value['name'] . '</a>'; 
+                    mkSub($value['id']);
+                    echo '</li>';
                 }
                 ?>
 

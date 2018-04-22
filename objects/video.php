@@ -21,6 +21,7 @@ class Video {
     private $duration;
     private $users_id;
     private $categories_id;
+    private $old_categories_id;
     private $type;
     private $rotation;
     private $zoom;
@@ -53,7 +54,7 @@ class Video {
             $this->load($id);
         }
         if (!empty($title)) {
-            $this->title = $title;
+            $this->setTitle($title);
         }
         if (!empty($filename)) {
             $this->filename = $filename;
@@ -120,8 +121,8 @@ class Video {
                 $this->categories_id = 1;
             }
         }
-        $this->title = $global['mysqli']->real_escape_string(trim($this->title));
-        $this->description = $global['mysqli']->real_escape_string($this->description);
+        $this->setTitle($global['mysqli']->real_escape_string(trim($this->title)));
+        $this->setDescription($global['mysqli']->real_escape_string($this->description));
         $this->next_videos_id = intval($this->next_videos_id);
         if (empty($this->next_videos_id)) {
             $this->next_videos_id = 'NULL';
@@ -146,6 +147,7 @@ class Video {
             if (empty($this->id)) {
                 $id = $global['mysqli']->insert_id;
                 $this->id = $id;
+                YouPHPTubePlugin::afterNewVideo($id);
             } else {
                 $id = $this->id;
             }
@@ -154,12 +156,165 @@ class Video {
                 // update the user groups
                 UserGroups::updateVideoGroups($id, $this->videoGroups);
             }
+            Video::autosetCategoryType($this->categories_id);
+            if (!empty($this->old_categories_id)) {
+                Video::autosetCategoryType($this->old_categories_id);
+            }
             return $id;
         } else {
             die($sql . ' Save Video Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
+        
+            
     }
 
+    
+    static function autosetCategoryType($catId) {
+        global $global, $config;
+        if ($config->currentVersionLowerThen('5.01')) {
+            return false;
+        }
+        $sql = "SELECT * FROM `category_type_cache` WHERE categoryId = '" . $catId . "';";
+        $res = $global['mysqli']->query($sql);
+        $catTypeCache = $res->fetch_assoc();
+        $videoFound = false;
+        $audioFound = false;
+        if ($catTypeCache) {
+            // 3 means auto
+            if ($catTypeCache['manualSet'] == "0") {
+                // start incremental search and save
+                $sql = "SELECT * FROM `videos` WHERE categories_id = '" . $catId . "';";
+                $res = $global['mysqli']->query($sql);
+                //$tmpVid = $res->fetch_assoc();
+                if ($res) {
+                    while ($row = $res->fetch_assoc()) {
+                        if ($row['type'] == "audio") {
+                            // echo "found audio";
+                            $audioFound = true;
+                        } else if ($row['type'] == "video") {
+                            //echo "found video";
+                            $videoFound = true;
+                        }
+                    }
+                }
+                if (($videoFound == false) || ($audioFound == false)) {
+                    $sql = "SELECT parentId,categories_id FROM `categories` WHERE parentId = '" . $catId . "';";
+                    $res = $global['mysqli']->query($sql);
+                    if ($res) {
+                        //$tmpVid = $res->fetch_assoc();
+                        while ($row = mysql_fetch_assoc($res)) {
+                            $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = '" . $row['parentId'] . "';";
+                            $res = $global['mysqli']->query($sql);
+                            //$tmpVid2 = $res->fetch_assoc();
+                            while ($row = $res->fetch_assoc()) {
+                                if ($row['type'] == "audio") {
+                                    //  echo "found audio";
+                                    $audioFound = true;
+                                } else if ($row['type'] == "video") {
+                                    //echo "found video";
+                                    $videoFound = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                $sql = "UPDATE `category_type_cache` SET `type` = '";
+                if (($videoFound) && ($audioFound)) {
+                    $sql .= "0";
+                } else if ($audioFound) {
+                    $sql .= "1";
+                } else if ($videoFound) {
+                    $sql .= "2";
+                }
+                $sql .= "' WHERE `category_type_cache`.`categoryId` = '" . $catId . "';";
+                //echo $sql;
+                $global['mysqli']->query($sql);
+            }
+        } else {
+            // start incremental search and save - and a lot of this redundant stuff in a method.. 
+            $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = '" . $catId . "';";
+            $res = $global['mysqli']->query($sql);
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['type'] == "audio") {
+                        $audioFound = true;
+                    } else if ($row['type'] == "video") {
+                        $videoFound = true;
+                    }
+                }
+            }
+            if (($videoFound == false) || ($audioFound == false)) {
+                $sql = "SELECT type,parentId,categories_id FROM `categories` WHERE parentId = '" . $catId . "';";
+                $res = $global['mysqli']->query($sql);
+                if ($res) {
+                    while ($cat = $res->fetch_assoc()) {
+                        $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = '" . $cat['parentId'] . "';";
+                        $res = $global['mysqli']->query($sql);
+                        if ($res) {
+                            while ($row = $res->fetch_assoc()) {
+                                if ($row['type'] == "audio") {
+                                    $audioFound = true;
+                                } else if ($row['type'] == "video") {
+                                    $videoFound = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            $sql = "INSERT INTO `category_type_cache` (`categoryId`, `type`) VALUES ('" . $catId . "', '";
+            if (($videoFound) && ($audioFound)) {
+                $sql .= "0";
+            } else if ($audioFound) {
+                $sql .= "1";
+            } else if ($videoFound) {
+                $sql .= "2";
+            }
+            $sql .= "');";
+            $global['mysqli']->query($sql);
+        }
+    }
+
+    // i would like to simplify the big part of the method above in this method, but won't work as i want.
+    static function internalAutoset($catId, $videoFound, $audioFound) {
+        global $config;
+        if ($config->currentVersionLowerThen('5.01')) {
+            return false;
+        }
+        $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = '" . $catId . "';";
+        $res = $global['mysqli']->query($sql);
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                if ($row['type'] == "audio") {
+                    $audioFound = true;
+                } else if ($row['type'] == "video") {
+                    $videoFound = true;
+                }
+            }
+        }
+        if (($videoFound == false) || ($audioFound == false)) {
+            $sql = "SELECT type,parentId,categories_id FROM `categories` WHERE parentId = '" . $catId . "';";
+            $res = $global['mysqli']->query($sql);
+            if ($res) {
+                while ($cat = $res->fetch_assoc()) {
+                    $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = '" . $cat['parentId'] . "';";
+                    $res = $global['mysqli']->query($sql);
+                    if ($res) {
+                        while ($row = $res->fetch_assoc()) {
+                            if ($row['type'] == "audio") {
+                                $audioFound = true;
+                            } else if ($row['type'] == "video") {
+                                $videoFound = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return array($videoFound, audioFound);
+    }
+
+    
     function setClean_title($clean_title) {
         $clean_title = preg_replace('/[^0-9a-z]+/', '-', trim(strtolower(cleanString($clean_title))));
         $this->clean_title = $clean_title;
@@ -238,7 +393,7 @@ class Video {
     function getZoom() {
         return $this->zoom;
     }
-
+    
     static private function getUserGroupsCanSeeSQL() {
         global $global;
 
@@ -261,7 +416,11 @@ class Video {
     }
 
     static function getVideo($id = "", $status = "viewable", $ignoreGroup = false, $random = false, $suggetedOnly = false) {
-        global $global;
+        global $global, $config;
+        // there is no c.description 
+        if ($config->currentVersionLowerThen('5')) {
+            return false;
+        }
         $id = intval($id);
 
         $result = $global['mysqli']->query("SHOW TABLES LIKE 'likes'");
@@ -282,7 +441,7 @@ class Video {
                 . " nv.clean_title as next_clean_title,"
                 . " nv.filename as next_filename,"
                 . " nv.id as next_id,"
-                . " c.name as category,c.iconClass,  c.clean_name as clean_category, v.created as videoCreation, "
+                . " c.id as category_id,c.iconClass,c.name as category,c.iconClass,  c.clean_name as clean_category,c.description as category_description,c.nextVideoOrder as category_order, v.created as videoCreation, "
                 . " (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes, "
                 . " (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = -1 ) as dislikes, "
                 . " (SELECT count(id) FROM video_ads as va where va.videos_id = v.id) as videoAdsCount ";
@@ -301,10 +460,12 @@ class Video {
             $sql .= self::getUserGroupsCanSeeSQL();
         }
         if (!empty($_SESSION['type'])) {
-            $sql .= " AND v.type = '{$_SESSION['type']}' ";
+            if($_SESSION['type']=='video'){
+                $sql .= " AND (v.type = 'video' OR  v.type = 'embed')";
+            }else{            
+                $sql .= " AND v.type = '{$_SESSION['type']}' ";
+            }
         }
-
-
 
         if ($status == "viewable" || $status == "viewableNotAd" || $status == "viewableAdOnly") {
             $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus()) . "')";
@@ -326,7 +487,7 @@ class Video {
             $_POST['searchPhrase'] = $_GET['search'];
         }
 
-        $sql .= BootGrid::getSqlSearchFromPost(array('title', 'description', 'c.name'));
+        $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'));
 
         if (!empty($id)) {
             $sql .= " AND v.id = $id ";
@@ -355,7 +516,9 @@ class Video {
         if ($res) {
             require_once 'userGroups.php';
             $video = $res->fetch_assoc();
-            //$video['groups'] = UserGroups::getVideoGroups($video['id']);
+            if (!empty($video)) {
+                $video['groups'] = UserGroups::getVideoGroups($video['id']);
+            }
         } else {
             $video = false;
         }
@@ -380,7 +543,11 @@ class Video {
     }
 
     static function getVideoFromCleanTitle($clean_title) {
-        global $global;
+        // for some reason in some servers (CPanel) we got the error "Error while sending QUERY packet centos on a select"
+        // even increasing the max_allowed_packet it only goes away when close and reopen the connection
+        global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, $mysqlPort;
+        $global['mysqli']->close();
+        $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
 
         $sql = "SELECT id  FROM videos  WHERE clean_title = '{$clean_title}' LIMIT 1";
         //echo $sql;
@@ -404,8 +571,12 @@ class Video {
      * @return boolean
      */
     static function getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false) {
-        global $global;
-        $sql = "SELECT u.*, v.*, c.iconClass, c.name as category, c.clean_name as clean_category, v.created as videoCreation, v.modified as videoModified, "
+        global $global, $config;
+        // there is no c.description
+        if ($config->currentVersionLowerThen('5')) {
+            return false;
+        }
+        $sql = "SELECT u.*, v.*, c.iconClass, c.name as category, c.clean_name as clean_category,c.description as category_description, v.created as videoCreation, v.modified as videoModified, "
                 . " (SELECT count(id) FROM video_ads as va where va.videos_id = v.id) as videoAdsCount, "
                 . " (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes, "
                 . " (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = -1 ) as dislikes "
@@ -423,7 +594,11 @@ class Video {
             $sql .= self::getUserGroupsCanSeeSQL();
         }
         if (!empty($_SESSION['type'])) {
-            $sql .= " AND v.type = '{$_SESSION['type']}' ";
+            if($_SESSION['type']=='video'){
+                $sql .= " AND (v.type = 'video' OR  v.type = 'embed')";
+            }else{            
+                $sql .= " AND v.type = '{$_SESSION['type']}' ";
+            }
         }
 
         if ($status == "viewable" || $status == "viewableNotAd" || $status == "viewableAdOnly") {
@@ -446,17 +621,23 @@ class Video {
             $sql .= " AND c.clean_name = '{$_GET['catName']}'";
         }
 
+
+
         if (!empty($_GET['search'])) {
             $_POST['searchPhrase'] = $_GET['search'];
         }
-        
-        if(!empty($_GET['modified'])){
+
+        if (!empty($_GET['modified'])) {
             $_GET['modified'] = str_replace("'", "", $_GET['modified']);
             $sql .= " AND v.modified >= '{$_GET['modified']}'";
         }
 
-        $sql .= BootGrid::getSqlFromPost(array('title', 'description', 'c.name'), empty($_POST['sort']['likes']) ? "v." : "");
+        $sql .= BootGrid::getSqlFromPost(array('v.title', 'v.description', 'c.name', 'c.description'), empty($_POST['sort']['likes']) ? "v." : "");
 
+        if (!empty($_GET['limitOnceToOne'])) {
+            $sql .= " LIMIT 1";
+            unset($_GET['limitOnceToOne']);
+        }
         //echo $sql;
         $res = $global['mysqli']->query($sql);
         $videos = array();
@@ -520,7 +701,13 @@ class Video {
         if (!empty($_GET['catName'])) {
             $sql .= " AND cn = '{$_GET['catName']}'";
         }
-
+        if (!empty($_SESSION['type'])) {
+            if($_SESSION['type']=='video'){
+                $sql .= " AND (v.type = 'video' OR  v.type = 'embed')";
+            }else{            
+                $sql .= " AND v.type = '{$_SESSION['type']}' ";
+            }
+        }
         $sql .= BootGrid::getSqlSearchFromPost(array('title', 'description', 'c.name'));
         //echo $sql;exit;
         $res = $global['mysqli']->query($sql);
@@ -577,7 +764,7 @@ class Video {
 
         foreach (self::$types as $value) {
             $progressFilename = "{$global['systemRootPath']}videos/{$filename}_progress_{$value}.txt";
-            $content = @file_get_contents($progressFilename);
+            $content = @url_get_contents($progressFilename);
             $object->$value = new stdClass();
             if (!empty($content)) {
                 $object->$value = self::parseProgress($content);
@@ -675,31 +862,31 @@ class Video {
         } else {
             $this->removeFiles($video['filename']);
             $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
-            if(!empty($aws_s3)){
+            if (!empty($aws_s3)) {
                 $aws_s3->removeFiles($video['filename']);
             }
         }
         return $resp;
     }
-    
-    private function removeFiles($filename){
-        if(empty($filename)){
+
+    private function removeFiles($filename) {
+        if (empty($filename)) {
             return false;
         }
         global $global;
         $file = "{$global['systemRootPath']}videos/original_{$filename}";
         $this->removeFilePath($file);
-        
+
         $files = "{$global['systemRootPath']}videos/{$filename}";
         $this->removeFilePath($files);
     }
-    
-    private function removeFilePath($filePath){
-        if(empty($filePath)){
+
+    private function removeFilePath($filePath) {
+        if (empty($filePath)) {
             return false;
         }
         // Streamlined for less coding space.
-        $files = glob("{$filePath}.*");
+        $files = glob("{$filePath}*");
         foreach ($files as $file) {
             if (file_exists($file)) {
                 @unlink($file);
@@ -708,10 +895,14 @@ class Video {
     }
 
     function setDescription($description) {
-        $this->description = $description;
+        $this->description = strip_tags($description);
     }
 
     function setCategories_id($categories_id) {
+        // to update old cat as well when auto..
+        if (!empty($this->categories_id)) {
+            $this->old_categories_id = $this->categories_id;
+        }
         $this->categories_id = $categories_id;
     }
 
@@ -780,7 +971,7 @@ class Video {
         global $global;
         $source = self::getSourceFile($this->filename, $fileExtension, true);
         $file = $source['path'];
-        
+
         if (!empty($this->id) && $this->duration == "EE:EE:EE" && file_exists($file)) {
             $this->duration = Video::getDurationFromFile($file);
             error_log("Duration Updated: " . print_r($this, true));
@@ -987,6 +1178,9 @@ class Video {
         }
         if (empty($type) || $type === "category") {
             require_once 'category.php';
+            if (!empty($_POST['sort']['title'])) {
+                unset($_POST['sort']);
+            }
             $category = Category::getCategory($video->getCategories_id());
             $obj = new stdClass();
             $obj->label = __("Category");
@@ -1058,10 +1252,38 @@ class Video {
                 return false;
             }
         }
-        $sql = "SELECT * FROM videos WHERE id = {$videos_id} AND users_id = $users_id ";
+        
+        $video_owner = self::getOwner($videos_id);
+        if($video_owner){
+            if($video_owner == $users_id){
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * 
+     * @global type $global
+     * @param type $videos_id
+     * @param type $users_id if is empty will use the logged user
+     * @return boolean
+     */
+    static function getOwner($videos_id) {
+        global $global;
+        $sql = "SELECT users_id FROM videos WHERE id = {$videos_id} ";
         $sql .= " LIMIT 1";
         $res = $global['mysqli']->query($sql);
-        return !empty($res);
+        if ($res) {
+            require_once 'userGroups.php';
+            if ($row = $res->fetch_assoc()) {
+                return $row['users_id'];
+            }
+        } else {
+            $videos = false;
+            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+        return false;
     }
 
     /**
@@ -1144,7 +1366,7 @@ class Video {
     }
 
     function setTitle($title) {
-        $this->title = $title;
+        $this->title = strip_tags($title);
     }
 
     function setFilename($filename) {
@@ -1214,40 +1436,46 @@ class Video {
      * @param type $type
      * @return type .jpg .gif _thumbs.jpg _Low.mp4 _SD.mp4 _HD.mp4
      */
-    static function getSourceFile($filename, $type=".jpg", $includeS3 = false) {
+    static function getSourceFile($filename, $type = ".jpg", $includeS3 = false) {
         global $global;
         /*
-        $name = "getSourceFile_{$filename}{$type}_";
-        $cached = ObjectYPT::getCache($name, 86400);//one day
-        if(!empty($cached)){
-            return (array) $cached;
-        }
+          $name = "getSourceFile_{$filename}{$type}_";
+          $cached = ObjectYPT::getCache($name, 86400);//one day
+          if(!empty($cached)){
+          return (array) $cached;
+          }
          * 
          */
+        $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
+        if (!empty($aws_s3)) {
+            $aws_s3_obj = $aws_s3->getDataObject();
+            if (!empty($aws_s3_obj->useS3DirectLink)) {
+                $includeS3 = true;
+            }
+        }
         $source = array();
         $source['path'] = "{$global['systemRootPath']}videos/{$filename}{$type}";
         $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}{$type}";
-        /* need it because getDurationFromFile*/
-        if($includeS3 && ($type==".mp4" || $type==".webm")){
+        /* need it because getDurationFromFile */
+        if ($includeS3 && ($type == ".mp4" || $type == ".webm")) {
             if (!file_exists($source['path']) || filesize($source['path']) < 1024) {
-                $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
                 if (!empty($aws_s3)) {
                     $source = $aws_s3->getAddress("{$filename}{$type}");
                 }
             }
         }
-        
-        if(!file_exists($source['path'])){
-            if($type!="_thumbs.jpg"){
-                return array('path'=>false, 'url'=>false);
+
+        if (!file_exists($source['path'])) {
+            if ($type != "_thumbs.jpg" && $type != "_thumbsSmall.jpg") {
+                return array('path' => false, 'url' => false);
             }
         }
-        
+
         //ObjectYPT::setCache($name, $source);
         return $source;
     }
-    
-    static function getStoragePath(){
+
+    static function getStoragePath() {
         global $global;
         $path = "{$global['systemRootPath']}videos/";
         return $path;
@@ -1255,21 +1483,24 @@ class Video {
 
     static function getImageFromFilename($filename, $type = "video") {
         global $global;
+        $advancedCustom = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeAdvanced");
         /*
-        $name = "getImageFromFilename_{$filename}{$type}_";
-        $cached = ObjectYPT::getCache($name, 86400);//one day
-        if(!empty($cached)){
-            return $cached;
-        }
+          $name = "getImageFromFilename_{$filename}{$type}_";
+          $cached = ObjectYPT::getCache($name, 86400);//one day
+          if(!empty($cached)){
+          return $cached;
+          }
          * 
          */
         $obj = new stdClass();
         $gifSource = self::getSourceFile($filename, ".gif");
         $jpegSource = self::getSourceFile($filename, ".jpg");
-        $thumbsSource =  self::getSourceFile($filename, "_thumbs.jpg");
+        $thumbsSource = self::getSourceFile($filename, "_thumbs.jpg");
+        $thumbsSmallSource = self::getSourceFile($filename, "_thumbsSmall.jpg");
         $obj->poster = $jpegSource['url'];
         $obj->thumbsGif = $gifSource['url'];
         $obj->thumbsJpg = $thumbsSource['url'];
+        $obj->thumbsJpgSmall = $thumbsSmallSource['url'];
         if ($type !== "audio") {
             if (file_exists($gifSource['path'])) {
                 $obj->thumbsGif = $gifSource['url'];
@@ -1282,17 +1513,30 @@ class Video {
                     error_log("Resize JPG {$jpegSource['path']}, {$thumbsSource['path']}");
                     im_resize($jpegSource['path'], $thumbsSource['path'], 250, 140);
                 }
+                // create thumbs
+                if (!file_exists($thumbsSmallSource['path']) && filesize($jpegSource['path']) > 1024) {
+                    error_log("Resize Small JPG {$jpegSource['path']}, {$thumbsSmallSource['path']}");
+                    im_resize($jpegSource['path'], $thumbsSmallSource['path'], 250, 140, 5);
+                }
             } else {
                 $obj->poster = "{$global['webSiteRootURL']}view/img/notfound.jpg";
                 $obj->thumbsJpg = "{$global['webSiteRootURL']}view/img/notfound.jpg";
+                $obj->thumbsJpgSmall = "{$global['webSiteRootURL']}view/img/notfound.jpg";
             }
         } else {
             $obj->thumbsJpg = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+            $obj->thumbsJpgSmall = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
         }
-        if(empty($obj->thumbsJpg)){
+        if (empty($obj->thumbsJpg)) {
             $obj->thumbsJpg = $obj->poster;
         }
+        if (empty($obj->thumbsJpgSmall)) {
+            $obj->thumbsJpgSmall = $obj->poster;
+        }
         //ObjectYPT::setCache($name, $obj);
+        if (!empty($advancedCustom->disableAnimatedGif)) {
+            $obj->thumbsGif = false;
+        }
         return $obj;
     }
 
@@ -1305,9 +1549,10 @@ class Video {
 
         $sql = "SELECT * FROM videos WHERE id = {$videos_id} LIMIT 1";
         $res = $global['mysqli']->query($sql);
-
+        
         if ($res) {
             if ($row = $res->fetch_assoc()) {
+                
                 return $row['clean_title'];
             }
         } else {
@@ -1346,7 +1591,7 @@ class Video {
     static function getLinkToVideo($videos_id, $clean_title = "", $embed = false, $type = "URLFriendly") {
         global $global;
         if ($type == "URLFriendly") {
-            if (!empty($videos_id) && empty(empty($clean_title))) {
+            if (!empty($videos_id) && empty($clean_title)) {
                 $clean_title = self::get_clean_title($videos_id);
             }
             if ($embed) {
@@ -1355,7 +1600,7 @@ class Video {
                 return "{$global['webSiteRootURL']}video/{$clean_title}";
             }
         } else {
-            if (empty($videos_id) && !empty(empty($clean_title))) {
+            if (empty($videos_id) && !empty($clean_title)) {
                 $videos_id = self::get_id_from_clean_title($clean_title);
             }
             if ($embed) {
@@ -1391,6 +1636,61 @@ class Video {
         }
 
         return self::getLinkToVideo($videos_id, $clean_title, $embed, $type);
+    }
+
+    static function getTotalVideosThumbsUpFromUser($users_id, $startDate, $endDate) {
+        global $global;
+
+        $sql = "SELECT id from videos  WHERE users_id = {$users_id}  ";
+
+        $res = $global['mysqli']->query($sql);
+
+        $r = array('thumbsUp' => 0, 'thumbsDown' => 0);
+
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $sql = "SELECT id from likes WHERE videos_id = {$row['id']} AND `like` = 1  ";
+                if (!empty($startDate)) {
+                    $sql .= " AND `created` >= '{$startDate}' ";
+                }
+
+                if (!empty($endDate)) {
+                    $sql .= " AND `created` <= '{$endDate}' ";
+                }
+
+                $res2 = $global['mysqli']->query($sql);
+
+                $r['thumbsUp']+=$res2->num_rows;
+
+                $sql = "SELECT id from likes WHERE videos_id = {$row['id']} AND `like` = -1  ";
+                if (!empty($startDate)) {
+                    $sql .= " AND `created` >= '{$startDate}' ";
+                }
+
+                if (!empty($endDate)) {
+                    $sql .= " AND `created` <= '{$endDate}' ";
+                }
+                $res2 = $global['mysqli']->query($sql);
+                $r['thumbsDown']+=$res2->num_rows;
+            }
+        }
+
+        return $r;
+    }
+
+    static function deleteThumbs($filename) {
+        if (empty($filename)) {
+            return false;
+        }
+        global $global;
+        $filePath = "{$global['systemRootPath']}videos/{$filename}";
+        // Streamlined for less coding space.
+        $files = glob("{$filePath}_thumbs*.jpg");
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                @unlink($file);
+            }
+        }
     }
 
 }

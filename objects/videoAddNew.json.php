@@ -1,4 +1,5 @@
 <?php
+error_reporting(0);
 header('Content-Type: application/json');
 if (empty($global['systemRootPath'])) {
     $global['systemRootPath'] = '../';
@@ -12,12 +13,19 @@ if (!User::canUpload()) {
 $msg = "";
 $info = $infoObj = "";
 require_once 'video.php';
+
+if(!empty($_POST['id'])){
+    if(!Video::canEdit($_POST['id'])){
+        die('{"error":"'.__("Permission denied").'"}');
+    }
+}
+
 $obj = new Video($_POST['title'], "", @$_POST['id']);
 $obj->setClean_Title($_POST['clean_title']);
 if(!empty($_POST['videoLink'])){    
     //var_dump($config->getEncoderURL()."getLinkInfo/". base64_encode($_POST['videoLink']));exit;
     if(empty($_POST['id'])){
-        $info = file_get_contents($config->getEncoderURL()."getLinkInfo/". base64_encode($_POST['videoLink']));
+        $info = url_get_contents($config->getEncoderURL()."getLinkInfo/". base64_encode($_POST['videoLink']));
         $infoObj = json_decode($info);
         $filename = uniqid("_YPTuniqid_", true);
         $obj->setFilename($filename);

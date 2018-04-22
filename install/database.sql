@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `clean_name` VARCHAR(45) NOT NULL,
+  `description` TEXT NULL, 
+  `nextVideoOrder` INT(2) NOT NULL DEFAULT '0',
+  `parentId` INT NOT NULL DEFAULT '0',
   `created` DATETIME NOT NULL,
   `modified` DATETIME NOT NULL,
   `iconClass` VARCHAR(45) NOT NULL DEFAULT 'fa fa-folder',
@@ -98,7 +101,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `comments` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `comment` VARCHAR(255) NOT NULL,
+  `comment` TEXT NOT NULL,
   `videos_id` INT NOT NULL,
   `users_id` INT NOT NULL,
   `created` DATETIME NOT NULL,
@@ -154,15 +157,17 @@ CREATE TABLE IF NOT EXISTS `configurations` (
   `adsense` TEXT NULL,
   `mode` ENUM('Youtube', 'Gallery') NULL DEFAULT 'Youtube',
   `disable_analytics` TINYINT(1) NULL DEFAULT 0,
+  `disable_youtubeupload` TINYINT(1) NULL DEFAULT 0,
+  `allow_download` TINYINT(1) NULL DEFAULT 0,
   `session_timeout` INT NULL DEFAULT 3600,
   `autoplay` TINYINT(1) NULL,
   `theme` VARCHAR(45) NULL DEFAULT 'default',
   `smtp` TINYINT(1) NULL,
   `smtpAuth` TINYINT(1) NULL,
-  `smtpSecure` VARCHAR(45) NULL COMMENT '\'ssl\'; // secure transfer enabled REQUIRED for Gmail',
-  `smtpHost` VARCHAR(100) NULL COMMENT '\"smtp.gmail.com\"',
-  `smtpUsername` VARCHAR(45) NULL COMMENT '\"email@gmail.com\"',
-  `smtpPassword` VARCHAR(45) NULL,
+  `smtpSecure` VARCHAR(255) NULL COMMENT '\'ssl\'; // secure transfer enabled REQUIRED for Gmail',
+  `smtpHost` VARCHAR(255) NULL COMMENT '\"smtp.gmail.com\"',
+  `smtpUsername` VARCHAR(255) NULL COMMENT '\"email@gmail.com\"',
+  `smtpPassword` VARCHAR(255) NULL,
   `smtpPort` INT NULL,
   `encoderURL` VARCHAR(255) NULL,
   PRIMARY KEY (`id`),
@@ -373,6 +378,7 @@ CREATE TABLE IF NOT EXISTS `subscribes` (
   `modified` DATETIME NULL,
   `ip` VARCHAR(45) NULL,
   `users_id` INT NOT NULL DEFAULT 1 COMMENT 'subscribes to user channel',
+  `notify` TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   INDEX `fk_subscribes_users1_idx` (`users_id` ASC),
   CONSTRAINT `fk_subscribes_users1`
@@ -451,7 +457,6 @@ CREATE TABLE IF NOT EXISTS `comments_likes` (
   `like` INT(1) NOT NULL,
   `created` DATETIME NULL,
   `modified` DATETIME NULL,
-  `comments_likescol` VARCHAR(45) NULL,
   `users_id` INT NOT NULL,
   `comments_id` INT NOT NULL,
   PRIMARY KEY (`id`),
@@ -469,6 +474,19 @@ CREATE TABLE IF NOT EXISTS `comments_likes` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `category_type_cache`
+-- -----------------------------------------------------
+CREATE TABLE `category_type_cache` (
+  `categoryId` int(11) NOT NULL,
+  `type` int(2) NOT NULL COMMENT '0=both, 1=audio, 2=video' DEFAULT 0,
+  `manualSet` int(1) NOT NULL COMMENT '0=auto, 1=manual' DEFAULT 0
+    
+) ENGINE=InnoDB;
+
+ALTER TABLE `category_type_cache`
+  ADD UNIQUE KEY `categoryId` (`categoryId`);
+COMMIT;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

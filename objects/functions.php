@@ -294,7 +294,17 @@ function getSecondsTotalVideosLength() {
     $configFile = dirname(__FILE__) . '/../videos/configuration.php';
     require_once $configFile;
     global $global;
+    
+    if(!User::isLogged()){
+        return 0;
+    }
     $sql = "SELECT * FROM videos v ";
+    
+    if(!User::isAdmin()){
+        $id = User::getId();
+        $sql .= " WHERE users_id = {$id} ";
+    }
+    
     $res = $global['mysqli']->query($sql);
     $seconds = 0;
     while ($row = $res->fetch_assoc()) {
@@ -447,7 +457,23 @@ function parseVideos($videoString = null) {
 
         $id = $matches[2];
         return '//streamable.com/s/' . $id;
-    } else if (strpos($link, 'twitch.tv') !== FALSE) {
+    } else if (strpos($link, 'twitch.tv/videos') !== FALSE) {
+        //extract the ID
+        preg_match(
+                '/\/\/(www\.)?twitch.tv\/videos\/([a-zA-Z0-9_-]+)$/', $link, $matches
+        );
+
+        $id = $matches[2];
+        return '//player.twitch.tv/?video=' . $id . '#';
+    } else if (strpos($link, 'twitch.tv/videos') !== FALSE) {
+        //extract the ID
+        preg_match(
+                '/\/\/(www\.)?twitch.tv\/[a-zA-Z0-9_-]+\/v\/([a-zA-Z0-9_-]+)$/', $link, $matches
+        );
+
+        $id = $matches[2];
+        return '//player.twitch.tv/?video=' . $id . '#';
+    }else if (strpos($link, 'twitch.tv') !== FALSE) {
         //extract the ID
         preg_match(
                 '/\/\/(www\.)?twitch.tv\/([a-zA-Z0-9_-]+)$/', $link, $matches
@@ -455,7 +481,7 @@ function parseVideos($videoString = null) {
 
         $id = $matches[2];
         return '//player.twitch.tv/?channel=' . $id . '#';
-    } else if (strpos($link, '/video/') !== FALSE) {
+    }   else if (strpos($link, '/video/') !== FALSE) {
         //extract the ID
         preg_match(
                 '/(http.+)\/video\/([a-zA-Z0-9_-]+)($|\/)/i', $link, $matches
@@ -604,7 +630,7 @@ function getimgsize($file_src) {
     return $size;
 }
 
-function im_resize($file_src, $file_dest, $wd, $hd) {
+function im_resize($file_src, $file_dest, $wd, $hd, $q = 50) {
     if(empty($file_dest)){
         return false;
     }
@@ -678,9 +704,7 @@ function im_resize($file_src, $file_dest, $wd, $hd) {
 
     imagecopyresampled($dest, $src, 0, 0, ($ws - $wc) / 2, ($hs - $hc) / 2, $wd, $hd, $wc, $hc);
     $saved = false;
-    if (!isset($q))
-        $q = 100;
-    if ($destformat == '.png')
+   if ($destformat == '.png')
         $saved = imagepng($dest, $file_dest);
     if ($destformat == '.jpg')
         $saved = imagejpeg($dest, $file_dest, $q);
@@ -786,4 +810,56 @@ if (!function_exists('mime_content_type')) {
         }
     }
 
+}
+
+function combineFiles($filesArray, $extension = "js"){
+    global $global;
+    $cacheDir = $global['systemRootPath'] . 'videos/cache/';
+    if(!is_dir($cacheDir)){
+        mkdir($cacheDir, 0777, true);
+    }
+    $str = "";
+    $fileName = "";
+    foreach ($filesArray as $value) {
+        $fileName .= $value;
+    }    
+    $md5FileName = md5($fileName).".{$extension}";
+    if(!file_exists($cacheDir.$md5FileName)){
+        foreach ($filesArray as $value) {
+            $str .= "\n/*{$value}*/\n".url_get_contents($value);
+        }
+        file_put_contents($cacheDir.$md5FileName, $str);
+    }
+    return  $global['webSiteRootURL'] . 'videos/cache/'.$md5FileName;
+    
+}
+
+function url_get_contents ($Url) {
+        if (!function_exists('curl_init') || true){ 
+            return file_get_contents($Url);
+        }
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $Url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $output = curl_exec($ch);
+    curl_close($ch);
+    return $output;
+} 
+
+function getUpdatesFilesArray(){
+    global $config, $global;
+    if(!class_exists('User') || !User::isAdmin()){
+        return array();
+    }
+    $files1 = scandir($global['systemRootPath']."update");
+    $updateFiles = array();
+    foreach ($files1 as $value) {
+        preg_match("/updateDb.v([0-9.]*).sql/", $value, $match);
+        if (!empty($match)) {
+            if ($config->currentVersionLowerThen($match[1])) {
+                $updateFiles[] = array('filename' => $match[0], 'version' => $match[1]);
+            }
+        }
+    }
+    return $updateFiles;
 }

@@ -28,6 +28,9 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 
         <div class="container">
             <?php
+            include 'include/updateCheck.php';
+            ?>
+            <?php
             if (User::isAdmin()) {
                 ?>
                 <div class="row">
@@ -88,13 +91,13 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     $savedTheme = $config->getTheme();
                                                     if ($fileEx == $savedTheme) {
                                                         ?>
-                                                <script>
-                                                $(document).ready(function () {
-                                                    setTimeout(function () {
-                                                        $("#btn<?php echo ($fileEx); ?>").trigger("click");
-                                                    }, 1000);
-                                                });
-                                                </script>
+                                                        <script>
+                                                            $(document).ready(function () {
+                                                                setTimeout(function () {
+                                                                    $("#btn<?php echo ($fileEx); ?>").trigger("click");
+                                                                }, 1000);
+                                                            });
+                                                        </script>
                                                         <?php
                                                     }
                                                     ?>
@@ -170,31 +173,6 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                 <div class="alert alert-danger">
                                                     <span class="glyphicon glyphicon-unchecked"></span>
                                                     <strong>Your PHP version is <?php echo PHP_VERSION; ?>, you must install PHP 5.6.x or greater</strong>
-                                                </div>
-                                                <?php
-                                            }
-                                            ?>
-
-
-                                            <?php
-                                            if (modRewriteEnabled()) {
-                                                ?>
-                                                <div class="alert alert-success">
-                                                    <span class="glyphicon glyphicon-check"></span>
-                                                    <strong>Mod Rewrite module is Present</strong>
-                                                </div>
-                                                <?php
-                                            } else {
-                                                ?>
-                                                <div class="alert alert-danger">
-                                                    <span class="glyphicon glyphicon-unchecked"></span>
-                                                    <strong>Mod Rewrite is not enabled</strong>
-                                                    <details>
-                                                        In order to use mod_rewrite you can type the following command in the terminal:<br>
-                                                        <pre><code>a2enmod rewrite</code></pre><br>
-                                                        Restart apache2 after<br>
-                                                        <pre><code>/etc/init.d/apache2 restart</code></pre>
-                                                    </details>
                                                 </div>
                                                 <?php
                                             }
@@ -403,6 +381,12 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     <legend><?php echo __("Advanced configuration"); ?></legend>
 
                                                     <div class="form-group">
+                                                        <div class="col-md-12">
+                                                            <button class="btn btn-danger" id="clearCache"><i class="fa fa-trash"></i> <?php echo __("Clear Cache Directory"); ?></button>
+
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-group">
                                                         <label class="col-md-2"><?php echo __("Encoder URL"); ?></label>
                                                         <div class="col-md-10">
                                                             <input id="encoder_url" aria-describedby="encoder_urlHelp" class="form-control"  type="url" value="<?php echo $config->getEncoderURL(); ?>" >
@@ -434,6 +418,28 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                         </div>
                                                     </div>
 
+                                                    <div class="form-group">
+                                                        <label class="col-md-2"><?php echo __("Disable Youtube-Upload"); ?></label>
+                                                        <div class="col-md-10">
+                                                            <input data-toggle="toggle" type="checkbox" name="disable_youtubeupload" id="disable_youtubeupload" value="1" <?php
+                                                            if (!empty($config->getDisable_youtubeupload())) {
+                                                                echo "checked";
+                                                            }
+                                                            ?> >
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="col-md-2"><?php echo __("Disable right-click-prevention on video and allow downloading"); ?></label>
+                                                        <div class="col-md-10">
+                                                            <input data-toggle="toggle" type="checkbox" name="disable_rightclick" id="allow_download" value="1" <?php
+                                                            if (!empty($config->getAllow_download())) {
+                                                                echo "checked";
+                                                            }
+                                                            ?> aria-describedby="allow_downloadHelp">
+                                                            <small id="allow_downloadHelp" class="form-text text-muted"><?php echo __("This creates a download-button under your video, suggest you title.mp4 as download-name."); ?></small>
+                                                        </div>
+                                                    </div>
 
 
                                                     <div class="form-group">
@@ -578,6 +584,21 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                         $('#logo-btn').on('click', function (ev) {
                             $('#logo').trigger("click");
                         });
+                        $('#clearCache').on('click', function (ev) {
+                            ev.preventDefault();
+                            modal.showPleaseWait();
+                            $.ajax({
+                                url: '<?php echo $global['webSiteRootURL']; ?>objects/configurationClearCache.json.php',
+                                success: function (response) {
+                                    if (!response.error) {
+                                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your cache has been cleared!"); ?>", "success");
+                                    } else {
+                                        swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your cache has NOT been cleared!"); ?>", "error");
+                                    }
+                                    modal.hidePleaseWait();
+                                }
+                            });
+                        });
                         $('#logo-result-btn').on('click', function (ev) {
                             logoCrop.croppie('result', {
                                 type: 'canvas',
@@ -590,6 +611,8 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                         logoCrop = $('#croppieLogo').croppie({
                             url: '<?php echo $global['webSiteRootURL'], $config->getLogo(); ?>',
                             enableExif: true,
+                            enforceBoundary: false,
+                            mouseWheelZoom: false,
                             viewport: {
                                 width: 250,
                                 height: 70
@@ -599,6 +622,9 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                 height: 120
                             }
                         });
+                        setTimeout(function () {
+                            logoCrop.croppie('setZoom', 1);
+                        }, 1000);
                         // END croppie logo
                         // start croppie logoSmall
                         $('#logoSmall').on('change', function () {
@@ -619,6 +645,8 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                         logoSmallCrop = $('#croppieLogoSmall').croppie({
                             url: '<?php echo $global['webSiteRootURL'], $config->getLogo_small(); ?>',
                             enableExif: true,
+                            enforceBoundary: false,
+                            mouseWheelZoom: false,
                             viewport: {
                                 width: 32,
                                 height: 32
@@ -628,6 +656,10 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                 height: 60
                             }
                         });
+                        setTimeout(function () {
+                            logoSmallCrop.croppie('setZoom', 1);
+                        }, 1000);
+
 
                         // END croppie logoSmall
 
@@ -661,6 +693,8 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                             "adsense": $('#adsense').val(),
                                             "mode": $('#mode').val(),
                                             "disable_analytics": $('#disable_analytics').prop("checked"),
+                                            "disable_youtubeupload": $('#disable_youtubeupload').prop("checked"),
+                                            "allow_download": $("#allow_download").prop("checked"),
                                             "session_timeout": $('#session_timeout').val(),
                                             "autoplay": $('#autoplay').prop("checked"),
                                             "theme": theme,
@@ -672,7 +706,6 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                             "smtpPassword": $('#smtpPassword').val(),
                                             "smtpPort": $('#smtpPort').val(),
                                             "encoder_url": $('#encoder_url').val(),
-
                                         },
                                         type: 'post',
                                         success: function (response) {
@@ -699,7 +732,7 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                     .siblings('input').prop('checked', true)
                                     .siblings('.img-radio').css('opacity', '1');
                             var cssName = $(this).addClass('active').siblings('input').val();
-                            $("#theme").attr("href", "<?php echo $global['webSiteRootURL']?>css/custom/"+cssName+".css");
+                            $("#theme").attr("href", "<?php echo $global['webSiteRootURL'] ?>css/custom/" + cssName + ".css");
                             $('.btn-radio').parent("div").removeClass('bg-success');
                             $(this).addClass('active').parent("div").addClass("bg-success");
                             theme = cssName;

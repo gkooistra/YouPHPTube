@@ -1,7 +1,6 @@
 /nbproject/private/
 /videos/
 /nbproject/
-/docker/
 /plugin/LiveOnlineUsers/
 /plugin/LiveUsers/
 /plugin/VideoResolutionSwitcher/
@@ -12,6 +11,7 @@
 /plugin/Customize/
 /plugin/VideoThumbnails/
 /plugin/MP4ThumbsAndGif/
+/plugin/MP4ThumbsAndGifLocal/
 /plugin/VideoLogoOverlay/
 /plugin/FloatVideo/
 /plugin/ShareSocialButtonsOnEmbed/
@@ -26,3 +26,9 @@
 /plugin/CountryRedirect/
 /plugin/SubtitleSwitcher/
 /plugin/AWS_S3/
+/plugin/SignUpAgreement/
+/plugin/PromoteVideos/
+/plugin/Livesearch/
+/plugin/AudioVisualizer/
+/plugin/Notifications/
+/plugin/DIY/
