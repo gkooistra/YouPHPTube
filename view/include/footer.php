@@ -10,13 +10,7 @@
         ?>
         <ul class="list-inline">
             <li>
-                Powered by <a href="http://www.youphptube.com" class="external btn btn-outline btn-primary btn-xs" target="_blank">YouPHPTube v<?php echo $config->getVersion(); ?></a>
-            </li>
-            <li>
-                <a href="https://www.facebook.com/mediasharingtube/" class="external btn btn-outline btn-primary btn-xs" target="_blank"><span class="sr-only">Facebook</span><i class="fa fa-fw fa-facebook"></i></a>
-            </li>
-            <li>
-                <a href="https://plus.google.com/u/0/113820501552689289262" class="external btn btn-outline btn-primary btn-xs" target="_blank"><span class="sr-only">Google Plus</span><i class="fa fa-fw fa-google-plus"></i></a>
+                Part of <a href="http://www.incotech.online." class="external btn btn-outline btn-primary btn-xs" target="_blank">INCOTECH</a>
             </li>
         </ul>
         <?php
