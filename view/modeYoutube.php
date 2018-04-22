@@ -5,10 +5,10 @@ if (!file_exists('../videos/configuration.php')) {
     }
     header("Location: install/index.php");
 }
-
 require_once '../videos/configuration.php';
 session_write_close();
 require_once $global['systemRootPath'] . 'objects/user.php';
+require_once $global['systemRootPath'] . 'objects/category.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 
@@ -19,37 +19,53 @@ $imgh = 720;
 if (!empty($_GET['type'])) {
     if ($_GET['type'] == 'audio') {
         $_SESSION['type'] = 'audio';
-    } else if ($_GET['type'] == 'video') {
-        $_SESSION['type'] = 'video';
-    } else {
+    }
+    else
+        if ($_GET['type'] == 'video') {
+            $_SESSION['type'] = 'video';
+        }
+    else {
         $_SESSION['type'] = "";
         unset($_SESSION['type']);
     }
+} else {
+     unset($_SESSION['type']);
 }
 
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/video_ad.php';
+
 $catLink = "";
 if (!empty($_GET['catName'])) {
     $catLink = "cat/{$_GET['catName']}/";
 }
 
-$video = Video::getVideo("", "viewableNotAd", false, false, true) ;
-if(empty($video)){
-    $video = Video::getVideo("", "viewableNotAd") ;
+$video = Video::getVideo("", "viewableNotAd", false, false, true);
+
+if (empty($video)) {
+    $video = Video::getVideo("", "viewableNotAd");
 }
+
 if (empty($_GET['videoName'])) {
     $_GET['videoName'] = $video['clean_title'];
 }
+
 $obj = new Video("", "", $video['id']);
-//$resp = $obj->addView();
+
+if(empty($_SESSION['type'])){
+    $_SESSION['type'] = $video['type'];
+}
+// $resp = $obj->addView();
+
 if (!empty($_GET['playlist_id'])) {
     $playlist_id = $_GET['playlist_id'];
     if (!empty($_GET['playlist_index'])) {
         $playlist_index = $_GET['playlist_index'];
-    } else {
+    }
+    else {
         $playlist_index = 0;
     }
+    
     $videosArrayId = PlayList::getVideosIdFromPlaylist($_GET['playlist_id']);
     $videosPlayList = Video::getAllVideos("viewableNotAd");
     $videosPlayList = PlayList::sortVideos($videosPlayList, $videosArrayId);
@@ -58,13 +74,40 @@ if (!empty($_GET['playlist_id'])) {
         $autoPlayVideo = Video::getVideo($videosPlayList[$playlist_index + 1]['id']);
         $autoPlayVideo['url'] = $global['webSiteRootURL'] . "playlist/{$playlist_id}/" . ($playlist_index + 1);
     }
+    
     unset($_GET['playlist_id']);
-} else {
+}
+else {
     if (!empty($video['next_videos_id'])) {
         $autoPlayVideo = Video::getVideo($video['next_videos_id']);
-    } else {
-        $autoPlayVideo = Video::getRandom($video['id']);
     }
+    else {
+        if ($video['category_order'] == 1) {
+            unset($_POST['sort']);
+            $category = Category::getAllCategories();
+            $_POST['sort']['title'] = "ASC";
+            
+            // maybe there's a more slim method?
+            $videos = Video::getAllVideos();
+            $videoFound = false;
+            $autoPlayVideo;
+            foreach($videos as $value) {
+                if ($videoFound) {
+                    $autoPlayVideo = $value;
+                    break;
+                }
+                
+                if ($value['id'] == $video['id']) {       
+                    // if the video is found, make another round to have the next video properly.      
+                    $videoFound = true;
+                }
+            }
+        }
+        else {
+            $autoPlayVideo = Video::getRandom($video['id']);
+        }
+    }
+    
     if (!empty($autoPlayVideo)) {
         $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']);
         $autoPlayVideo['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($autoPlayVideo['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName"><strong>' . $name2 . '</strong> <small>' . humanTiming(strtotime($autoPlayVideo['videoCreation'])) . '</small></div></div>';
@@ -78,16 +121,18 @@ if (!empty($video)) {
     $name = User::getNameIdentificationById($video['users_id']);
     $name = "<a href='{$global['webSiteRootURL']}channel/{$video['users_id']}/' class='btn btn-xs btn-default'>{$name}</a>";
     $subscribe = Subscribe::getButton($video['users_id']);
-
-    $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br>' . $subscribe . '<br><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
+    $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
     $obj = new Video("", "", $video['id']);
+    
     // dont need because have one embeded video on this page
-    //$resp = $obj->addView();
+    // $resp = $obj->addView();
+    
 }
 
 if ($video['type'] !== "audio") {
     $poster = "{$global['webSiteRootURL']}videos/{$video['filename']}.jpg";
-} else {
+}
+else {
     $poster = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
 }
 
@@ -98,19 +143,20 @@ if (!empty($video)) {
         $data = getimgsize($source['path']);
         $imgw = $data[0];
         $imgh = $data[1];
-    } else {
+    }
+    else {
         $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
     }
 }
+
+$advancedCustom = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeAdvanced");
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php
+echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo $video['title']; ?> - <?php echo $config->getWebSiteTitle(); ?></title>
-        <meta name="generator" content="YouPHPTube - A Free Youtube Clone Script" />
-        <?php
-        include $global['systemRootPath'] . 'view/include/head.php';
-        ?>
+        <?php include $global['systemRootPath'] . 'view/include/head.php'; ?>
         <link rel="image_src" href="<?php echo $img; ?>" />
         <link href="<?php echo $global['webSiteRootURL']; ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
@@ -126,24 +172,39 @@ if (!empty($video)) {
         <meta property="og:image"              content="<?php echo $img; ?>" />
         <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
         <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
-
         <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
         <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
     </head>
 
     <body>
-        <?php
-        include 'include/navbar.php';
-        ?>
+        <?php include 'include/navbar.php'; ?>
         <div class="container-fluid principalContainer" itemscope itemtype="http://schema.org/VideoObject">
-            <?php
+            <?php 
             if (!empty($video)) {
                 if (empty($video['type'])) {
                     $video['type'] = "video";
                 }
-                require "{$global['systemRootPath']}view/include/{$video['type']}.php";
-                $img_portrait = ($video['rotation'] === "90" || $video['rotation'] === "270") ? "img-portrait" : "";
-                ?>
+            $img_portrait = ($video['rotation'] === "90" || $video['rotation'] === "270") ? "img-portrait" : "";
+            if (!empty($advancedCustom->showAdsenseBannerOnTop)) {
+            ?>
+            <style>
+                .compress {
+                    top: 100px !important;
+                }
+            </style>
+            <div class="row">
+                <div class="col-lg-12 col-sm-12 col-xs-12">
+                    <center style="margin:5px;">
+                    <?php
+		                  echo $config->getAdsense();
+                        ?>
+                    </center>
+                </div>
+            </div>
+            <?php
+	           }
+            require "{$global['systemRootPath']}view/include/{$video['type']}.php";
+            ?>
                 <div class="row">
                     <div class="col-sm-1 col-md-1"></div>
                     <div class="col-sm-6 col-md-6">
@@ -160,25 +221,31 @@ if (!empty($video)) {
                                 </div>
                                 <div class="col-xs-8 col-sm-8 col-md-8">
                                     <h1 itemprop="name">
-                                        <?php echo $video['title']; ?>
-                                        <small>
+                                        <?php
+	                                       echo $video['title'];
+	                                       if (Video::canEdit($video['id'])) {
+                                        ?>
+                                                <a href="<?php echo $global['webSiteRootURL']; ?>mvideos?video_id=<?php echo $video['id']; ?>" class="btn btn-primary btn-xs" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>"><i class="fa fa-edit"></i> <?php echo __("Edit Video"); ?></a>
+                                            <?php } ?>
+                                            <small>
                                             <?php
-                                            if (!empty($video['id'])) {
-                                                $video['tags'] = Video::getTags($video['id']);
-                                            } else {
-                                                $video['tags'] = array();
-                                            }
-                                            foreach ($video['tags'] as $value) {
-                                                if ($value->label === __("Group")) {
-                                                    ?>
+	                                           if (!empty($video['id'])) {
+		                                          $video['tags'] = Video::getTags($video['id']);
+	                                           } else {
+		                                          $video['tags'] = array();
+	                                           }
+	                                           foreach($video['tags'] as $value) {
+		                                          if ($value->label === __("Group")) { ?>
                                                     <span class="label label-<?php echo $value->type; ?>"><?php echo $value->text; ?></span>
                                                     <?php
-                                                }
-                                            }
-                                            ?>
-                                        </small>
+		                                          }
+	                                           }
+                                                ?>
+                                            </small>
                                     </h1>
-                                    <div class="col-xs-12 col-sm-12 col-md-12"><?php echo $video['creator']; ?></div>
+                                    <div class="col-xs-12 col-sm-12 col-md-12">
+                                        <?php echo $video['creator']; ?>
+                                    </div>
                                     <span class="watch-view-count pull-right text-muted" itemprop="interactionCount"><span class="view-count<?php echo $video['id']; ?>"><?php echo number_format($video['views_count'], 0); ?></span> <?php echo __("Views"); ?></span>
                                 </div>
                             </div>
@@ -189,18 +256,15 @@ if (!empty($video)) {
                                         <span class="fa fa-plus"></span> <?php echo __("Add to"); ?>
                                     </button>
                                     <div class="webui-popover-content">
-                                        <?php
-                                        if (User::isLogged()) {
-                                            ?>
+                                        <?php if (User::isLogged()) { ?>
                                             <form role="form">
                                                 <div class="form-group">
                                                     <input class="form-control" id="searchinput" type="search" placeholder="Search..." />
                                                 </div>
                                                 <div id="searchlist" class="list-group">
-
                                                 </div>
                                             </form>
-                                            <div >
+                                            <div>
                                                 <hr>
                                                 <div class="form-group">
                                                     <input id="playListName" class="form-control" placeholder="<?php echo __("Create a New Play List"); ?>"  >
@@ -216,9 +280,7 @@ if (!empty($video)) {
                                                     <button class="btn btn-success btn-block" id="addPlayList" ><?php echo __("Create a New Play List"); ?></button>
                                                 </div>
                                             </div>
-                                            <?php
-                                        } else {
-                                            ?>
+                                            <?php } else { ?>
                                             <h5>Want to watch this again later?</h5>
 
                                             Sign in to add this video to a playlist.
@@ -227,9 +289,7 @@ if (!empty($video)) {
                                                 <span class="glyphicon glyphicon-log-in"></span>
                                                 <?php echo __("Login"); ?>
                                             </a>
-                                            <?php
-                                        }
-                                        ?>
+                                            <?php } ?>
                                     </div>
                                     <script>
                                         function loadPlayLists() {
@@ -241,7 +301,6 @@ if (!empty($video)) {
                                                         if (!response[i].id) {
                                                             continue;
                                                         }
-                                                        console.log(response[i]);
                                                         var icon = "lock"
                                                         if (response[i].status == "public") {
                                                             icon = "globe"
@@ -250,16 +309,16 @@ if (!empty($video)) {
                                                         var checked = "";
                                                         for (var x in response[i].videos) {
                                                             if (
-                                                                    typeof(response[i].videos[x]) === 'object' 
+                                                                    typeof (response[i].videos[x]) === 'object'
                                                                     && response[i].videos[x].videos_id ==<?php echo $video['id']; ?>) {
                                                                 checked = "checked";
                                                             }
                                                         }
 
-                                                        $("#searchlist").append('<a class="list-group-item"><i class="fa fa-' + icon + '"></i> <span>' 
-                                                                + response[i].name + '</span><div class="material-switch pull-right"><input id="someSwitchOptionDefault' 
-                                                                + response[i].id + '" name="someSwitchOption' + response[i].id + '" class="playListsIds" type="checkbox" value="' 
-                                                                + response[i].id + '" ' + checked + '/><label for="someSwitchOptionDefault' 
+                                                        $("#searchlist").append('<a class="list-group-item"><i class="fa fa-' + icon + '"></i> <span>'
+                                                                + response[i].name + '</span><div class="material-switch pull-right"><input id="someSwitchOptionDefault'
+                                                                + response[i].id + '" name="someSwitchOption' + response[i].id + '" class="playListsIds" type="checkbox" value="'
+                                                                + response[i].id + '" ' + checked + '/><label for="someSwitchOptionDefault'
                                                                 + response[i].id + '" class="label-success"></label></div></a>');
                                                     }
                                                     $('#searchlist').btsListFilter('#searchinput', {itemChild: 'span'});
@@ -274,7 +333,6 @@ if (!empty($video)) {
                                                                 'playlists_id': $(this).val()
                                                             },
                                                             success: function (response) {
-                                                                console.log(response);
                                                                 modal.hidePleaseWait();
                                                             }
                                                         });
@@ -315,31 +373,17 @@ if (!empty($video)) {
                                     <a href="#" class="btn btn-default no-outline" id="shareBtn">
                                         <span class="fa fa-share"></span> <?php echo __("Share"); ?>
                                     </a>                                    
-                                    <?php
-                                    echo YouPHPTubePlugin::getWatchActionButton();
-                                    ?>                                    
-                                    <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == -1) ? "myVote" : "" ?>" id="dislikeBtn"
-                                    <?php
-                                    if (!User::isLogged()) {
-                                        ?>
-                                           data-toggle="tooltip" title="<?php echo __("Don´t like this video? Sign in to make your opinion count."); ?>"
-                                       <?php } ?>>
+                                    <?php echo YouPHPTubePlugin::getWatchActionButton(); ?>                                    
+                                    <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == - 1) ? "myVote" : "" ?>" id="dislikeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("DonÂ´t like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
                                         <span class="fa fa-thumbs-down"></span> <small><?php echo $video['dislikes']; ?></small>
                                     </a>			
-                                    <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == 1) ? "myVote" : "" ?>" id="likeBtn"
-                                    <?php
-                                    if (!User::isLogged()) {
-                                        ?>
-                                           data-toggle="tooltip" title="<?php echo __("Like this video? Sign in to make your opinion count."); ?>"
-                                       <?php } ?>>
-                                        <span class="fa fa-thumbs-up"></span> <small><?php echo $video['likes']; ?></small>
+                                    <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == 1) ? "myVote" : "" ?>" id="likeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("Like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
+                                        <span class="fa fa-thumbs-up"></span>
+                                        <small><?php echo $video['likes']; ?></small>
                                     </a>
                                     <script>
                                         $(document).ready(function () {
-
-    <?php
-    if (User::isLogged()) {
-        ?>
+                                            <?php if (User::isLogged()) { ?>
                                                 $("#dislikeBtn, #likeBtn").click(function () {
                                                     $.ajax({
                                                         url: '<?php echo $global['webSiteRootURL']; ?>' + ($(this).attr("id") == "dislikeBtn" ? "dislike" : "like"),
@@ -358,19 +402,13 @@ if (!empty($video)) {
                                                     });
                                                     return false;
                                                 });
-        <?php
-    } else {
-        ?>
+                                                <?php } else { ?>
                                                 $("#dislikeBtn, #likeBtn").click(function () {
-
                                                     $(this).tooltip("show");
                                                     return false;
                                                 });
-        <?php
-    }
-    ?>
-
-                                        });
+                                                <?php } ?>
+                                            });
                                     </script>
                                 </div>
                             </div>
@@ -407,33 +445,32 @@ if (!empty($video)) {
                                     </ul>
                                     <div class="tab-content clearfix">
                                         <div class="tab-pane active" id="tabShare">
-                                            <?php
-                                            $url = urlencode($global['webSiteRootURL'] . "{$catLink}video/" . $video['clean_title']);
-                                            $title = urlencode($video['title']);
-                                            include './include/social.php';
+                                            <?php 
+                                                    $url = urlencode($global['webSiteRootURL'] . "{$catLink}video/" . $video['clean_title']);
+                                                    $title = urlencode($video['title']);
+	                                                include './include/social.php';
+
                                             ?>
                                         </div>
                                         <div class="tab-pane" id="tabEmbed">
                                             <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?>:</h4>
-                                            <textarea class="form-control" style="min-width: 100%" rows="5"><?php
+                                            <textarea class="form-control" style="min-width: 100%" rows="5">
+                                                <?php
                                                 if ($video['type'] == 'video' || $video['type'] == 'embed') {
-                                                    $code = '<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="' .Video::getLink($video['id'], $video['clean_title'], true) . '" frameborder="0" allowfullscreen="allowfullscreen" class="YouPHPTubeIframe"></iframe>';
-                                                } else {
+                                                    $code = '<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="' . Video::getLink($video['id'], $video['clean_title'], true) . '" frameborder="0" allowfullscreen="allowfullscreen" class="YouPHPTubeIframe"></iframe>';
+                                                }
+                                                else {
                                                     $code = '<iframe width="350" height="40" style="max-width: 100%;max-height: 100%;" src="' . Video::getLink($video['id'], $video['clean_title'], true) . '" frameborder="0" allowfullscreen="allowfullscreen" class="YouPHPTubeIframe"></iframe>';
                                                 }
-                                                echo htmlentities($code);
-                                                ?></textarea>
+	                                            echo htmlentities($code); ?>
+                                            </textarea>
                                         </div>
                                         <div class="tab-pane" id="tabEmail">
-                                            <?php
-                                            if (!User::isLogged()) {
-                                                ?>
+                                            <?php if (!User::isLogged()) { ?>
                                                 <strong>
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>user"><?php echo __("Sign in now!"); ?></a>
                                                 </strong>
-                                                <?php
-                                            } else {
-                                                ?>
+                                                <?php } else { ?>
                                                 <form class="well form-horizontal" action="<?php echo $global['webSiteRootURL']; ?>sendEmail" method="post"  id="contact_form">
                                                     <fieldset>
                                                         <!-- Text input-->
@@ -458,8 +495,6 @@ if (!empty($video)) {
                                                                 </div>
                                                             </div>
                                                         </div>
-
-
                                                         <div class="form-group">
                                                             <label class="col-md-4 control-label"><?php echo __("Type the code"); ?></label>
                                                             <div class="col-md-8 inputGroupContainer">
@@ -507,11 +542,9 @@ if (!empty($video)) {
                                                         });
                                                     });
                                                 </script>
-                                                <?php
-                                            }
-                                            ?>
+                                                <?php } ?>
                                         </div>
-                                        
+
                                         <div class="tab-pane" id="tabPermaLink">
                                             <input value="<?php echo Video::getPermaLink($video['id']); ?>" class="form-control" readonly="readonly"/>
                                         </div>
@@ -524,8 +557,6 @@ if (!empty($video)) {
                                 <div class="col-xs-12 col-sm-12 col-lg-12">
                                     <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Category"); ?>:</strong></div>
                                     <div class="col-xs-8 col-sm-10 col-lg-10"><a class="btn btn-xs btn-default"  href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $video['clean_category']; ?>"><span class="<?php echo $video['iconClass']; ?>"></span> <?php echo $video['category']; ?></a></div>
-
-
                                     <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
                                     <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description"><?php echo nl2br(textToLink($video['description'])); ?></div>
                                 </div>
@@ -542,16 +573,14 @@ if (!empty($video)) {
                             });
                         </script>
                         <div class="row bgWhite list-group-item">
-                            <?php
-                                include './videoComments.php';
-                            ?>
+                            <?php include './videoComments.php'; ?>
                         </div>
                     </div>
                     <div class="col-sm-4 col-md-4 bgWhite list-group-item rightBar">
                         <?php
-                        if (!empty($playlist_id)) {
-                            include './include/playlist.php';
-                            ?>
+	                       if (!empty($playlist_id)) {
+		                      include './include/playlist.php';
+                        ?>
                             <script>
                                 $(document).ready(function () {
                                     Cookies.set('autoplay', true, {
@@ -560,22 +589,23 @@ if (!empty($video)) {
                                     });
                                 });
                             </script>
-
                             <?php
-                        } else if (!empty($autoPlayVideo)) {
-                            ?>
-                            <div class="col-lg-12 col-sm-12 col-xs-12 autoplay text-muted" style="display: none;">
-                                <strong>
-                                    <?php
-                                    echo __("Up Next");
-                                    ?>
-                                </strong>
+                           } else if (empty($autoPlayVideo)) { ?>
+                                <div class="col-lg-12 col-sm-12 col-xs-12 autoplay text-muted" >
+                                    <strong><?php echo __("Autoplay ended"); ?></strong>
                                 <span class="pull-right">
-                                    <span>
-                                        <?php
-                                        echo __("Autoplay");
-                                        ?>
-                                    </span>
+                                    <span><?php echo __("Autoplay"); ?></span>
+                                <span>
+                                    <i class="fa fa-info-circle" data-toggle="tooltip" data-placement="bottom"  title="<?php echo __("When autoplay is enabled, a suggested video will automatically play next."); ?>"></i>
+                                </span>
+                                <input type="checkbox" data-toggle="toggle" data-size="mini" class="saveCookie" name="autoplay">
+                                </span>
+                            </div>
+                            <?php } else if (!empty($autoPlayVideo)) { ?>
+                            <div class="col-lg-12 col-sm-12 col-xs-12 autoplay text-muted" style="display: none;">
+                                <strong><?php echo __("Up Next"); ?></strong>
+                                <span class="pull-right">
+                                    <span><?php echo __("Autoplay"); ?></span>
                                     <span>
                                         <i class="fa fa-info-circle" data-toggle="tooltip" data-placement="bottom"  title="<?php echo __("When autoplay is enabled, a suggested video will automatically play next."); ?>"></i>
                                     </span>
@@ -583,32 +613,30 @@ if (!empty($video)) {
                                 </span>
                             </div>
                             <div class="col-lg-12 col-sm-12 col-xs-12 bottom-border autoPlayVideo" itemscope itemtype="http://schema.org/VideoObject" style="display: none;" >
-                                <a href="<?php echo $global['webSiteRootURL'], $catLink; ?>video/<?php echo $autoPlayVideo['clean_title']; ?>" title="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" class="videoLink">
+                                <a href="<?php echo $global['webSiteRootURL'], $catLink; ?>video/<?php echo $autoPlayVideo['clean_title']; ?>" title="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" class="videoLink h6">
                                     <div class="col-lg-5 col-sm-5 col-xs-5 nopadding thumbsImage">
-                                        <?php
-                                        $imgGif = "";
-                                        if (file_exists("{$global['systemRootPath']}videos/{$autoPlayVideo['filename']}.gif")) {
-                                            $imgGif = "{$global['webSiteRootURL']}videos/{$autoPlayVideo['filename']}.gif";
-                                        }
-                                        if ($autoPlayVideo['type'] !== "audio") {
-                                            $img = "{$global['webSiteRootURL']}videos/{$autoPlayVideo['filename']}.jpg";
-                                            $img_portrait = ($autoPlayVideo['rotation'] === "90" || $autoPlayVideo['rotation'] === "270") ? "img-portrait" : "";
-                                        } else {
-                                            $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
-                                            $img_portrait = "";
-                                        }
+                                        <?php 
+                                            $imgGif = "";
+		                                    if (file_exists("{$global['systemRootPath']}videos/{$autoPlayVideo['filename']}.gif")) {
+			                                     $imgGif = "{$global['webSiteRootURL']}videos/{$autoPlayVideo['filename']}.gif";
+		                                    }
+                                            if ($autoPlayVideo['type'] !== "audio") {
+                                                $img = "{$global['webSiteRootURL']}videos/{$autoPlayVideo['filename']}.jpg";
+                                                $img_portrait = ($autoPlayVideo['rotation'] === "90" || $autoPlayVideo['rotation'] === "270") ? "img-portrait" : "";
+                                            }
+                                            else {
+                                                $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+                                                $img_portrait = "";
+                                            }
                                         ?>
                                         <img src="<?php echo $img; ?>" alt="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" class="img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $autoPlayVideo['rotation']; ?>" height="130" itemprop="thumbnail" />
-                                        <?php
-                                        if (!empty($imgGif)) {
-                                            ?>
-                                            <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" id="thumbsGIF<?php echo $autoPlayVideo['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $autoPlayVideo['rotation']; ?>" height="130" />
+                                        <?php if (!empty($imgGif)) { ?>
+                                        <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" id="thumbsGIF<?php echo $autoPlayVideo['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $autoPlayVideo['rotation']; ?>" height="130" />
                                         <?php } ?>
                                         <meta itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
                                         <meta itemprop="contentURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title']); ?>" />
                                         <meta itemprop="embedURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], true); ?>" />
                                         <meta itemprop="uploadDate" content="<?php echo $autoPlayVideo['created']; ?>" />
-
                                         <time class="duration" itemprop="duration" datetime="<?php echo Video::getItemPropDuration($autoPlayVideo['duration']); ?>"><?php echo Video::getCleanDuration($autoPlayVideo['duration']); ?></time>
                                     </div>
                                     <div class="col-lg-7 col-sm-7 col-xs-7 videosDetails">
@@ -624,35 +652,28 @@ if (!empty($video)) {
                                                 <?php echo __("Views"); ?>
                                             </div>
                                             <div><?php echo $autoPlayVideo['creator']; ?></div>
-
                                         </div>
                                         <div class="row">
-                                            <?php
+                                            <?php 
                                             if (!empty($autoPlayVideo['tags'])) {
-                                                foreach ($autoPlayVideo['tags'] as $autoPlayVideo2) {
-                                                    if ($autoPlayVideo2->label === __("Group")) {
-                                                        ?>
-                                                        <span class="label label-<?php echo $autoPlayVideo2->type; ?>"><?php echo $autoPlayVideo2->text; ?></span>
-                                                        <?php
-                                                    }
-                                                }
-                                            }
+			                                     foreach($autoPlayVideo['tags'] as $autoPlayVideo2) {
+				                                    if ($autoPlayVideo2->label === __("Group")) {
                                             ?>
+                                                        <span class="label label-<?php echo $autoPlayVideo2->type; ?>"><?php echo $autoPlayVideo2->text; ?></span>
+                                            <?php }
+                                                 }
+                                            } ?>
                                         </div>
                                     </div>
                                 </a>
                             </div>
                             <?php
-                        }
-                        ?>
-                        <div class="col-lg-12 col-sm-12 col-xs-12">
-                            <?php
-                            echo $config->getAdsense();
-                            ?>
-                        </div>
-                        <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding">
-
-                        </div>
+                           } if (!empty($advancedCustom->showAdsenseBannerOnLeft)) { ?>
+                            <div class="col-lg-12 col-sm-12 col-xs-12">
+                                <?php echo $config->getAdsense(); ?>
+                            </div>
+                            <?php } ?>
+                        <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
                         <!-- videos List -->
                         <div id="videosList">
                             <?php include './videosList.php'; ?>
@@ -662,19 +683,14 @@ if (!empty($video)) {
                         <script>
                             var fading = false;
                             $(document).ready(function () {
-
                                 $("input.saveCookie").each(function () {
                                     var mycookie = Cookies.get($(this).attr('name'));
-                                    console.log($(this).attr('name'));
-                                    console.log(mycookie);
                                     if (mycookie && mycookie == "true") {
                                         $(this).prop('checked', mycookie);
                                         $('.autoPlayVideo').slideDown();
                                     }
                                 });
                                 $("input.saveCookie").change(function () {
-                                    console.log($(this).attr('name'));
-                                    console.log($(this).prop('checked'));
                                     var auto = $(this).prop('checked');
                                     if (auto) {
                                         $('.autoPlayVideo').slideDown();
@@ -689,21 +705,16 @@ if (!empty($video)) {
                                 setTimeout(function () {
                                     $('.autoplay').slideDown();
                                 }, 1000);
-                                // Total Itens <?php echo $total; ?>
-
                             });
                         </script>
                     </div>
                     <div class="col-sm-1 col-md-1"></div>
                 </div>
-                <?php
-            } else {
-                ?>
+                <?php } else { ?>
                 <div class="alert alert-warning">
                     <span class="glyphicon glyphicon-facetime-video"></span> <strong><?php echo __("Warning"); ?>!</strong> <?php echo __("We have not found any videos or audios to show"); ?>.
                 </div>
             <?php } ?>
-
         </div>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
         <script>
@@ -713,17 +724,11 @@ if (!empty($video)) {
         </script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.min.js" type="text/javascript"></script>
-        <?php
-        include 'include/footer.php';
-        ?>
-
+        <?php include 'include/footer.php'; ?>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-rotatezoom/videojs.zoomrotate.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-persistvolume/videojs.persistvolume.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/webui-popover/jquery.webui-popover.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/bootstrap-list-filter/bootstrap-list-filter.min.js" type="text/javascript"></script>
-
     </body>
 </html>
-<?php
-include $global['systemRootPath'].'objects/include_end.php';
-?>
+<?php include $global['systemRootPath'] . 'objects/include_end.php'; ?>

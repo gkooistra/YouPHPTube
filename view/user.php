@@ -7,7 +7,7 @@ $tagsStr = "";
 foreach ($tags as $value) {
     $tagsStr .= "<span class=\"label label-{$value->type} fix-width\">{$value->text}</span>";
 }
-$json_file = file_get_contents("{$global['webSiteRootURL']}plugin/CustomizeAdvanced/advancedCustom.json.php");
+$json_file = url_get_contents("{$global['webSiteRootURL']}plugin/CustomizeAdvanced/advancedCustom.json.php");
 // convert the string to a json object
 $advancedCustom = json_decode($json_file);
 ?>
@@ -167,6 +167,8 @@ $advancedCustom = json_decode($json_file);
                         uploadCrop = $('#croppie').croppie({
                             url: '<?php echo $user->getPhoto(); ?>',
                             enableExif: true,
+                            enforceBoundary: false,
+                            mouseWheelZoom: false,
                             viewport: {
                                 width: 150,
                                 height: 150
@@ -176,10 +178,15 @@ $advancedCustom = json_decode($json_file);
                                 height: 300
                             }
                         });
+                        setTimeout(function(){
+                            uploadCrop.croppie('setZoom', 1);
+                        },1000);
 
                         uploadCropBg = $('#croppieBg').croppie({
                             url: '<?php echo $user->getBackgroundURL(); ?>',
                             enableExif: true,
+                            enforceBoundary: false,
+                            mouseWheelZoom: false,
                             viewport: {
                                 width: 1250,
                                 height: 250
@@ -189,6 +196,9 @@ $advancedCustom = json_decode($json_file);
                                 height: 300
                             }
                         });
+                        setTimeout(function(){
+                            uploadCropBg.croppie('setZoom', 1);
+                        },1000);
                         $('#updateUserForm').submit(function (evt) {
                             evt.preventDefault();
                             modal.showPleaseWait();
@@ -342,7 +352,12 @@ $advancedCustom = json_decode($json_file);
         ?>
                             swal("<?php echo __("Sorry!"); ?>", "<?php echo addslashes($_GET['error']); ?>", "error");
         <?php
+
     }
+        $refererUrl = $_SERVER["HTTP_REFERER"];
+        if(strpos($_SERVER["HTTP_REFERER"],"?error=".__("You%20can%20not%20manage"))!=false){
+            $refererUrl = substr($_SERVER["HTTP_REFERER"],0,strpos($_SERVER["HTTP_REFERER"],"?"));
+        }
     ?>
                         $('#loginForm').submit(function (evt) {
                             evt.preventDefault();
@@ -356,7 +371,7 @@ $advancedCustom = json_decode($json_file);
                                         modal.hidePleaseWait();
                                         swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your user or password is wrong!"); ?>", "error");
                                     } else {
-                                        document.location = '<?php echo!empty($_SERVER["HTTP_REFERER"]) ? $_SERVER["HTTP_REFERER"] : $global['webSiteRootURL']; ?>'
+                                        document.location = '<?php echo $global['webSiteRootURL']; ?>'
                                     }
                                 }
                             });

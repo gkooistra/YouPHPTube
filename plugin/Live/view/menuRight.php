@@ -35,26 +35,26 @@ if (User::canStream()) {
             <img src="" class="img img-circle img-responsive" style="max-width: 38px;">
         </div>
         <div style="margin-left: 40px;">
-            <i class="fa fa-video-camera"></i> <strong class="liveTitle">Title</strong> <br>
-            <span class="label label-success liveUser">User</span> <span class="badge">is live</span>
+            <i class="fa fa-video-camera"></i> <strong class="liveTitle"><?php echo __("Title"); ?></strong> <br>
+            <span class="label label-success liveUser"><?php echo __("User"); ?></span> <span class="badge"><?php echo __("is live"); ?></span>
         </div>
     </a>
 </li>
 <div class="col-lg-12 col-sm-12 col-xs-12 bottom-border hidden extraVideosModel liveVideo" itemscope itemtype="http://schema.org/VideoObject">
-    <a href="" class="videoLink">
-        <div class="col-lg-5 col-sm-5 col-xs-5 nopadding thumbsImage" style="min-height: 70px;" >
+    <a href="" class="h6 videoLink">
+        <div class="col-lg-5 col-sm-5 col-xs-5 nopadding thumbsImage" style="min-height: 70px; position:relative;" >
             <img src="" class="thumbsJPG img-responsive" height="130" />
             <img src="" style="position: absolute; top: 0; display: none;" class="thumbsGIF img-responsive" height="130" />
-            <span class="label label-danger liveNow faa-flash faa-slow animated">LIVE NOW</span>
+            <span class="label label-danger liveNow faa-flash faa-slow animated"><?php echo __("LIVE NOW"); ?></span>
         </div>
         <div class="col-lg-7 col-sm-7 col-xs-7 videosDetails">
-            <div class="text-uppercase row"><strong itemprop="name" class="title liveTitle">Title</strong></div>
+            <div class="text-uppercase row"><strong itemprop="name" class="title liveTitle"><?php echo __("Title"); ?></strong></div>
             <div class="details row" itemprop="description">
                 <div class="pull-left">
                     <img src="" class="photoImg img img-circle img-responsive" style="max-width: 20px;">
                 </div>
                 <div style="margin-left: 25px;">
-                    <div class="liveUser">User</div>
+                    <div class="liveUser"><?php echo __("User"); ?></div>
                 </div>
             </div>
             <?php
@@ -71,7 +71,9 @@ if (User::canStream()) {
     </a>
 </div>
 <script>
-
+    /* Use this funtion to display live videos dynamic on pages*/
+    function afterExtraVideos($liveLi){return $liveLi}
+    
     function createLiveItem(href, title, name, photo, offline, online, views, key) {
         var $liveLi = $('.liveModel').clone();
         if (offline) {
@@ -112,6 +114,7 @@ if (User::canStream()) {
             }else{
                 $liveLi.find('.thumbsGIF').remove();
             }
+            $liveLi = afterExtraVideos($liveLi);
             $('.extraVideos').append($liveLi);
             $liveLi.slideDown();
         }
@@ -139,7 +142,7 @@ if (User::canStream()) {
                     }
                     mouseEffect();
                 } else {
-                    createLiveItem("#", "There is no streaming now", "", "", true);
+                    createLiveItem("#", "<?php echo __("There is no streaming now"); ?>", "", "", true);
                 }
                 setTimeout(function () {
                     getStatsMenu();

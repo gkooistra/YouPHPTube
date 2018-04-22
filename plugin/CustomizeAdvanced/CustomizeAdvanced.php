@@ -19,14 +19,16 @@ class CustomizeAdvanced extends PluginAbstract {
 
     public function getEmptyDataObject() {
         $obj = new stdClass();
-        $obj->doNotShowUploadMP4Button = false;
+        $obj->doNotShowUploadMP4Button = true;
         $obj->doNotShowEncoderButton = false;
         $obj->doNotShowEmbedButton = false;
         $obj->doNotShowEncoderResolutionLow = false;
         $obj->doNotShowEncoderResolutionSD = false;
         $obj->doNotShowEncoderResolutionHD = false;
+        $obj->doNotShowLeftMenuAudioAndVideoButtons = false;
         $obj->disableNativeSignUp = false;
         $obj->disableNativeSignIn = false;
+        $obj->doNotShowWebsiteOnContactForm = false;
         $obj->newUsersCanStream = false;
         $obj->doNotIndentifyByEmail = false;
         $obj->doNotIndentifyByName = false;
@@ -34,6 +36,12 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotUseXsendFile = false;
         $obj->makeVideosInactiveAfterEncode = false;
         $obj->usePermalinks = false;
+        $obj->showAdsenseBannerOnTop = false;
+        $obj->showAdsenseBannerOnLeft = true;
+        $obj->disableAnimatedGif = false;
+        $obj->uploadButtonDropdownIcon = "fa fa-video-camera";
+        $obj->uploadButtonDropdownText = "";
+        $obj->commentsMaxLength = 200;
         $o = new stdClass();
         $o->type = "textarea";
         $o->value = "";        

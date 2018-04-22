@@ -5,418 +5,371 @@ if (!file_exists('../videos/configuration.php')) {
     }
     header("Location: install/index.php");
 }
-
 require_once '../videos/configuration.php';
-
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
-
+require_once $global['systemRootPath'] . 'plugin/Gallery/functions.php';
+$obj = YouPHPTubePlugin::getObjectData("Gallery");
 if (!empty($_GET['type'])) {
     if ($_GET['type'] == 'audio') {
         $_SESSION['type'] = 'audio';
     } else if ($_GET['type'] == 'video') {
         $_SESSION['type'] = 'video';
     } else {
-        $_SESSION['type'] = "";
         unset($_SESSION['type']);
     }
 }
-
+require_once $global['systemRootPath'] . 'objects/category.php';
+$currentCat;
+$currentCatType;
+if (!empty($_GET['catName'])) {
+    $currentCat = Category::getCategoryByName($_GET['catName']);
+    $currentCatType = Category::getCategoryType($currentCat['id']);
+}
+if ((empty($_GET['type'])) && (!empty($currentCatType))) {
+    if ($currentCatType['type'] == "1") {
+        $_SESSION['type'] = "audio";
+    } else if ($currentCatType['type'] == "2") {
+        $_SESSION['type'] = "video";
+    } else {
+        unset($_SESSION['type']);
+    }
+}
 require_once $global['systemRootPath'] . 'objects/video.php';
-
-
+if ($obj->sortReverseable) {
+    if (strpos($_SERVER['REQUEST_URI'], "?") != false) {
+        $orderString = $_SERVER['REQUEST_URI'] . "&";
+    } else {
+        $orderString = $_SERVER['REQUEST_URI'] . "/?";
+    }
+    $orderString = str_replace("&&", "&", $orderString);
+    $orderString = str_replace("//", "/", $orderString);
+}
 $video = Video::getVideo("", "viewableNotAd", false, false, true);
 if (empty($video)) {
     $video = Video::getVideo("", "viewableNotAd");
 }
-
 if (empty($_GET['page'])) {
     $_GET['page'] = 1;
 } else {
     $_GET['page'] = intval($_GET['page']);
 }
-$_POST['rowCount'] = 24;
-$_POST['current'] = $_GET['page'];
-$_POST['sort']['created'] = 'desc';
-$videos = Video::getAllVideos("viewableNotAd");
-foreach ($videos as $key => $value) {
-    $name = empty($value['name']) ? $value['user'] : $value['name'];
-    $videos[$key]['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($value['users_id']) . '" alt="" class="img img-responsive img-circle" style="max-width: 20px;"/></div><div class="commentDetails" style="margin-left:25px;"><div class="commenterName"><strong>' . $name . '</strong> <small>' . humanTiming(strtotime($value['videoCreation'])) . '</small></div></div>';
+$total = 0;
+$totalPages = 0;
+$url = '';
+$args = '';
+if (strpos($_SERVER['REQUEST_URI'], "?") != false) {
+    $args = substr($_SERVER['REQUEST_URI'], strpos($_SERVER['REQUEST_URI'], "?"), strlen($_SERVER['REQUEST_URI']));
 }
-$total = Video::getTotalVideos("viewableNotAd");
-$totalPages = ceil($total / $_POST['rowCount']);
+if (strpos($_SERVER['REQUEST_URI'], "/cat/") === false) {
+    $url = $global['webSiteRootURL'] . "page/";
+} else {
+    $url = $global['webSiteRootURL'] . "cat/" . $video['clean_category'] . "/page/";
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title><?php echo __('Gallery'); ?> - <?php echo $config->getWebSiteTitle(); ?></title>
-        <meta name="generator" content="YouPHPTube - A Free Youtube Clone Script" />
-        <?php
-        include $global['systemRootPath'] . 'view/include/head.php';
-        ?>
+        <title><?php
+            echo $config->getWebSiteTitle();
+            ?></title>
+              <?php include $global['systemRootPath'] . 'view/include/head.php'; ?>
     </head>
 
     <body>
-        <?php
-        include 'include/navbar.php';
-        ?>
-        <div class="row text-center" style="padding: 10px;">
-            <?php
-            echo $config->getAdsense();
-            ?>
-        </div>
+        <?php include 'include/navbar.php'; ?>
         <div class="container-fluid gallery" itemscope itemtype="http://schema.org/VideoObject">
-            <div class="col-xs-12 col-sm-1 col-md-1 col-lg-1"></div>
-            <div class="col-xs-12 col-sm-10 col-md-10 col-lg-10 list-group-item">
+            <div class="row text-center" style="padding: 10px;">
+                <?php echo $config->getAdsense(); ?>
+            </div>
+            <div class="col-sm-10 col-sm-offset-1 list-group-item">
                 <?php
-                if (!empty($videos)) {
-                    $name = User::getNameIdentificationById($video['users_id']);
+                if (!empty($currentCat)) {
+                    include $global['systemRootPath'] . 'plugin/Gallery/view/Category.php';
+                }
+                if (!empty($video)) {
                     $img_portrait = ($video['rotation'] === "90" || $video['rotation'] === "270") ? "img-portrait" : "";
+                    include $global['systemRootPath'] . 'plugin/Gallery/view/BigVideo.php';
                     ?>
+
                     <div class="row mainArea">
-                        <div class="clear clearfix firstRow">
-                            <div class="row thumbsImage">
-                                <div class="col-sm-6">
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $video['clean_category']; ?>/video/<?php echo $video['clean_title']; ?>" 
-                                       title="<?php echo $video['title']; ?>" style="" >
-                                           <?php
-                                           $images = Video::getImageFromFilename($video['filename'], $video['type']);
-                                           $imgGif = $images->thumbsGif;
-                                           $poster = $images->poster;
-                                           ?>                                        
-                                        <div class="aspectRatio16_9">
-                                            <img src="<?php echo $poster; ?>" alt="<?php echo $video['title']; ?>" class="thumbsJPG img img-responsive " style="height: auto; width: 100%;" id="thumbsJPG<?php echo $video['id']; ?>"  />
 
-                                            <?php
-                                            if (!empty($imgGif)) {
-                                                ?>
-                                                <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo $video['title']; ?>" id="thumbsGIF<?php echo $video['id']; ?>" class="thumbsGIF img-responsive <?php echo @$img_portrait; ?>  rotate<?php echo $video['rotation']; ?>" height="130" />
-                                            <?php } ?>
-                                        </div>
-                                        <span class="duration"><?php echo Video::getCleanDuration($video['duration']); ?></span>
-                                    </a>
-                                </div>
-                                <div class="col-sm-6">
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>video/<?php echo $video['clean_title']; ?>" title="<?php echo $video['title']; ?>">
-                                        <h1><?php echo $video['title']; ?></h1>
-                                    </a>
-                                    <h4 itemprop="description"><?php echo nl2br(textToLink($video['description'])); ?></h4>
-
-                                    <div class="text-muted galeryDetails">
-                                        <div>
-                                            <?php
-                                            $value['tags'] = Video::getTags($video['id']);
-                                            foreach ($value['tags'] as $value2) {
-                                                if ($value2->label === __("Group")) {
-                                                    ?>
-                                                    <span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span>
-                                                    <?php
-                                                }
-                                            }
-                                            ?>
-                                        </div>
-                                        <div>
-                                            <i class="fa fa-eye"></i>
-                                            <span itemprop="interactionCount">
-                                                <?php echo number_format($video['views_count'], 0); ?> <?php echo __("Views"); ?>
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <i class="fa fa-clock-o"></i>
-                                            <?php
-                                            echo humanTiming(strtotime($video['videoCreation'])), " ", __('ago');
-                                            ?>
-                                        </div>
-                                        <div class="userName">
-                                            <i class="fa fa-user"></i>
-                                            <?php
-                                            echo $name;
-                                            ?>
-                                        </div>
-                                    </div>
-                                </div> 
-                            </div>
+                        <!-- For Live Videos -->
+                        <div id="liveVideos" class="clear clearfix" style="display: none;">
+                            <h3 class="galleryTitle text-danger"> <i class="fa fa-youtube-play"></i> <?php echo __("Live"); ?></h3>
+                            <div class="row extraVideos"></div>
                         </div>
-
-                        <div class="clear clearfix">
-                            <h3 class="galleryTitle">
-                                <i class="glyphicon glyphicon-sort-by-attributes"></i> <?php echo __("Date Added (newest)"); ?>
-                            </h3>
-                            <div class="row">
+                        <script>
+                            function afterExtraVideos($liveLi) {
+                                $liveLi.removeClass('col-lg-12 col-sm-12 col-xs-12 bottom-border');
+                                $liveLi.find('.thumbsImage').removeClass('col-lg-5 col-sm-5 col-xs-5');
+                                $liveLi.find('.videosDetails').removeClass('col-lg-7 col-sm-7 col-xs-7');
+                                $liveLi.addClass('col-lg-2 col-md-4 col-sm-4 col-xs-6 fixPadding');
+                                $('#liveVideos').slideDown();
+                                return $liveLi;
+                            }
+                        </script>
+                        <?php
+                        echo YouPHPTubePlugin::getGallerySection();
+                        ?>
+                        <!-- For Live Videos End -->    
+                        <?php if ($obj->SortByName) { ?>   
+                            <div class="clear clearfix">
+                                <h3 class="galleryTitle">
+                                    <i class="glyphicon glyphicon-list-alt"></i>
+                                    <?php
+                                    if (empty($_GET["sortByNameOrder"])) {
+                                        $_GET["sortByNameOrder"] = "ASC";
+                                    }
+                                    if ($obj->sortReverseable) {
+                                        $info = createOrderInfo("sortByNameOrder", "zyx", "abc", $orderString);
+                                        echo __("Sort by name (" . $info[2] . ")") . " (Page " . $_GET['page'] . ") <a href='" . $info[0] . "' >" . $info[1] . "</a>";
+                                    } else {
+                                        echo __("Sort by name (abc)");
+                                    }
+                                    ?>
+                                </h3>
                                 <?php
                                 $countCols = 0;
-                                foreach ($videos as $value) {
-                                    $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
-                                    $name = User::getNameIdentificationById($value['users_id']);
-                                    // make a row each 6 cols
-                                    if ($countCols % 6 === 0) {
-                                        echo '</div><div class="row aligned-row ">';
-                                    }
-                                    $countCols++;
-                                    ?>
-                                    <div class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo thumbsImage fixPadding">
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>/video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>" >
-                                            <?php
-                                            $images = Video::getImageFromFilename($value['filename'], $value['type']);
-                                            $imgGif = $images->thumbsGif;
-                                            $poster = $images->thumbsJpg;
-                                            ?>
-                                            <div class="aspectRatio16_9">
-                                                <img src="<?php echo $poster; ?>" alt="<?php echo $value['title']; ?>" class="thumbsJPG img img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>"  id="thumbsJPG<?php echo $value['id']; ?>"/>
-                                                <?php
-                                                if (!empty($imgGif)) {
-                                                    ?>
-                                                    <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo $value['title']; ?>" id="thumbsGIF<?php echo $value['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" height="130" />
-                                                <?php } ?>
-                                            </div>
-                                            <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
-                                        </a>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>">
-                                            <h2><?php echo $value['title']; ?></h2>
-                                        </a>  
-                                        <div class="text-muted galeryDetails">
-                                            <div>
-                                                <?php
-                                                $value['tags'] = Video::getTags($value['id']);
-                                                foreach ($value['tags'] as $value2) {
-                                                    if ($value2->label === __("Group")) {
-                                                        ?>
-                                                        <span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span>
-                                                        <?php
-                                                    }
-                                                }
-                                                ?>
-                                            </div>
-                                            <div>
-                                                <i class="fa fa-eye"></i>
-                                                <span itemprop="interactionCount">
-                                                    <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <i class="fa fa-clock-o"></i>
-                                                <?php
-                                                echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago');
-                                                ?>
-                                            </div>
-                                            <div class="userName">
-                                                <i class="fa fa-user"></i>
-                                                <?php
-                                                echo $name;
-                                                ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php
+                                unset($_POST['sort']);
+                                $_POST['sort']['title'] = $_GET['sortByNameOrder'];
+                                $_POST['current'] = $_GET['page'];
+                                $_POST['rowCount'] = $obj->SortByNameRowCount;
+                                $total = Video::getTotalVideos("viewableNotAd");
+                                $totalPages = ceil($total / $_POST['rowCount']);
+                                $page = $_GET['page'];
+                                if ($totalPages < $_GET['page']) {
+                                    $page = $totalPages;
+                                    $_POST['current'] = $totalPages;
                                 }
+                                $videos = Video::getAllVideos();
+                                createGallerySection($videos);
                                 ?>
+                                <div class="row">
+                                    <ul id="sortByNamePages">
+                                    </ul>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="row">
-
-                        <ul class="pages">
-                        </ul>
-                        <script>
-                            $(document).ready(function () {
-                                // Total Itens <?php echo $total; ?>
-
-                                $('.pages').bootpag({
-                                    total: <?php echo $totalPages; ?>,
-                                    page: <?php echo $_GET['page']; ?>,
-                                    maxVisible: 10
-                                }).on('page', function (event, num) {
-    <?php $url = '';
-    if (strpos($_SERVER['REQUEST_URI'], "cat") === false) {
-        $url = $global['webSiteRootURL'] . "page/";
-    } else {
-        $url = $global['webSiteRootURL'] . "cat/" . $video['clean_category'] . "/page/";
-    } ?>
-                                    window.location.replace("<?php echo $url; ?>" + num);
+                            <script>
+                                $(document).ready(function () {
+                                    $('#sortByNamePages').bootpag({
+                                        total: <?php echo $totalPages; ?>,
+                                        page: <?php echo $page; ?>,
+                                        maxVisible: 10
+                                    }).on('page', function (event, num) {
+        <?php echo 'var args = "' . $args . '";'; ?>
+                                        window.location.replace("<?php echo $url; ?>" + num + args);
+                                    });
                                 });
-                            });
-                        </script>
-                    </div>
-
-
-                    <div class="clear clearfix">
-                        <h3 class="galleryTitle">
-                            <i class="glyphicon glyphicon-eye-open"></i> <?php echo __("Most Watched"); ?>
-                        </h3>
-                        <div class="row">
-                            <?php
-                            $countCols = 0;
-                            unset($_POST['sort']);
-                            $_POST['sort']['views_count'] = "DESC";
-                            $_POST['current'] = 1;
-                            $_POST['rowCount'] = 12;
-                            $videos = Video::getAllVideos();
-                            foreach ($videos as $value) {
-                                $name = User::getNameIdentificationById($value['users_id']);
-                                // make a row each 6 cols
-                                if ($countCols % 6 === 0) {
-                                    echo '</div><div class="row aligned-row ">';
-                                }
-                                $countCols++;
-                                ?>
-                                <div class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo thumbsImage fixPadding">
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>/video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>" >
-        <?php
-        $images = Video::getImageFromFilename($value['filename'], $value['type']);
-        $imgGif = $images->thumbsGif;
-        $poster = $images->thumbsJpg;
-        ?>
-                                        <div class="aspectRatio16_9">
-                                            <img src="<?php echo $poster; ?>" alt="<?php echo $value['title']; ?>" class="thumbsJPG img img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" id="thumbsJPG<?php echo $value['id']; ?>" />
-
-        <?php
-        if (!empty($imgGif)) {
-            ?>
-                                                <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo $value['title']; ?>" id="thumbsGIF<?php echo $value['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" height="130" />
-        <?php } ?>
-                                        </div>
-                                        <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
-                                    </a>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>">
-                                        <h2><?php echo $value['title']; ?></h2>
-                                    </a>
-
-                                    <div class="text-muted galeryDetails">
-                                        <div>
-                                            <?php
-                                            $value['tags'] = Video::getTags($value['id']);
-                                            foreach ($value['tags'] as $value2) {
-                                                if ($value2->label === __("Group")) {
-                                                    ?>
-                                                    <span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span>
-                <?php
-            }
-        }
-        ?>
-                                        </div>
-                                        <div>
-                                            <i class="fa fa-eye"></i>
-                                            <span itemprop="interactionCount">
-                                            <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <i class="fa fa-clock-o"></i>
-                                            <?php
-                                            echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago');
-                                            ?>
-                                        </div>
-                                        <div class="userName">
-                                            <i class="fa fa-user"></i>
-                                <?php
-                                echo $name;
-                                ?>
-                                        </div>
-                                    </div>
+                            </script>
+                        <?php } if ($obj->DateAdded) { ?> 
+                            <div class="clear clearfix">
+                                <h3 class="galleryTitle">
+                                    <i class="glyphicon glyphicon-sort-by-attributes"></i>
+                                    <?php
+                                    if (empty($_GET["dateAddedOrder"])) {
+                                        $_GET["dateAddedOrder"] = "DESC";
+                                    }
+                                    if ($obj->sortReverseable) {
+                                        $info = createOrderInfo("dateAddedOrder", "newest", "oldest", $orderString);
+                                        echo __("Date added (" . $info[2] . ")") . " (Page " . $_GET['page'] . ") <a href='" . $info[0] . "' >" . $info[1] . "</a>";
+                                    } else {
+                                        echo __("Date added (newest)");
+                                    }
+                                    ?>
+                                </h3>
+                                <div class="row"><?php
+                                    $countCols = 0;
+                                    unset($_POST['sort']);
+                                    $_POST['sort']['created'] = $_GET['dateAddedOrder'];
+                                    $_POST['current'] = $_GET['page'];
+                                    $_POST['rowCount'] = $obj->DateAddedRowCount;
+                                    $total = Video::getTotalVideos("viewableNotAd");
+                                    $totalPages = ceil($total / $_POST['rowCount']);
+                                    $page = $_GET['page'];
+                                    if ($totalPages < $_GET['page']) {
+                                        $page = $totalPages;
+                                        $_POST['current'] = $totalPages;
+                                    }
+                                    $videos = Video::getAllVideos();
+                                    createGallerySection($videos);
+                                    ?>
                                 </div>
-        <?php
-    }
-    ?>
-                        </div>
-                    </div>
-                    <div class="clear clearfix">
-                        <h3 class="galleryTitle">
-                            <i class="glyphicon glyphicon-thumbs-up"></i> <?php echo __("Most Popular"); ?>
-                        </h3>
-                        <div class="row">
-                            <?php
-                            $countCols = 0;
-                            unset($_POST['sort']);
-                            $_POST['sort']['likes'] = "DESC";
-                            $videos = Video::getAllVideos();
-                            foreach ($videos as $value) {
-                                $name = User::getNameIdentificationById($value['users_id']);
-                                // make a row each 6 cols
-                                if ($countCols % 6 === 0) {
-                                    echo '</div><div class="row aligned-row ">';
-                                }
-                                $countCols++;
-                                ?>
-                                <div class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo thumbsImage fixPadding">
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>/video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>" >
-        <?php
-        $images = Video::getImageFromFilename($value['filename'], $value['type']);
-        $imgGif = $images->thumbsGif;
-        $poster = $images->thumbsJpg;
-        ?>
-                                        <div class="aspectRatio16_9">
-                                            <img src="<?php echo $poster; ?>" alt="<?php echo $value['title']; ?>" class="thumbsJPG img img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" id="thumbsJPG<?php echo $value['id']; ?>"/>
-
-        <?php
-        if (!empty($imgGif)) {
-            ?>
-                                                <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo $value['title']; ?>" id="thumbsGIF<?php echo $value['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" height="130" />
-        <?php } ?>
-                                        </div>
-                                        <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
-                                    </a>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>">
-                                        <h2><?php echo $value['title']; ?></h2>
-                                    </a>
-
-                                    <div class="text-muted galeryDetails">
-                                        <div>
-                                            <?php
-                                            $value['tags'] = Video::getTags($value['id']);
-                                            foreach ($value['tags'] as $value2) {
-                                                if ($value2->label === __("Group")) {
-                                                    ?>
-                                                    <span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span>
-                <?php
-            }
-        }
-        ?>
-                                        </div>
-                                        <div>
-                                            <i class="fa fa-eye"></i>
-                                            <span itemprop="interactionCount">
-                                            <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <i class="fa fa-clock-o"></i>
-                                            <?php
-                                            echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago');
-                                            ?>
-                                        </div>
-                                        <div class="userName">
-                                            <i class="fa fa-user"></i>
-                                <?php
-                                echo $name;
-                                ?>
-                                        </div>
-                                    </div>
+                                <div class="row">
+                                    <ul id="dateAddedPages">
+                                    </ul>
                                 </div>
+                            </div>
+                            <script>
+                                $(document).ready(function () {
+                                    $('#dateAddedPages').bootpag({
+                                        total: <?php echo $totalPages; ?>,
+                                        page: <?php echo $page; ?>,
+                                        maxVisible: 10
+                                    }).on('page', function (event, num) {
+        <?php echo 'var args = "' . $args . '";'; ?>
+                                        window.location.replace("<?php echo $url; ?>" + num + args);
+                                    });
+                                });
+                            </script>
+                        <?php } if ($obj->MostWatched) { ?>
+                            <div class="clear clearfix">
+                                <h3 class="galleryTitle">
+                                    <i class="glyphicon glyphicon-eye-open"></i>
+                                    <?php
+                                    if (empty($_GET['mostWatchedOrder'])) {
+                                        $_GET['mostWatchedOrder'] = "DESC";
+                                    }
+                                    if ($obj->sortReverseable) {
+                                        $info = createOrderInfo("mostWatchedOrder", "Most", "Lessest", $orderString);
+                                        echo __($info[2] . " watched") . " (Page " . $_GET['page'] . ") <a href='" . $info[0] . "' >" . $info[1] . "</a>";
+                                    } else {
+                                        echo __("Most watched");
+                                    }
+                                    ?>
+                                </h3>
+                                <div class="row">
+                                    <?php
+                                    $countCols = 0;
+                                    unset($_POST['sort']);
+                                    $_POST['sort']['views_count'] = $_GET['mostWatchedOrder'];
+                                    $_POST['current'] = $_GET['page'];
+                                    $_POST['rowCount'] = $obj->MostWatchedRowCount;
+                                    $total = Video::getTotalVideos("viewableNotAd");
+                                    $totalPages = ceil($total / $_POST['rowCount']);
+                                    $page = $_GET['page'];
+                                    if ($totalPages < $_GET['page']) {
+                                        $page = $totalPages;
+                                        $_POST['current'] = $totalPages;
+                                    }
+                                    $videos = Video::getAllVideos();
+                                    createGallerySection($videos);
+                                    ?>
+                                </div>
+                                <div class="row">
+                                    <ul id="mostWatchedPages">
+                                    </ul>
+                                </div>
+                            </div>
+                            <script>
+                                $(document).ready(function () {
+                                    $('#mostWatchedPages').bootpag({
+                                        total: <?php echo $totalPages; ?>,
+                                        page: <?php echo $page; ?>,
+                                        maxVisible: 10
+                                    }).on('page', function (event, num) {
+        <?php echo 'var args = "' . $args . '";'; ?>
+                                        window.location.replace("<?php echo $url; ?>" + num + args);
+                                    });
+                                });
+                            </script>
                         <?php
-                    }
-                    ?>
-                        </div>
+                        }
+                        if ($obj->MostPopular) {
+                            ?>    
+                            <div class="clear clearfix">
+                                <h3 class="galleryTitle">
+                                    <i class="glyphicon glyphicon-thumbs-up"></i>
+                                    <?php
+                                    if (empty($_GET['mostPopularOrder'])) {
+                                        $_GET['mostPopularOrder'] = "DESC";
+                                    }
+                                    if ($obj->sortReverseable) {
+                                        $info = createOrderInfo("mostPopularOrder", "Most", "Lessest", $orderString);
+                                        echo __($info[2] . " popular") . " (Page " . $_GET['page'] . ") <a href='" . $info[0] . "' >" . $info[1] . "</a>";
+                                    } else {
+                                        echo __("Most popular");
+                                    }
+                                    ?>
+                                </h3>
+                                <div class="row">
+                                    <?php
+                                    $countCols = 0;
+                                    unset($_POST['sort']);
+                                    $_POST['sort']['likes'] = $_GET['mostPopularOrder'];
+                                    $_POST['current'] = $_GET['page'];
+                                    $_POST['rowCount'] = $obj->MostPopularRowCount;
+                                    $total = Video::getTotalVideos("viewableNotAd");
+                                    $totalPages = ceil($total / $_POST['rowCount']);
+                                    $page = $_GET['page'];
+                                    if ($totalPages < $_GET['page']) {
+                                        $page = $totalPages;
+                                        $_POST['current'] = $totalPages;
+                                    }
+                                    $videos = Video::getAllVideos();
+                                    createGallerySection($videos);
+                                    ?>
+                                </div>
+                                <div class="row">
+                                    <ul id="mostPopularPages">
+                                    </ul>
+                                </div>
+                            </div>
+                            <script>
+                                $(document).ready(function () {
+                                    $('#mostPopularPages').bootpag({
+                                        total: <?php echo $totalPages; ?>,
+                                        page: <?php echo $page; ?>,
+                                        maxVisible: 10
+                                    }).on('page', function (event, num) {
+        <?php echo 'var args = "' . $args . '";'; ?>
+                                        window.location.replace("<?php echo $url; ?>" + num + args);
+                                    });
+                                });
+                            </script>
+                            <?php
+                        }
+                        if ($obj->SubscribedChannels && User::isLogged()) {
+                            require_once $global['systemRootPath'] . 'objects/subscribe.php';
+                            $channels = Subscribe::getSubscribedChannels(User::getId());
+                            foreach ($channels as $value) {
+                                ?>    
+                                <div class="clear clearfix">
+                                    <h3 class="galleryTitle">
+                                        <img src="<?php
+                                             echo $value['photoURL'];
+                                             ?>" class="img img-circle img-responsive pull-left" style="max-height: 20px;">
+                                        <span style="margin: 0 5px;">
+                                            <?php
+                                            echo $value['identification'];
+                                            ?>
+                                        </span>
+                                        <a class="btn btn-xs btn-default" href="<?php echo $global['webSiteRootURL']; ?>channel/<?php echo $value['users_id']; ?>/" style="margin: 0 10px;">
+                                            <i class="fa fa-external-link"></i>
+                                        </a>
+                                        <?php
+                                        echo Subscribe::getButton($value['users_id']);
+                                        ?>
+                                    </h3>
+                                    <div class="row">
+                                        <?php
+                                        $countCols = 0;
+                                        unset($_POST['sort']);
+                                        $_POST['sort']['created'] = "DESC";
+                                        $_POST['current'] = 1;
+                                        $_POST['rowCount'] = $obj->SubscribedChannelsRowCount;
+                                        $total = Video::getTotalVideos("viewableNotAd", $value['users_id']);
+                                        $videos = Video::getAllVideos("viewableNotAd", $value['users_id']);
+                                        createGallerySection($videos);
+                                        ?>
+                                    </div>
+                                </div>
+                                <?php
+                            }
+                        }
+                        ?>
                     </div>
-                    <?php
-                } else {
-                    ?>
+<?php } else { ?>
                     <div class="alert alert-warning">
-                        <span class="glyphicon glyphicon-facetime-video"></span> <strong><?php echo __("Warning"); ?>!</strong> <?php echo __("We have not found any videos or audios to show"); ?>.
+                        <span class="glyphicon glyphicon-facetime-video"></span>
+                        <strong><?php echo __("Warning"); ?>!</strong> 
+                    <?php echo __("We have not found any videos or audios to show"); ?>.
                     </div>
 <?php } ?>
             </div>
-
-            <div class="col-xs-12 col-sm-1 col-md-1 col-lg-1"></div>
-
-
         </div>
-<?php
-include 'include/footer.php';
-?>
-
-
-    </body>
+    </div>
+<?php include 'include/footer.php'; ?>
+</body>
 </html>
-<?php
-include $global['systemRootPath'] . 'objects/include_end.php';
-?>
+<?php include $global['systemRootPath'] . 'objects/include_end.php'; ?>
