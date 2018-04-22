@@ -1,7 +1,7 @@
 <?php
 require_once $global['systemRootPath'].'plugin/YouPHPTubePlugin.php';
 $head = YouPHPTubePlugin::getHeadCode();
-$custom = "The Best YouTube Clone Ever - YouPHPTube";
+$custom = "Video's over ICT onderwerpen / Videos with ICT subjects.";
 if (YouPHPTubePlugin::isEnabled("c4fe1b83-8f5a-4d1b-b912-172c608bf9e3")) {
     require_once $global['systemRootPath'] . 'plugin/Customize/Objects/ExtraConfig.php';
     $ec = new ExtraConfig();
