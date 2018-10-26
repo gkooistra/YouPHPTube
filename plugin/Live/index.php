@@ -4,14 +4,21 @@ require_once $global['systemRootPath'] . 'objects/user.php';
 
 $p = YouPHPTubePlugin::loadPlugin("Live");
 
+if(!empty($_GET['c'])){
+    $user = User::getChannelOwner($_GET['c']);
+    if(!empty($user)){
+        $_GET['u'] = $user['user'];
+    }
+}
+
 if (!empty($_GET['u']) && !empty($_GET['embedv2'])) {
-    include './view/videoEmbededV2.php';
+    include $global['systemRootPath'].'plugin/Live/view/videoEmbededV2.php';
     exit;
 } else if (!empty($_GET['u']) && !empty($_GET['embed'])) {
-    include './view/videoEmbeded.php';
+    include $global['systemRootPath'].'plugin/Live/view/videoEmbeded.php';
     exit;
 } else if (!empty($_GET['u'])) {
-    include './view/modeYoutubeLive.php';
+    include $global['systemRootPath'].'plugin/Live/view/modeYoutubeLive.php';
     exit;
 } else if (!User::canStream()) {
     header("Location: {$global['webSiteRootURL']}?error=" . __("You can not stream live videos"));
@@ -36,17 +43,26 @@ $vjsClass = "vjs-16-9";
 $trans = new LiveTransmition($trasnmition['id']);
 $groups = $trans->getGroups();
 $obj = $p->getDataObject();
+
+//check if channel name exists
+$channelName = User::getUserChannelName();
+if(empty($channelName)){
+    $channelName = uniqid();
+    $user = new User(User::getId());
+    $user->setChannelName($channelName);
+    $user->save();    
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title>Live - <?php echo $config->getWebSiteTitle(); ?></title>
+        <title><?php echo __("Live"); ?> - <?php echo $config->getWebSiteTitle(); ?></title>
+        <link href="<?php echo $global['webSiteRootURL']; ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo $global['webSiteRootURL']; ?>css/player.css" rel="stylesheet" type="text/css"/>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
         <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/swfobject.js" type="text/javascript"></script>
-        <link href="<?php echo $global['webSiteRootURL']; ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo $global['webSiteRootURL']; ?>css/player.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/videojs-contrib-hls.min.js" type="text/javascript"></script>
     </head>
@@ -89,12 +105,12 @@ $obj = $p->getDataObject();
                             <input type="text" class="form-control" id="playerURL" value="<?php echo $p->getPlayerServer(); ?>/<?php echo $trasnmition['key']; ?>/index.m3u8"  readonly="readonly">
                         </div>       
                         <div class="form-group">
-                            <label for="youphptubeURL"><i class="fa fa-circle"></i> <?php echo __("YouPHPTube URL"); ?>:</label>
-                            <input type="text" class="form-control" id="youphptubeURL" value="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?u=<?php echo User::getUserName(); ?>"  readonly="readonly">
+                            <label for="youphptubeURL"><i class="fa fa-circle"></i> <?php echo __("Live URL"); ?>:</label>
+                            <input type="text" class="form-control" id="youphptubeURL" value="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?c=<?php echo urlencode($channelName); ?>"  readonly="readonly">
                         </div>   
                         <div class="form-group">
                             <label for="embedStream"><i class="fa fa-code"></i> <?php echo __("Embed Stream"); ?>:</label>
-                            <input type="text" class="form-control" id="embedStream" value='<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?u=<?php echo User::getUserName(); ?>&embed=1" frameborder="0" allowfullscreen="allowfullscreen" class="YouPHPTubeIframe"></iframe>'  readonly="readonly">
+                            <input type="text" class="form-control" id="embedStream" value='<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?c=<?php echo urlencode($channelName); ?>&embed=1" frameborder="0" allowfullscreen="allowfullscreen" ></iframe>'  readonly="readonly">
                         </div>
                     </div>
                 </div>
@@ -118,13 +134,16 @@ $obj = $p->getDataObject();
                         </div>
                     </div>
                 </div>
+                <?php
+                YouPHPTubePlugin::getLivePanel();
+                ?>
             </div>
             <div class="col-md-6">
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <?php
                         $streamName = $trasnmition['key'];
-                        include './view/onlineLabel.php';
+                        include $global['systemRootPath'].'plugin/Live/view/onlineLabel.php';
                         ?>
                     </div>
                     <div class="panel-body">          

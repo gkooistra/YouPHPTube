@@ -1,5 +1,8 @@
 <?php
-require_once '../videos/configuration.php';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
+}
 require_once $global['systemRootPath'] . 'objects/user.php';
 if (!User::isAdmin()) {
     header("Location: {$global['webSiteRootURL']}?error=" . __("You can not manage categories"));
@@ -12,14 +15,14 @@ require_once $global['systemRootPath'] . 'objects/category.php'; ?>
         <title><?php echo $config->getWebSiteTitle(); ?>  :: <?php echo __("Category"); ?></title>
 
         <?php include $global['systemRootPath'] . 'view/include/head.php'; ?>
-        <script src="<?php echo $global['webSiteRootURL']; ?>css/fontawesome-iconpicker/dist/js/fontawesome-iconpicker.min.js" type="text/javascript"></script>
-        <link href="<?php echo $global['webSiteRootURL']; ?>css/fontawesome-iconpicker/dist/css/fontawesome-iconpicker.min.css" rel="stylesheet" type="text/css"/>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/css/fontawesome-iconpicker/dist/js/fontawesome-iconpicker.min.js" type="text/javascript"></script>
+        <link href="<?php echo $global['webSiteRootURL']; ?>view/css/fontawesome-iconpicker/dist/css/fontawesome-iconpicker.min.css" rel="stylesheet" type="text/css"/>
     </head>
 
     <body>
-        <?php include 'include/navbar.php'; ?>
+        <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
         <div class="container">
-        <?php include 'include/updateCheck.php'; ?>
+        <?php include $global['systemRootPath'] . 'view/include/updateCheck.php'; ?>
             <button type="button" class="btn btn-default" id="addCategoryBtn">
                 <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> <?php echo __("New Category"); ?>
             </button>
@@ -90,7 +93,7 @@ require_once $global['systemRootPath'] . 'objects/category.php'; ?>
                 </div><!-- /.modal-dialog -->
             </div><!-- /.modal -->
         </div><!--/.container-->
-        <?php include 'include/footer.php'; ?>
+        <?php include $global['systemRootPath'] . 'view/include/footer.php'; ?>
         <script>
             var fullCatList;
             $(document).ready(function () {
@@ -101,7 +104,7 @@ require_once $global['systemRootPath'] . 'objects/category.php'; ?>
                 });
 
                 function refreshSubCategoryList(){
-                    $.getJSON( "<?php echo $global['webSiteRootURL'] . "categories.json"; ?>", function( data ) {
+                    $.getJSON( "<?php echo $global['webSiteRootURL'] . "objects/categories.json.php"; ?>", function( data ) {
   		                var tmpHtml = "<option value='0' ><?php echo __("None (Parent)"); ?></option>";
                         fullCatList = data;
                         $.each( data.rows, function( key, val ) {
@@ -120,8 +123,16 @@ require_once $global['systemRootPath'] . 'objects/category.php'; ?>
                 refreshSubCategoryList();
 
                 var grid = $("#grid").bootgrid({
+                    labels: {
+                        noResults: "<?php echo __("No results found!"); ?>",
+                        all: "<?php echo __("All"); ?>",
+                        infos: "<?php echo __("Showing {{ctx.start}} to {{ctx.end}} of {{ctx.total}} entries"); ?>",
+                        loading: "<?php echo __("Loading..."); ?>",
+                        refresh: "<?php echo __("Refresh"); ?>",
+                        search: "<?php echo __("Search"); ?>",
+                    },
                     ajax: true,
-                    url: "<?php echo $global['webSiteRootURL'] . "categories.json"; ?>",
+                    url: "<?php echo $global['webSiteRootURL'] . "objects/categories.json.php"; ?>",
                     formatters: {
                         "nextVideoOrder": function(column, row){
                             if(row.nextVideoOrder==0){
@@ -206,7 +217,7 @@ require_once $global['systemRootPath'] . 'objects/category.php'; ?>
 
                                     modal.showPleaseWait();
                                     $.ajax({
-                                        url: 'deleteCategory',
+                                        url: '<?php echo $global['webSiteRootURL'] . "objects/categoryDelete.json.php"; ?>',
                                         data: {"id": row.id},
                                         type: 'post',
                                         success: function (response) {
@@ -251,11 +262,11 @@ require_once $global['systemRootPath'] . 'objects/category.php'; ?>
                     evt.preventDefault();
                     modal.showPleaseWait();
                     $.ajax({
-                        url: 'addNewCategory',
+                        url: '<?php echo $global['webSiteRootURL'] . "objects/categoryAddNew.json.php"; ?>',
                         data: {"id": $('#inputCategoryId').val(), "name": $('#inputName').val(), "clean_name": $('#inputCleanName').val(),"description": $('#inputDescription').val(),"nextVideoOrder": $('#inputNextVideoOrder').val(),"parentId": $('#inputParentId').val(),"type": $('#inputType').val(), "iconClass": $(".iconCat i").attr("class")},
                         type: 'post',
                         success: function (response) {
-                            if (response.status === "1") {
+                            if (response.status) {
                                 $('#categoryFormModal').modal('hide');
                                 $("#grid").bootgrid("reload");
                                 swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your category has been saved!"); ?>", "success");

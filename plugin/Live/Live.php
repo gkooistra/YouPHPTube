@@ -22,17 +22,29 @@ class Live extends PluginAbstract {
     public function getUUID() {
         return "e06b161c-cbd0-4c1d-a484-71018efa2f35";
     }
+    
+    public function getPluginVersion() {
+        return "1.0";   
+    }
 
     public function getEmptyDataObject() {
         global $global;
         $server = parse_url($global['webSiteRootURL']);
+        
+        $scheme = "http";
+        $port = "8080";
+        if(strtolower($server["scheme"])=="https"){
+            $scheme = "https";
+            $port = "444";
+        }        
+        
         $obj = new stdClass();
         $obj->button_title = "LIVE";
         $obj->server = "rtmp://{$server['host']}/live";
-        $obj->playerServer = "http://{$server['host']}:8080/live";
+        $obj->playerServer = "{$scheme}://{$server['host']}:{$port}/live";
         // for secure connections
         //$obj->playerServer = "https://{$server['host']}:444/live";
-        $obj->stats = "http://{$server['host']}:8080/stat";
+        $obj->stats = "{$scheme}://{$server['host']}:{$port}/stat";
         $obj->disableGifThumbs = false;
         $obj->useLowResolution = false;
         $obj->experimentalWebcam = false;
@@ -89,19 +101,7 @@ class Live extends PluginAbstract {
     }
 
     function get_data($url) {
-        $ch = curl_init();
-        $timeout = 5;
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        $data = curl_exec($ch);
-        if($data===false){
-            error_log(curl_error($ch));
-        }
-        curl_close($ch);
-        return $data;
+        return url_get_contents($url);
     }
     
     public function getTags() {

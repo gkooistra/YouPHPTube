@@ -22,6 +22,10 @@ class LoginLinkedin extends PluginAbstract {
     public function getUUID() {
         return "4c75d6a2-b261-4d37-b0fa-bf42c8fa98f5";
     }
+
+    public function getPluginVersion() {
+        return "1.0";   
+    }
         
     public function getEmptyDataObject() {
         global $global;
@@ -38,7 +42,7 @@ class LoginLinkedin extends PluginAbstract {
     public function getLogin() {
         $obj = new stdClass();
         $obj->class = "btn btn-primary btn-block"; 
-        $obj->icon = "fa fa-linkedin-square"; 
+        $obj->icon = "fab fa-linkedin-in"; 
         $obj->type = "LinkedIn"; 
         $obj->linkToDevelopersPage = "https://www.linkedin.com/secure/developer";         
         return $obj;

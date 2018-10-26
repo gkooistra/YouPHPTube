@@ -1,9 +1,9 @@
 <?php
 header('Content-Type: application/json');
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 $obj = new stdClass();
 if (empty($_POST['user']) || empty($_POST['recoverPassword']) || empty($_POST['newPassword']) || empty($_POST['newPasswordConfirm'])) {
@@ -22,7 +22,7 @@ if (empty($user)) {
    die(json_encode($obj));
 } else {
     $user->setPassword($_POST['newPassword']);
-    $user->setRecoverPass("");
+    $user->setRecoverPass(uniqid());
     if ($user->save()) {
         $obj->success = __("Your Password has been set");
         die(json_encode($obj));

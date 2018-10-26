@@ -8,7 +8,7 @@ require_once $global['systemRootPath'].'plugin/YPTWallet/Objects/Wallet.php';
 
 class WalletLog extends ObjectYPT {
 
-    protected $id, $value, $description, $wallet_id, $json_data;
+    protected $id, $value, $description, $wallet_id, $json_data, $status, $type;
 
 
     static function getSearchFieldsNames() {
@@ -50,13 +50,37 @@ class WalletLog extends ObjectYPT {
     function setJson_data($json_data) {
         $this->json_data = $json_data;
     }
-        
-    static function getAllFromWallet($wallet_id, $dontReturnEmpty = true) {
-        global $global;
-        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE wallet_id=$wallet_id ";
+    
+    function getStatus() {
+        return $this->status;
+    }
 
+    function getType() {
+        return $this->type;
+    }
+
+    function setStatus($status) {
+        $this->status = $status;
+    }
+
+    function setType($type) {
+        $this->type = $type;
+    }
+            
+    static function getAllFromWallet($wallet_id, $dontReturnEmpty = true, $status="") {
+        global $global;
+        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE 1=1 ";
+
+        if(!empty($wallet_id)){
+            $sql .= " AND wallet_id=$wallet_id ";
+        }
+        
         if($dontReturnEmpty){
             $sql .= " AND value != 0.0 ";
+        }
+        
+        if(!empty($status)){
+            $sql .= " AND status = '$status' ";
         }
         
         $sql .= self::getSqlFromPost();
@@ -66,6 +90,10 @@ class WalletLog extends ObjectYPT {
         if ($res) {
             while ($row = $res->fetch_assoc()) {
                 $row['valueText'] = "{$obj->currency_symbol} ".number_format($row['value'], $obj->decimalPrecision)." {$obj->currency}";
+                $row['wallet'] = Wallet::getFromWalletId($row['wallet_id']);
+                $row['user'] = $row['wallet']['user'];
+                $row['balance'] = $row['wallet']['balance'];
+                $row['crypto_wallet_address'] = "";
                 $rows[] = $row;
             }
         } else {
@@ -74,17 +102,27 @@ class WalletLog extends ObjectYPT {
         return $rows;
     }
     
-    static function getTotalFromWallet($wallet_id, $dontReturnEmpty = true) {
+    static function getTotalFromWallet($wallet_id, $dontReturnEmpty = true, $status="") {
         global $global;
-        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE wallet_id=$wallet_id ";
+        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE 1=1 ";
+
+        if(!empty($wallet_id)){
+            $sql .= " AND wallet_id=$wallet_id ";
+        }
         
         if($dontReturnEmpty){
             $sql .= " AND value != 0.0 ";
         }
         
+        if(!empty($status)){
+            $sql .= " AND status = '$status' ";
+        }
+        
         $sql .= self::getSqlSearchFromPost();
-
         $res = $global['mysqli']->query($sql);
+        if(!$res){
+            return 0;
+        }
 
         return $res->num_rows;
     }
@@ -103,13 +141,21 @@ class WalletLog extends ObjectYPT {
         return self::getTotalFromWallet($wallet['id'], $dontReturnEmpty);
     }
     
-    static function addLog($wallet_id, $value, $description="", $json_data="{}"){
+    static function addLog($wallet_id, $value, $description="", $json_data="{}", $status="success", $type=""){
         $log = new WalletLog(0);
         $log->setWallet_id($wallet_id);
         $log->setValue($value);
         $log->setDescription($description);
         $log->setJson_data($json_data);
-        $log->save();
+        $log->setStatus($status);        
+        $log->setType($type);
+        return $log->save();
+    }
+    
+    function save() {
+        global $global;
+        $this->description = $global['mysqli']->real_escape_string($this->description);
+        return parent::save();
     }
 
 

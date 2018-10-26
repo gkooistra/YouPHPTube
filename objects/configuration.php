@@ -1,9 +1,8 @@
 <?php
-
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 
@@ -17,6 +16,7 @@ class Configuration {
     private $users_id;
     private $version;
     private $authCanUploadVideos;
+    private $authCanViewChart;
     private $authCanComment;
     private $head;
     private $logo;
@@ -53,9 +53,12 @@ class Configuration {
         global $global;
         $sql = "SELECT * FROM configurations WHERE id = 1 LIMIT 1";
         //echo $sql;exit;
-        $res = $global['mysqli']->query($sql);
-        if ($res) {
-            $config = $res->fetch_assoc();
+        // add true because I was not getting the SMTP configuration on function setSiteSendMessage(&$mail)
+        $res = sqlDAL::readSql($sql, "", array(), true);
+        $result = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($res && !empty($result)) {
+            $config = $result;
             //var_dump($config);exit;
             foreach ($config as $key => $value) {
                 $this->$key = $value;
@@ -82,6 +85,7 @@ class Configuration {
                 . "contactEmail = '{$this->contactEmail}',"
                 . "users_id = '{$this->users_id}',  "
                 . "authCanUploadVideos = '{$this->authCanUploadVideos}',"
+                . "authCanViewChart = '{$this->authCanViewChart}',"
                 . "authCanComment = '{$this->authCanComment}',"
                 . "encoderURL = '{$global['mysqli']->real_escape_string($this->getEncoderURL())}',"
                 . "head = '{$global['mysqli']->real_escape_string($this->getHead())}',"
@@ -105,13 +109,7 @@ class Configuration {
                 . " WHERE id = 1";
 
 
-        $insert_row = $global['mysqli']->query($sql);
-
-        if ($insert_row) {
-            return true;
-        } else {
-            die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
-        }
+        return sqlDAL::writeSql($sql);
     }
 
     function getVideo_resolution() {
@@ -176,12 +174,20 @@ class Configuration {
         return $this->authCanUploadVideos;
     }
 
+    function getAuthCanViewChart() {
+        return $this->authCanViewChart;
+    }
+
     function getAuthCanComment() {
         return $this->authCanComment;
     }
 
     function setAuthCanUploadVideos($authCanUploadVideos) {
         $this->authCanUploadVideos = $authCanUploadVideos;
+    }
+
+    function setAuthCanViewChart($authCanViewChart) {
+        $this->authCanViewChart = $authCanViewChart;
     }
 
     function setAuthCanComment($authCanComment) {
@@ -241,7 +247,7 @@ class Configuration {
     function getDisable_analytics() {
         return $this->disable_analytics;
     }
-    
+
     function getDisable_youtubeupload() {
         return $this->disable_youtubeupload;
     }
@@ -249,7 +255,7 @@ class Configuration {
     function getAllow_download() {
         return $this->allow_download;
     }
-    
+
     function getSession_timeout() {
         return $this->session_timeout;
     }
@@ -257,11 +263,11 @@ class Configuration {
     function setDisable_analytics($disable_analytics) {
         $this->disable_analytics = ($disable_analytics == 'true' || $disable_analytics == '1') ? 1 : 0;
     }
-    
+
     function setDisable_youtubeupload($disable_youtubeupload) {
         $this->disable_youtubeupload = ($disable_youtubeupload == 'true' || $disable_youtubeupload == '1') ? 1 : 0;
     }
-    
+
     function setAllow_download($allow_download) {
         $this->allow_download = ($allow_download == 'true' || $allow_download == '1') ? 1 : 0;
     }
@@ -282,11 +288,15 @@ class Configuration {
 
     static function rewriteConfigFile() {
         global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase;
+        if(empty($global['salt'])){
+            $global['salt'] = uniqid();
+        }
         $content = "<?php
 \$global['disableAdvancedConfigurations'] = 0;
 \$global['videoStorageLimitMinutes'] = 0;
 \$global['webSiteRootURL'] = '{$global['webSiteRootURL']}';
 \$global['systemRootPath'] = '{$global['systemRootPath']}';
+\$global['salt'] = '{$global['salt']}';
 
 \$mysqlHost = '{$mysqlHost}';
 \$mysqlUser = '{$mysqlUser}';
@@ -373,6 +383,17 @@ require_once \$global['systemRootPath'].'objects/include_config.php';
     }
 
     function getEncoderURL() {
+        global $advancedCustom;
+        if(!empty($advancedCustom->useEncoderNetworkRecomendation) && !empty($advancedCustom->encoderNetwork)){
+            if (substr($advancedCustom->encoderNetwork, -1) !== '/') {
+                $advancedCustom->encoderNetwork .= "/";
+            }
+            $bestEncoder = json_decode(url_get_contents($advancedCustom->encoderNetwork."view/getBestEncoder.php"));
+            if(!empty($bestEncoder->siteURL)){
+                $this->encoderURL = $bestEncoder->siteURL;
+            }
+        }
+        
         if (empty($this->encoderURL)) {
             return "https://encoder.youphptube.com/";
         }
