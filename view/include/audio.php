@@ -1,36 +1,103 @@
 <div class="row main-video" style="padding: 10px;" id="mvideo">
     <div class="col-xs-12 col-sm-12 col-lg-2 firstC"></div>
     <div class="col-xs-12 col-sm-12 col-lg-8 secC">
+        <div id="videoContainer">
         <?php
-            $poster = $global['webSiteRootURL']."img/recorder.gif";
+            $waveSurferEnabled = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeAdvanced");
+            if($waveSurferEnabled==false){
+                $waveSurferEnabled = true;
+            } else {
+                $waveSurferEnabled = $waveSurferEnabled->EnableWavesurfer;
+            }
+            if($video['type']!="audio"){
+                $waveSurferEnabled = false;
+            }
+            $poster = $global['webSiteRootURL']."view/img/recorder.gif";
             if(file_exists($global['systemRootPath']."videos/".$video['filename'].".jpg")){
                $poster = $global['webSiteRootURL']."videos/".$video['filename'].".jpg"; 
             }
         ?>
-        <audio controls class="center-block video-js vjs-default-skin "  id="mainAudio" autoplay data-setup='{controls: true}' poster="<?php echo $poster; ?>">
+        <audio controls class="center-block video-js vjs-default-skin " <?php if($waveSurferEnabled==false){ ?> autoplay data-setup='{"controls": true}' <?php } ?> id="mainAudio" poster="<?php echo $poster; ?>">
             <?php
             $ext = "";
-            if(file_exists($global['systemRootPath']."videos/".$video['filename'].".ogg")){ ?>
-                <source src="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.ogg" type="audio/ogg" />
-                <a href="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.ogg">horse</a>
-                <?php
+	if($video['type']=="audio"){ 
+            if(file_exists($global['systemRootPath']."videos/".$video['filename'].".ogg")){ 
                     $ext = ".ogg";
-                } else { ?>
-                    <source src="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.mp3" type="audio/mpeg" /> 
-                    <a href="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.mp3">horse</a>
-                <?php
+                } else {
                     $ext = ".mp3";
-                } ?>
+                }
+	}
+        if($waveSurferEnabled==false){
+           if($video['type']=="audio"){ 
+                // usual audio-type
+                $sourceLink = $global['webSiteRootURL']; ?>videos/<?php echo $video['filename'].$ext;
+           } else {  
+                // linkVideo-type
+                $sourceLink = $video['videoLink']; 
+             } ?>
+                <source src="<?php echo $sourceLink;?>" /> 
+                <a href="<?php echo $sourceLink; ?>">horse</a>     
+        <?php } ?>
         </audio>
-            <?php if ($config->getAllow_download()) { ?>
+            <?php if ($config->getAllow_download()) {
+            if($video['type']=="audio"){ 
+            ?>
                 <a class="btn btn-xs btn-default " role="button" href="<?php echo $global['webSiteRootURL'] . "videos/" . $video['filename'].$ext; ?>" download="<?php echo $video['title'] . $ext; ?>"><?php echo __("Download audio"); ?></a>
-            <?php } ?>
+            <?php  } else { 
+            $ext = substr($video['videoLink'],strlen($video['videoLink'])-4,strlen($video['videoLink']));
+            ?>
+                <a class="btn btn-xs btn-default " role="button" href="<?php echo $video['videoLink']; ?>" download="<?php echo $video['title'] . $ext; ?>"><?php echo __("Download audio"); ?></a>
+            <?php  }} ?>
+        </div>
     </div>
     <script>
+        <?php $_GET['isMediaPlaySite'] = $video['id']; ?>
+        var mediaId = <?php echo $video['id']; ?>;
         $(document).ready(function () {
+
             $(".vjs-big-play-button").hide();
-            //$(".vjs-control-bar").show();
-            player = videojs('mainAudio');
+            $(".vjs-control-bar").css("opacity: 1; visibility: visible;");
+            <?php 
+            if($video['type']=="linkAudio"){
+                echo '$("time.duration").hide();';
+            }
+            if($waveSurferEnabled){ ?>
+            player = videojs('mainAudio', {
+                controls: true,
+                autoplay: true,
+                fluid: false,
+                loop: false,
+                width: 600,
+                height: 300,
+                plugins: {
+                    wavesurfer: {
+                        <?php if($video['type']=="audio"){ ?>
+                        src: '<?php echo $global['webSiteRootURL'] . "videos/" . $video['filename'].$ext; ?>',
+                        <?php } else { ?>
+                        src: '<?php echo $video['videoLink']; ?>',
+                        <?php }  ?>
+                        msDisplayMax: 10,
+                        debug: false,
+                        waveColor: 'green',
+                        progressColor: 'white',
+                        cursorColor: 'blue',
+                        hideScrollbar: true
+                    }
+                }
+            }, function(){
+                // print version information at startup
+                videojs.log('Using video.js', videojs.VERSION,'with videojs-wavesurfer', videojs.getPluginVersion('wavesurfer'));
+            });
+            <?php } else { ?>
+                player = videojs('mainAudio');
+            <?php } ?>
+            // error handling
+            player.on('error', function(error) {
+                console.warn('VideoJS-ERROR:', error);
+            });
+            player.on('loadedmetadata', function() {
+                fullDuration = player.duration();
+            });
             player.ready(function () {
             <?php
                 if ($config->getAutoplay()) {

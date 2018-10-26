@@ -7,7 +7,7 @@ require_once dirname(__FILE__) . '/../../../objects/user.php';
 
 class Wallet extends ObjectYPT {
 
-    protected $id, $balance, $users_id;
+    protected $id, $balance, $users_id, $crypto_wallet_address;
 
 
     static function getSearchFieldsNames() {
@@ -46,6 +46,15 @@ class Wallet extends ObjectYPT {
         $this->users_id = $users_id;
     }
     
+    // base64 is used to save hexa values as string in some databases
+    function getCrypto_wallet_address() {
+        return base64_decode($this->crypto_wallet_address);
+    }
+
+    function setCrypto_wallet_address($crypto_wallet_address) {
+        $this->crypto_wallet_address = base64_encode($crypto_wallet_address);
+    }
+    
     protected function loadFromUser($users_id) {
         $row = self::getFromUser($users_id);
         if (empty($row))
@@ -68,5 +77,29 @@ class Wallet extends ObjectYPT {
         }
         return $row;
     }
+    
+    static function getFromWalletId($wallet_id) {
+        global $global;
+        $wallet_id = intval($wallet_id);
+        $sql = "SELECT u.*, w.* FROM " . static::getTableName() . " w "
+                . " LEFT JOIN users u ON u.id = users_id WHERE  w.id = $wallet_id LIMIT 1";
+        //echo $sql;
+        $res = $global['mysqli']->query($sql);
+        if ($res) {
+            $row = $res->fetch_assoc();
+        } else {
+            $row = false;
+        }
+        return $row;
+    }
+    
+    public function save() {
+        global $global;
+        $this->balance = floatval($this->balance);
+        $this->crypto_wallet_address = $global['mysqli']->real_escape_string($this->crypto_wallet_address);
+        return parent::save();
+    }
+
+    
 
 }

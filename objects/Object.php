@@ -21,7 +21,7 @@ abstract class ObjectYPT implements ObjectInterface {
         return true;
     }
 
-    function __construct($id) {
+    function __construct($id="") {
         if (!empty($id)) {
             // get data from id
             $this->load($id);
@@ -31,10 +31,13 @@ abstract class ObjectYPT implements ObjectInterface {
     static protected function getFromDb($id) {
         global $global;
         $id = intval($id);
-        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  id = $id LIMIT 1";
-        $res = $global['mysqli']->query($sql);
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  id = ? LIMIT 1";
+        // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/YouPHPTube/about
+        $res = sqlDAL::readSql($sql,"i",array($id)); 
+        $data = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
         if ($res) {
-            $row = $res->fetch_assoc();
+            $row = $data;
         } else {
             $row = false;
         }
@@ -46,11 +49,12 @@ abstract class ObjectYPT implements ObjectInterface {
         $sql = "SELECT * FROM  " . static::getTableName() . " WHERE 1=1 ";
 
         $sql .= self::getSqlFromPost();
-
-        $res = $global['mysqli']->query($sql);
+        $res = sqlDAL::readSql($sql); 
+        $fullData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
         $rows = array();
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
+        if ($res!=false) {
+            foreach ($fullData as $row) {
                 $rows[] = $row;
             }
         } else {
@@ -64,19 +68,23 @@ abstract class ObjectYPT implements ObjectInterface {
         //current=1&rowCount=10&sort[sender]=asc&searchPhrase=
         global $global;
         $sql = "SELECT id FROM  " . static::getTableName() . " WHERE 1=1  ";
-
         $sql .= self::getSqlSearchFromPost();
-
-        $res = $global['mysqli']->query($sql);
-
-
-        return $res->num_rows;
+        $res = sqlDAL::readSql($sql); 
+        $countRow = sqlDAL::num_rows($res);
+        sqlDAL::close($res);
+        return $countRow;
     }
 
     static function getSqlFromPost($keyPrefix = "") {
         global $global;
         $sql = self::getSqlSearchFromPost();
-
+               
+        if(empty($_POST['sort']) && !empty($_GET['order'][0]['dir'])){
+            $index = intval($_GET['order'][0]['column']);
+            $_GET['columns'][$index]['data'];
+            $_POST['sort'][$_GET['columns'][$index]['data']] = $_GET['order'][0]['dir'];
+        }
+        
         if (!empty($_POST['sort'])) {
             $orderBy = array();
             foreach ($_POST['sort'] as $key => $value) {
@@ -85,9 +93,17 @@ abstract class ObjectYPT implements ObjectInterface {
                 $orderBy[] = " {$keyPrefix}{$key} {$value} ";
             }
             $sql .= " ORDER BY " . implode(",", $orderBy);
-        } else {
-            //$sql .= " ORDER BY CREATED DESC ";
         }
+
+        if(empty($_POST['rowCount']) && !empty($_GET['length'])){
+            $_POST['rowCount'] = intval($_GET['length']);
+        }
+        if(empty($_POST['current']) && !empty($_GET['start'])){
+            $_POST['current'] = ($_GET['start']/$_GET['length'])+1;
+        }else if (empty($_POST['current']) && isset($_GET['start'])){
+            $_POST['current'] = 1;
+        }
+        
 
         if (!empty($_POST['rowCount']) && !empty($_POST['current']) && $_POST['rowCount'] > 0) {
             $_POST['rowCount'] = intval($_POST['rowCount']);
@@ -106,6 +122,8 @@ abstract class ObjectYPT implements ObjectInterface {
         $sql = "";
         if (!empty($_POST['searchPhrase'])) {
             $_GET['q'] = $_POST['searchPhrase'];
+        }else if (!empty($_GET['search']['value'])) {
+            $_GET['q'] = $_GET['search']['value'];
         }
         if (!empty($_GET['q'])) {
             global $global;
@@ -162,8 +180,7 @@ abstract class ObjectYPT implements ObjectInterface {
             }
             $sql .= " VALUES (" . implode(", ", $fields) . ")";
         }
-        //echo $sql;
-        $insert_row = $global['mysqli']->query($sql);
+        $insert_row = sqlDAL::writeSql($sql);
 
         if ($insert_row) {
             if (empty($this->id)) {
@@ -179,12 +196,13 @@ abstract class ObjectYPT implements ObjectInterface {
 
     private function getAllFields() {
         global $global, $mysqlDatabase;
-        $sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{$mysqlDatabase}' AND TABLE_NAME = '" . static::getTableName() . "'";
-
-        $res = $global['mysqli']->query($sql);
+        $sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = '" . static::getTableName() . "'";
+        $res = sqlDAL::readSql($sql,"s",array($mysqlDatabase)); 
+        $fullData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
         $rows = array();
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
+        if ($res!=false) {
+            foreach ($fullData as $row) {
                 $rows[] = $row["COLUMN_NAME"];
             }
         } else {
@@ -197,10 +215,10 @@ abstract class ObjectYPT implements ObjectInterface {
         global $global;
         if (!empty($this->id)) {
             $sql = "DELETE FROM " . static::getTableName() . " ";
-            $sql .= " WHERE id = {$this->id}";
+            $sql .= " WHERE id = ?";
             $global['lastQuery'] = $sql;
             //error_log("Delete Query: ".$sql);
-            return $global['mysqli']->query($sql);
+            return sqlDAL::writeSql($sql,"i",array($this->id));
         }
         error_log("Id for table " . static::getTableName() . " not defined for deletion");
         return false;

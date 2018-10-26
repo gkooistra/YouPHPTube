@@ -7,7 +7,7 @@ require_once dirname(__FILE__) . '/../../videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 $object = new stdClass();
 $object->error = true;
-
+$object->videos_id = 0;
 if (!User::canUpload() && (empty($_GET['user']) || empty($_GET['pass']))) {
     $object->msg = "You need a user";
     die(json_encode($object));
@@ -78,20 +78,31 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
     } else {
         $video->setType("video");
     }
+    
+    if(!empty($_REQUEST['title'])){
+        $video->setTitle($_REQUEST['title']);
+    }
+    if(!empty($_REQUEST['description'])){
+        $video->setDescription($_REQUEST['description']);
+    }
+    if(!empty($_REQUEST['categories_id'])){
+        $video->setCategories_id($_REQUEST['categories_id']);
+    }
+    
     $video->setStatus('e');
 
     if (!move_uploaded_file($_FILES['upl']['tmp_name'], "{$global['systemRootPath']}videos/original_" . $filename)) {
         $object->msg = "Error on move_uploaded_file(" . $_FILES['upl']['tmp_name'] . ", " . "{$global['systemRootPath']}videos/original_" . $filename . ")";
-        error_log("MOBILE UPLOAD: {$object->msg}");
-        die($object->msg);
+        error_log("MOBILE UPLOAD ERROR: ".  json_encode($object));
+        die(json_encode($object));
     }
-
+    $object->videos_id = $video->save();
     $video->queue();
 
     $object->error = false;
     $object->msg = "We sent your video to the encoder";
-    error_log("MOBILE SUCCESS UPLOAD: {$object->msg}");
+    error_log("MOBILE SUCCESS UPLOAD: ".  json_encode($object));
     die(json_encode($object));
 } else {
-    error_log("MOBILE UPLOAD: File Not exists - " . print_r($_FILES, true));
+    error_log("MOBILE UPLOAD: File Not exists - " . json_encode($_FILES));
 }

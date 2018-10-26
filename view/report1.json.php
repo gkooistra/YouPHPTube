@@ -1,23 +1,28 @@
 <?php
 header('Content-Type: application/json');
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'].'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/Channel.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/video_statistic.php';
 
 $from = date("Y-m-d 00:00:00", strtotime($_POST['dateFrom']));
 $to = date('Y-m-d 23:59:59', strtotime($_POST['dateTo']));
-
+if($config->getAuthCanViewChart() == 0){
 // list all channels
-if(User::isAdmin()){
+  if(User::isAdmin()){
+      $users = Channel::getChannels();
+  }else if(User::isLogged()){
+      $users = array(array('id'=> User::getId()));
+  }else{
+      $users = array();
+  }
+} else if($config->getAuthCanViewChart() == 1){
+  if((!empty($_SESSION['user']['canViewChart']))||(User::isAdmin())) {
     $users = Channel::getChannels();
-}else if(User::isLogged()){
-    $users = array(array('id'=> User::getId()));
-}else{
-    $users = array();
+  }
 }
 
 $rows = array();
@@ -34,7 +39,7 @@ foreach ($users as $key => $value) {
     }
     $item = array(
         'views'=>$views,
-        'channel'=>"<a href='{$global['webSiteRootURL']}channel/{$value['id']}'>{$identification}</a>"
+        'channel'=>"<a href='".User::getChannelLink($value['id'])."'>{$identification}</a>"
 
     );
     $rows[] = $item;
@@ -45,4 +50,3 @@ $obj = new stdClass();
 $obj->data = $rows;
 
 echo json_encode($obj);
-

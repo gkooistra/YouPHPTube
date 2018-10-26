@@ -4,8 +4,8 @@ $canSendMessage = $p->canSendMessage();
 ?>
 <link href="<?php echo $global['webSiteRootURL']; ?>plugin/LiveChat/view/style.css" rel="stylesheet" type="text/css"/>
 <script src="<?php echo $global['webSiteRootURL']; ?>plugin/LiveChat/view/script.js" type="text/javascript"></script>
-<link href="<?php echo $global['webSiteRootURL']; ?>css/font-awesome-animation.min.css" rel="stylesheet" type="text/css"/>
-<link href="<?php echo $global['webSiteRootURL']; ?>js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
+<link href="<?php echo $global['webSiteRootURL']; ?>view/css/font-awesome-animation.min.css" rel="stylesheet" type="text/css"/>
+<link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
 <div class="alert alert-warning" id="chatOffline">
     <?php echo __("Trying to establish a chat server connection"); ?>
 </div>
@@ -13,7 +13,7 @@ $canSendMessage = $p->canSendMessage();
     <div class="panel panel-default liveChat">
         <div class="panel-heading"><i class="fa fa-comments-o"></i> <?php echo __("Live Chat"); ?> <button class="btn btn-xs btn-default pull-right" id="collapseBtn"><i class="fa fa-minus-square"></i></button></div>
         <div class="colapsibleArea">
-            <div class="panel-body">  
+            <div class="panel-body">
                 <ul class="messages"></ul>
             </div>
 
@@ -48,7 +48,7 @@ $canSendMessage = $p->canSendMessage();
         </li>
     </div>
 </div>
-<script src="<?php echo $global['webSiteRootURL']; ?>js/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
+<script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
 <script>
     var attempChatConnections = 3;
     var conn;
@@ -64,13 +64,32 @@ $canSendMessage = $p->canSendMessage();
             attempChatConnections = 3;
             $("#chatOffline").slideUp();
             $("#chatOnline").slideDown();
+
+            modal.showPleaseWait();
+            $.ajax({
+                url: '<?php echo $global['webSiteRootURL']; ?>plugin/LiveChat/getChat.json.php',
+                data: {
+                    "live_stream_code": "<?php echo $chatId; ?>"
+                },
+                type: 'post',
+                success: function (response) {
+                    modal.hidePleaseWait();
+                    for(i=0; i<response.length;i++){
+                        if(response[i].users_id == "<?php echo User::getId(); ?>"){
+                            message_side = "right";
+                        }else{
+                            message_side = "left";
+                        }
+                        createMessage(response[i].text, response[i].identification, response[i].photo, message_side);
+                    }
+                    $('.messages').animate({scrollTop: $('.messages').prop('scrollHeight')}, 300);
+                }
+            });
         };
         conn.onmessage = function (e) {
             var messageData = JSON.parse(e.data);
             //this message is not for you
             if (messageData.chatId !== "<?php echo $chatId; ?>") {
-                console.log("<?php echo $chatId; ?>");
-                console.log(messageData);
                 return false;
             }
             var json = getJsonDataObject();
@@ -110,9 +129,10 @@ $canSendMessage = $p->canSendMessage();
     function getJsonDataObject() {
         var chatId = "<?php echo $chatId; ?>";
         var photo = "<?php echo User::getPhoto(); ?>";
+        var userId = "<?php echo User::getId(); ?>";
         var name = "<?php echo User::getNameIdentification(); ?>";
         var text = getMessageText();
-        var json = {"photo": photo, "name": name, "text": text, "chatId": chatId};
+        var json = {"photo": photo, "name": name, "text": text, "chatId": chatId, "userId": userId};
         return json;
     }
     function makeDrag() {

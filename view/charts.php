@@ -1,36 +1,54 @@
 <?php
-if (!file_exists('../videos/configuration.php')) {
-    if (!file_exists('../install/index.php')) {
-        die("No Configuration and no Installation");
-    }
-    header("Location: install/index.php");
+$limitVideos = 50;
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
-
-require_once '../videos/configuration.php';
-
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 require_once $global['systemRootPath'] . 'objects/comment.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
+require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
 
 if(!User::isLogged()){
     header("Location: ".$global['webSiteRootURL']);
 }
-if(User::isAdmin()){
-    $videos = Video::getAllVideos("viewableNotAd", true, true, array(), true);
-    $totalVideos = Video::getTotalVideos("viewableNotAd");
-    $totalUsers = User::getTotalUsers();
-    $totalSubscriptions = Subscribe::getTotalSubscribes();
-    $totalComents = Comment::getTotalComments();
-    $totalInfos = Video::getTotalVideosInfo("viewableNotAd", false, false, array(), true);
-}else{
-    $videos = Video::getAllVideos("viewableNotAd", true, true, array(), true);
-    $totalVideos = Video::getTotalVideos("", true);
-    $totalUsers = User::getTotalUsers();
-    $totalSubscriptions = Subscribe::getTotalSubscribes(User::getId());
-    $totalComents = Comment::getTotalComments(0, 'NULL', User::getId());
-    $totalInfos = Video::getTotalVideosInfo("", true, false, array(), true);
+
+if(empty($_POST['rowCount'])){
+    $_POST['rowCount'] = $limitVideos;
+}
+if($config->getAuthCanViewChart() == 0){
+    if(User::isAdmin()){
+      $videos = Video::getAllVideos("viewable", true, true, array(), true);
+      $totalVideos = Video::getTotalVideos("viewable");
+      $totalUsers = User::getTotalUsers();
+      $totalSubscriptions = Subscribe::getTotalSubscribes();
+      $totalComents = Comment::getTotalComments();
+      unset($_POST['rowCount']);
+      $totalInfos = Video::getTotalVideosInfo("viewable", false, false, array(), true);
+    }else{
+      $videos = Video::getAllVideos("viewable", true, true, array(), true);
+      $totalVideos = Video::getTotalVideos("", true);
+      $totalUsers = User::getTotalUsers();
+      $totalSubscriptions = Subscribe::getTotalSubscribes(User::getId());
+      $totalComents = Comment::getTotalComments(0, 'NULL', User::getId());
+      unset($_POST['rowCount']);
+      $totalInfos = Video::getTotalVideosInfo("", true, false, array(), true);
+    }
+} else if($config->getAuthCanViewChart() == 1){
+  // mode 1 means selected users see admin-charts.
+  if((!empty($_SESSION['user']['canViewChart']))||(User::isAdmin())) {
+    $videos = Video::getAllVideos("viewable", true, true, array(), true);
+    $totalVideos = Video::getTotalVideos("viewable");
+    $totalUsers = User::getTotalUsers(true);
+    $totalSubscriptions = Subscribe::getTotalSubscribes(true);
+    $totalComents = Comment::getTotalComments(true);
+    unset($_POST['rowCount']);
+    $totalInfos = Video::getTotalVideosInfo("viewable", false, false, array(), true);
+  } else {
+    die("403 - You have no access here!");
+  }
 }
 $labelToday = array();
 for ($i = 0; $i < 24; $i++) {
@@ -55,7 +73,7 @@ $statistc_last90Days = VideoStatistic::getTotalLastDays("", 90);
 
 $bg = $bc = $labels = $labelsFull = $datas = $datas7 = $datas30 = $datasToday = $datasUnique = array();
 foreach ($videos as $value) {
-    $labelsFull[] = $value["title"];
+    $labelsFull[] = ($value["title"]);
     $labels[] = substr($value["title"], 0, 20);
     $datas[] = $value["statistc_all"];
     $datasToday[] = $value["statistc_today"];
@@ -76,7 +94,7 @@ foreach ($videos as $value) {
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.bundle.min.js" integrity="sha256-+q+dGCSrVbejd3MDuzJHKsk2eXd4sF5XYEMfPZsOnYE=" crossorigin="anonymous"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/Chart.bundle.min.js"></script>
         <link rel="stylesheet" type="text/css" href="<?php echo $global['webSiteRootURL']; ?>view/css/DataTables/datatables.min.css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
         <style>
@@ -124,16 +142,17 @@ foreach ($videos as $value) {
     </head>
     <body>
         <?php
-        include 'include/navbar.php';
+        include $global['systemRootPath'] . 'view/include/navbar.php';
 //var_dump($videos);
         ?>
         <div class="container-fluid">
             <div class="list-group-item clear clearfix">
                 <ul class="nav nav-tabs">
-                    <li class="active"><a data-toggle="tab" href="#dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-                    <li><a data-toggle="tab" href="#menu1"><i class="fa fa-youtube-play"></i> <i class="fa fa-eye"></i> Video views - per Channel</a></li>
-                    <li><a data-toggle="tab" href="#menu2"><i class="fa fa-comments"></i> <i class="fa fa-thumbs-up"></i> Comment thumbs up - per Person</a></li>
-                    <li><a data-toggle="tab" href="#menu3"><i class="fa fa-youtube-play"></i> <i class="fa fa-thumbs-up"></i> Video thumbs up - per Channel</a></li>
+                    <li class="active"><a data-toggle="tab" href="#dashboard"><i class="fas fa-tachometer-alt"></i> <?php echo __("Dashboard"); ?></a></li>
+                    <li><a data-toggle="tab" id="viewperchannel" href="#menu1"><i class="fab fa-youtube"></i> <i class="fa fa-eye"></i> <?php echo __("Video views - per Channel"); ?></a></li>
+                    <li><a data-toggle="tab" id="commentthumbs" href="#menu2"><i class="fa fa-comments"></i> <i class="fa fa-thumbs-up"></i> <?php echo __("Comment thumbs up - per Person"); ?></a></li>
+                    <li><a data-toggle="tab" id="videothumbs" href="#menu3"><i class="fab fa-youtube"></i> <i class="fa fa-thumbs-up"></i> <?php echo __("Video thumbs up - per Channel"); ?></a></li>
+                    <?php echo YouPHPTubePlugin::getChartTabs(); ?>
                 </ul>
 
                 <div class="tab-content">
@@ -157,18 +176,21 @@ foreach ($videos as $value) {
                             include $global['systemRootPath'].'view/report3.php';
                         ?>
                     </div>
+                    <?php echo YouPHPTubePlugin::getChartContent(); ?>
                 </div>
             </div>
         </div>
         <script type="text/javascript" src="<?php echo $global['webSiteRootURL']; ?>view/css/DataTables/datatables.min.js"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.js" type="text/javascript"></script>
         <?php
-        include 'include/footer.php';
+        include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
 
         <script type="text/javascript">
             $(document).ready(function () {
-                
+              <?php if(!empty($_GET['jump'])) { ?>
+                $('#<?php echo $_GET['jump']; ?>').click();
+              <?php } ?>
             });
         </script>
     </body>

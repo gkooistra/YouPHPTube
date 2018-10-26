@@ -1,5 +1,8 @@
 <?php
-require_once '../videos/configuration.php';
+global $global, $config;
+if (!isset($global['systemRootPath'])) {
+    require_once '../videos/configuration.php';
+}
 require_once $global['systemRootPath'] . 'objects/user.php';
 if (!User::isAdmin()) {
     header("Location: {$global['webSiteRootURL']}?error=" . __("You can not manage users"));
@@ -19,13 +22,13 @@ $userGroups = UserGroups::getAllUsersGroups();
 
     <body>
         <?php
-        include 'include/navbar.php';
+        include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
 
         <div class="container">
-                    <?php
-        include 'include/updateCheck.php';
-        ?>
+            <?php
+            include $global['systemRootPath'] . 'view/include/updateCheck.php';
+            ?>
             <div class="btn-group" >
                 <button type="button" class="btn btn-default" id="addUserBtn">
                     <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> <?php echo __("New User"); ?>
@@ -68,7 +71,12 @@ $userGroups = UserGroups::getAllUsersGroups();
                                 <label for="inputEmail" class="sr-only"><?php echo __("E-mail"); ?></label>
                                 <input type="email" id="inputEmail" class="form-control" placeholder="<?php echo __("E-mail"); ?>" >
                                 <label for="inputName" class="sr-only"><?php echo __("Name"); ?></label>
-                                <input type="text" id="inputName" class="form-control last" placeholder="<?php echo __("Name"); ?>" >
+                                <input type="text" id="inputName" class="form-control " placeholder="<?php echo __("Name"); ?>" >
+                                <label for="inputChannelName" class="sr-only"><?php echo __("Channel Name"); ?></label>
+                                <input type="text" id="inputChannelName" class="form-control" placeholder="<?php echo __("Channel Name"); ?>" >
+                                <label for="inputAnalyticsCode" class="sr-only"><?php echo __("Analytics Code"); ?></label>
+                                <input type="text" id="inputAnalyticsCode" class="form-control last" placeholder="Google Analytics Code: UA-123456789-1" >
+                                <small>Do not paste the full javascript code, paste only the gtag id</small>
                                 <ul class="list-group">
                                     <li class="list-group-item">
                                         <?php echo __("is Admin"); ?>
@@ -92,12 +100,29 @@ $userGroups = UserGroups::getAllUsersGroups();
                                         </div>
                                     </li>
                                     <li class="list-group-item">
+                                        <?php echo __("Can view chart"); ?>
+                                        <div class="material-switch pull-right">
+                                            <input type="checkbox" value="canViewChart" id="canViewChart"/>
+                                            <label for="canViewChart" class="label-success"></label>
+                                        </div>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <?php echo __("E-mail Verified"); ?>
+                                        <div class="material-switch pull-right">
+                                            <input type="checkbox" value="isEmailVerified" id="isEmailVerified"/>
+                                            <label for="isEmailVerified" class="label-success"></label>
+                                        </div>
+                                    </li>
+                                    <li class="list-group-item">
                                         <?php echo __("is Active"); ?>
                                         <div class="material-switch pull-right">
                                             <input type="checkbox" value="status" id="status"/>
                                             <label for="status" class="label-success"></label>
                                         </div>
                                     </li>
+                                    <?php
+                                    print YouPHPTubePlugin::getUserOptions();
+                                    ?>
                                 </ul>
                                 <ul class="list-group">
                                     <li class="list-group-item active">
@@ -130,26 +155,130 @@ $userGroups = UserGroups::getAllUsersGroups();
                 </div><!-- /.modal-dialog -->
             </div><!-- /.modal -->
 
+
+            <div id="userInfoModal" class="modal fade" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                            <h4 class="modal-title"><?php echo __("User Info"); ?></h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("First Name"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="first_name" class="form-control"  type="text" readonly >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("Last Name"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="last_name" class="form-control" readonly >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("Address"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="address" class="form-control"  readonly >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("Zip Code"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="zip_code" class="form-control" readonly>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("Country"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="country" class="form-control" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("Region"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="region" class="form-control" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("City"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                                        <input  id="city" class="form-control" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <label class="col-md-4 control-label"><?php echo __("Document"); ?></label>
+                                <div class="col-md-8 inputGroupContainer">
+                                    <div class="input-group">
+                                        <img src="" class="img img-responsive img-thumbnail" id="documentImage"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div><!-- /.modal-content -->
+                </div><!-- /.modal-dialog -->
+            </div><!-- /.modal -->
+
         </div><!--/.container-->
 
         <?php
-        include 'include/footer.php';
+        include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
 
         <script>
+            function isAnalytics() {
+                str = $('#inputAnalyticsCode').val();
+                return str === '' || (/^ua-\d{4,9}-\d{1,4}$/i).test(str.toString());
+            }
             $(document).ready(function () {
 
 
 
                 var grid = $("#grid").bootgrid({
+                    labels: {
+                        noResults: "<?php echo __("No results found!"); ?>",
+                        all: "<?php echo __("All"); ?>",
+                        infos: "<?php echo __("Showing {{ctx.start}} to {{ctx.end}} of {{ctx.total}} entries"); ?>",
+                        loading: "<?php echo __("Loading..."); ?>",
+                        refresh: "<?php echo __("Refresh"); ?>",
+                        search: "<?php echo __("Search"); ?>",
+                    },
                     ajax: true,
-                    url: "<?php echo $global['webSiteRootURL'] . "users.json"; ?>",
+                    url: "<?php echo $global['webSiteRootURL'] . "objects/users.json.php"; ?>",
                     formatters: {
                         "commands": function (column, row) {
                             var editBtn = '<button type="button" class="btn btn-xs btn-default command-edit" data-row-id="' + row.id + '" data-toggle="tooltip" data-placement="left" title="Edit"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>'
+                            var infoBtn = '<br><button type="button" class="btn btn-xs btn-default command-info" data-row-id="' + row.id + '" data-toggle="tooltip" data-placement="left" title="Info"><i class="fas fa-info-circle"></i></button>'
                             //var deleteBtn = '<button type="button" class="btn btn-default btn-xs command-delete"  data-row-id="' + row.id + '  data-toggle="tooltip" data-placement="left" title="Delete""><span class="glyphicon glyphicon-erase" aria-hidden="true"></span></button>';
                             //return editBtn + deleteBtn;
-                            return editBtn;
+                            return editBtn + infoBtn;
                         },
                         "tags": function (column, row) {
                             var tags = "";
@@ -182,15 +311,22 @@ $userGroups = UserGroups::getAllUsersGroups();
                         $('#inputPassword').val('');
                         $('#inputEmail').val(row.email);
                         $('#inputName').val(row.name);
+                        $('#inputChannelName').val(row.channelName);
+                        $('#inputAnalyticsCode').val(row.analyticsCode);
 
                         $('.userGroups').prop('checked', false);
                         for (var index in row.groups) {
                             $('#userGroup' + row.groups[index].id).prop('checked', true);
                         }
-                        $('#isAdmin').prop('checked', (row.isAdmin === "1" ? true : false));
-                        $('#canStream').prop('checked', (row.canStream === "1" ? true : false));
-                        $('#canUpload').prop('checked', (row.canUpload === "1" ? true : false));
+                        $('#isAdmin').prop('checked', (row.isAdmin == "1" ? true : false));
+                        $('#canStream').prop('checked', (row.canStream == "1" ? true : false));
+                        $('#canUpload').prop('checked', (row.canUpload == "1" ? true : false));
+                        $('#canViewChart').prop('checked', (row.canViewChart == "1" ? true : false));
                         $('#status').prop('checked', (row.status === "a" ? true : false));
+                        $('#isEmailVerified').prop('checked', (row.isEmailVerified == "1" ? true : false));
+<?php
+print YouPHPTubePlugin::loadUsersFormJS();
+?>
 
                         $('#userFormModal').modal();
                     }).end().find(".command-delete").on("click", function (e) {
@@ -208,10 +344,10 @@ $userGroups = UserGroups::getAllUsersGroups();
                          closeOnConfirm: false
                          },
                          function () {
-
+                         
                          modal.showPleaseWait();
                          $.ajax({
-                         url: 'deleteUser',
+                         url: '<?php echo $global['webSiteRootURL']; ?>objects/userDelete.json.php',
                          data: {"id": row.id},
                          type: 'post',
                          success: function (response) {
@@ -226,6 +362,23 @@ $userGroups = UserGroups::getAllUsersGroups();
                          });
                          });
                          */
+                    }).end().find(".command-info").on("click", function (e) {
+
+                        var row_index = $(this).closest('tr').index();
+                        var row = $("#grid").bootgrid("getCurrentRows")[row_index];
+                        console.log(row);
+                        modal.showPleaseWait();
+                        $('#first_name').val(row.first_name);
+                        $('#last_name').val(row.last_name);
+                        $('#address').val(row.address);
+                        $('#zip_code').val(row.zip_code);
+                        $('#country').val(row.country);
+                        $('#region').val(row.region);
+                        $('#city').val(row.city);
+                        $('#documentImage').attr('src','<?php echo $global['webSiteRootURL']; ?>objects/userDocument.png.php?users_id='+row.id);
+                        $('#userInfoModal').modal();
+                        modal.hidePleaseWait();
+
                     });
                 });
 
@@ -237,12 +390,18 @@ $userGroups = UserGroups::getAllUsersGroups();
                     $('#inputPassword').val('');
                     $('#inputEmail').val('');
                     $('#inputName').val('');
+                    $('#inputChannelName').val('');
+                    $('#inputAnalyticsCode').val('');
                     $('#isAdmin').prop('checked', false);
                     $('#canStream').prop('checked', false);
                     $('#canUpload').prop('checked', false);
+                    $('#canViewChart').prop('checked', false);
                     $('.userGroups').prop('checked', false);
                     $('#status').prop('checked', true);
-
+                    $('#isEmailVerified').prop('checked', false);
+<?php
+print YouPHPTubePlugin::addUserBtnJS();
+?>
                     $('#userFormModal').modal();
                 });
 
@@ -251,41 +410,56 @@ $userGroups = UserGroups::getAllUsersGroups();
                 });
 
                 $('#updateUserForm').submit(function (evt) {
-                    evt.preventDefault();
-                    modal.showPleaseWait();
-                    var selectedUserGroups = [];
-                    $('.userGroups:checked').each(function () {
-                        selectedUserGroups.push($(this).val());
-                    });
+                evt.preventDefault();
+                        if (!isAnalytics()){
+                swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your analytics code is wrong"); ?>", "error");
+                        $('#inputAnalyticsCode').focus();
+                        return false;
+                }
 
-                    $.ajax({
-                        url: 'addNewUser',
-                        data: {
-                            "id": $('#inputUserId').val(),
-                            "user": $('#inputUser').val(),
-                            "pass": $('#inputPassword').val(),
-                            "email": $('#inputEmail').val(),
-                            "name": $('#inputName').val(),
-                            "isAdmin": $('#isAdmin').is(':checked'),
-                            "canStream": $('#canStream').is(':checked'),
-                            "canUpload": $('#canUpload').is(':checked'),
-                            "status": $('#status').is(':checked') ? 'a' : 'i',
-                            "userGroups": selectedUserGroups
-                        },
-                        type: 'post',
-                        success: function (response) {
-                            if (response.status > "0") {
-                                $('#userFormModal').modal('hide');
-                                $("#grid").bootgrid("reload");
-                                swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your user has been saved!"); ?>", "success");
-                            } else {
-                                swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your user has NOT been saved!"); ?>", "error");
-                            }
-                            modal.hidePleaseWait();
-                        }
-                    });
-                    return false;
+                modal.showPleaseWait();
+                        var selectedUserGroups = [];
+                        $('.userGroups:checked').each(function () {
+                selectedUserGroups.push($(this).val());
                 });
+                        $.ajax({
+                        url: '<?php echo $global['webSiteRootURL']; ?>objects/userAddNew.json.php',
+                                data: {
+<?php
+print YouPHPTubePlugin::updateUserFormJS();
+?>
+                                "id": $('#inputUserId').val(),
+                                        "user": $('#inputUser').val(),
+                                        "pass": $('#inputPassword').val(),
+                                        "email": $('#inputEmail').val(),
+                                        "name": $('#inputName').val(),
+                                        "channelName": $('#inputChannelName').val(),
+                                        "analyticsCode": $('#inputAnalyticsCode').val(),
+                                        "isAdmin": $('#isAdmin').is(':checked'),
+                                        "canStream": $('#canStream').is(':checked'),
+                                        "canUpload": $('#canUpload').is(':checked'),
+                                        "canViewChart": $('#canViewChart').is(':checked'),
+                                        "status": $('#status').is(':checked') ? 'a' : 'i',
+                                        "isEmailVerified": $('#isEmailVerified').is(':checked'),
+                                        "userGroups": selectedUserGroups
+                                },
+                                type: 'post',
+                                success: function (response) {
+                                if (response.status > "0") {
+                                $('#userFormModal').modal('hide');
+                                        $("#grid").bootgrid("reload");
+                                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your user has been saved!"); ?>", "success");
+                                } else if (response.error){
+                                swal("<?php echo __("Sorry!"); ?>", response.error, "error");
+                                } else {
+                                swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your user has NOT been updated!"); ?>", "error");
+                                }
+                                modal.hidePleaseWait();
+                                }
+                        });
+                        return false;
+                }
+                );
             });
 
         </script>

@@ -1,8 +1,8 @@
 <?php
-
 header('Content-Type: application/json');
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
 require_once $global['systemRootPath'] . 'objects/user.php';
 if (!User::isAdmin()) {
@@ -18,6 +18,7 @@ $config->setLanguage($_POST['language']);
 $config->setWebSiteTitle($_POST['webSiteTitle']);
 $config->setAuthCanComment($_POST['authCanComment']);
 $config->setAuthCanUploadVideos($_POST['authCanUploadVideos']);
+$config->setAuthCanViewChart($_POST['authCanViewChart']);
 if (empty($global['disableAdvancedConfigurations'])) {
     $config->setDisable_analytics($_POST['disable_analytics']);
     $config->setDisable_youtubeupload($_POST['disable_youtubeupload']);
@@ -35,7 +36,7 @@ if (empty($global['disableAdvancedConfigurations'])) {
 
 $config->setHead($_POST['head']);
 $config->setAdsense($_POST['adsense']);
-$config->setMode($_POST['mode']);
+$config->setMode('Youtube');
 
 $config->setAutoplay($_POST['autoplay']);
 $config->setTheme($_POST['theme']);
@@ -55,7 +56,7 @@ if (!is_writable($global['systemRootPath'] . $imagePath)) {
     print json_encode($response);
     return;
 }
-$response = $responseSmall = array();
+$response = array();
 if (!empty($_POST['logoImgBase64'])) {
     $fileData = base64DataToImage($_POST['logoImgBase64']);
     $fileName = 'logo.png';
@@ -75,23 +76,5 @@ if (!empty($_POST['logoImgBase64'])) {
         );
     }
 }
-if (!empty($_POST['logoSmallImgBase64'])) {
-    $fileData = base64DataToImage($_POST['logoSmallImgBase64']);
-    $fileName = 'logoSmall.png';
-    $photoURL = $imagePath . $fileName;
-    $bytes = file_put_contents($global['systemRootPath'] . $photoURL, $fileData);
-    if ($bytes > 10) {
-        $responseSmall = array(
-            "status" => 'success',
-            "url" => $global['systemRootPath'] . $photoURL
-        );
-        $config->setLogo_small($photoURL);
-    } else {
-        $responseSmall = array(
-            "status" => 'error',
-            "msg" => 'We could not save small logo',
-            "url" => $global['systemRootPath'] . $photoURL
-        );
-    }
-}
-echo '{"status":"' . $config->save() . '", "respnseLogo": ' . json_encode($response) . ', "respnseLogoSmall": ' . json_encode($responseSmall) . '}';
+
+echo '{"status":"' . $config->save() . '", "respnseLogo": ' . json_encode($response) . '}';

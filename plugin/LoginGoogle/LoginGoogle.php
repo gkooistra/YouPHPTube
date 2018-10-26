@@ -22,6 +22,10 @@ class LoginGoogle extends PluginAbstract {
     public function getUUID() {
         return "15240814-8c31-4f15-a355-48715fac13f3";
     }
+
+    public function getPluginVersion() {
+        return "1.0";   
+    }    
         
     public function getEmptyDataObject() {
         global $global;
@@ -39,7 +43,7 @@ class LoginGoogle extends PluginAbstract {
     public function getLogin() {
         $obj = new stdClass();
         $obj->class = "btn btn-danger btn-block"; 
-        $obj->icon = "fa fa-google"; 
+        $obj->icon = "fab fa-google"; 
         $obj->type = "Google"; 
         $obj->linkToDevelopersPage = "https://console.developers.google.com/apis/credentials";         
         return $obj;

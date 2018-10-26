@@ -1,12 +1,14 @@
 <?php
-require_once dirname(__FILE__) . '/../videos/configuration.php';
-
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
+}
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 
 if (!empty($_POST['video_id'])) {
-    $video = Video::getVideo($_POST['video_id'], "viewableNotAd");
+    $video = Video::getVideo($_POST['video_id'], "viewable");
 }
 
 $catLink = "";
@@ -39,8 +41,8 @@ $_SESSION['rowCount'] = $_POST['rowCount'];
 $_SESSION['sort'] = $_POST['sort'];
 
 
-$videos = Video::getAllVideos("viewableNotAd");
-$total = Video::getTotalVideos("viewableNotAd");
+$videos = Video::getAllVideos("viewable");
+$total = Video::getTotalVideos("viewable");
 $totalPages = ceil($total / $_POST['rowCount']);
 if (empty($totalPages)) {
     $totalPages = 1;
@@ -80,8 +82,7 @@ foreach ($videos as $key => $value) {
     $value['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($value['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 20px;"/></div><div class="commentDetails" style="margin-left:25px;"><div class="commenterName text-muted"><strong>' . $name . '</strong> <small>' . humanTiming(strtotime($value['videoCreation'])) . '</small></div></div>';
     ?>
     <div class="col-lg-12 col-sm-12 col-xs-12 bottom-border" id="divVideo-<?php echo $value['id']; ?>" itemscope itemtype="http://schema.org/VideoObject">
-        <a href="<?php echo $global['webSiteRootURL'], $catLink; ?>video/<?php
-        echo $value['clean_title'];
+        <a href="<?php echo Video::getLink($value['id'], $value['clean_title']); 
         if (!empty($_GET['page']) && $_GET['page'] > 1) {
             echo "/page/{$_GET['page']}";
         }
@@ -92,17 +93,21 @@ foreach ($videos as $key => $value) {
 
                 $imgGif = $images->thumbsGif;
                 $img = $images->thumbsJpg;
-                if ($value['type'] !== "audio") {
+                if (!empty($images->posterPortrait)) {
+                    $imgGif = $images->gifPortrait;
+                    $img = $images->posterPortrait;
+                }
+                if (($value['type'] !== "audio")&&($value['type'] !== "linkAudio")) {
                     $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
                 } else {
                     $img_portrait = "";
                 }
                 ?>
-                <img src="<?php echo $images->thumbsJpgSmall; ?>" data-src="<?php echo $img; ?>" alt="<?php echo $value['title']; ?>" class="thumbsJPG img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" height="130" />
+                <img src="<?php echo $images->thumbsJpgSmall; ?>" data-src="<?php echo $img; ?>" alt="<?php echo $value['title']; ?>" class="thumbsJPG img-responsive text-center <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>  <?php echo ($img!=$images->thumbsJpgSmall)?"blur":""; ?>" height="130" />
                 <?php
                 if (!empty($imgGif)) {
                     ?>
-                    <img src="<?php echo $global['webSiteRootURL']; ?>img/loading-gif.png" data-src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo $value['title']; ?>" id="thumbsGIF<?php echo $value['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" height="130" />
+                    <img src="<?php echo $global['webSiteRootURL']; ?>view/img/loading-gif.png" data-src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo $value['title']; ?>" id="thumbsGIF<?php echo $value['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" height="130" />
                 <?php } ?>
                 <meta itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
                 <meta itemprop="uploadDate" content="<?php echo $value['created']; ?>" />
@@ -213,9 +218,16 @@ foreach ($videos as $key => $value) {
                                 $('#rowCount, #sortBy').selectpicker();
                             }
 
-                            $('.thumbsJPG, .thumbsGIF').lazy({
+                            $('.thumbsJPG').lazy({
                                 effect: 'fadeIn',
-                                visibleOnly: true
+                                visibleOnly: true,
+                                // called after an element was successfully handled
+                                afterLoad: function(element) {
+                                    element.removeClass('blur');
+                                    element.parent().find('.thumbsGIF').lazy({
+                                        effect: 'fadeIn'
+                                    });
+                                }
                             });
                         });
 </script>

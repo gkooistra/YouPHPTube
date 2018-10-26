@@ -15,7 +15,11 @@ class SeekButton extends PluginAbstract {
 
     public function getUUID() {
         return "f5c30980-9530-4650-8eab-9ab461ea6fdb";
-    }    
+    }
+    
+    public function getPluginVersion() {
+        return "1.0";   
+    }
 
     public function getEmptyDataObject() {
         global $global;
@@ -31,7 +35,7 @@ class SeekButton extends PluginAbstract {
             return "";
         }
         $css = '<link href="' . $global['webSiteRootURL'] . 'plugin/SeekButton/videojs-seek-buttons/videojs-seek-buttons.css" rel="stylesheet" type="text/css"/>';
-        $css .= '<style></style>';
+        $css .= '<style>.video-js .vjs-seek-button {font-size: 20px;width: 2em !important;}</style>';
         return $css;
     }
     
@@ -40,12 +44,16 @@ class SeekButton extends PluginAbstract {
         if (!empty($_GET['videoName'])) {
             $obj = $this->getDataObject();
             $js = '<script src="' . $global['webSiteRootURL'] . 'plugin/SeekButton/videojs-seek-buttons/videojs-seek-buttons.min.js" type="text/javascript"></script>';
-            if($_SESSION['type']=="audio"){
-               $js .= '<script>if(typeof player == \'undefined\'){player = videojs(\'mainAudio\');}';
+            if(!empty($_SESSION['type'])){
+            if(($_SESSION['type']=="audio")||($_SESSION['type']=="linkAudio")){
+               $js .= '<script>$(document).ready(function () {  setTimeout(function(){ if(typeof player == \'undefined\'){player = videojs(\'mainAudio\');} ';
             } else {
-               $js .= '<script>if(typeof player == \'undefined\'){player = videojs(\'mainVideo\');}'; 
+               $js .= '<script>$(document).ready(function () {  setTimeout(function(){ if(typeof player == \'undefined\'){player = videojs(\'mainVideo\');} '; 
+                }
+            } else {
+                $js .= '<script>$(document).ready(function () {  setTimeout(function(){ if(typeof player == \'undefined\'){player = videojs(\'mainVideo\');} ';  
             }
-            $js .=  'player.seekButtons({forward: '.$obj->forward.',back: '.$obj->back.' });'. '</script>';
+            $js .=  'player.seekButtons({forward: '.$obj->forward.',back: '.$obj->back.' }); }, 30); });'. '</script>';
             return $js;
         }
     }    

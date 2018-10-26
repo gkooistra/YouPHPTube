@@ -1,5 +1,8 @@
 <?php
-require_once '../videos/configuration.php';
+global $global, $config;
+if (!isset($global['systemRootPath'])) {
+    require_once '../videos/configuration.php';
+}
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 //var_dump($config);exit;
@@ -11,8 +14,8 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
-        <link href="<?php echo $global['webSiteRootURL']; ?>js/Croppie/croppie.css" rel="stylesheet" type="text/css"/>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/Croppie/croppie.min.js" type="text/javascript"></script>
+        <link href="<?php echo $global['webSiteRootURL']; ?>view/js/Croppie/croppie.css" rel="stylesheet" type="text/css"/>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/Croppie/croppie.min.js" type="text/javascript"></script>
         <style>
             .img-radio {
                 opacity: 0.5;
@@ -23,12 +26,12 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 
     <body>
         <?php
-        include 'include/navbar.php';
+        include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
 
         <div class="container">
             <?php
-            include 'include/updateCheck.php';
+            include $global['systemRootPath'] . 'view/include/updateCheck.php';
             ?>
             <?php
             if (User::isAdmin()) {
@@ -271,7 +274,7 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 
                                                 <div class="form-group">
                                                     <label class="col-md-4 control-label">
-                                                        <?php echo __("Your Logo"); ?>
+                                                        <?php echo __("Your Logo"); ?> (250x70)
                                                     </label>
                                                     <div class="col-md-8 ">
                                                         <div id="croppieLogo"></div>
@@ -279,29 +282,6 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     </div>
                                                     <input type="file" id="logo" value="Choose a Logo" accept="image/*" style="display: none;" />
                                                 </div>
-                                                <div class="form-group">
-                                                    <label class="col-md-4 control-label">
-                                                        <?php echo __("Your Small Logo"); ?>  (32x32)
-                                                    </label>
-                                                    <div class="col-md-8 ">
-                                                        <div id="croppieLogoSmall"></div>
-                                                        <a id="logoSmall-btn" class="btn btn-default btn-xs btn-block"><?php echo __("Upload a small logo"); ?></a>
-                                                    </div>
-                                                    <input type="file" id="logoSmall" value="Choose a Small Logo" accept="image/*" style="display: none;" />
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label class="col-md-4 control-label"><?php echo __("First Page Mode"); ?></label>
-                                                    <div class="col-md-8 inputGroupContainer">
-                                                        <div class="input-group">
-                                                            <span class="input-group-addon"><i class="fa fa-sitemap"></i></span>
-                                                            <select class="form-control" id="mode" >
-                                                                <option value="Youtube" <?php echo ($config->getMode() == "Youtube") ? "selected" : ""; ?>><?php echo __("Youtube"); ?></option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
                                                 <div class="form-group">
                                                     <label class="col-md-4 control-label"><?php echo __("Web site title"); ?></label>
                                                     <div class="col-md-8 inputGroupContainer">
@@ -332,7 +312,6 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     </div>
                                                 </div>
 
-
                                                 <div class="form-group">
                                                     <label class="col-md-4 control-label"><?php echo __("Authenticated users can upload videos"); ?></label>
                                                     <div class="col-md-8 inputGroupContainer">
@@ -341,6 +320,19 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                             <select class="form-control" id="authCanUploadVideos" >
                                                                 <option value="1" <?php echo ($config->getAuthCanUploadVideos() == 1) ? "selected" : ""; ?>><?php echo __("Yes"); ?></option>
                                                                 <option value="0" <?php echo ($config->getAuthCanUploadVideos() == 0) ? "selected" : ""; ?>><?php echo __("No"); ?></option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label class="col-md-4 control-label"><?php echo __("Authenticated users can view chart"); ?></label>
+                                                    <div class="col-md-8 inputGroupContainer">
+                                                        <div class="input-group">
+                                                            <span class="input-group-addon"><i class="fa fa-cloud-upload"></i></span>
+                                                            <select class="form-control" id="authCanViewChart" >
+                                                                <option value="0" <?php echo ($config->getAuthCanViewChart() == 0) ? "selected" : ""; ?>><?php echo __("For uploaders"); ?></option>
+                                                                <option value="1" <?php echo ($config->getAuthCanViewChart() == 1) ? "selected" : ""; ?>><?php echo __("For selected, admin view"); ?></option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -383,7 +375,17 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     <div class="form-group">
                                                         <div class="col-md-12">
                                                             <button class="btn btn-danger" id="clearCache"><i class="fa fa-trash"></i> <?php echo __("Clear Cache Directory"); ?></button>
-
+                                                            <button class="btn btn-primary" id="generateSiteMap"><i class="fa fa-sitemap"></i> <?php echo __("Generate Sitemap"); ?></button>
+                                                            <?php
+                                                            if (!is_writable($sitemapFile)) {
+                                                                ?>
+                                                                <div class="alert alert-danger">
+                                                                    the sitemap file must be writable
+                                                                    <code>sudo chmod 777 <?php echo $sitemapFile; ?></code>
+                                                                </div>    
+                                                                <?php
+                                                            }
+                                                            ?>
                                                         </div>
                                                     </div>
                                                     <div class="form-group">
@@ -409,11 +411,14 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     <div class="form-group">
                                                         <label class="col-md-2"><?php echo __("Disable YouPHPTube Google Analytics"); ?></label>
                                                         <div class="col-md-10">
-                                                            <input data-toggle="toggle" type="checkbox" name="disable_analytics" id="disable_analytics" value="1" <?php
-                                                            if (!empty($config->getDisable_analytics())) {
-                                                                echo "checked";
-                                                            }
-                                                            ?>  aria-describedby="disable_analyticsHelp">
+                                                            <div class="material-switch">
+                                                                <input data-toggle="toggle" type="checkbox" name="disable_analytics" id="disable_analytics" value="1" <?php
+                                                                if (!empty($config->getDisable_analytics())) {
+                                                                    echo "checked";
+                                                                }
+                                                                ?>  aria-describedby="disable_analyticsHelp">
+                                                                <label for="disable_analytics" class="label-success"></label>
+                                                            </div>
                                                             <small id="disable_analyticsHelp" class="form-text text-muted"><?php echo __("This help us to track and dettect errors"); ?></small>
                                                         </div>
                                                     </div>
@@ -421,22 +426,29 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     <div class="form-group">
                                                         <label class="col-md-2"><?php echo __("Disable Youtube-Upload"); ?></label>
                                                         <div class="col-md-10">
-                                                            <input data-toggle="toggle" type="checkbox" name="disable_youtubeupload" id="disable_youtubeupload" value="1" <?php
-                                                            if (!empty($config->getDisable_youtubeupload())) {
-                                                                echo "checked";
-                                                            }
-                                                            ?> >
+
+                                                            <div class="material-switch">
+                                                                <input data-toggle="toggle" type="checkbox" name="disable_youtubeupload" id="disable_youtubeupload" value="1" <?php
+                                                                if (!empty($config->getDisable_youtubeupload())) {
+                                                                    echo "checked";
+                                                                }
+                                                                ?> >
+                                                                <label for="disable_youtubeupload" class="label-success"></label>
+                                                            </div>
                                                         </div>
                                                     </div>
 
                                                     <div class="form-group">
-                                                        <label class="col-md-2"><?php echo __("Disable right-click-prevention on video and allow downloading"); ?></label>
+                                                        <label class="col-md-2"><?php echo __("Allow download video"); ?></label>
                                                         <div class="col-md-10">
-                                                            <input data-toggle="toggle" type="checkbox" name="disable_rightclick" id="allow_download" value="1" <?php
-                                                            if (!empty($config->getAllow_download())) {
-                                                                echo "checked";
-                                                            }
-                                                            ?> aria-describedby="allow_downloadHelp">
+                                                            <div class="material-switch">
+                                                                <input data-toggle="toggle" type="checkbox" name="disable_rightclick" id="allow_download" value="1" <?php
+                                                                if (!empty($config->getAllow_download())) {
+                                                                    echo "checked";
+                                                                }
+                                                                ?> aria-describedby="allow_downloadHelp">
+                                                                <label for="allow_download" class="label-success"></label>
+                                                            </div>
                                                             <small id="allow_downloadHelp" class="form-text text-muted"><?php echo __("This creates a download-button under your video, suggest you title.mp4 as download-name."); ?></small>
                                                         </div>
                                                     </div>
@@ -445,21 +457,27 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                     <div class="form-group">
                                                         <label class="col-md-2"><?php echo __("Enable SMTP"); ?></label>
                                                         <div class="col-md-10">
-                                                            <input data-toggle="toggle" type="checkbox" name="enableSmtp" id="enableSmtp" value="1" <?php
-                                                            if (!empty($config->getSmtp())) {
-                                                                echo "checked";
-                                                            }
-                                                            ?> >
+                                                            <div class="material-switch">
+                                                                <input data-toggle="toggle" type="checkbox" name="enableSmtp" id="enableSmtp" value="1" <?php
+                                                                if (!empty($config->getSmtp())) {
+                                                                    echo "checked";
+                                                                }
+                                                                ?> >
+                                                                <label for="enableSmtp" class="label-success"></label>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="form-group">
                                                         <label class="col-md-2"><?php echo __("Enable SMTP Auth"); ?></label>
                                                         <div class="col-md-10">
-                                                            <input data-toggle="toggle" type="checkbox" name="enableSmtpAuth" id="enableSmtpAuth" value="1" <?php
-                                                            if (!empty($config->getSmtpAuth())) {
-                                                                echo "checked";
-                                                            }
-                                                            ?> >
+                                                            <div class="material-switch">
+                                                                <input data-toggle="toggle" type="checkbox" name="enableSmtpAuth" id="enableSmtpAuth" value="1" <?php
+                                                                if (!empty($config->getSmtpAuth())) {
+                                                                    echo "checked";
+                                                                }
+                                                                ?> >
+                                                                <label for="enableSmtpAuth" class="label-success"></label>
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -499,7 +517,19 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                                             <input id="smtpPassword" class="form-control"  type="password" value="<?php echo $config->getSmtpPassword(); ?>" >
                                                         </div>
                                                     </div>
-
+                                                    <div class="form-group">
+                                                        <label class="col-md-4"><?php echo __("Test your email"); ?></label>
+                                                        <div class="col-md-4 inputGroupContainer">
+                                                            <div class="input-group">
+                                                                <span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha" id="captcha"></span>
+                                                                <span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha"><span class="glyphicon glyphicon-refresh"></span></span></span>
+                                                                <input name="captcha" placeholder="<?php echo __("Type the code"); ?>" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <span class="btn btn-warning btn-lg" id="testEmail" ><?php echo __("Test Email"); ?> <span class="glyphicon glyphicon-send"></span></span>
+                                                        </div>
+                                                    </div>
 
                                                 </fieldset>
                                                 <?php
@@ -537,17 +567,12 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                 </div>
                                 <!-- Button -->
                                 <div class="form-group">
-                                    <label class="col-md-4 control-label"></label>
-                                    <div class="col-md-8">
-                                        <button type="submit" class="btn btn-primary" ><?php echo __("Save"); ?> <span class="glyphicon glyphicon-save"></span></button>
+                                    <div class="col-md-12">
+                                        <button type="submit" class="btn btn-block btn-primary btn-lg" ><?php echo __("Save"); ?> <span class="fa fa-save"></span></button>
                                     </div>
                                 </div>
                             </div>
-
-
-
                         </form>
-
                     </div>
                 </div>
                 <script>
@@ -577,6 +602,41 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                     var logoSmallImgBase64;
 
                     $(document).ready(function () {
+
+                        $('#btnReloadCapcha').click(function () {
+                            $('#captcha').attr('src', '<?php echo $global['webSiteRootURL']; ?>captcha?' + Math.random());
+                            $('#captchaText').val('');
+                        });
+
+                        $('#testEmail').click(function (evt) {
+                            evt.preventDefault();
+                            modal.showPleaseWait();
+                            $.ajax({
+                                url: '<?php echo $global['webSiteRootURL']; ?>objects/sendEmail.json.php',
+                                data: {
+                                    captcha: $('#captchaText').val(),
+                                    first_name: "Your Site test",
+                                    email: "teste@teste.com",
+                                    website: "www.youphptube.com",
+                                    comment: "Teste of comment"
+                                },
+                                type: 'post',
+                                success: function (response) {
+                                    modal.hidePleaseWait();
+                                    if (!response.error) {
+                                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your message has been sent!"); ?>", "success");
+
+                                        $("#contact_form").hide();
+                                        $("#messageSuccess").fadeIn();
+                                    } else {
+                                        swal("<?php echo __("Your message could not be sent!"); ?>", response.error, "error");
+                                    }
+                                    $('#btnReloadCapcha').trigger('click');
+                                }
+                            });
+                            return false;
+                        });
+
                         // start croppie logo
                         $('#logo').on('change', function () {
                             readFile(this, logoCrop);
@@ -599,6 +659,23 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                 }
                             });
                         });
+
+                        $('#generateSiteMap').on('click', function (ev) {
+                            ev.preventDefault();
+                            modal.showPleaseWait();
+                            $.ajax({
+                                url: '<?php echo $global['webSiteRootURL']; ?>objects/configurationGenerateSiteMap.json.php',
+                                success: function (response) {
+                                    if (!response.error) {
+                                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("File created!"); ?>", "success");
+                                    } else {
+                                        swal("<?php echo __("Sorry!"); ?>", "<?php echo __("File NOT created!"); ?>", "error");
+                                    }
+                                    modal.hidePleaseWait();
+                                }
+                            });
+                        });
+
                         $('#logo-result-btn').on('click', function (ev) {
                             logoCrop.croppie('result', {
                                 type: 'canvas',
@@ -618,60 +695,20 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                 height: 70
                             },
                             boundary: {
-                                width: 300,
-                                height: 120
+                                width: 250,
+                                height: 70
                             }
                         });
                         setTimeout(function () {
                             logoCrop.croppie('setZoom', 1);
                         }, 1000);
-                        // END croppie logo
-                        // start croppie logoSmall
-                        $('#logoSmall').on('change', function () {
-                            readFile(this, logoSmallCrop);
-                        });
-                        $('#logoSmall-btn').on('click', function (ev) {
-                            $('#logoSmall').trigger("click");
-                        });
-                        $('#logoSmall-result-btn').on('click', function (ev) {
-                            logoSmallCrop.croppie('result', {
-                                type: 'canvas',
-                                size: 'viewport'
-                            }).then(function (resp) {
-
-                            });
-                        });
-
-                        logoSmallCrop = $('#croppieLogoSmall').croppie({
-                            url: '<?php echo $global['webSiteRootURL'], $config->getLogo_small(); ?>',
-                            enableExif: true,
-                            enforceBoundary: false,
-                            mouseWheelZoom: false,
-                            viewport: {
-                                width: 32,
-                                height: 32
-                            },
-                            boundary: {
-                                width: 60,
-                                height: 60
-                            }
-                        });
-                        setTimeout(function () {
-                            logoSmallCrop.croppie('setZoom', 1);
-                        }, 1000);
-
-
-                        // END croppie logoSmall
+                       
 
                         $('#updateConfigForm').submit(function (evt) {
                             evt.preventDefault();
                             modal.showPleaseWait();
                             $('#tabRegularLink').tab('show');
-                            logoSmallCrop.croppie('result', {
-                                type: 'canvas',
-                                size: 'viewport'
-                            }).then(function (resp) {
-                                logoSmallImgBase64 = resp;
+                            
                                 logoCrop.croppie('result', {
                                     type: 'canvas',
                                     size: 'viewport'
@@ -679,19 +716,18 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                     logoImgBase64 = resp;
 
                                     $.ajax({
-                                        url: 'updateConfig',
+                                        url: '<?php echo $global['webSiteRootURL']; ?>objects/configurationUpdate.json.php',
                                         data: {
-                                            "logoSmallImgBase64": logoSmallImgBase64,
                                             "logoImgBase64": logoImgBase64,
                                             "video_resolution": $('#inputVideoResolution').val(),
                                             "webSiteTitle": $('#inputWebSiteTitle').val(),
                                             "language": $('#inputLanguage').val(),
                                             "contactEmail": $('#inputEmail').val(),
                                             "authCanUploadVideos": $('#authCanUploadVideos').val(),
+                                            "authCanViewChart": $('#authCanViewChart').val(),
                                             "authCanComment": $('#authCanComment').val(),
                                             "head": $('#head').val(),
                                             "adsense": $('#adsense').val(),
-                                            "mode": $('#mode').val(),
                                             "disable_analytics": $('#disable_analytics').prop("checked"),
                                             "disable_youtubeupload": $('#disable_youtubeupload').prop("checked"),
                                             "allow_download": $("#allow_download").prop("checked"),
@@ -718,9 +754,6 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
                                         }
                                     });
                                 });
-                            });
-
-
 
                         });
 
@@ -746,7 +779,7 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
         </div><!--/.container-->
 
         <?php
-        include 'include/footer.php';
+        include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
 
     </body>
