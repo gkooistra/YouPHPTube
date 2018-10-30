@@ -1,5 +1,8 @@
 <?php
-require_once '../videos/configuration.php';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
+}
 require_once $global['systemRootPath'] . 'objects/user.php';
 $email = "";
 if (User::isLogged()) {
@@ -17,7 +20,7 @@ if (User::isLogged()) {
 
     <body>
         <?php
-        include 'include/navbar.php';
+        include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
 
         <div class="container list-group-item">
@@ -112,7 +115,7 @@ if (User::isLogged()) {
     </div><!--/.container-->
 
     <?php
-    include 'include/footer.php';
+    include $global['systemRootPath'] . 'view/include/footer.php';
     ?>
 
     <script>
@@ -134,7 +137,7 @@ if (User::isLogged()) {
                         modal.hidePleaseWait();
                         if (!response.error) {
                             swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your message has been sent!"); ?>", "success");
-                            
+
                             $("#contact_form").hide();
                             $("#messageSuccess").fadeIn();
                         } else {

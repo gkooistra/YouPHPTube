@@ -1,20 +1,20 @@
 /*!
  * videojs-wavesurfer
- * @version 2.3.0
+ * @version 2.5.0
  * @see https://github.com/collab-project/videojs-wavesurfer
  * @copyright 2014-2018 Collab
  * @license MIT
  */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("videojs"), require("WaveSurfer"));
+		module.exports = factory(require("WaveSurfer"), require("videojs"));
 	else if(typeof define === 'function' && define.amd)
-		define("VideojsWavesurfer", ["videojs", "WaveSurfer"], factory);
+		define("VideojsWavesurfer", ["WaveSurfer", "videojs"], factory);
 	else if(typeof exports === 'object')
-		exports["VideojsWavesurfer"] = factory(require("videojs"), require("WaveSurfer"));
+		exports["VideojsWavesurfer"] = factory(require("WaveSurfer"), require("videojs"));
 	else
-		root["VideojsWavesurfer"] = factory(root["videojs"], root["WaveSurfer"]);
-})(typeof self !== 'undefined' ? self : this, function(__WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_8__) {
+		root["VideojsWavesurfer"] = factory(root["WaveSurfer"], root["videojs"]);
+})(window, function(__WEBPACK_EXTERNAL_MODULE_wavesurfer_js__, __WEBPACK_EXTERNAL_MODULE_video_js__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -53,12 +53,32 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// define getter function for harmony exports
 /******/ 	__webpack_require__.d = function(exports, name, getter) {
 /******/ 		if(!__webpack_require__.o(exports, name)) {
-/******/ 			Object.defineProperty(exports, name, {
-/******/ 				configurable: false,
-/******/ 				enumerable: true,
-/******/ 				get: getter
-/******/ 			});
+/******/ 			Object.defineProperty(exports, name, { enumerable: true, get: getter });
 /******/ 		}
+/******/ 	};
+/******/
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = function(exports) {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__webpack_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = __webpack_require__(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;
+/******/ 		var ns = Object.create(null);
+/******/ 		__webpack_require__.r(ns);
+/******/ 		Object.defineProperty(ns, 'default', { enumerable: true, value: value });
+/******/ 		if(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));
+/******/ 		return ns;
 /******/ 	};
 /******/
 /******/ 	// getDefaultExport function for compatibility with non-harmony modules
@@ -76,12 +96,247 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// __webpack_public_path__
 /******/ 	__webpack_require__.p = "";
 /******/
+/******/
 /******/ 	// Load entry module and return exports
 /******/ 	return __webpack_require__(__webpack_require__.s = 0);
 /******/ })
 /************************************************************************/
-/******/ ([
-/* 0 */
+/******/ ({
+
+/***/ "./node_modules/global/window.js":
+/*!***************************************!*\
+  !*** ./node_modules/global/window.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(global) {var win;
+
+if (typeof window !== "undefined") {
+    win = window;
+} else if (typeof global !== "undefined") {
+    win = global;
+} else if (typeof self !== "undefined"){
+    win = self;
+} else {
+    win = {};
+}
+
+module.exports = win;
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "./node_modules/webpack/buildin/global.js":
+/*!***********************************!*\
+  !*** (webpack)/buildin/global.js ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || Function("return this")() || (1, eval)("this");
+} catch (e) {
+	// This works if the window reference is available
+	if (typeof window === "object") g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
+
+
+/***/ }),
+
+/***/ "./src/css/videojs.wavesurfer.scss":
+/*!*****************************************!*\
+  !*** ./src/css/videojs.wavesurfer.scss ***!
+  \*****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
+
+/***/ }),
+
+/***/ "./src/js/defaults.js":
+/*!****************************!*\
+  !*** ./src/js/defaults.js ***!
+  \****************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+/**
+ * @file defaults.js
+ * @since 2.0.0
+ */
+
+// plugin defaults
+var pluginDefaultOptions = {
+    // Display console log messages.
+    debug: false,
+    // msDisplayMax indicates the number of seconds that is
+    // considered the boundary value for displaying milliseconds
+    // in the time controls. An audio clip with a total length of
+    // 2 seconds and a msDisplayMax of 3 will use the format
+    // M:SS:MMM. Clips longer than msDisplayMax will be displayed
+    // as M:SS or HH:MM:SS.
+    msDisplayMax: 3
+};
+
+exports.default = pluginDefaultOptions;
+module.exports = exports["default"];
+
+/***/ }),
+
+/***/ "./src/js/utils/format-time.js":
+/*!*************************************!*\
+  !*** ./src/js/utils/format-time.js ***!
+  \*************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+/**
+ * @file format-time.js
+ * @since 2.0.0
+ */
+
+/**
+ * Format seconds as a time string, H:MM:SS, M:SS or M:SS:MMM.
+ *
+ * Supplying a guide (in seconds) will force a number of leading zeros
+ * to cover the length of the guide.
+ *
+ * @param {number} seconds - Number of seconds to be turned into a
+ *     string.
+ * @param {number} guide - Number (in seconds) to model the string
+ *     after.
+ * @param {number} msDisplayMax - Number (in milliseconds) to model the string
+ *     after.
+ * @return {string} Time formatted as H:MM:SS, M:SS or M:SS:MMM, e.g.
+ *     0:00:12.
+ * @private
+ */
+var formatTime = function formatTime(seconds, guide, msDisplayMax) {
+    // Default to using seconds as guide
+    seconds = seconds < 0 ? 0 : seconds;
+    guide = guide || seconds;
+    var s = Math.floor(seconds % 60),
+        m = Math.floor(seconds / 60 % 60),
+        h = Math.floor(seconds / 3600),
+        gm = Math.floor(guide / 60 % 60),
+        gh = Math.floor(guide / 3600),
+        ms = Math.floor((seconds - s) * 1000);
+
+    // handle invalid times
+    if (isNaN(seconds) || seconds === Infinity) {
+        // '-' is false for all relational operators (e.g. <, >=) so this
+        // setting will add the minimum number of fields specified by the
+        // guide
+        h = m = s = ms = '-';
+    }
+
+    // Check if we need to show milliseconds
+    if (guide > 0 && guide < msDisplayMax) {
+        if (ms < 100) {
+            if (ms < 10) {
+                ms = '00' + ms;
+            } else {
+                ms = '0' + ms;
+            }
+        }
+        ms = ':' + ms;
+    } else {
+        ms = '';
+    }
+
+    // Check if we need to show hours
+    h = h > 0 || gh > 0 ? h + ':' : '';
+
+    // If hours are showing, we may need to add a leading zero.
+    // Always show at least one digit of minutes.
+    m = ((h || gm >= 10) && m < 10 ? '0' + m : m) + ':';
+
+    // Check if leading zero is need for seconds
+    s = s < 10 ? '0' + s : s;
+
+    return h + m + s + ms;
+};
+
+exports.default = formatTime;
+module.exports = exports['default'];
+
+/***/ }),
+
+/***/ "./src/js/utils/log.js":
+/*!*****************************!*\
+  !*** ./src/js/utils/log.js ***!
+  \*****************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+/**
+ * @file log.js
+ * @since 2.0.0
+ */
+
+var ERROR = 'error';
+var WARN = 'warn';
+
+/**
+ * Log message (if the debug option is enabled).
+ */
+var log = function log(args, logType, debug) {
+    if (debug === true) {
+        if (logType === ERROR) {
+            videojs.log.error(args);
+        } else if (logType === WARN) {
+            videojs.log.warn(args);
+        } else {
+            videojs.log(args);
+        }
+    }
+};
+
+exports.default = log;
+module.exports = exports['default'];
+
+/***/ }),
+
+/***/ "./src/js/videojs.wavesurfer.js":
+/*!**************************************!*\
+  !*** ./src/js/videojs.wavesurfer.js ***!
+  \**************************************/
+/*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -89,31 +344,27 @@ return /******/ (function(modules) { // webpackBootstrap
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _log2 = __webpack_require__(1);
+var _log2 = __webpack_require__(/*! ./utils/log */ "./src/js/utils/log.js");
 
 var _log3 = _interopRequireDefault(_log2);
 
-var _formatTime = __webpack_require__(2);
+var _formatTime = __webpack_require__(/*! ./utils/format-time */ "./src/js/utils/format-time.js");
 
 var _formatTime2 = _interopRequireDefault(_formatTime);
 
-var _defaults = __webpack_require__(3);
+var _defaults = __webpack_require__(/*! ./defaults */ "./src/js/defaults.js");
 
 var _defaults2 = _interopRequireDefault(_defaults);
 
-var _tech = __webpack_require__(4);
-
-var _tech2 = _interopRequireDefault(_tech);
-
-var _window = __webpack_require__(5);
+var _window = __webpack_require__(/*! global/window */ "./node_modules/global/window.js");
 
 var _window2 = _interopRequireDefault(_window);
 
-var _video = __webpack_require__(7);
+var _video = __webpack_require__(/*! video.js */ "video.js");
 
 var _video2 = _interopRequireDefault(_video);
 
-var _wavesurfer = __webpack_require__(8);
+var _wavesurfer = __webpack_require__(/*! wavesurfer.js */ "wavesurfer.js");
 
 var _wavesurfer2 = _interopRequireDefault(_wavesurfer);
 
@@ -153,25 +404,19 @@ var Wavesurfer = function (_Plugin) {
     function Wavesurfer(player, options) {
         _classCallCheck(this, Wavesurfer);
 
-        // parse options
+        // add plugin style
         var _this = _possibleConstructorReturn(this, (Wavesurfer.__proto__ || Object.getPrototypeOf(Wavesurfer)).call(this, player, options));
 
+        player.addClass('vjs-wavesurfer');
+
+        // parse options
         options = _video2.default.mergeOptions(_defaults2.default, options);
         _this.waveReady = false;
         _this.waveFinished = false;
         _this.liveMode = false;
         _this.debug = options.debug.toString() === 'true';
         _this.msDisplayMax = parseFloat(options.msDisplayMax);
-
-        // attach this instance to the current player so that the tech can
-        // access it
-        _this.player.activeWavesurferPlugin = _this;
-
-        // check that wavesurfer is initialized in options, and add class to
-        // activate videojs-wavesurfer specific styles
-        if (_this.player.options_.plugins.wavesurfer !== undefined) {
-            _this.player.addClass('videojs-wavesurfer');
-        }
+        _this.textTracksEnabled = _this.player.options_.tracks.length > 0;
 
         // microphone plugin
         if (options.src === 'live') {
@@ -199,9 +444,6 @@ var Wavesurfer = function (_Plugin) {
     _createClass(Wavesurfer, [{
         key: 'initialize',
         value: function initialize() {
-            // setup tech
-            this.player.tech_.setActivePlayer(this.player);
-
             // hide big play button
             this.player.bigPlayButton.hide();
 
@@ -281,6 +523,17 @@ var Wavesurfer = function (_Plugin) {
                 // listen for window resize events
                 this.responsiveWave = _wavesurfer2.default.util.debounce(this.onResizeChange.bind(this), 150);
                 _window2.default.addEventListener('resize', this.responsiveWave);
+            }
+
+            // text tracks
+            if (this.textTracksEnabled) {
+                // disable timeupdates
+                this.player.controlBar.currentTimeDisplay.off(this.player, 'timeupdate', this.player.controlBar.currentTimeDisplay.throttledUpdateContent);
+
+                // sets up an interval function to track current time
+                // and trigger timeupdate every 250 milliseconds.
+                // needed for text tracks
+                this.player.tech_.trackCurrentTime();
             }
 
             // kick things off
@@ -431,7 +684,7 @@ var Wavesurfer = function (_Plugin) {
                         var ajax = _wavesurfer2.default.util.ajax(ajaxOptions);
 
                         ajax.on('success', function (data, e) {
-                            _this2.log('Loading URL: ' + url + '\nLoading Peak Data URL: ' + peaks);
+                            _this2.log('Loaded Peak Data URL: ' + peaks);
                             _this2.surfer.load(url, data.data);
                         });
                         ajax.on('error', function (e) {
@@ -493,7 +746,9 @@ var Wavesurfer = function (_Plugin) {
         key: 'pause',
         value: function pause() {
             // show play button
-            this.player.controlBar.playToggle.handlePause();
+            if (this.player.controlBar.playToggle.contentEl()) {
+                this.player.controlBar.playToggle.handlePause();
+            }
 
             if (this.liveMode) {
                 // pause microphone visualization
@@ -530,7 +785,22 @@ var Wavesurfer = function (_Plugin) {
                 // destroy wavesurfer instance
                 this.surfer.destroy();
             }
+            if (this.textTracksEnabled) {
+                this.player.tech_.stopTrackingCurrentTime();
+            }
             this.log('Destroyed plugin');
+        }
+
+        /**
+         * Indicates whether the plugin is destroyed or not.
+         *
+         * @return {boolean} Plugin destroyed or not.
+         */
+
+    }, {
+        key: 'isDestroyed',
+        value: function isDestroyed() {
+            return this.player && this.player.children() === null;
         }
 
         /**
@@ -629,9 +899,6 @@ var Wavesurfer = function (_Plugin) {
     }, {
         key: 'setCurrentTime',
         value: function setCurrentTime(currentTime, duration) {
-            // emit the timeupdate event so that the tech knows about the time change
-            this.trigger('timeupdate');
-
             if (currentTime === undefined) {
                 currentTime = this.surfer.getCurrentTime();
             }
@@ -645,7 +912,14 @@ var Wavesurfer = function (_Plugin) {
             var time = Math.min(currentTime, duration);
 
             // update current time display component
-            this.player.controlBar.currentTimeDisplay.formattedTime_ = this.player.controlBar.currentTimeDisplay.contentEl().lastChild.textContent = (0, _formatTime2.default)(time, duration, this.msDisplayMax);
+            if (this.player.controlBar.currentTimeDisplay.contentEl()) {
+                this.player.controlBar.currentTimeDisplay.formattedTime_ = this.player.controlBar.currentTimeDisplay.contentEl().lastChild.textContent = (0, _formatTime2.default)(time, duration, this.msDisplayMax);
+            }
+
+            if (this.textTracksEnabled) {
+                // only needed for text tracks
+                this.player.tech_.setCurrentTime(currentTime);
+            }
         }
 
         /**
@@ -679,7 +953,9 @@ var Wavesurfer = function (_Plugin) {
             duration = isNaN(duration) ? 0 : duration;
 
             // update duration display component
-            this.player.controlBar.durationDisplay.formattedTime_ = this.player.controlBar.durationDisplay.contentEl().lastChild.textContent = (0, _formatTime2.default)(duration, duration, this.msDisplayMax);
+            if (this.player.controlBar.durationDisplay.contentEl()) {
+                this.player.controlBar.durationDisplay.formattedTime_ = this.player.controlBar.durationDisplay.contentEl().lastChild.textContent = (0, _formatTime2.default)(duration, duration, this.msDisplayMax);
+            }
         }
 
         /**
@@ -704,10 +980,14 @@ var Wavesurfer = function (_Plugin) {
             this.setDuration();
 
             // enable and show play button
-            this.player.controlBar.playToggle.show();
+            if (this.player.controlBar.playToggle.contentEl()) {
+                this.player.controlBar.playToggle.show();
+            }
 
             // hide loading spinner
-            this.player.loadingSpinner.hide();
+            if (this.player.loadingSpinner.contentEl()) {
+                this.player.loadingSpinner.hide();
+            }
 
             // auto-play when ready (if enabled)
             if (this.player.options_.autoplay === true) {
@@ -897,30 +1177,34 @@ var Wavesurfer = function (_Plugin) {
     }, {
         key: 'redrawWaveform',
         value: function redrawWaveform(newWidth, newHeight) {
-            var rect = this.player.el_.getBoundingClientRect();
-            if (newWidth === undefined) {
-                // get player width
-                newWidth = rect.width;
+            if (!this.isDestroyed()) {
+                if (this.player.el_) {
+                    var rect = this.player.el_.getBoundingClientRect();
+                    if (newWidth === undefined) {
+                        // get player width
+                        newWidth = rect.width;
+                    }
+                    if (newHeight === undefined) {
+                        // get player height
+                        newHeight = rect.height;
+                    }
+                }
+
+                // destroy old drawing
+                this.surfer.drawer.destroy();
+
+                // set new dimensions
+                this.surfer.params.width = newWidth;
+                this.surfer.params.height = newHeight - this.player.controlBar.height();
+
+                // redraw waveform
+                this.surfer.createDrawer();
+                this.surfer.drawer.wrapper.className = wavesurferClassName;
+                this.surfer.drawBuffer();
+
+                // make sure playhead is restored at right position
+                this.surfer.drawer.progress(this.surfer.backend.getPlayedPercents());
             }
-            if (newHeight === undefined) {
-                // get player height
-                newHeight = rect.height;
-            }
-
-            // destroy old drawing
-            this.surfer.drawer.destroy();
-
-            // set new dimensions
-            this.surfer.params.width = newWidth;
-            this.surfer.params.height = newHeight - this.player.controlBar.height();
-
-            // redraw waveform
-            this.surfer.createDrawer();
-            this.surfer.drawer.wrapper.className = wavesurferClassName;
-            this.surfer.drawBuffer();
-
-            // make sure playhead is restored at right position
-            this.surfer.drawer.progress(this.surfer.backend.getPlayedPercents());
         }
 
         /**
@@ -940,450 +1224,55 @@ var Wavesurfer = function (_Plugin) {
 // version nr is injected during build
 
 
-Wavesurfer.VERSION = "2.3.0";
+Wavesurfer.VERSION = "2.5.0";
 
-// register plugin
+// register plugin once
 _video2.default.Wavesurfer = Wavesurfer;
-_video2.default.registerPlugin('wavesurfer', Wavesurfer);
-
-// register the WavesurferTech as 'Html5' to override the default html5 tech.
-// If we register it as anything other then 'Html5', the <audio> element will
-// be removed by VJS and caption tracks will be lost in the Safari browser.
-_video2.default.registerTech('Html5', _tech2.default);
+if (_video2.default.getPlugin('wavesurfer') === undefined) {
+    _video2.default.registerPlugin('wavesurfer', Wavesurfer);
+}
 
 module.exports = {
     Wavesurfer: Wavesurfer
 };
 
 /***/ }),
-/* 1 */
+
+/***/ 0:
+/*!******************************************************************************!*\
+  !*** multi ./src/js/videojs.wavesurfer.js ./src/css/videojs.wavesurfer.scss ***!
+  \******************************************************************************/
+/*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
+__webpack_require__(/*! /home/thijs/projects/videojs-wavesurfer/src/js/videojs.wavesurfer.js */"./src/js/videojs.wavesurfer.js");
+module.exports = __webpack_require__(/*! /home/thijs/projects/videojs-wavesurfer/src/css/videojs.wavesurfer.scss */"./src/css/videojs.wavesurfer.scss");
 
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-/**
- * @file log.js
- * @since 2.0.0
- */
-
-var ERROR = 'error';
-var WARN = 'warn';
-
-/**
- * Log message (if the debug option is enabled).
- */
-var log = function log(args, logType, debug) {
-    if (debug === true) {
-        if (logType === ERROR) {
-            videojs.log.error(args);
-        } else if (logType === WARN) {
-            videojs.log.warn(args);
-        } else {
-            videojs.log(args);
-        }
-    }
-};
-
-exports.default = log;
-module.exports = exports['default'];
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-/**
- * @file format-time.js
- * @since 2.0.0
- */
-
-/**
- * Format seconds as a time string, H:MM:SS, M:SS or M:SS:MMM.
- *
- * Supplying a guide (in seconds) will force a number of leading zeros
- * to cover the length of the guide.
- *
- * @param {number} seconds - Number of seconds to be turned into a
- *     string.
- * @param {number} guide - Number (in seconds) to model the string
- *     after.
- * @param {number} msDisplayMax - Number (in milliseconds) to model the string
- *     after.
- * @return {string} Time formatted as H:MM:SS, M:SS or M:SS:MMM, e.g.
- *     0:00:12.
- * @private
- */
-var formatTime = function formatTime(seconds, guide, msDisplayMax) {
-    // Default to using seconds as guide
-    seconds = seconds < 0 ? 0 : seconds;
-    guide = guide || seconds;
-    var s = Math.floor(seconds % 60),
-        m = Math.floor(seconds / 60 % 60),
-        h = Math.floor(seconds / 3600),
-        gm = Math.floor(guide / 60 % 60),
-        gh = Math.floor(guide / 3600),
-        ms = Math.floor((seconds - s) * 1000);
-
-    // handle invalid times
-    if (isNaN(seconds) || seconds === Infinity) {
-        // '-' is false for all relational operators (e.g. <, >=) so this
-        // setting will add the minimum number of fields specified by the
-        // guide
-        h = m = s = ms = '-';
-    }
-
-    // Check if we need to show milliseconds
-    if (guide > 0 && guide < msDisplayMax) {
-        if (ms < 100) {
-            if (ms < 10) {
-                ms = '00' + ms;
-            } else {
-                ms = '0' + ms;
-            }
-        }
-        ms = ':' + ms;
-    } else {
-        ms = '';
-    }
-
-    // Check if we need to show hours
-    h = h > 0 || gh > 0 ? h + ':' : '';
-
-    // If hours are showing, we may need to add a leading zero.
-    // Always show at least one digit of minutes.
-    m = ((h || gm >= 10) && m < 10 ? '0' + m : m) + ':';
-
-    // Check if leading zero is need for seconds
-    s = s < 10 ? '0' + s : s;
-
-    return h + m + s + ms;
-};
-
-exports.default = formatTime;
-module.exports = exports['default'];
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-/**
- * @file defaults.js
- * @since 2.0.0
- */
-
-// plugin defaults
-var pluginDefaultOptions = {
-    // Display console log messages.
-    debug: false,
-    // msDisplayMax indicates the number of seconds that is
-    // considered the boundary value for displaying milliseconds
-    // in the time controls. An audio clip with a total length of
-    // 2 seconds and a msDisplayMax of 3 will use the format
-    // M:SS:MMM. Clips longer than msDisplayMax will be displayed
-    // as M:SS or HH:MM:SS.
-    msDisplayMax: 3
-};
-
-exports.default = pluginDefaultOptions;
-module.exports = exports["default"];
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-/**
- * @file tech.js
- * @since 2.1.0
- */
-
-var Html5 = videojs.getTech('Html5');
-
-var WavesurferTech = function (_Html) {
-    _inherits(WavesurferTech, _Html);
-
-    /**
-     * Create an instance of this Tech.
-     *
-     * @param {Object} [options]
-     *        The key/value store of player options.
-     *
-     * @param {Component~ReadyCallback} ready
-     *        Callback function to call when the `Flash` Tech is ready.
-     */
-    function WavesurferTech(options, ready) {
-        _classCallCheck(this, WavesurferTech);
-
-        // never allow for native text tracks, because this isn't actually
-        // HTML5 audio. Native tracks fail because we are using wavesurfer
-        options.nativeTextTracks = false;
-
-        return _possibleConstructorReturn(this, (WavesurferTech.__proto__ || Object.getPrototypeOf(WavesurferTech)).call(this, options, ready));
-    }
-
-    _createClass(WavesurferTech, [{
-        key: 'setActivePlayer',
-        value: function setActivePlayer(player) {
-            var _this2 = this;
-
-            // we need the player instance so that we can access the current
-            // wavesurfer plugin attached to that player
-            this.activePlayer = player;
-            this.waveready = false;
-
-            // track when wavesurfer is fully initialized (ready)
-            this.activePlayer.on('waveReady', function () {
-                _this2.waveready = true;
-            });
-
-            if (!this.playerIsUsingWavesurfer()) {
-                // the plugin hasn't been initialized for this player, so it
-                // likely doesn't need our html5 tech modifications
-                return;
-            }
-
-            // proxy timeupdate events so that the tech emits them too. This will
-            // allow the rest of videoJS to work (including text tracks)
-            this.activePlayer.activeWavesurferPlugin.on('timeupdate', function () {
-                _this2.trigger('timeupdate');
-            });
-        }
-
-        /**
-         * Determine whether or not the player is trying use the wavesurfer plugin
-         * @returns {boolean}
-         */
-
-    }, {
-        key: 'playerIsUsingWavesurfer',
-        value: function playerIsUsingWavesurfer() {
-            var availablePlugins = videojs.getPlugins();
-            var usingWavesurferPlugin = 'wavesurfer' in availablePlugins;
-            var usingRecordPlugin = 'record' in availablePlugins;
-
-            return usingWavesurferPlugin && !usingRecordPlugin;
-        }
-
-        /**
-         * Start playback.
-         */
-
-    }, {
-        key: 'play',
-        value: function play() {
-            if (!this.playerIsUsingWavesurfer()) {
-                // fall back to html5 tech functionality
-                return _get(WavesurferTech.prototype.__proto__ || Object.getPrototypeOf(WavesurferTech.prototype), 'play', this).call(this);
-            }
-
-            return this.activePlayer.activeWavesurferPlugin.play();
-        }
-
-        /**
-         * Pause playback.
-         */
-
-    }, {
-        key: 'pause',
-        value: function pause() {
-            if (!this.playerIsUsingWavesurfer()) {
-                //fall back to html5 tech functionality
-                return _get(WavesurferTech.prototype.__proto__ || Object.getPrototypeOf(WavesurferTech.prototype), 'pause', this).call(this);
-            }
-
-            return this.activePlayer.activeWavesurferPlugin.pause();
-        }
-
-        /**
-         * Get the current time
-         * @return {number}
-         */
-
-    }, {
-        key: 'currentTime',
-        value: function currentTime() {
-            if (!this.playerIsUsingWavesurfer()) {
-                // fall back to html5 tech functionality
-                return _get(WavesurferTech.prototype.__proto__ || Object.getPrototypeOf(WavesurferTech.prototype), 'currentTime', this).call(this);
-            }
-
-            if (!this.waveready) {
-                return 0;
-            }
-
-            return this.activePlayer.activeWavesurferPlugin.getCurrentTime();
-        }
-
-        /**
-         * Get the current duration
-         *
-         * @return {number}
-         *         The duration of the media or 0 if there is no duration.
-         */
-
-    }, {
-        key: 'duration',
-        value: function duration() {
-            if (!this.playerIsUsingWavesurfer()) {
-                // fall back to html5 tech functionality
-                return _get(WavesurferTech.prototype.__proto__ || Object.getPrototypeOf(WavesurferTech.prototype), 'duration', this).call(this);
-            }
-
-            if (!this.waveready) {
-                return 0;
-            }
-
-            return this.activePlayer.activeWavesurferPlugin.getDuration();
-        }
-
-        /**
-         * Set the current time
-         *
-         * @since 2.1.1
-         * @param {number} time
-         * @returns {*}
-         */
-
-    }, {
-        key: 'setCurrentTime',
-        value: function setCurrentTime(time) {
-            if (!this.playerIsUsingWavesurfer()) {
-                // fall back to html5 tech functionality
-                return _get(WavesurferTech.prototype.__proto__ || Object.getPrototypeOf(WavesurferTech.prototype), 'currentTime', this).call(this, time);
-            }
-
-            if (!this.waveready) {
-                return 0;
-            }
-
-            return this.activePlayer.activeWavesurferPlugin.surfer.seekTo(time / this.activePlayer.activeWavesurferPlugin.surfer.getDuration());
-        }
-
-        /**
-         * Sets the current playback rate. A playback rate of
-         * 1.0 represents normal speed and 0.5 would indicate half-speed
-         * playback, for instance.
-         *
-         * @since 2.1.1
-         * @param {number} [rate]
-         *       New playback rate to set.
-         *
-         * @return {number}
-         *         The current playback rate when getting or 1.0
-         */
-
-    }, {
-        key: 'setPlaybackRate',
-        value: function setPlaybackRate(rate) {
-            if (this.playerIsUsingWavesurfer()) {
-                this.activePlayer.activeWavesurferPlugin.surfer.setPlaybackRate(rate);
-            }
-
-            return _get(WavesurferTech.prototype.__proto__ || Object.getPrototypeOf(WavesurferTech.prototype), 'setPlaybackRate', this).call(this, rate);
-        }
-    }]);
-
-    return WavesurferTech;
-}(Html5);
-
-WavesurferTech.isSupported = function () {
-    return true;
-};
-
-exports.default = WavesurferTech;
-module.exports = exports['default'];
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-/* WEBPACK VAR INJECTION */(function(global) {var win;
-
-if (typeof window !== "undefined") {
-    win = window;
-} else if (typeof global !== "undefined") {
-    win = global;
-} else if (typeof self !== "undefined"){
-    win = self;
-} else {
-    win = {};
-}
-
-module.exports = win;
-
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6)))
-
-/***/ }),
-/* 6 */
+/***/ "video.js":
+/*!**************************!*\
+  !*** external "videojs" ***!
+  \**************************/
+/*! no static exports found */
 /***/ (function(module, exports) {
 
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || Function("return this")() || (1,eval)("this");
-} catch(e) {
-	// This works if the window reference is available
-	if(typeof window === "object")
-		g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
+module.exports = __WEBPACK_EXTERNAL_MODULE_video_js__;
 
 /***/ }),
-/* 7 */
+
+/***/ "wavesurfer.js":
+/*!*****************************!*\
+  !*** external "WaveSurfer" ***!
+  \*****************************/
+/*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = __WEBPACK_EXTERNAL_MODULE_7__;
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports) {
-
-module.exports = __WEBPACK_EXTERNAL_MODULE_8__;
+module.exports = __WEBPACK_EXTERNAL_MODULE_wavesurfer_js__;
 
 /***/ })
-/******/ ]);
+
+/******/ });
 });
 //# sourceMappingURL=videojs.wavesurfer.js.map

@@ -41,7 +41,7 @@ $playlistVideos = PlayList::getVideosFromPlaylist($playlist_id);
                         </div>
                         <div class="col-md-3 col-sm-3 col-xs-3 nopadding">
                             <?php
-                            if ($value['type'] !== "audio") {
+                            if (($value['type'] !== "audio")&&($value['type'] !== "linkAudio")) {
                                 $img = "{$global['webSiteRootURL']}videos/{$value['filename']}.jpg";
                                 $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
                             } else {
@@ -62,7 +62,7 @@ $playlistVideos = PlayList::getVideosFromPlaylist($playlist_id);
                             <div class="text-uppercase row"><strong itemprop="name" class="title"><?php echo $value['title']; ?></strong></div>
                             <div class="details row" itemprop="description">
                                 <div>
-                                    <span class="<?php echo $value['iconClass']; ?>"></span>
+                                    <span class="<?php echo @$value['iconClass']; ?>"></span>
                                 </div>
                                 <div>
                                     <strong class=""><?php echo number_format($value['views_count'], 0); ?></strong> <?php echo __("Views"); ?>

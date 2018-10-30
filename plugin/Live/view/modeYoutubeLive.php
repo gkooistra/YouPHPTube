@@ -4,6 +4,15 @@ require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 require_once $global['systemRootPath'] . 'plugin/Live/Objects/LiveTransmition.php';
+
+if(!empty($_GET['c'])){
+    $user = User::getChannelOwner($_GET['c']);
+    if(!empty($user)){
+        $_GET['u'] = $user['user'];
+    }
+}
+
+
 $t = LiveTransmition::getFromDbByUserName($_GET['u']);
 $uuid = $t['key'];
 
@@ -20,15 +29,15 @@ $imgh = 360;
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title><?php echo $t['title']; ?> - Live Video - <?php echo $config->getWebSiteTitle(); ?></title>
-        <?php
-        include $global['systemRootPath'] . 'view/include/head.php';
-        ?>
+        <title><?php echo $t['title']; ?> - <?php echo __("Live Video"); ?> - <?php echo $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo $global['webSiteRootURL']; ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
+        <?php
+        include $global['systemRootPath'] . 'view/include/head.php';
+        ?>
         
         <meta property="fb:app_id"             content="774958212660408" />
         <meta property="og:url"                content="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?u=<?php echo $_GET['u']; ?>" />
@@ -57,7 +66,7 @@ $imgh = 360;
         <div class="container-fluid ">
             <div class="col-md-5 col-md-offset-2 list-group-item">
                 <h1 itemprop="name">
-                    <i class="fa fa-video-camera"></i> <?php echo $t['title']; ?>
+                    <i class="fas fa-video"></i> <?php echo $t['title']; ?>
                 </h1>
                 <p><?php echo nl2br(textToLink($t['description'])); ?></p>
                 <div class="col-xs-12 col-sm-12 col-lg-12"><?php echo $video['creator']; ?></div>
@@ -91,7 +100,9 @@ $imgh = 360;
         ?>
 
                 <?php
-                $p->getChat($uuid);
+                if(!empty($p)){
+                    $p->getChat($uuid);
+                }
                 ?>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-persistvolume/videojs.persistvolume.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/webui-popover/jquery.webui-popover.min.js" type="text/javascript"></script>

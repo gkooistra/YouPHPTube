@@ -22,6 +22,10 @@ class LoginFacebook extends PluginAbstract {
     public function getUUID() {
         return "010d53de-101a-4eb6-9aeb-dcffecdb6cb3";
     }
+
+    public function getPluginVersion() {
+        return "1.0";   
+    }    
         
     public function getEmptyDataObject() {
         global $global;
@@ -38,7 +42,7 @@ class LoginFacebook extends PluginAbstract {
     public function getLogin() {
         $obj = new stdClass();
         $obj->class = "btn btn-primary btn-block"; 
-        $obj->icon = "fa fa-facebook-square"; 
+        $obj->icon = "fab fa-facebook-square"; 
         $obj->type = "Facebook"; 
         $obj->linkToDevelopersPage = "https://developers.facebook.com/apps";         
         return $obj;

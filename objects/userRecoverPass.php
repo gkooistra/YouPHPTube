@@ -1,8 +1,8 @@
 <?php
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 if (empty($_POST['user'])) {
     $_POST['user'] = $_GET['user'];
@@ -14,7 +14,7 @@ if (!(!empty($_GET['user']) && !empty($_GET['recoverpass']))) {
         $recoverPass = md5(rand());
         $user->setRecoverPass($recoverPass);
         $obj = new stdClass();
-        if ($user->save()) {
+        if (!empty($_POST['captcha']) && $user->save()) {
             require_once 'captcha.php';
             $valid = Captcha::validation($_POST['captcha']);
             if ($valid) {
@@ -148,7 +148,7 @@ if (!(!empty($_GET['user']) && !empty($_GET['recoverpass']))) {
                     evt.preventDefault();
                     modal.showPleaseWait();
                     $.ajax({
-                        url: '<?php echo $global['webSiteRootURL']; ?>saveRecoverPassword',
+                        url: '<?php echo $global['webSiteRootURL']; ?>objects/userRecoverPassSave.json.php',
                         data: $('#recoverPassForm').serializeArray(),
                         type: 'post',
                         success: function (response) {

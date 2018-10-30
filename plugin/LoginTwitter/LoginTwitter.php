@@ -22,6 +22,10 @@ class LoginTwitter extends PluginAbstract {
     public function getUUID() {
         return "bc50f9c1-85d8-4898-8092-82ee69041b3f";
     }
+
+    public function getPluginVersion() {
+        return "1.0";   
+    }
         
     public function getEmptyDataObject() {
         global $global;
@@ -38,7 +42,7 @@ class LoginTwitter extends PluginAbstract {
     public function getLogin() {
         $obj = new stdClass();
         $obj->class = "btn btn-info btn-block"; 
-        $obj->icon = "fa fa-twitter"; 
+        $obj->icon = "fab fa-twitter"; 
         $obj->type = "Twitter"; 
         $obj->linkToDevelopersPage = "https://apps.twitter.com/";         
         return $obj;

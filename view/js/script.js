@@ -14,6 +14,13 @@ var isPlayingAd = false;
 var mainVideoHeight = 0;
 var doNotFloatVideo = false;
 
+var mouseX;
+var mouseY;
+$(document).mousemove( function(e) {
+   mouseX = e.pageX; 
+   mouseY = e.pageY;
+});  
+
 String.prototype.stripAccents = function () {
     var translate_re = /[àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ]/g;
     var translate = 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY';
@@ -27,6 +34,7 @@ function clean_name(str) {
     str = str.stripAccents().toLowerCase();
     return str.replace(/\W+/g, "-");
 }
+var pleaseWaitIsINUse = false;
 $(document).ready(function () {
     modal = modal || (function () {
         var pleaseWaitDiv = $("#pleaseWaitDialog");
@@ -36,10 +44,15 @@ $(document).ready(function () {
 
         return {
             showPleaseWait: function () {
+                if(pleaseWaitIsINUse){
+                    return false;
+                }
+                pleaseWaitIsINUse = true;
                 pleaseWaitDiv.modal();
             },
             hidePleaseWait: function () {
                 pleaseWaitDiv.modal('hide');
+                pleaseWaitIsINUse = false;
             },
             setProgress: function (valeur) {
                 pleaseWaitDiv.find('.progress-bar').css('width', valeur + '%').attr('aria-valuenow', valeur);
@@ -61,7 +74,7 @@ $(document).ready(function () {
             $(this).find(".thumbsGIF").height($(this).find(".thumbsJPG").height());
             $(this).find(".thumbsGIF").width($(this).find(".thumbsJPG").width());
             try {
-                $(this).find(".thumbsGIF").lazy();
+                $(this).find(".thumbsGIF").lazy({effect: 'fadeIn'});
             } catch (e) {
             }
             $(this).find(".thumbsGIF").stop(true, true).fadeIn();
@@ -73,9 +86,13 @@ $(document).ready(function () {
     });
 
 
-    $('.thumbsJPG, .thumbsGIF').lazy({
+    $('.thumbsJPG').lazy({
         effect: 'fadeIn',
-        visibleOnly: true
+        visibleOnly: true,
+        // called after an element was successfully handled
+        afterLoad: function (element) {
+            element.removeClass('blur');
+        }
     });
 
     mainVideoHeight = $('#videoContainer').innerHeight();
@@ -140,7 +157,6 @@ function removeTracks() {
 
 function changeVideoSrc(vid_obj, source) {
     var srcs = [];
-    var traks = [];
     removeTracks();
     for (i = 0; i < source.length; i++) {
         if (source[i].type) {
@@ -149,14 +165,37 @@ function changeVideoSrc(vid_obj, source) {
             player.addRemoteTextTrack(source[i]);
         }
     }
-    player.src(srcs);
-    vid_obj.load();
-    player.play();
-
+    vid_obj.src(srcs);
+    setTimeout(function () {
+        changeVideoSrcLoad();
+    }, 1000);
 }
 
+function changeVideoSrcLoad() {
+    console.log("changeVideoSrcLoad: Try to load player");
+    player.load();
+    player.ready(function () {
+        console.log("changeVideoSrcLoad: Player ready");
+        var err = this.error();
+        if (err && err.code) {
+            console.log("changeVideoSrcLoad: Load player Error");
+            setTimeout(function () {
+                changeVideoSrcLoad();
+            }, 1000);
+        } else {
+            console.log("changeVideoSrcLoad: Load player Success, Play");
+            setTimeout(function () {
+                player.load();
+                player.play();
+            }, 1000);
+        }
+    });
+    ;
+}
+
+
 /**
- * 
+ *
  * @param {String} str 00:00:00
  * @returns {int} int of seconds
  */
@@ -169,7 +208,7 @@ function strToSeconds(str) {
 }
 
 /**
- * 
+ *
  * @param {int} seconds
  * @param {int} level 3 = 00:00:00 2 = 00:00 1 = 00
  * @returns {String} 00:00:00
@@ -203,7 +242,7 @@ function validateEmail(email) {
 
 function subscribe(email, user_id) {
     $.ajax({
-        url: webSiteRootURL + 'subscribe.json',
+        url: webSiteRootURL + 'objects/subscribe.json.php',
         method: 'POST',
         data: {
             'email': email,
@@ -234,12 +273,12 @@ function subscribeNotify(email, user_id) {
             'user_id': user_id
         },
         success: function (response) {
-            if(response.notify){
+            if (response.notify) {
                 $('.notNotify' + user_id).addClass("hidden");
                 $('.notify' + user_id).removeClass("hidden");
-            }else{
+            } else {
                 $('.notNotify' + user_id).removeClass("hidden");
-                $('.notify' + user_id).addClass("hidden");                
+                $('.notify' + user_id).addClass("hidden");
             }
         }
     });
@@ -271,6 +310,10 @@ function closeFloatVideo() {
 function mouseEffect() {
 
     $(".thumbsImage").on("mouseenter", function () {
+        try {
+            $(this).find(".thumbsGIF").lazy({effect: 'fadeIn'});
+        } catch (e) {
+        }
         $(this).find(".thumbsGIF").height($(this).find(".thumbsJPG").height());
         $(this).find(".thumbsGIF").width($(this).find(".thumbsJPG").width());
         $(this).find(".thumbsGIF").stop(true, true).fadeIn();
@@ -300,7 +343,7 @@ function copyToClipboard(text) {
 
 function addView(videos_id) {
     $.ajax({
-        url: webSiteRootURL + 'addViewCountVideo',
+        url: webSiteRootURL + 'objects/videoAddViewCount.json.php',
         method: 'POST',
         data: {
             'id': videos_id
@@ -319,4 +362,14 @@ function getPlayerButtonIndex(name) {
         }
     }
     return children.length;
+}
+
+
+function copyToClipboard(text) {
+    
+    $('#elementToCopy').css({'top':mouseY,'left':mouseX}).fadeIn('slow');
+    $('#elementToCopy').val(text);
+    $('#elementToCopy').focus();
+    $('#elementToCopy').select();
+    document.execCommand('copy');
 }

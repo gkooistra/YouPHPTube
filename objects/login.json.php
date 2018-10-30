@@ -1,9 +1,10 @@
 <?php
-//header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json');
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
+global $global, $config;
+if(!isset($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
 }
 require_once $global['systemRootPath'] . 'objects/functions.php';
 // gettig the mobile submited value
@@ -19,6 +20,11 @@ if(!empty($input) && empty($_POST)){
 require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/hybridauth/autoload.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
+require_once $global['systemRootPath'] . 'objects/category.php';
+
+Category::clearCacheCount();
+
+error_log("Start Login Request");
 
 use Hybridauth\Hybridauth;
 use Hybridauth\HttpClient;
@@ -40,6 +46,12 @@ if (!empty($_GET['type'])) {
     if(empty($key)){
         die(sprintf(__("%s ERROR: You must set a KEY on config"), $_GET['type']));
     }
+    
+    $scope = 'email';
+    if($_GET['type']==='LinkedIn'){
+        $scope = array('r_emailaddress');
+    }
+    
     $config = [
         'callback' => HttpClient\Util::getCurrentUrl()."?type={$_GET['type']}",
         'providers' => [
@@ -47,6 +59,8 @@ if (!empty($_GET['type'])) {
                 'enabled' => true,
                 'keys' => ['id' => $id, 'secret' => $key, 'key'=>$id],
                 "includeEmail" => true,
+                'scope'   => $scope,
+                'trustForwarded' => false
             ]
         ],
             /* optional : set debug mode
@@ -98,10 +112,16 @@ if(!empty($_GET['encodedPass'])){
 }
 if(empty($_POST['user']) || empty($_POST['pass'])){
     $object->error = __("User and Password can not be blank");
-     die(json_encode($object));
+    die(json_encode($object));
 }
 $user = new User(0, $_POST['user'], $_POST['pass']);
-$user->login(false, @$_POST['encodedPass']);
+$resp = $user->login(false, @$_POST['encodedPass']);
+
+if($resp === User::USER_NOT_VERIFIED){
+    $object->error = __("Your user is not verified, we sent you a new e-mail");
+    die(json_encode($object));
+}
+$object->siteLogo = $global['webSiteRootURL'].$config->getLogo();
 $object->id = User::getId();
 $object->user = User::getUserName();
 $object->pass = User::getUserPass();
@@ -112,6 +132,7 @@ $object->isLogged = User::isLogged();
 $object->isAdmin = User::isAdmin();
 $object->canUpload = User::canUpload();
 $object->canComment = User::canComment();
+$object->categories = Category::getAllCategories();
 $object->streamServerURL = "";
 $object->streamKey = "";
 if($object->isLogged){
@@ -124,9 +145,11 @@ if($object->isLogged){
     }
     $p = YouPHPTubePlugin::loadPluginIfEnabled("MobileManager");
     if(!empty($p)){
-        $object->streamer = json_decode(url_get_contents($global['webSiteRootURL']."status"));
+        $object->streamer = json_decode(url_get_contents($global['webSiteRootURL']."objects/status.json.php"));
         $object->plugin = $p->getDataObject();
         $object->encoder = $config->getEncoderURL();
     }
 }
-echo json_encode($object);
+$json = json_encode($object);
+header("Content-length: ".  strlen($json));
+echo $json;

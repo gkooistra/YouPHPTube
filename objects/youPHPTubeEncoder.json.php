@@ -5,10 +5,10 @@ header('Content-Type: application/json');
 $obj = new stdClass();
 $obj->error = true;
 
-if (empty($global['systemRootPath'])) {
-    $global['systemRootPath'] = "../";
+global $global, $config;
+if (!isset($global['systemRootPath'])) {
+    require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 
@@ -31,6 +31,12 @@ if (!User::canUpload()) {
     die(json_encode($obj));
 }
 
+if (!empty($_POST['videos_id']) && !Video::canEdit($_POST['videos_id'])) {
+    $obj->msg = __("Permission denied to edit a video: " . print_r($_POST, true));
+    error_log($obj->msg);
+    die(json_encode($obj));
+}
+
 // check if there is en video id if yes update if is not create a new one
 $video = new Video("", "", @$_POST['videos_id']);
 $obj->video_id = @$_POST['videos_id'];
@@ -42,17 +48,19 @@ if (empty($title) && !empty($_POST['title'])) {
 }
 $video->setDuration($_POST['duration']);
 $video->setDescription($_POST['description']);
-
-$advancedCustom = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeAdvanced");
-if(empty($advancedCustom->makeVideosInactiveAfterEncode)){
-    // set active
-    $video->setStatus('a');
-}else{
-    $video->setStatus('i');
+$status = $video->getStatus();
+// if status is not unlisted
+if ($status !== 'u' && $status !== 'a') {
+    if (empty($advancedCustom->makeVideosInactiveAfterEncode)) {
+        // set active
+        $video->setStatus('a');
+    } else {
+        $video->setStatus('i');
+    }
 }
 $video->setVideoDownloadedLink($_POST['videoDownloadedLink']);
 error_log("Encoder receiving post");
-error_log(print_r($_POST, true));
+//error_log(print_r($_POST, true));
 if (preg_match("/(mp3|wav|ogg)$/i", $_POST['format'])) {
     $type = 'audio';
     $video->setType($type);
@@ -87,15 +95,20 @@ if (!empty($_FILES['image']['tmp_name']) && !file_exists("{$destination_local}.j
         $obj->msg = print_r(sprintf(__("Could not move image file [%s.jpg]"), $destination_local), true);
         error_log($obj->msg);
         die(json_encode($obj));
-    } 
+    }
 }
 if (!empty($_FILES['gifimage']['tmp_name']) && !file_exists("{$destination_local}.gif")) {
     if (!move_uploaded_file($_FILES['gifimage']['tmp_name'], "{$destination_local}.gif")) {
         $obj->msg = print_r(sprintf(__("Could not move gif image file [%s.gif]"), $destination_local), true);
         error_log($obj->msg);
         die(json_encode($obj));
-    } 
+    }
 }
+
+if (!empty($_POST['categories_id'])) {
+    $video->setCategories_id($_POST['categories_id']);
+}
+
 $video_id = $video->save();
 $video->updateDurationIfNeed();
 

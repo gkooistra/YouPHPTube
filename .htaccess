@@ -10,6 +10,24 @@
     ExpiresByType text/javascript "access plus 216000 seconds"
     ExpiresByType application/x-javascript "access plus 216000 seconds"
 </ifModule>
+<Files routes.php>
+Order Allow,Deny
+Deny from all
+</Files>
+<Files PayPal.log>
+Order Allow,Deny
+Deny from all
+</Files>
+<Files youphptube.log>
+Order Allow,Deny
+Deny from all
+</Files>
+<Files youphptube.js.log>
+Order Allow,Deny
+Deny from all
+</Files>
+# Disable directory browsing
+Options All -Indexes
 # END Expires
 # BEGIN Caching
 <ifModule mod_headers.c>
@@ -42,7 +60,8 @@
     RewriteRule    ^js/(.+)$ view/js/$1 [NC,L]
     RewriteRule    ^css/(.+)$ view/css/$1 [NC,L]
     RewriteRule    ^img/(.+)$ view/img/$1 [NC,L]
-    RewriteRule    ^page/([0-9]+)/?$ view/?page=$1    [NC,L]
+    RewriteRule    ^videos/fonts/(.+)$ view/bootstrap/fonts/$1 [NC,L]
+    RewriteRule    ^page/([0-9]+)/?$ view/?page=$1    [QSA]
     RewriteRule    ^videoOnly/?$ view/?type=video    [NC,L]
     RewriteRule    ^audioOnly/?$ view/?type=audio    [NC,L]
     RewriteRule    ^download$ view/downloadExternalVideo.php    [NC,L]
@@ -50,6 +69,7 @@
     RewriteRule    ^downloadNow$ objects/downloadVideo.php    [NC,L]
     RewriteRule    ^getDownloadProgress$ objects/downloadVideoProgress.php    [NC,L]
     RewriteRule    ^status$ objects/status.json.php    [NC,L]
+    RewriteRule    ^menu/([A-Za-z0-9-_.]+)/? plugin/TopMenu/seo.php?menuSeoUrlItem=$1    [QSA,L]
 
     RewriteRule    ^about$ view/about.php    [NC,L]
     RewriteRule    ^contact$ view/contact.php    [NC,L]
@@ -64,11 +84,12 @@
     RewriteRule    ^cat/([A-Za-z0-9-]+)/?$ view/?catName=$1    [NC,L,QSA]
     RewriteRule    ^cat/([A-Za-z0-9-]+)/page/([0-9]+)/?$ view/?catName=$1&page=$2    [NC,L,QSA]
 
-    
+
     #for the video name
     RewriteRule    ^video/([A-Za-z0-9-_.]+)/?$ view/?videoName=$1    [QSA]
-    RewriteRule    ^v/([0-9]+)/?$ view/?v=$1    [QSA]
     RewriteRule    ^video/([A-Za-z0-9-_.]+)/page/([0-9]+)/??$ view/?videoName=$1&page=$2    [QSA]
+    RewriteRule    ^v/([0-9]+)/?$ view/?v=$1    [QSA]
+    RewriteRule    ^v/([0-9]+)/page/([0-9]+)/??$ view/?v=$1&page=$2     [QSA]
 
     #for the video name
     RewriteRule    ^cat/([A-Za-z0-9-]+)/video/([A-Za-z0-9-_.]+)/?$ view/?catName=$1&videoName=$2    [QSA]
@@ -106,13 +127,6 @@
     RewriteRule    ^addNewUserGroups$ objects/userGroupsAddNew.json.php    [NC,L]
     RewriteRule    ^deleteUserGroups$ objects/userGroupsDelete.json.php    [NC,L]
 
-    # Ads
-    RewriteRule    ^ads$ view/managerAds.php    [NC,L]
-    RewriteRule    ^addNewAd$ objects/video_adsAddNew.json.php    [NC,L]
-    RewriteRule    ^ads.json$ objects/video_ads.json.php    [NC,L]
-    RewriteRule    ^deleteVideoAd$ objects/video_adDelete.json.php    [NC,L]
-    RewriteRule    ^adClickLog objects/video_adClickLog.php    [NC,L]
-
     #manager category
     RewriteRule    ^categories$ view/managerCategories.php    [NC,L]
     RewriteRule    ^categories.json$ objects/categories.json.php    [NC,L]
@@ -140,8 +154,8 @@
     RewriteRule    ^removePlaylist/?$ objects/playlistRemove.php    [NC,L]
     RewriteRule    ^renamePlaylist/?$ objects/playlistRename.php    [NC,L]
     RewriteRule    ^sortPlaylist/?$ objects/playlistSort.php    [NC,L]
-    RewriteRule    ^channel/([0-9]+)/?$ view/channel.php?user_id=$1    [NC,L]
-    RewriteRule    ^channel/?$ view/channel.php    [NC,L]
+    RewriteRule    ^channel/([^/]+)/?$ view/channel.php?channelName=$1    [QSA]
+    RewriteRule    ^channel/?$ view/channel.php    [QSA]
     RewriteRule    ^channels/?$ view/channels.php    [NC,L]
 
     #manager videos
@@ -178,17 +192,19 @@
     RewriteRule    ^login$ objects/login.json.php    [NC,L]
     RewriteRule    ^logoff$ objects/logoff.php    [NC,L]
 
-    RewriteRule    ^like$ objects/like.json.php?like=1    [QSA] 
-    RewriteRule    ^dislike$ objects/like.json.php?like=-1    [QSA] 
+    RewriteRule    ^like$ objects/like.json.php?like=1    [QSA]
+    RewriteRule    ^dislike$ objects/like.json.php?like=-1    [QSA]
 
 
     #manager configuration
 
-    RewriteRule    ^update/?$ update/update.php    [NC,L]
+    RewriteRule    ^update/?$ view/update.php    [NC,L]
     RewriteRule    ^siteConfigurations$ view/configurations.php    [NC,L]
     RewriteRule    ^updateConfig$ objects/configurationUpdate.json.php    [NC,L]
 
     RewriteRule    ^charts$ view/charts.php    [NC,L]
+
+    RewriteRule    ^help$ view/help.php    [NC,L]
 
     # YouTube Sync
     RewriteRule    ^youtubeUpload$ objects/youtubeUpload.json.php    [NC,L]
@@ -199,7 +215,7 @@
 
     # It must be before image not found
     <IfModule mod_xsendfile.c>
-       #RewriteRule    ^videos/([A-Za-z0-9-_.]+)$ view/xsendfile.php?file=$1    [NC,L]
+       RewriteRule    ^videos/([A-Za-z0-9-_.]+)$ view/xsendfile.php?file=$1    [QSA]
     </IfModule>
 
     # if image do not exists
@@ -207,5 +223,30 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule .*$ img/image404.php [NC,L]
+
+</IfModule>
+<IfModule mod_deflate.c>
+  # Compress HTML, CSS, JavaScript, Text, XML and fonts
+  AddOutputFilterByType DEFLATE application/javascript
+  AddOutputFilterByType DEFLATE application/rss+xml
+  AddOutputFilterByType DEFLATE application/vnd.ms-fontobject
+  AddOutputFilterByType DEFLATE application/x-font
+  AddOutputFilterByType DEFLATE application/x-font-opentype
+  AddOutputFilterByType DEFLATE application/x-font-otf
+  AddOutputFilterByType DEFLATE application/x-font-truetype
+  AddOutputFilterByType DEFLATE application/x-font-ttf
+  AddOutputFilterByType DEFLATE application/x-javascript
+  AddOutputFilterByType DEFLATE application/xhtml+xml
+  AddOutputFilterByType DEFLATE application/xml
+  AddOutputFilterByType DEFLATE font/opentype
+  AddOutputFilterByType DEFLATE font/otf
+  AddOutputFilterByType DEFLATE font/ttf
+  AddOutputFilterByType DEFLATE image/svg+xml
+  AddOutputFilterByType DEFLATE image/x-icon
+  AddOutputFilterByType DEFLATE text/css
+  AddOutputFilterByType DEFLATE text/html
+  AddOutputFilterByType DEFLATE text/javascript
+  AddOutputFilterByType DEFLATE text/plain
+  AddOutputFilterByType DEFLATE text/xml
 
 </IfModule>

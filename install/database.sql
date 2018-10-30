@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `user` VARCHAR(45) NOT NULL,
   `name` VARCHAR(45) NULL,
   `email` VARCHAR(45) NULL,
-  `password` VARCHAR(45) NOT NULL,
+  `password` VARCHAR(145) NOT NULL,
   `created` DATETIME NOT NULL,
   `modified` DATETIME NOT NULL,
   `isAdmin` TINYINT(1) NOT NULL DEFAULT 0,
@@ -23,11 +23,39 @@ CREATE TABLE IF NOT EXISTS `users` (
   `backgroundURL` VARCHAR(255) NULL,
   `canStream` TINYINT(1) NULL,
   `canUpload` TINYINT(1) NULL,
+  `canViewChart` TINYINT(1) NOT NULL DEFAULT 0,
   `about` TEXT NULL,
+  `channelName` VARCHAR(45) NULL,
+  `emailVerified` TINYINT(1) NOT NULL DEFAULT 0,
+  `analyticsCode` VARCHAR(45) NULL DEFAULT NULL,
+  `externalOptions` TEXT NULL,
+  `first_name` VARCHAR(255) NULL DEFAULT NULL,
+  `last_name` VARCHAR(255) NULL DEFAULT NULL,
+  `address` VARCHAR(255) NULL DEFAULT NULL,
+  `zip_code` VARCHAR(45) NULL DEFAULT NULL,
+  `country` VARCHAR(100) NULL DEFAULT NULL,
+  `region` VARCHAR(100) NULL DEFAULT NULL,
+  `city` VARCHAR(100) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `user_UNIQUE` (`user` ASC))
 ENGINE = InnoDB;
 
+
+CREATE TABLE IF NOT EXISTS `users_blob` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `blob` LONGBLOB NULL,
+  `users_id` INT NOT NULL,
+  `created` DATETIME NULL,
+  `modified` DATETIME NULL,
+  `type` VARCHAR(45) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_users_document_image_users1_idx` (`users_id` ASC),
+  CONSTRAINT `fk_users_document_image_users1`
+    FOREIGN KEY (`users_id`)
+    REFERENCES `users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
 
 -- -----------------------------------------------------
 -- Table `categories`
@@ -36,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `clean_name` VARCHAR(45) NOT NULL,
-  `description` TEXT NULL, 
+  `description` TEXT NULL,
   `nextVideoOrder` INT(2) NOT NULL DEFAULT '0',
   `parentId` INT NOT NULL DEFAULT '0',
   `created` DATETIME NOT NULL,
@@ -52,18 +80,18 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `videos` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(255) NOT NULL,
-  `clean_title` VARCHAR(255) NOT NULL,
+  `title` VARCHAR(190) NOT NULL,
+  `clean_title` VARCHAR(190) NOT NULL,
   `description` TEXT NULL,
   `views_count` INT NOT NULL DEFAULT 0,
-  `status` ENUM('a', 'i', 'e', 'x', 'd', 'xmp4', 'xwebm', 'xmp3', 'xogg', 'ximg') NOT NULL DEFAULT 'e' COMMENT 'a = active\ni = inactive\ne = encoding\nx = encoding error\nd = downloading\nxmp4 = encoding mp4 error \nxwebm = encoding webm error \nxmp3 = encoding mp3 error \nxogg = encoding ogg error \nximg = get image error',
+  `status` ENUM('a', 'i', 'e', 'x', 'd', 'xmp4', 'xwebm', 'xmp3', 'xogg', 'ximg', 'u', 'p') NOT NULL DEFAULT 'e' COMMENT 'a = active\ni = inactive\ne = encoding\nx = encoding error\nd = downloading\nu = Unlisted\np = private\nxmp4 = encoding mp4 error \nxwebm = encoding webm error \nxmp3 = encoding mp3 error \nxogg = encoding ogg error \nximg = get image error',
   `created` DATETIME NOT NULL,
   `modified` DATETIME NOT NULL,
   `users_id` INT NOT NULL,
   `categories_id` INT NOT NULL,
   `filename` VARCHAR(255) NOT NULL,
   `duration` VARCHAR(15) NOT NULL,
-  `type` ENUM('audio', 'video', 'embed') NOT NULL DEFAULT 'video',
+  `type` ENUM('audio','video','embed','linkVideo','linkAudio','torrent') NOT NULL DEFAULT 'video',
   `videoDownloadedLink` VARCHAR(255) NULL,
   `order` INT UNSIGNED NOT NULL DEFAULT 1,
   `rotation` SMALLINT NULL DEFAULT 0,
@@ -72,6 +100,10 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `videoLink` VARCHAR(255) NULL,
   `next_videos_id` INT NULL,
   `isSuggested` INT(1) NOT NULL DEFAULT 0,
+  `trailer1` VARCHAR(255) NULL DEFAULT NULL,
+  `trailer2` VARCHAR(255) NULL DEFAULT NULL,
+  `trailer3` VARCHAR(255) NULL DEFAULT NULL,
+  `rate` FLOAT(4,2) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_videos_users_idx` (`users_id` ASC),
   INDEX `fk_videos_categories1_idx` (`categories_id` ASC),
@@ -150,6 +182,7 @@ CREATE TABLE IF NOT EXISTS `configurations` (
   `authFacebook_key` VARCHAR(255) NULL,
   `authFacebook_enabled` TINYINT(1) NOT NULL DEFAULT 0,
   `authCanUploadVideos` TINYINT(1) NOT NULL DEFAULT 0,
+  `authCanViewChart` TINYINT(2) NOT NULL DEFAULT 0,
   `authCanComment` TINYINT(1) NOT NULL DEFAULT 1,
   `head` TEXT NULL,
   `logo` VARCHAR(255) NULL,
@@ -287,86 +320,6 @@ CREATE TABLE IF NOT EXISTS `videos_group_view` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
-
--- -----------------------------------------------------
--- Table `video_ads`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `video_ads` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `ad_title` VARCHAR(255) NOT NULL,
-  `starts` DATETIME NOT NULL,
-  `finish` DATETIME NULL,
-  `skip_after_seconds` INT(4) NULL,
-  `redirect` VARCHAR(300) NULL,
-  `finish_max_clicks` INT NULL,
-  `finish_max_prints` INT NULL,
-  `created` DATETIME NULL,
-  `modified` DATETIME NULL,
-  `videos_id` INT NOT NULL,
-  `categories_id` INT NOT NULL,
-  PRIMARY KEY (`id`),
-  INDEX `fk_video_ads_videos1_idx` (`videos_id` ASC),
-  INDEX `fk_video_ads_categories1_idx` (`categories_id` ASC),
-  CONSTRAINT `fk_video_ads_videos1`
-    FOREIGN KEY (`videos_id`)
-    REFERENCES `videos` (`id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_video_ads_categories1`
-    FOREIGN KEY (`categories_id`)
-    REFERENCES `categories` (`id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `video_ads_logs`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `video_ads_logs` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `datetime` DATETIME NOT NULL,
-  `clicked` TINYINT(1) NOT NULL DEFAULT 0,
-  `ip` VARCHAR(45) NOT NULL,
-  `video_ads_id` INT NOT NULL,
-  `users_id` INT NULL,
-  PRIMARY KEY (`id`),
-  INDEX `fk_video_ads_logs_users1_idx` (`users_id` ASC),
-  INDEX `fk_video_ads_logs_video_ads1_idx` (`video_ads_id` ASC),
-  CONSTRAINT `fk_video_ads_logs_users1`
-    FOREIGN KEY (`users_id`)
-    REFERENCES `users` (`id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_video_ads_logs_video_ads1`
-    FOREIGN KEY (`video_ads_id`)
-    REFERENCES `video_ads` (`id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `video_documents`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `video_documents` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `doc_name` VARCHAR(255) NOT NULL,
-  `doc_description` TEXT NULL,
-  `created` DATETIME NULL,
-  `modified` DATETIME NULL,
-  `blob` BLOB NOT NULL,
-  `videos_id` INT NOT NULL,
-  PRIMARY KEY (`id`),
-  INDEX `fk_video_documents_videos1_idx` (`videos_id` ASC),
-  CONSTRAINT `fk_video_documents_videos1`
-    FOREIGN KEY (`videos_id`)
-    REFERENCES `videos` (`id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
-
 -- -----------------------------------------------------
 -- Table `subscribes`
 -- -----------------------------------------------------
@@ -444,6 +397,7 @@ CREATE TABLE IF NOT EXISTS `plugins` (
   `object_data` TEXT NULL,
   `name` VARCHAR(255) NOT NULL,
   `dirName` VARCHAR(255) NOT NULL,
+  `pluginversion` VARCHAR(6) NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uuid_UNIQUE` (`uuid` ASC))
 ENGINE = InnoDB;
@@ -481,7 +435,7 @@ CREATE TABLE `category_type_cache` (
   `categoryId` int(11) NOT NULL,
   `type` int(2) NOT NULL COMMENT '0=both, 1=audio, 2=video' DEFAULT 0,
   `manualSet` int(1) NOT NULL COMMENT '0=auto, 1=manual' DEFAULT 0
-    
+
 ) ENGINE=InnoDB;
 
 ALTER TABLE `category_type_cache`
