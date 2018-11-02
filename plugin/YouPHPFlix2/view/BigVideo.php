@@ -10,6 +10,10 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
     $imgGif = $images->thumbsGif;
     $poster = $images->poster;
     //var_dump($video);
+    $canWatchPlayButton = "";
+    if(User::canWatchVideo($video['id'])){
+        $canWatchPlayButton = "canWatchPlayButton";
+    }
     ?>
     <div class="clear clearfix" id="bigVideo" style="background: url(<?php echo $poster; ?>) no-repeat center center fixed; -webkit-background-size: cover;
          -moz-background-size: cover;
@@ -41,13 +45,13 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                 <?php
                 if (!empty($images->posterPortrait)) {
                     ?>
-                    <div class="col-md-2 col-sm-12">
+                    <div class="col-md-2 col-sm-4 col-xs-6">
                         <img alt="<?php echo $video['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" />
                     </div>
                     <?php
                 }
                 ?>
-                <div class="infoText col-md-4 col-sm-12">
+                <div class="infoText col-md-4 col-sm-6 col-xs-6">
                     <h4 class="mainInfoText" itemprop="description">
                         <?php echo nl2br(textToLink($video['description'])); ?>
                     </h4>
@@ -55,7 +59,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
             </div>
             <div class="row">
                 <div class="col-md-12">
-                <a class="btn btn-danger playBtn" href="<?php echo Video::getLinkToVideo($video['id']); ?>"><i class="fa fa-play"></i> <?php echo __("Play"); ?></a>
+                <a class="btn btn-danger playBtn <?php echo $canWatchPlayButton; ?>" href="<?php echo Video::getLinkToVideo($video['id']); ?>"><i class="fa fa-play"></i> <?php echo __("Play"); ?></a>
                 <?php
                 if (!empty($video['trailer1'])) {
                     ?>

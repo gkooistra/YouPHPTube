@@ -18,7 +18,7 @@
             width: 100px;
         }
     }
-    @media (max-width : 768px) {
+    @media (max-width : 767px) {
         #searchForm {
             padding-left: 10px;
         }
@@ -86,7 +86,7 @@ $json_file = url_get_contents("{$global['webSiteRootURL']}plugin/CustomizeAdvanc
 // convert the string to a json object
 $advancedCustom = json_decode($json_file);
 $thisScriptFile = pathinfo($_SERVER["SCRIPT_FILENAME"]);
-if ((empty($advancedCustom->userMustBeLoggedIn) || $thisScriptFile["basename"]==="signUp.php") || User::isLogged()) {
+if (((empty($advancedCustom->userMustBeLoggedIn) && empty($advancedCustom->disableNavbar)) || $thisScriptFile["basename"]==="signUp.php") || User::isLogged()) {
     $updateFiles = getUpdatesFilesArray();
     ?>
     <nav class="navbar navbar-default navbar-fixed-top ">
@@ -637,24 +637,40 @@ if ((empty($advancedCustom->userMustBeLoggedIn) || $thisScriptFile["basename"]==
                     <li>
                         <hr>
                     </li>
+                    <?php
+                    if (empty($advancedCustom->disableHelpLeftMenu)) {
+                    ?>
                     <li>
                         <a href="<?php echo $global['webSiteRootURL']; ?>help">
                             <span class="glyphicon glyphicon-question-sign"></span>
     <?php echo __("Help"); ?>
                         </a>
                     </li>
+                    <?php 
+                    }
+                    
+                    if (empty($advancedCustom->disableAboutLeftMenu)) {
+                    ?>
                     <li>
                         <a href="<?php echo $global['webSiteRootURL']; ?>about">
                             <span class="glyphicon glyphicon-info-sign"></span>
     <?php echo __("About"); ?>
                         </a>
                     </li>
+                    <?php 
+                    }
+                    
+                    if (empty($advancedCustom->disableContactLeftMenu)) {
+                    ?>
                     <li>
                         <a href="<?php echo $global['webSiteRootURL']; ?>contact">
                             <span class="glyphicon glyphicon-comment"></span>
     <?php echo __("Contact"); ?>
                         </a>
                     </li>
+                    <?php 
+                    }
+                    ?>
                 </ul>
             </div>
         </div>
@@ -663,7 +679,7 @@ if ((empty($advancedCustom->userMustBeLoggedIn) || $thisScriptFile["basename"]==
     if (!empty($advancedCustom->underMenuBarHTMLCode->value)) {
         echo $advancedCustom->underMenuBarHTMLCode->value;
     }
-} else if ($thisScriptFile["basename"] !== 'user.php') {
+} else if ($thisScriptFile["basename"] !== 'user.php' && empty($advancedCustom->disableNavbar)) {
     header("Location: {$global['webSiteRootURL']}user");
 }
 ?>

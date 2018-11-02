@@ -43,6 +43,10 @@ foreach ($videos as $value) {
     $imgGif = $images->thumbsGif;
     $img = $images->thumbsJpg;
     $poster = $images->poster;
+    $canWatchPlayButton = "";
+    if(User::canWatchVideo($value['id'])){
+        $canWatchPlayButton = "canWatchPlayButton";
+    }
     ?>
     <div class="poster" id="poster<?php echo $value['id'] . $uid; ?>" style="display: none; background-image: url(<?php echo $poster; ?>);">
         <div class="posterDetails " style="
@@ -62,25 +66,35 @@ foreach ($videos as $value) {
                 <span class="label label-default"><i class="fa fa-eye"></i> <?php echo $value['views_count']; ?></span>
                 <span class="label label-success"><i class="fa fa-thumbs-up"></i> <?php echo $value['likes']; ?></span>
                 <span class="label label-success"><a style="color: inherit;" class="tile__cat" cat="<?php echo $value['clean_category']; ?>" href="<?php echo $global['webSiteRootURL'] . "cat/" . $value['clean_category']; ?>"><i class="fa"></i> <?php echo $value['category']; ?></a></span>
+                
+                <?php
+                foreach ($value['tags'] as $value2) {
+                    if ($value2->label === __("Group")) {
+                        ?>
+                        <span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span>
+                        <?php
+                    }
+                }
+                ?>
             </h4>
             <div class="row">
                 <?php
                 if (!empty($images->posterPortrait)) {
                     ?>
-                    <div class="col-md-2 col-sm-12">
+                    <div class="col-md-2 col-sm-3 col-xs-4">
                         <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" />
                     </div>
                     <?php
                 }
                 ?>
-                <div class="infoText col-md-4 col-sm-12">
+                <div class="infoText col-md-4 col-sm-6 col-xs-8">
                     <h4 class="mainInfoText" itemprop="description">
                         <?php echo nl2br(textToLink($value['description'])); ?>
                     </h4>
                 </div>
             </div>
             <div class="footerBtn">
-                <a class="btn btn-danger playBtn" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>"><i class="fa fa-play"></i> <?php echo __("Play"); ?></a>
+                <a class="btn btn-danger playBtn <?php echo $canWatchPlayButton; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>"><i class="fa fa-play"></i> <?php echo __("Play"); ?></a>
                 <?php
                 if (!empty($value['trailer1'])) {
                     ?>
