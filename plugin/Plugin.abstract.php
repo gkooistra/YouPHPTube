@@ -222,6 +222,11 @@ abstract class PluginAbstract {
         return false;
     }
     
+    public function addView($videos_id, $total)
+    {
+        return false;
+    }
+    
     public function getCustomizeAdvancedOptions()
     {
         return false;
@@ -233,6 +238,15 @@ abstract class PluginAbstract {
     }
     
     public function getModeYouTube($videos_id){
+        return false;
+    }
+    
+    /**
+     * Loads a channel before display the channel page, usefull to create customized channel pages
+     * @param type $user is an database array from channels owner
+     * @return boolean
+     */
+    public function getChannel($user_id, $user){
         return false;
     }
     

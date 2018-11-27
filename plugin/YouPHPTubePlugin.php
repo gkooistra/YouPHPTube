@@ -14,6 +14,16 @@ class YouPHPTubePlugin {
         }
         return false;
     }
+    public static function addView($videos_id, $total) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->addView($videos_id, $total);
+            }
+        }
+        return false;
+    }
 
     public static function getHeadCode() {
         $plugins = Plugin::getAllEnabled();
@@ -323,6 +333,12 @@ class YouPHPTubePlugin {
     public static function isEnabled($uuid) {
         return !empty(Plugin::getEnabled($uuid));
     }
+    
+    public static function exists($name) {
+        global $global;
+        $filename = "{$global['systemRootPath']}plugin/{$name}/{$name}.php";
+        return file_exists($filename);
+    }
 
     static function isEnabledByName($name) {
         $p = static::loadPluginIfEnabled($name);
@@ -423,6 +439,16 @@ class YouPHPTubePlugin {
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $p->getModeYouTube($videos_id);
+            }
+        }
+    }
+
+    public static function getChannel($user_id, $user) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->getChannel($user_id, $user);
             }
         }
     }
@@ -558,6 +584,33 @@ class YouPHPTubePlugin {
             Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
         }
         return true;
+    }
+    
+    public static function getSwitchButton($name) {
+        global $global;
+        $p = static::loadPlugin($name);
+        $btn = "";
+        if(!empty($p)){
+            $uid = uniqid();
+           $btn = '<div class="material-switch">
+                    <input class="pluginSwitch" data-toggle="toggle" type="checkbox" id="subsSwitch'.$uid.'" value="1" ' . (self::isEnabledByName($name) ? "checked" : "") . ' >
+                    <label for="subsSwitch'.$uid.'" class="label-primary"></label>
+                </div><script>
+                $(document).ready(function () {
+                $("#subsSwitch'.$uid.'").change(function (e) {
+                    modal.showPleaseWait();
+                    $.ajax({
+                        url: "'.$global['webSiteRootURL'].'objects/pluginSwitch.json.php",
+                        data: {"uuid": "'.$p->getUUID().'", "name": "'.$name.'", "dir": "'.$name.'", "enable": $(this).is(":checked")},
+                        type: "post",
+                        success: function (response) {
+                            modal.hidePleaseWait();
+                        }
+                    });
+                });
+                });</script>' ;
+        }
+        return $btn;
     }
 
 }

@@ -81,6 +81,7 @@ if (!class_exists('Video')) {
             if ($insert_row) {
                 VideoStatistic::save($this->id);
                 $this->views_count++;
+                YouPHPTubePlugin::addView($this->id, $this->views_count);
                 return $this->id;
             } else {
                 die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
@@ -169,7 +170,7 @@ if (!class_exists('Video')) {
                 }
                 $sql = "UPDATE videos SET title = '{$this->title}',clean_title = '{$this->clean_title}',"
                         . " filename = '{$this->filename}', categories_id = '{$this->categories_id}', status = '{$this->status}',"
-                        . " description = '{$this->description}', duration = '{$this->duration}', type = '{$this->type}', videoDownloadedLink = '{$this->videoDownloadedLink}', youtubeId = '{$this->youtubeId}', videoLink = '{$this->videoLink}', next_videos_id = {$this->next_videos_id}, isSuggested = {$this->isSuggested}, "
+                        . " description = '{$this->description}', duration = '{$this->duration}', type = '{$this->type}', videoDownloadedLink = '{$this->videoDownloadedLink}', youtubeId = '{$this->youtubeId}', videoLink = '{$this->videoLink}', next_videos_id = {$this->next_videos_id}, isSuggested = {$this->isSuggested}, users_id = {$this->users_id}, "
                         . " trailer1 = '{$this->trailer1}', trailer2 = '{$this->trailer2}', trailer3 = '{$this->trailer3}', rate = '{$this->rate}' , modified = now()"
                         . " WHERE id = {$this->id}";
             } else {
@@ -559,9 +560,13 @@ if (!class_exists('Video')) {
             }
 
             if (!empty($_GET['catName'])) {
-                $sql .= " AND c.clean_name = '{$_GET['catName']}'";
+                $sql .= " AND (c.clean_name = '{$_GET['catName']}' OR c.parentId IN (SELECT cs.id from categories cs where cs.clean_name = '{$_GET['catName']}' ))";
             }
-
+            
+            if (!empty($_GET['channelName'])) {
+                $user = User::getChannelOwner($_GET['channelName']);
+                $sql .= " AND v.users_id = {$user['id']} ";
+            }
 
             if (!empty($_GET['search'])) {
                 $_POST['searchPhrase'] = $_GET['search'];
@@ -699,6 +704,11 @@ if (!class_exists('Video')) {
             if (!empty($_GET['catName'])) {
                 $sql .= " AND (c.clean_name = '{$_GET['catName']}' OR c.parentId IN (SELECT cs.id from categories cs where cs.clean_name = '{$_GET['catName']}' ))";
             }
+            
+            if (!empty($_GET['channelName'])) {
+                $user = User::getChannelOwner($_GET['channelName']);
+                $sql .= " AND v.users_id = {$user['id']} ";
+            }
 
             if (!empty($_GET['search'])) {
                 $_POST['searchPhrase'] = $_GET['search'];
@@ -779,6 +789,13 @@ if (!class_exists('Video')) {
             } elseif (!empty($status)) {
                 $sql .= " AND v.status = '{$status}'";
             }
+            
+            
+            if (!empty($_GET['channelName'])) {
+                $user = User::getChannelOwner($_GET['channelName']);
+                $sql .= " AND v.users_id = {$user['id']} ";
+            }
+            
             $res = sqlDAL::readSql($sql);
             $fullData = sqlDAL::fetchAllAssoc($res);
             sqlDAL::close($res);
@@ -835,6 +852,11 @@ if (!class_exists('Video')) {
                 } else {
                     $sql .= " AND v.type = '{$_SESSION['type']}' ";
                 }
+            }
+            
+            if (!empty($_GET['channelName'])) {
+                $user = User::getChannelOwner($_GET['channelName']);
+                $sql .= " AND v.users_id = {$user['id']} ";
             }
             $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name'));
             $res = sqlDAL::readSql($sql);
@@ -983,6 +1005,7 @@ if (!class_exists('Video')) {
 
             global $global;
             if (!empty($this->id)) {
+                $this->removeTrailerReference($this->id);
                 $video = self::getVideo($this->id);
                 $sql = "DELETE FROM videos WHERE id = ?";
             } else {
@@ -1003,6 +1026,27 @@ if (!class_exists('Video')) {
                 }
             }
             return $resp;
+        }
+        
+        private function removeTrailerReference($videos_id) {
+            if (!$this->userCanManageVideo()) {
+                return false;
+            }
+
+            global $global;
+            
+            if (!empty($videos_id)) {
+                $videoURL = self::getLink($videos_id, '', true);
+                $sql = "UPDATE videos SET trailer1 = '' WHERE trailer1 = ?";
+                sqlDAL::writeSql($sql, "s", array($videoURL));
+                $sql = "UPDATE videos SET trailer2 = '' WHERE trailer2 = ?";
+                sqlDAL::writeSql($sql, "s", array($videoURL));
+                $sql = "UPDATE videos SET trailer3 = '' WHERE trailer3 = ?";
+                sqlDAL::writeSql($sql, "s", array($videoURL));
+            } else {
+                return false;
+            }
+            return true;
         }
 
         private function removeFiles($filename) {
@@ -1035,6 +1079,10 @@ if (!class_exists('Video')) {
         }
 
         function setCategories_id($categories_id) {
+            if(!Category::userCanAddInCategory($categories_id)){
+                return false;
+            }
+            
             // to update old cat as well when auto..
             if (!empty($this->categories_id)) {
                 $this->old_categories_id = $this->categories_id;
@@ -1803,8 +1851,14 @@ if (!class_exists('Video')) {
          * @param type $type URLFriendly or permalink
          * @return String a web link
          */
-        static function getLinkToVideo($videos_id, $clean_title = "", $embed = false, $type = "URLFriendly") {
+        static function getLinkToVideo($videos_id, $clean_title = "", $embed = false, $type = "URLFriendly", $get = array()) {
             global $global;
+            $get_http = http_build_query($get);
+            if(empty($get_http)){
+                $get_http = "";
+            }else{
+                $get_http = "?{$get_http}";
+            }
             if ($type == "URLFriendly") {
                 $cat = "";
                 if (!empty($_GET['catName'])) {
@@ -1815,39 +1869,39 @@ if (!class_exists('Video')) {
                     $clean_title = self::get_clean_title($videos_id);
                 }
                 if ($embed) {
-                    return "{$global['webSiteRootURL']}videoEmbed/{$clean_title}";
+                    return "{$global['webSiteRootURL']}videoEmbed/{$clean_title}{$get_http}";
                 } else {
-                    return "{$global['webSiteRootURL']}{$cat}video/{$clean_title}";
+                    return "{$global['webSiteRootURL']}{$cat}video/{$clean_title}{$get_http}";
                 }
             } else {
                 if (empty($videos_id) && !empty($clean_title)) {
                     $videos_id = self::get_id_from_clean_title($clean_title);
                 }
                 if ($embed) {
-                    return "{$global['webSiteRootURL']}vEmbed/{$videos_id}";
+                    return "{$global['webSiteRootURL']}vEmbed/{$videos_id}{$get_http}";
                 } else {
-                    return "{$global['webSiteRootURL']}v/{$videos_id}";
+                    return "{$global['webSiteRootURL']}v/{$videos_id}{$get_http}";
                 }
             }
         }
 
-        static function getPermaLink($videos_id, $embed = false) {
-            return self::getLinkToVideo($videos_id, "", $embed, "permalink");
+        static function getPermaLink($videos_id, $embed = false, $get = array()) {
+            return self::getLinkToVideo($videos_id, "", $embed, "permalink", $get);
         }
 
-        static function getURLFriendly($videos_id, $embed = false) {
-            return self::getLinkToVideo($videos_id, "", $embed, "URLFriendly");
+        static function getURLFriendly($videos_id, $embed = false, $get = array()) {
+            return self::getLinkToVideo($videos_id, "", $embed, "URLFriendly", $get);
         }
 
-        static function getPermaLinkFromCleanTitle($clean_title, $embed = false) {
-            return self::getLinkToVideo("", $clean_title, $embed, "permalink");
+        static function getPermaLinkFromCleanTitle($clean_title, $embed = false, $get = array()) {
+            return self::getLinkToVideo("", $clean_title, $embed, "permalink", $get);
         }
 
-        static function getURLFriendlyFromCleanTitle($clean_title, $embed = false) {
-            return self::getLinkToVideo("", $clean_title, $embed, "URLFriendly");
+        static function getURLFriendlyFromCleanTitle($clean_title, $embed = false, $get = array()) { 
+            return self::getLinkToVideo("", $clean_title, $embed, "URLFriendly", $get);
         }
 
-        static function getLink($videos_id, $clean_title, $embed = false) {
+        static function getLink($videos_id, $clean_title, $embed = false, $get = array()) {
             global $advancedCustom;
             if (!empty($advancedCustom->usePermalinks)) {
                 $type = "permalink";
@@ -1855,7 +1909,7 @@ if (!class_exists('Video')) {
                 $type = "URLFriendly";
             }
 
-            return self::getLinkToVideo($videos_id, $clean_title, $embed, $type);
+            return self::getLinkToVideo($videos_id, $clean_title, $embed, $type, $get);
         }
 
         static function getTotalVideosThumbsUpFromUser($users_id, $startDate, $endDate) {

@@ -14,6 +14,7 @@ function createGallery($title, $sort, $rowCount, $getName, $mostWord, $lessWord,
     if (!showThis($getName)) {
         return "";
     }
+    $getName = str_replace(array("'", '"', "&quot;", "&#039;"), array('', '', '', ''), xss_esc($getName));
     if (!empty($_GET['showOnly'])) {
         $rowCount = 60;
     }
@@ -106,11 +107,20 @@ function createOrderInfo($getName, $mostWord, $lessWord, $orderString) {
     return array($tmpOrderString, $upDown, $mostLess);
 }
 
-function createGallerySection($videos, $crc = "") {
+function createGallerySection($videos, $crc = "", $get = array()) {
     global $global, $config, $obj, $advancedCustom;
     $countCols = 0;
-
+    $obj = YouPHPTubePlugin::getObjectData("Gallery");
+    $zindex = 100;
     foreach ($videos as $value) {
+
+        // that meas auto generate the channelName
+        if (empty($get) && !empty($obj->filterUserChannel)) {
+            $getCN = array('channelName' => $value['channelName'], 'catName' => @$_GET['catName']);
+        } else {
+            $getCN = $get;
+        }
+
         $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
         $name = User::getNameIdentificationById($value['users_id']);
         // make a row each 6 cols
@@ -120,8 +130,8 @@ function createGallerySection($videos, $crc = "") {
 
         $countCols ++;
         ?>
-        <div class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo thumbsImage fixPadding" style="z-index: 2; min-height: 175px;">
-            <a class="galleryLink" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>" title="<?php echo $value['title']; ?>">
+        <div class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo thumbsImage fixPadding" style="z-index: <?php echo $zindex--;?>; min-height: 175px;">
+            <a class="galleryLink" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title'], false, $getCN); ?>" title="<?php echo $value['title']; ?>">
                 <?php
                 $images = Video::getImageFromFilename($value['filename'], $value['type']);
                 $imgGif = $images->thumbsGif;
@@ -135,11 +145,11 @@ function createGallerySection($videos, $crc = "") {
                 </div>
                 <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
             </a>
-            <a class="h6 galleryLink" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>" title="<?php echo $value['title']; ?>">
+            <a class="h6 galleryLink" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title'], false, $getCN); ?>" title="<?php echo $value['title']; ?>">
                 <h2><?php echo $value['title']; ?></h2>
             </a>
 
-            <div class="text-muted galeryDetails">
+            <div class="text-muted galeryDetails" style="overflow: hidden;">
                 <div>
                     <?php if (empty($_GET['catName'])) { ?>
                         <a class="label label-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>/">
@@ -245,7 +255,7 @@ function createGallerySection($videos, $crc = "") {
                                             'name': $('#playListName<?php echo $value['id'] . $crc; ?>').val()
                                         },
                                         success: function (response) {
-                                            if (response.status==="1") {
+                                            if (response.status === "1") {
                                                 playList = [];
                                                 console.log(1);
                                                 reloadPlayLists();
@@ -263,21 +273,37 @@ function createGallerySection($videos, $crc = "") {
                         </script>
                     <?php } ?>
                 </div>
-                <?php
-                if ($config->getAllow_download()) {
-                    $ext = ".mp4";
-                    if ($value['type'] == "audio") {
-                        if (file_exists($global['systemRootPath'] . "videos/" . $value['filename'] . ".ogg")) {
-                            $ext = ".ogg";
-                        } else if (file_exists($global['systemRootPath'] . "videos/" . $value['filename'] . ".mp3")) {
-                            $ext = ".mp3";
-                        }
-                    }
-                    ?>
-                    <div><a class="label label-default " role="button" href="<?php echo $global['webSiteRootURL'] . "videos/" . $value['filename'] . $ext; ?>" download="<?php echo $value['title'] . $ext; ?>"><?php echo __("Download"); ?></a></div>
-                <?php } ?>
-
             </div>
+            <?php
+            if ($config->getAllow_download()) {
+                ?>
+
+                <div style="position: relative; overflow: visible; z-index: 3;" class="dropup">
+                    <button type="button" class="btn btn-default btn-sm btn-xs btn-block"  data-toggle="dropdown">
+                        <i class="fa fa-download"></i> <?php echo!empty($advancedCustom->uploadButtonDropdownText) ? $advancedCustom->uploadButtonDropdownText : ""; ?> <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-left" role="menu">
+                        <?php
+                        $files = getVideosURL($value['filename']);
+                        //var_dump($files);exit;
+                        foreach ($files as $key => $theLink) {
+                            if ($theLink['type'] !== 'video' && $theLink['type'] !== 'audio') {
+                                continue;
+                            }
+                            $path_parts = pathinfo($theLink['filename']);
+                            ?>
+                            <li>
+                                <a href="<?php echo $theLink['url']; ?>?download=1&title=<?php echo urlencode($value['title'] . "_{$key}_.{$path_parts['extension']}"); ?>">
+                                    <?php echo __("Download"); ?> <?php echo $key; ?>
+                                </a>
+                            </li>
+                        <?php }
+                        ?>
+                    </ul>
+                </div>
+                <?php
+            }
+            ?>
         </div>
     <?php } ?>
 

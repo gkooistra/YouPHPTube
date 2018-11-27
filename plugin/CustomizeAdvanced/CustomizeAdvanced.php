@@ -28,9 +28,10 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj = new stdClass();
         $obj->encoderNetwork = "https://network.youphptube.com/";
         $obj->useEncoderNetworkRecomendation = false;
+        $obj->doNotShowUploadButton = false;
+        $obj->doNotShowEncoderNetwork = true;
         $obj->doNotShowUploadMP4Button = true;
-        $obj->doNotShowImportMP4Button = false;
-        $obj->doNotShowImportLocalVideosButton = false;
+        $obj->doNotShowImportMP4Button = true;
         $obj->doNotShowEncoderButton = false;
         $obj->doNotShowEmbedButton = false;
         $obj->doNotShowEncoderResolutionLow = false;
@@ -97,6 +98,10 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->disableAboutLeftMenu= false;
         $obj->disableContactLeftMenu= false;
         $obj->disableNavbar= false;
+        $obj->userCanNotChangeCategory = false;
+        $obj->hideRemoveChannelFromModeYoutube = false;
+        $obj->showChannelBannerOnModeYoutube = false;
+        $obj->usersCanCreateNewCategories = false;
         
         return $obj;
     }
