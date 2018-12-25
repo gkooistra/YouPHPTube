@@ -287,7 +287,7 @@ class Category {
             }
             
             if ($config->currentVersionGreaterThen('6.1')) {
-                $sql .= " AND (private=0 OR users_id = {$users_id}) ";
+                $sql .= " AND (private=0 OR users_id = '{$users_id}') ";
             }
         }
         if (!empty($_GET['parentsOnly'])) {
@@ -360,11 +360,11 @@ class Category {
     }
 
     static function canCreateCategory() {
-        global $advancedCustom;
+        global $advancedCustomUser;
         if (User::isAdmin()) {
             return true;
         }
-        if ($advancedCustom->usersCanCreateNewCategories && User::canUpload()) {
+        if ($advancedCustomUser->usersCanCreateNewCategories && User::canUpload()) {
             return true;
         }
         return false;
@@ -384,7 +384,7 @@ class Category {
             }
 
             if ($config->currentVersionGreaterThen('6.1')) {
-                $sql .= " AND (private=0 OR users_id = {$users_id}) ";
+                $sql .= " AND (private=0 OR users_id = '{$users_id}') ";
             }
         }
         $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY name ASC ");
@@ -463,7 +463,7 @@ class Category {
             }
 
             if ($config->currentVersionGreaterThen('6.1')) {
-                $sql .= " AND (private=0 OR users_id = {$users_id}) ";
+                $sql .= " AND (private=0 OR users_id = '{$users_id}') ";
             }
         }
         if (!empty($_GET['parentsOnly'])) {

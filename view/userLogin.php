@@ -6,7 +6,7 @@
 
 
             <?php
-            if (empty($advancedCustom->disableNativeSignIn)) {
+            if (empty($advancedCustomUser->disableNativeSignIn)) {
                 ?>
                 <form class="form-compact well form-horizontal"  id="loginForm">
 
@@ -30,6 +30,13 @@
                             </div>
                         </div>
                     </div>
+
+                    <?php
+                    $captcha = User::getCaptchaForm();
+                    ?>
+                    <div class="form-group" style="<?php echo User::isCaptchaNeed()?"":"display: none;" ?>" id="captchaForm">
+                        <?php echo $captcha; ?>
+                    </div>
                     <div class="form-group">
                         <label class="col-md-4 control-label"><?php echo __("Remember me"); ?></label>
                         <div class="col-md-8 inputGroupContainer">
@@ -43,7 +50,7 @@
                         <label class="col-md-4 control-label"></label>
                         <div class="col-md-8 inputGroupContainer">
                             <?php
-                            if (empty($advancedCustom->disableNativeSignUp)) {
+                            if (empty($advancedCustomUser->disableNativeSignUp)) {
                                 ?>
                                 <small><a href="#" class="btn" id="forgotPassword"><?php echo __("I forgot my password"); ?></a></small>
                                 <?php
@@ -60,7 +67,7 @@
 
                 </form>
                 <?php
-                if (empty($advancedCustom->disableNativeSignUp)) {
+                if (empty($advancedCustomUser->disableNativeSignUp)) {
                     ?>
                     <div class="row">
                         <div class="col-md-12">
@@ -108,7 +115,7 @@ if (!empty($_GET['error'])) {
             modal.showPleaseWait();
             $.ajax({
                 url: '<?php echo $global['webSiteRootURL']; ?>objects/login.json.php',
-                data: {"user": $('#inputUser').val(), "pass": $('#inputPassword').val(), "rememberme": $('#inputRememberMe').is(":checked")},
+                data: {"user": $('#inputUser').val(), "pass": $('#inputPassword').val(), "rememberme": $('#inputRememberMe').is(":checked"), "captcha": $('#captchaText').val()},
                 type: 'post',
                 success: function (response) {
                     if (!response.isLogged) {
@@ -117,6 +124,10 @@ if (!empty($_GET['error'])) {
                             swal("<?php echo __("Sorry!"); ?>", response.error, "error");
                         } else {
                             swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your user or password is wrong!"); ?>", "error");
+                        }
+                        if(response.isCaptchaNeed){
+                            $("#btnReloadCapcha").trigger('click');
+                            $('#captchaForm').slideDown();
                         }
                     } else {
                         document.location = '<?php echo $global['webSiteRootURL']; ?>'

@@ -27,6 +27,9 @@ $obj = YouPHPTubePlugin::getObjectData("YouPHPFlix2");
         <div class="container-fluid" id="mainContainer" style="display: none;"> 
             <?php
             include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/BigVideo.php';
+
+            $_POST['current'] = 1;
+            $_POST['rowCount'] = $obj->maxVideos;
             if ($obj->DateAdded) {
                 $dataFlickirty = new stdClass();
                 $dataFlickirty->wrapAround = true;
@@ -39,8 +42,6 @@ $obj = YouPHPTubePlugin::getObjectData("YouPHPFlix2");
                 }
 
                 $_POST['sort']['created'] = "DESC";
-                $_POST['current'] = 1;
-                $_POST['rowCount'] = $obj->maxVideos;
 
                 $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
                 if (!empty($videos)) {
@@ -59,133 +60,135 @@ $obj = YouPHPTubePlugin::getObjectData("YouPHPFlix2");
 
                     <?php
                 }
-                if ($obj->MostWatched) {
-                    $dataFlickirty = new stdClass();
+            }
+
+            if ($obj->MostPopular) {
+                $dataFlickirty = new stdClass();
+                $dataFlickirty->wrapAround = true;
+                $dataFlickirty->pageDots = !empty($obj->pageDots);
+                $dataFlickirty->lazyLoad = 15;
+                $dataFlickirty->setGallerySize = false;
+                $dataFlickirty->cellAlign = 'left';
+                if ($obj->MostPopularAutoPlay) {
+                    $dataFlickirty->autoPlay = true;
                     $dataFlickirty->wrapAround = true;
-                    $dataFlickirty->pageDots = !empty($obj->pageDots);
-                    $dataFlickirty->lazyLoad = 15;
-                    $dataFlickirty->setGallerySize = false;
-                    $dataFlickirty->cellAlign = 'left';
-                    if ($obj->MostWatchedAutoPlay) {
-                        $dataFlickirty->autoPlay = true;
-                        $dataFlickirty->wrapAround = true;
-                    } else {
-                        $dataFlickirty->wrapAround = true;
-                    }
-                    unset($_POST['sort']);
-                    $_POST['sort']['views_count'] = "DESC";
-                    $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
-                    ?>
+                } else {
+                    $dataFlickirty->wrapAround = true;
+                }
+                unset($_POST['sort']);
+                $_POST['sort']['likes'] = "DESC";
+                $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
+                ?>
+                <div class="row">
                     <span class="md-col-12">&nbsp;</span>
+                    <h2>
+                        <i class="glyphicon glyphicon-thumbs-up"></i> <?php echo __("Most popular"); ?>
+                    </h2>
+                    <!-- Most Popular -->
+                    <?php
+                    include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
+                    ?>
+                </div>
+
+
+                <?php
+            }
+
+
+            if ($obj->MostWatched) {
+                $dataFlickirty = new stdClass();
+                $dataFlickirty->wrapAround = true;
+                $dataFlickirty->pageDots = !empty($obj->pageDots);
+                $dataFlickirty->lazyLoad = 15;
+                $dataFlickirty->setGallerySize = false;
+                $dataFlickirty->cellAlign = 'left';
+                if ($obj->MostWatchedAutoPlay) {
+                    $dataFlickirty->autoPlay = true;
+                    $dataFlickirty->wrapAround = true;
+                } else {
+                    $dataFlickirty->wrapAround = true;
+                }
+                unset($_POST['sort']);
+                $_POST['sort']['views_count'] = "DESC";
+                $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
+                ?>
+                <span class="md-col-12">&nbsp;</span>
+                <div class="row">
+                    <h2>
+                        <i class="glyphicon glyphicon-eye-open"></i> <?php echo __("Most watched"); ?>
+                    </h2>
+                    <!-- Most watched -->
+                    <?php
+                    include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
+                    ?>
+                </div>
+                <?php
+            }
+
+            if ($obj->Categories && empty($_GET['catName'])) {
+                $dataFlickirty = new stdClass();
+                $dataFlickirty->wrapAround = true;
+                $dataFlickirty->pageDots = !empty($obj->pageDots);
+                $dataFlickirty->lazyLoad = 15;
+                $dataFlickirty->setGallerySize = false;
+                $dataFlickirty->cellAlign = 'left';
+                if ($obj->CategoriesAutoPlay) {
+                    $dataFlickirty->autoPlay = true;
+                    $dataFlickirty->wrapAround = true;
+                } else {
+                    $dataFlickirty->wrapAround = true;
+                }
+                unset($_POST['sort']);
+                $categories = Category::getAllCategories();
+                foreach ($categories as $value) {
+                    unset($_POST['sort']);
+                    $_GET['catName'] = $value['clean_name'];
+                    $_POST['sort']['likes'] = "DESC";
+                    $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
+                    if (empty($videos)) {
+                        continue;
+                    }
+                    ?>
                     <div class="row">
+                        <span class="md-col-12">&nbsp;</span>
                         <h2>
-                            <i class="glyphicon glyphicon-eye-open"></i> <?php echo __("Most watched"); ?>
+                            <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_name']; ?>"><i class="fas fa-folder"></i> <?php echo $value['name']; ?></a>
                         </h2>
-                        <!-- Most watched -->
+                        <!-- Categories -->
                         <?php
                         include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
                         ?>
                     </div>
                     <?php
+                    unset($_GET['catName']);
                 }
-
-                if ($obj->MostPopular) {
-                    $dataFlickirty = new stdClass();
-                    $dataFlickirty->wrapAround = true;
-                    $dataFlickirty->pageDots = !empty($obj->pageDots);
-                    $dataFlickirty->lazyLoad = 15;
-                    $dataFlickirty->setGallerySize = false;
-                    $dataFlickirty->cellAlign = 'left';
-                    if ($obj->MostPopularAutoPlay) {
-                        $dataFlickirty->autoPlay = true;
-                        $dataFlickirty->wrapAround = true;
-                    } else {
-                        $dataFlickirty->wrapAround = true;
-                    }
+            } else if ($obj->Categories && !empty($_GET['catName'])) {
+                unset($_POST['sort']);
+                $categories = Category::getChildCategoriesFromTitle($_GET['catName']);
+                foreach ($categories as $value) {
                     unset($_POST['sort']);
+                    $_GET['catName'] = $value['clean_name'];
                     $_POST['sort']['likes'] = "DESC";
                     $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
                     ?>
                     <div class="row">
                         <span class="md-col-12">&nbsp;</span>
                         <h2>
-                            <i class="glyphicon glyphicon-thumbs-up"></i> <?php echo __("Most popular"); ?>
+                            <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_name']; ?>"><i class="fas fa-folder"></i> <?php echo $value['name']; ?></a>
                         </h2>
-                        <!-- Most Popular -->
+                        <!-- Sub category -->
                         <?php
                         include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
                         ?>
                     </div>
-
-
                     <?php
+                    unset($_GET['catName']);
                 }
-
-                if ($obj->Categories && empty($_GET['catName'])) {
-                    $dataFlickirty = new stdClass();
-                    $dataFlickirty->wrapAround = true;
-                    $dataFlickirty->pageDots = !empty($obj->pageDots);
-                    $dataFlickirty->lazyLoad = 15;
-                    $dataFlickirty->setGallerySize = false;
-                    $dataFlickirty->cellAlign = 'left';
-                    if ($obj->CategoriesAutoPlay) {
-                        $dataFlickirty->autoPlay = true;
-                        $dataFlickirty->wrapAround = true;
-                    } else {
-                        $dataFlickirty->wrapAround = true;
-                    }
-                    unset($_POST['sort']);
-                    $categories = Category::getAllCategories();
-                    foreach ($categories as $value) {
-                        unset($_POST['sort']);
-                        $_GET['catName'] = $value['clean_name'];
-                        $_POST['sort']['likes'] = "DESC";
-                        $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
-                        if(empty($videos)){
-                            continue;
-                        }
-                        ?>
-                        <div class="row">
-                            <span class="md-col-12">&nbsp;</span>
-                            <h2>
-                                <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_name']; ?>"><i class="fas fa-folder"></i> <?php echo $value['name']; ?></a>
-                            </h2>
-                            <!-- Categories -->
-                            <?php
-                            include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
-                            ?>
-                        </div>
-                        <?php
-                        unset($_GET['catName']);
-                    }
-                } else if ($obj->Categories && !empty($_GET['catName'])) {
-                    unset($_POST['sort']);
-                    $categories = Category::getChildCategoriesFromTitle($_GET['catName']);
-                    foreach ($categories as $value) {
-                        unset($_POST['sort']);
-                        $_GET['catName'] = $value['clean_name'];
-                        $_POST['sort']['likes'] = "DESC";
-                        $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
-                        ?>
-                        <div class="row">
-                            <span class="md-col-12">&nbsp;</span>
-                            <h2>
-                                <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_name']; ?>"><i class="fas fa-folder"></i> <?php echo $value['name']; ?></a>
-                            </h2>
-                            <!-- Sub category -->
-                            <?php
-                            include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
-                            ?>
-                        </div>
-                        <?php
-                        unset($_GET['catName']);
-                    }
-                }
-
-                unset($_POST['sort']);
-                unset($_POST['current']);
-                unset($_POST['rowCount']);
             }
+
+            unset($_POST['sort']);
+            unset($_POST['current']);
+            unset($_POST['rowCount']);
             ?>
         </div>
         <div id="loading" class="loader"

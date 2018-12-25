@@ -49,7 +49,14 @@ $(function () {
         });
 
     });
-
+    
+    setTimeout(function () {
+        $('#loading').fadeOut();
+        $('.container-fluid').fadeIn('slow', function () {
+            $carousel.flickity('resize');
+        });
+    }, 2000);
+    
     $carousel = $('.carousel').flickity();
     isFlickityEnabled('.carousel');
 

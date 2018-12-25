@@ -59,19 +59,18 @@ if (($video['type'] !== "audio")&&($video['type'] !== "linkAudio")) {
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/social.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo $global['webSiteRootURL']; ?>view/css/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo $global['webSiteRootURL']; ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.3.1.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/videojs-rotatezoom/videojs.zoomrotate.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/script.js" type="text/javascript"></script>
         <style>
             body {
                 padding: 0 !important;
                 margin: 0 !important;
                 <?php
                 if(!empty($customizedAdvanced->embedBackgroundColor)){
-                    echo "background-color: $customizedAdvanced->embedBackgroundColor;";
+                    echo "background-color: $customizedAdvanced->embedBackgroundColor !important;";
                 }
                 ?>
 
@@ -79,20 +78,17 @@ if (($video['type'] !== "audio")&&($video['type'] !== "linkAudio")) {
         </style>
 
         <?php
+        
     $jsFiles = array();
-    //$jsFiles[] = "{$global['webSiteRootURL']}bootstrap/js/bootstrap.min.js";
     $jsFiles[] = "view/js/seetalert/sweetalert.min.js";
     $jsFiles[] = "view/js/bootpag/jquery.bootpag.min.js";
     $jsFiles[] = "view/js/bootgrid/jquery.bootgrid.js";
     $jsFiles[] = "view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js";
     $jsFiles[] = "view/js/script.js";
-    //$jsFiles[] = "view/js/bootstrap-toggle/bootstrap-toggle.min.js";
     $jsFiles[] = "view/js/js-cookie/js.cookie.js";
     $jsFiles[] = "view/css/flagstrap/js/jquery.flagstrap.min.js";
     $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.min.js";
     $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.plugins.min.js";
-    //$jsFiles[] = "{$global['webSiteRootURL']}view/js/videojs-wavesurfer/wavesurfer.min.js";
-    //$jsFiles[] = "{$global['webSiteRootURL']}view/js/videojs-wavesurfer/dist/videojs.wavesurfer.min.js";
     $jsURL =  combineFiles($jsFiles, "js");
 
 ?>
@@ -107,6 +103,7 @@ if (($video['type'] !== "audio")&&($video['type'] !== "linkAudio")) {
             <?php
             if ($video['type'] == "embed") {
                 ?>
+                <video playsinline id="mainVideo" style="display: none; height: 0;width: 0;" ></video>
                 <iframe class="embed-responsive-item" src="<?php
                 echo parseVideos($video['videoLink']);
                 if ($config->getAutoplay()) {
@@ -116,7 +113,7 @@ if (($video['type'] !== "audio")&&($video['type'] !== "linkAudio")) {
 
                 <script>
             $(document).ready(function () {
-                addView(<?php echo $video['id']; ?>);
+                addView(<?php echo $video['id']; ?>,0);
             });
                 </script>
                 <?php
@@ -141,13 +138,13 @@ if (($video['type'] !== "audio")&&($video['type'] !== "linkAudio")) {
 
                 <script>
                     $(document).ready(function () {
-                        addView(<?php echo $video['id']; ?>);
+                        addView(<?php echo $video['id']; ?>,this.currentTime());
                     });
                 </script>
                 <?php
             } else {
                 ?>
-                <video id="mainVideo" poster="<?php echo $poster; ?>" controls
+                <video playsinline id="mainVideo" poster="<?php echo $poster; ?>" controls
                        class="video-js vjs-default-skin vjs-big-play-centered <?php echo $vjsClass; ?> " id="mainVideo"  data-setup='{"fluid": true }'>
                     <?php
                     echo getSources($video['filename']);
@@ -179,7 +176,14 @@ if (($video['type'] !== "audio")&&($video['type'] !== "linkAudio")) {
                         });
                         player = videojs('mainVideo');
                         player.on('play', function () {
-                            addView(<?php echo $video['id']; ?>);
+                            addView(<?php echo $video['id']; ?>,this.currentTime());
+                        });
+                        
+                        player.on('timeupdate', function () {
+                            var time = Math.round(this.currentTime());
+                            if (time >= 5 && time % 5 === 0) {
+                                addView(<?php echo $video['id']; ?>, time);
+                            }
                         });
                     });
                 </script>

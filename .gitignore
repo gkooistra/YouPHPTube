@@ -1,3 +1,4 @@
+/sitemap.xml
 /nbproject/private/
 /videos/
 /nbproject/
@@ -41,4 +42,6 @@
 /plugin/Subscription/
 /plugin/LifeStreamLayout/
 /plugin/Backup/
-/sitemap.xml
+/plugin/FTP_Storage/
+/plugin/SecondLife/
+/plugin/YouPHPTV/

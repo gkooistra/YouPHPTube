@@ -22,11 +22,11 @@ if ($video['rotation'] === "90" || $video['rotation'] === "270") {
                 </p>
                 <button type="button" class="btn btn-outline btn-xs"
                         onclick="closeFloatVideo(); floatClosed = 1;">
-                    <i class="far fa-window-close"></i>
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
             <div id="main-video" class="embed-responsive <?php echo $embedResponsiveClass; ?>">
-                <video
+                <video playsinline
                 <?php if ($config->getAutoplay() && false) { // disable it for now  ?>
                         autoplay="true"
                         muted="muted"
@@ -96,11 +96,16 @@ if ($playNowVideo['type'] == "linkVideo") {
                     copyToClipboard($('#textAreaEmbed').val());
                 }, iconClass: 'fas fa-code'
         }
-<?php if ($config->getAllow_download()) { ?>
+<?php if (CustomizeUser::canDownloadVideosFromUser($playNowVideo['users_id'])) { ?>
     <?php
     if ($playNowVideo['type'] == "video") {
         $files = getVideosURL($playNowVideo['filename']);
         foreach ($files as $key => $theLink) {
+            if(empty($advancedCustom->showImageDownloadOption)){
+                if($key=="jpg" || $key=="gif"){
+                    continue;
+                }
+            }
             ?>
                     , {
                         name: '<?php echo __("Download video") . " (" . $key . ")"; ?>',
@@ -132,16 +137,9 @@ if ($playNowVideo['type'] == "linkVideo") {
                                     player = videojs('mainVideo');
                                     player.zoomrotate(<?php echo $transformation; ?>);
                                     player.on('play', function () {
-                                        addView(<?php echo $playNowVideo['id']; ?>);
+                                        addView(<?php echo $playNowVideo['id']; ?>, this.currentTime());
                                     });
                                     player.ready(function () {
-<?php
-if (!empty($_GET['t'])) {
-    ?>
-                                            player.currentTime(<?php echo intval($_GET['t']); ?>)
-    <?php
-}
-?>
 
 <?php if ($config->getAutoplay()) {
     ?>
@@ -151,9 +149,30 @@ if (!empty($_GET['t'])) {
                                                 }
                                                 try {
                                                     player.play();
+    <?php
+    if (!empty($_GET['t'])) {
+        ?>
+                                                        player.currentTime(<?php echo intval($_GET['t']); ?>);
+        <?php
+    } else if (!empty($video['progress']['lastVideoTime'])) {
+        ?>
+                                                        player.currentTime(<?php echo intval($video['progress']['lastVideoTime']); ?>);
+        <?php
+    }
+    ?>
                                                 } catch (e) {
                                                     setTimeout(function () {
-                                                        player.play();
+                                                        player.play();<?php
+    if (!empty($_GET['t'])) {
+        ?>
+                                                            player.currentTime(<?php echo intval($_GET['t']); ?>);
+        <?php
+    } else if (!empty($video['progress']['lastVideoTime'])) {
+        ?>
+                                                            player.currentTime(<?php echo intval($video['progress']['lastVideoTime']); ?>);
+        <?php
+    }
+    ?>
                                                     }, 1000);
                                                 }
                                             }, 150);
@@ -165,10 +184,30 @@ if (!empty($_GET['t'])) {
                                                         player = videojs('mainVideo');
                                                     }
                                                     try {
-                                                        player.play();
+                                                        player.play();<?php
+    if (!empty($_GET['t'])) {
+        ?>
+                                                            player.currentTime(<?php echo intval($_GET['t']); ?>);
+        <?php
+    } else if (!empty($video['progress']['lastVideoTime'])) {
+        ?>
+                                                            player.currentTime(<?php echo intval($video['progress']['lastVideoTime']); ?>);
+        <?php
+    }
+    ?>
                                                     } catch (e) {
                                                         setTimeout(function () {
-                                                            player.play();
+                                                            player.play();<?php
+    if (!empty($_GET['t'])) {
+        ?>
+                                                                player.currentTime(<?php echo intval($_GET['t']); ?>);
+        <?php
+    } else if (!empty($video['progress']['lastVideoTime'])) {
+        ?>
+                                                                player.currentTime(<?php echo intval($video['progress']['lastVideoTime']); ?>);
+        <?php
+    }
+    ?>
                                                         }, 1000);
                                                     }
                                                 }, 150);
@@ -214,6 +253,9 @@ if (!empty($autoPlayVideo)) {
                                         this.on('timeupdate', function () {
                                             var time = Math.round(this.currentTime());
                                             $('#linkCurrentTime').val('<?php echo Video::getURLFriendly($video['id']); ?>?t=' + time);
+                                            if (time >= 5 && time % 5 === 0) {
+                                                addView(<?php echo $video['id']; ?>, time);
+                                            }
                                         });
                                     });
                                     player.persistvolume({
@@ -235,7 +277,7 @@ if (!empty($autoPlayVideo)) {
                                                         player.muted(false);
                                                     });
                                         }
-                                    }, 500);
+                                    }, 1500);
                                     }
                                     );
 </script>

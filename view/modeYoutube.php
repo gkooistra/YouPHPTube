@@ -54,9 +54,9 @@ $_GET['isMediaPlaySite'] = $video['id'];
 $obj = new Video("", "", $video['id']);
 
 /*
-if (empty($_SESSION['type'])) {
-    $_SESSION['type'] = $video['type'];
-}
+  if (empty($_SESSION['type'])) {
+  $_SESSION['type'] = $video['type'];
+  }
  * 
  */
 // $resp = $obj->addView();
@@ -210,7 +210,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
     <body>
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
         <?php
-        if (!empty($advancedCustom->showChannelBannerOnModeYoutube)) {
+        if (!empty($advancedCustomUser->showChannelBannerOnModeYoutube)) {
             ?>
             <div class="container" style="margin-bottom: 10px;">
                 <img src="<?php echo User::getBackground($video['users_id']); ?>" class="img img-responsive" />
@@ -299,7 +299,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
 
                             <div class="row">
                                 <div class="col-md-12 watch8-action-buttons text-muted">
-                                    <?php if ((($advancedCustom != false) && ($advancedCustom->disableShareAndPlaylist == false)) || ($advancedCustom == false)) { ?>
+                                    <?php if (empty($advancedCustom->disableShareAndPlaylist)) { ?>
                                         <button class="btn btn-default no-outline" id="addBtn" data-placement="bottom">
                                             <span class="fa fa-plus"></span> <?php echo __("Add to"); ?>
                                         </button>
@@ -418,10 +418,22 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
 
                                             });
                                         </script>
-                                        <a href="#" class="btn btn-default no-outline" id="shareBtn">
-                                            <span class="fa fa-share"></span> <?php echo __("Share"); ?>
-                                        </a>
-                                    <?php } echo YouPHPTubePlugin::getWatchActionButton(); ?>
+                                        <?php if (CustomizeUser::canShareVideosFromUser($video['users_id'])) { ?>
+                                            <a href="#" class="btn btn-default no-outline" id="shareBtn">
+                                                <span class="fa fa-share"></span> <?php echo __("Share"); ?>
+                                            </a>
+                                        <?php
+                                        }
+
+                                        if (CustomizeUser::canDownloadVideosFromUser($video['users_id'])) {
+                                            ?>
+                                            <a href="#" class="btn btn-default no-outline" id="downloadBtn">
+                                                <span class="fa fa-download"></span> <?php echo __("Download"); ?>
+                                            </a>
+                                            <?php
+                                        }
+                                        ?>
+    <?php } echo YouPHPTubePlugin::getWatchActionButton(); ?>
                                     <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == - 1) ? "myVote" : "" ?>" id="dislikeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("DonÂ´t like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
                                         <span class="fa fa-thumbs-down"></span> <small><?php echo $video['dislikes']; ?></small>
                                     </a>
@@ -461,15 +473,51 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                 </div>
                             </div>
                         </div>
-                        <?php if ((($advancedCustom != false) && ($advancedCustom->disableShareAndPlaylist == false)) || ($advancedCustom == false)) { ?>
-                            <div class="row bgWhite list-group-item" id="shareDiv">
+
+    <?php if (CustomizeUser::canDownloadVideosFromUser($video['users_id'])) { ?>
+                            <div class="row bgWhite list-group-item menusDiv" id="downloadDiv">
+                                <div class="tabbable-panel">
+                                    <div class="list-group">
+                                        <?php
+                                        if ($video['type'] == "video") {
+                                            $files = getVideosURL($video['filename']);
+                                            foreach ($files as $key => $theLink) {
+                                                if (empty($advancedCustom->showImageDownloadOption)) {
+                                                    if ($key == "jpg" || $key == "gif") {
+                                                        continue;
+                                                    }
+                                                }
+                                                ?>
+                                                <a href="<?php echo $theLink['url']; ?>?download=1&title=<?php echo urlencode($video['title'] . "_{$key}_.mp4"); ?>" class="list-group-item list-group-item-action" target="_blank">
+                                                    <i class="fas fa-download"></i> <?php echo $key; ?>
+                                                </a>
+                                                <?php
+                                            }
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <script>
+                                $(document).ready(function () {
+                                    $("#downloadDiv").slideUp();
+                                    $("#downloadBtn").click(function () {
+                                        $(".menusDiv").not("#downloadDiv").slideUp();
+                                        $("#downloadDiv").slideToggle();
+                                        return false;
+                                    });
+                                });
+                            </script>
+                        <?php } ?>
+    <?php if (CustomizeUser::canShareVideosFromUser($video['users_id'])) { ?>
+                            <div class="row bgWhite list-group-item menusDiv" id="shareDiv">
                                 <div class="tabbable-panel">
                                     <div class="tabbable-line text-muted">
                                         <ul class="nav nav-tabs">
                                             <li class="nav-item">
                                                 <a class="nav-link " href="#tabShare" data-toggle="tab">
                                                     <span class="fa fa-share"></span>
-                                                    <?php echo __("Share"); ?>
+        <?php echo __("Share"); ?>
                                                 </a>
                                             </li>
 
@@ -479,7 +527,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                                 <li class="nav-item">
                                                     <a class="nav-link " href="#tabEmbed" data-toggle="tab">
                                                         <span class="fa fa-code"></span>
-                                                        <?php echo __("Embed"); ?>
+            <?php echo __("Embed"); ?>
                                                     </a>
                                                 </li>
                                                 <?php
@@ -489,13 +537,13 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                             <li class="nav-item">
                                                 <a class="nav-link" href="#tabEmail" data-toggle="tab">
                                                     <span class="fa fa-envelope"></span>
-                                                    <?php echo __("E-mail"); ?>
+        <?php echo __("E-mail"); ?>
                                                 </a>
                                             </li>
                                             <li class="nav-item">
                                                 <a class="nav-link" href="#tabPermaLink" data-toggle="tab">
                                                     <span class="fa fa-link"></span>
-                                                    <?php echo __("Permanent Link"); ?>
+        <?php echo __("Permanent Link"); ?>
                                                 </a>
                                             </li>
                                         </ul>
@@ -520,11 +568,11 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                                 </textarea>
                                             </div>
                                             <div class="tab-pane" id="tabEmail">
-                                                <?php if (!User::isLogged()) { ?>
+        <?php if (!User::isLogged()) { ?>
                                                     <strong>
                                                         <a href="<?php echo $global['webSiteRootURL']; ?>user"><?php echo __("Sign in now!"); ?></a>
                                                     </strong>
-                                                <?php } else { ?>
+        <?php } else { ?>
                                                     <form class="well form-horizontal" action="<?php echo $global['webSiteRootURL']; ?>sendEmail" method="post"  id="contact_form">
                                                         <fieldset>
                                                             <!-- Text input-->
@@ -596,7 +644,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                                             });
                                                         });
                                                     </script>
-                                                <?php } ?>
+        <?php } ?>
                                             </div>
 
                                             <div class="tab-pane" id="tabPermaLink">
@@ -623,7 +671,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                     </div>
                                 </div>
                             </div>
-                        <?php } ?>
+    <?php } ?>
                         <div class="row bgWhite list-group-item">
                             <div class="row">
                                 <div class="col-xs-12 col-sm-12 col-lg-12">
@@ -639,17 +687,25 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                             $(document).ready(function () {
                                 $("#shareDiv").slideUp();
                                 $("#shareBtn").click(function () {
+                                    $(".menusDiv").not("#shareDiv").slideUp();
                                     $("#shareDiv").slideToggle();
                                     return false;
                                 });
                             });
                         </script>
                         <div class="row bgWhite list-group-item">
-                            <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
+    <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
                         </div>
                     </div>
                     <div class="col-sm-4 col-md-4 bgWhite list-group-item rightBar">
                         <?php
+                        if (!empty($advancedCustom->showAdsenseBannerOnLeft)) {
+                            ?>
+                            <div class="col-lg-12 col-sm-12 col-xs-12">
+                            <?php echo $config->getAdsense(); ?>
+                            </div>
+                            <?php
+                        }
                         if (!empty($playlist_id)) {
                             include $global['systemRootPath'] . 'view/include/playlist.php';
                             ?>
@@ -676,7 +732,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                     </div>
                                 </span>
                             </div>
-                        <?php } else if (!empty($autoPlayVideo)) { ?>
+    <?php } else if (!empty($autoPlayVideo)) { ?>
                             <div class="row">
                                 <div class="col-lg-12 col-sm-12 col-xs-12 autoplay text-muted">
                                     <strong><?php echo __("Up Next"); ?></strong>
@@ -711,7 +767,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                         <img src="<?php echo $img; ?>" alt="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" class="img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $autoPlayVideo['rotation']; ?>" height="130" itemprop="thumbnail" />
                                         <?php if (!empty($imgGif)) { ?>
                                             <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" id="thumbsGIF<?php echo $autoPlayVideo['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $autoPlayVideo['rotation']; ?>" height="130" />
-                                        <?php } ?>
+        <?php } ?>
                                         <meta itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
                                         <meta itemprop="contentURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title']); ?>" />
                                         <meta itemprop="embedURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], true); ?>" />
@@ -724,11 +780,11 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                             <div>
                                                 <strong><?php echo __("Category"); ?>: </strong>
                                                 <span class="<?php echo $autoPlayVideo['iconClass']; ?>"></span>
-                                                <?php echo $autoPlayVideo['category']; ?>
+        <?php echo $autoPlayVideo['category']; ?>
                                             </div>
                                             <div>
                                                 <strong class=""><?php echo number_format($autoPlayVideo['views_count'], 0); ?></strong>
-                                                <?php echo __("Views"); ?>
+        <?php echo __("Views"); ?>
                                             </div>
                                             <div><?php echo $autoPlayVideo['creator']; ?></div>
                                         </div>
@@ -748,16 +804,11 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                     </div>
                                 </a>
                             </div>
-                        <?php } if (!empty($advancedCustom->showAdsenseBannerOnLeft)) {
-                            ?>
-                            <div class="col-lg-12 col-sm-12 col-xs-12">
-                                <?php echo $config->getAdsense(); ?>
-                            </div>
-                        <?php } ?>
+    <?php } ?>
                         <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
                         <!-- videos List -->
                         <div id="videosList">
-                            <?php include $global['systemRootPath'] . 'view/videosList.php'; ?>
+    <?php include $global['systemRootPath'] . 'view/videosList.php'; ?>
                         </div>
                         <!-- End of videos List -->
 
@@ -799,11 +850,11 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                     </div>
                     <div class="col-sm-1 col-md-1"></div>
                 </div>
-            <?php } else { ?>
+<?php } else { ?>
                 <div class="alert alert-warning">
                     <span class="glyphicon glyphicon-facetime-video"></span> <strong><?php echo __("Warning"); ?>!</strong> <?php echo __("We have not found any videos or audios to show"); ?>.
                 </div>
-            <?php } ?>
+<?php } ?>
         </div>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
         <script>

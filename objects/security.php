@@ -5,6 +5,18 @@ require_once $global['systemRootPath'].'objects/functions.php';
 $securityFilter = array('error', 'search', 'catName', 'type', 'channelName', 'captcha', 'showOnly', 'key', 'link');
 $securityFilterInt = array('videos_id', 'video_id');
 
+if(isset($_GET['search'])){
+    if(is_string($_GET['search'])){
+        $_GET['search'] = trim($_GET['search']);
+    }else if(is_array($_GET['search'])){
+        foreach ($_GET['search'] as $key => $value) {
+            if(is_string($_GET['search'][$key])){
+                $_GET['search'][$key] = trim($_GET['search'][$key]);
+            }
+        }
+    }
+}
+
 foreach ($securityFilterInt as $value) {
     if (!empty($_POST[$value])) {
         $_POST[$value] = intval($_POST[$value]);

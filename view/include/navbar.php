@@ -86,7 +86,7 @@ $json_file = url_get_contents("{$global['webSiteRootURL']}plugin/CustomizeAdvanc
 // convert the string to a json object
 $advancedCustom = json_decode($json_file);
 $thisScriptFile = pathinfo($_SERVER["SCRIPT_FILENAME"]);
-if (((empty($advancedCustom->userMustBeLoggedIn) && empty($advancedCustom->disableNavbar)) || $thisScriptFile["basename"] === "signUp.php") || User::isLogged()) {
+if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->disableNavbar)) || $thisScriptFile["basename"] === "signUp.php") || User::isLogged()) {
     $updateFiles = getUpdatesFilesArray();
     ?>
     <nav class="navbar navbar-default navbar-fixed-top ">
@@ -197,7 +197,7 @@ if (((empty($advancedCustom->userMustBeLoggedIn) && empty($advancedCustom->disab
                                         <i class="<?php echo isset($advancedCustom->uploadButtonDropdownIcon) ? $advancedCustom->uploadButtonDropdownIcon : "fas fa-video"; ?>"></i> <?php echo!empty($advancedCustom->uploadButtonDropdownText) ? $advancedCustom->uploadButtonDropdownText : ""; ?> <span class="caret"></span>
                                     </button>
                                     <?php
-                                    if ((isset($advancedCustom->onlyVerifiedEmailCanUpload) && $advancedCustom->onlyVerifiedEmailCanUpload && User::isVerified()) || (isset($advancedCustom->onlyVerifiedEmailCanUpload) && !$advancedCustom->onlyVerifiedEmailCanUpload) || !isset($advancedCustom->onlyVerifiedEmailCanUpload)
+                                    if ((isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && User::isVerified()) || (isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && !$advancedCustomUser->onlyVerifiedEmailCanUpload) || !isset($advancedCustomUser->onlyVerifiedEmailCanUpload)
                                     ) {
                                         ?>
                                         <ul class="dropdown-menu dropdown-menu-right" role="menu" style="">
@@ -241,7 +241,7 @@ if (((empty($advancedCustom->userMustBeLoggedIn) && empty($advancedCustom->disab
                                             if (empty($advancedCustom->doNotShowUploadMP4Button)) {
                                                 ?>
                                                 <li>
-                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>upload" >
+                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?upload=1" >
                                                         <span class="fa fa-upload"></span> <?php echo __("Direct upload"); ?>
                                                     </a>
                                                 </li>
@@ -312,6 +312,9 @@ if (((empty($advancedCustom->userMustBeLoggedIn) && empty($advancedCustom->disab
                                         inputName: 'country',
                                         buttonType: "btn-default navbar-btn",
                                         onSelect: function (value, element) {
+                                            if(!value && element[1]){
+                                                value = $(element[1]).val();
+                                            }
                                             window.location.href = "<?php echo $global['webSiteRootURL']; ?>?lang=" + value;
                                         },
                                         placeholder: {
