@@ -1,3 +1,14 @@
+<?php
+global $includeDefaultNavBar;
+if (empty($sidebarStyle)) {
+    $sidebarStyle = "display: none;";
+}
+$includeDefaultNavBar = true;
+YouPHPTubePlugin::navBar();
+if (!$includeDefaultNavBar) {
+    return false;
+}
+?>
 <style>
     #mysearch.in,
     #mysearch.collapsing {
@@ -40,6 +51,16 @@
             padding-right: 0px;
             background-color: #FFF;
 
+        }
+
+        #myNavbar{
+            position: absolute;
+            right: 0;
+            top: 50px;
+            background-color: #FFF;
+        }
+        #myNavbar ul.right-menus{
+            display: block;
         }
         .globalsearchfield {
             width: 80% !important;
@@ -89,7 +110,7 @@ $thisScriptFile = pathinfo($_SERVER["SCRIPT_FILENAME"]);
 if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->disableNavbar)) || $thisScriptFile["basename"] === "signUp.php") || User::isLogged()) {
     $updateFiles = getUpdatesFilesArray();
     ?>
-    <nav class="navbar navbar-default navbar-fixed-top ">
+    <nav class="navbar navbar-default navbar-fixed-top " id="mainNavBar">
         <ul class="items-container">
             <li>
                 <ul class="left-side">
@@ -97,14 +118,22 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                         <button class="btn btn-default navbar-btn pull-left" id="buttonMenu" ><span class="fa fa-bars"></span></button>
                         <script>
                             $(document).ready(function () {
-                                $('#buttonMenu').on("click", function (event) {
+                                $('#buttonMenu').on("click.sidebar", function (event) {
                                     event.stopPropagation();
-                                    $('#sidebar').fadeToggle();
+                                    //$('#sidebar').fadeToggle();
+                                    if ($('body').hasClass('youtube')) {
+                                        $('body').removeClass('youtube')
+                                        $("#sidebar").fadeOut();
+                                    } else {
+                                        $('body').addClass('youtube')
+                                        $("#sidebar").fadeIn();
+                                    }
+
                                     $('#myNavbar').removeClass("in");
                                     $('#mysearch').removeClass("in");
                                 });
 
-                                $(document).on("click", function () {
+                                $(document).on("click.sidebar", function () {
                                     $("#sidebar").fadeOut();
                                 });
                                 $("#sidebar").on("click", function (event) {
@@ -172,11 +201,6 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
             </li>
 
             <li style="margin-right: 0px; padding-left: 0px;">
-                <div class="navbar-header">
-                    <button type="button" id="buttonMyNavbar" class=" navbar-toggle btn btn-default navbar-btn" data-toggle="collapse" data-target="#myNavbar" style="padding: 6px 12px;">
-                        <span class="fa fa-bars"></span>
-                    </button>
-                </div>
                 <div class="hidden-xs col-md-3 col-sm-4" id="myNavbar">
                     <ul class="right-menus" style="padding-left: 0;">
                         <?php
@@ -210,7 +234,8 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                                         <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>" />
                                                         <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>" />
                                                     </form>
-                                                    <a href="#" onclick="$('#formEncoderN').submit();return false;">
+                                                    <a href="#" onclick="$('#formEncoderN').submit();
+                                                                            return false;">
                                                         <span class="fa fa-cogs"></span> <?php echo __("Encoder Network"); ?>
                                                     </a>
                                                 </li>
@@ -225,7 +250,8 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                                             <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>" />
                                                             <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>" />
                                                         </form>
-                                                        <a href="#" onclick="$('#formEncoder').submit();return false;">
+                                                        <a href="#" onclick="$('#formEncoder').submit();
+                                                                                    return false;">
                                                             <span class="fa fa-cog"></span> <?php echo __("Encode video and audio"); ?>
                                                         </a>
                                                     </li>
@@ -312,7 +338,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                         inputName: 'country',
                                         buttonType: "btn-default navbar-btn",
                                         onSelect: function (value, element) {
-                                            if(!value && element[1]){
+                                            if (!value && element[1]) {
                                                 value = $(element[1]).val();
                                             }
                                             window.location.href = "<?php echo $global['webSiteRootURL']; ?>?lang=" + value;
@@ -326,7 +352,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                             </script>
                         </li>
                         <?php
-                        if (!empty($advancedCustom->signInOnRight)) {
+                        if (!empty($advancedCustomUser->signInOnRight)) {
                             if (User::isLogged()) {
                                 ?>
                                 <li>
@@ -357,210 +383,427 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                             }
                         }
                         ?>
+
+
                     </ul>
                 </div>
 
+                <div class="navbar-header pull-right">
+                    <ul style="margin: 0; padding: 0;">
+                        <?php
+                        if (empty($advancedCustomUser->doNotShowRightProfile)) {
+                            ?>
+                            <li class="rightProfile" style="margin: 0;">
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown" style="margin: 0; padding: 3px; background-color: transparent; border-width: 0;">
+                                        <img src="<?php echo User::getPhoto(); ?>" style="width: 40px; height: 40px; max-width: 40px;"  class="img img-thumbnail img-responsive img-circle"/>
+                                    </button>
+
+                                    <ul class="dropdown-menu dropdown-menu-right" role="menu" style="">
+
+                                        <?php
+                                        if (User::isLogged()) {
+                                            ?>
+                                            <li>
+                                                <div style="text-align: center !important; width: 100%;">
+                                                    <?php echo User::getName(); ?>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <div style="text-align: center !important; width: 100%;">
+                                                    <small class="text-muted">
+                                                        <?php echo User::getMail(); ?>
+                                                    </small>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <a href="<?php echo $global['webSiteRootURL']; ?>logoff" >
+                                                    <?php
+                                                    if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
+                                                        ?>
+                                                        <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+                                                        <?php
+                                                    } else {
+                                                        ?>
+                                                        <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
+                                                        <?php
+                                                    }
+                                                    ?>
+                                                    <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a href="<?php echo $global['webSiteRootURL']; ?>user" style="border-radius: 4px 4px 0 0;">
+                                                    <span class="fa fa-user-circle"></span>
+                                                    <?php echo __("My Account"); ?>
+                                                </a>
+                                            </li>
+
+                                            <li>
+                                                <a href="<?php echo User::getChannelLink(); ?>" >
+                                                    <span class="fab fa-youtube"></span>
+                                                    <?php echo __("My Channel"); ?>
+                                                </a>
+                                            </li>
+
+                                            <?php
+                                            if (User::canUpload()) {
+                                                ?>
+                                                <li>
+                                                    <a href="<?php echo $global['webSiteRootURL']; ?>mvideos">
+                                                        <span class="glyphicon glyphicon-film"></span>
+                                                        <span class="glyphicon glyphicon-headphones"></span>
+                                                        <?php echo __("My videos"); ?>
+                                                    </a>
+                                                </li>
+                                                <?php
+                                            }
+
+                                            print YouPHPTubePlugin::navBarButtons();
+
+                                            if ((($config->getAuthCanViewChart() == 0) && (User::canUpload())) || (($config->getAuthCanViewChart() == 1) && (User::canViewChart()))) {
+                                                ?>
+                                                <li>
+                                                    <a href="<?php echo $global['webSiteRootURL']; ?>charts">
+                                                        <span class="fas fa-tachometer-alt"></span>
+                                                        <?php echo __("Dashboard"); ?>
+                                                    </a>
+                                                </li>
+                                                <?php
+                                            } if (User::canUpload()) {
+                                                ?>
+                                                <li>
+                                                    <a href="<?php echo $global['webSiteRootURL']; ?>subscribes">
+                                                        <span class="fa fa-check"></span>
+                                                        <?php echo __("Subscriptions"); ?>
+                                                    </a>
+                                                </li>
+                                                <?php
+                                                if (Category::canCreateCategory()) {
+                                                    ?>
+
+                                                    <li>
+                                                        <a href="<?php echo $global['webSiteRootURL']; ?>categories">
+                                                            <span class="glyphicon glyphicon-list"></span>
+                                                            <?php echo __("Categories"); ?>
+                                                        </a>
+
+                                                    </li>
+                                                    <?php
+                                                    ?>
+                                                    <li>
+                                                        <a href="<?php echo $global['webSiteRootURL']; ?>comments">
+                                                            <span class="fa fa-comment"></span>
+                                                            <?php echo __("Comments"); ?>
+                                                        </a>
+                                                    </li>
+                                                    <?php
+                                                }
+                                            }
+                                            ?>
+                                            <?php
+                                        } else {
+                                            ?>
+                                            <li>
+                                                <a href="<?php echo $global['webSiteRootURL']; ?>user" >
+                                                    <i class="fas fa-sign-in-alt"></i>
+                                                    <?php echo __("Sign In"); ?>
+                                                </a>
+                                            </li>
+                                            <?php
+                                        }
+                                        ?>
+                                    </ul>
+                                </div>
+
+                            </li>
+                            <?php
+                        }
+                        ?>
+                    </ul>
+                </div>
+                <div class="pull-right">
+                    <button type="button" id="buttonMyNavbar" class=" navbar-toggle btn btn-default navbar-btn" data-toggle="collapse" data-target="#myNavbar" style="padding: 6px 12px;">
+                        <span class="fa fa-bars"></span>
+                    </button>
+                </div>
             </li>
         </ul>
 
 
-        <div id="sidebar" class="list-group-item" style="display: none;">
+        <div id="sidebar" class="list-group-item" style="<?php echo $sidebarStyle; ?>">
             <div id="sideBarContainer">
                 <ul class="nav navbar">
+
+
                     <?php
-                    if (User::isLogged()) {
-                        ?>
-                        <li>
-                            <div>
-                                <a href="<?php echo $global['webSiteRootURL']; ?>logoff" class="btn btn-default btn-block" >
-                                    <?php
-                                    if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
-                                        ?>
-                                        <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+                    if (empty($advancedCustomUser->doNotShowLeftProfile)) {
+                        if (User::isLogged()) {
+                            ?>
+                            <li>
+                                <div>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>logoff" class="btn btn-default btn-block" >
                                         <?php
-                                    } else {
+                                        if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
+                                            ?>
+                                            <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+                                            <?php
+                                        } else {
+                                            ?>
+                                            <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
+                                            <?php
+                                        }
                                         ?>
-                                        <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
-                                        <?php
-                                    }
-                                    ?>
-                                    <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
-                                </a>
-                            </div>
-                        </li>
-                        <li style="min-height: 60px;">
-                            <div class="pull-left" style="margin-left: 10px;">
-                                <img src="<?php echo User::getPhoto(); ?>" style="max-width: 55px;"  class="img img-thumbnail img-responsive img-circle"/>
-                            </div>
-                            <div  style="margin-left: 80px;">
-                                <h2><?php echo User::getName(); ?></h2>
-                                <div><small><?php echo User::getMail(); ?></small></div>
-
-                            </div>
-                        </li>
-                        <li>
-
-                            <div>
-                                <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-primary btn-block" style="border-radius: 4px 4px 0 0;">
-                                    <span class="fa fa-user-circle"></span>
-                                    <?php echo __("My Account"); ?>
-                                </a>
-
-                            </div>
-                        </li>
-
-                        <li>
-
-                            <div>
-                                <a href="<?php echo User::getChannelLink(); ?>" class="btn btn-danger btn-block" style="border-radius: 0;">
-                                    <span class="fab fa-youtube"></span>
-                                    <?php echo __("My Channel"); ?>
-                                </a>
-
-                            </div>
-                        </li>
-
-                        <?php
-                        if (User::canUpload()) {
-                            ?>
-                            <li>
-                                <div>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>mvideos" class="btn btn-success btn-block" style="border-radius: 0;">
-                                        <span class="glyphicon glyphicon-film"></span>
-                                        <span class="glyphicon glyphicon-headphones"></span>
-                                        <?php echo __("My videos"); ?>
+                                        <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
                                     </a>
                                 </div>
                             </li>
-                            <?php
-                        }
+                            <li style="min-height: 60px;">
+                                <div class="pull-left" style="margin-left: 10px;">
+                                    <img src="<?php echo User::getPhoto(); ?>" style="max-width: 55px;"  class="img img-thumbnail img-responsive img-circle"/>
+                                </div>
+                                <div  style="margin-left: 80px;">
+                                    <h2><?php echo User::getName(); ?></h2>
+                                    <div><small><?php echo User::getMail(); ?></small></div>
 
-                        print YouPHPTubePlugin::navBarButtons();
-
-                        if ((($config->getAuthCanViewChart() == 0) && (User::canUpload())) || (($config->getAuthCanViewChart() == 1) && (User::canViewChart()))) {
-                            ?>
-                            <li>
-                                <div>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>charts" class="btn btn-info btn-block" style="border-radius: 0;">
-                                        <span class="fas fa-tachometer-alt"></span>
-                                        <?php echo __("Dashboard"); ?>
-                                    </a>
                                 </div>
                             </li>
-                            <?php
-                        } if (User::canUpload()) {
-                            ?>
                             <li>
+
                                 <div>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>subscribes" class="btn btn-warning btn-block" style="border-radius: 0">
-                                        <span class="fa fa-check"></span>
-                                        <?php echo __("Subscriptions"); ?>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-primary btn-block" style="border-radius: 4px 4px 0 0;">
+                                        <span class="fa fa-user-circle"></span>
+                                        <?php echo __("My Account"); ?>
                                     </a>
+
                                 </div>
                             </li>
-                            <?php
-                            if (Category::canCreateCategory()) {
-                                ?>
 
-                                <li>
-                                    <div>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>categories" class="btn btn-info btn-block" style="border-radius: 0;">
-                                            <span class="glyphicon glyphicon-list"></span>
-                                            <?php echo __("Categories"); ?>
-                                        </a>
-                                    </div>
-                                </li>
-                                <?php
+                            <li>
+
+                                <div>
+                                    <a href="<?php echo User::getChannelLink(); ?>" class="btn btn-danger btn-block" style="border-radius: 0;">
+                                        <span class="fab fa-youtube"></span>
+                                        <?php echo __("My Channel"); ?>
+                                    </a>
+
+                                </div>
+                            </li>
+
+                            <?php
+                            if (User::canUpload()) {
                                 ?>
                                 <li>
                                     <div>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>comments" class="btn btn-default btn-block" style="border-radius: 0 0 4px 4px;">
-                                            <span class="fa fa-comment"></span>
-                                            <?php echo __("Comments"); ?>
+                                        <a href="<?php echo $global['webSiteRootURL']; ?>mvideos" class="btn btn-success btn-block" style="border-radius: 0;">
+                                            <span class="glyphicon glyphicon-film"></span>
+                                            <span class="glyphicon glyphicon-headphones"></span>
+                                            <?php echo __("My videos"); ?>
                                         </a>
                                     </div>
                                 </li>
                                 <?php
                             }
-                        }
-                        if (User::isAdmin()) {
-                            ?>
 
+                            print YouPHPTubePlugin::navBarButtons();
+
+                            if ((($config->getAuthCanViewChart() == 0) && (User::canUpload())) || (($config->getAuthCanViewChart() == 1) && (User::canViewChart()))) {
+                                ?>
+                                <li>
+                                    <div>
+                                        <a href="<?php echo $global['webSiteRootURL']; ?>charts" class="btn btn-info btn-block" style="border-radius: 0;">
+                                            <span class="fas fa-tachometer-alt"></span>
+                                            <?php echo __("Dashboard"); ?>
+                                        </a>
+                                    </div>
+                                </li>
+                                <?php
+                            } if (User::canUpload()) {
+                                ?>
+                                <li>
+                                    <div>
+                                        <a href="<?php echo $global['webSiteRootURL']; ?>subscribes" class="btn btn-warning btn-block" style="border-radius: 0">
+                                            <span class="fa fa-check"></span>
+                                            <?php echo __("Subscriptions"); ?>
+                                        </a>
+                                    </div>
+                                </li>
+                                <?php
+                                if (Category::canCreateCategory()) {
+                                    ?>
+
+                                    <li>
+                                        <div>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>categories" class="btn btn-info btn-block" style="border-radius: 0;">
+                                                <span class="glyphicon glyphicon-list"></span>
+                                                <?php echo __("Categories"); ?>
+                                            </a>
+                                        </div>
+                                    </li>
+                                    <?php
+                                    ?>
+                                    <li>
+                                        <div>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>comments" class="btn btn-default btn-block" style="border-radius: 0 0 4px 4px;">
+                                                <span class="fa fa-comment"></span>
+                                                <?php echo __("Comments"); ?>
+                                            </a>
+                                        </div>
+                                    </li>
+                                    <?php
+                                }
+                            }
+                            if (User::isAdmin()) {
+                                ?>
+
+                                <li>
+                                    <hr>
+                                    <h2 class="text-danger"><?php echo __("Admin Menu"); ?></h2>
+                                    <ul  class="nav navbar" style="margin-bottom: 10px;">
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>admin/">
+                                                <i class="fas fa-star"></i>
+                                                <?php echo __("Admin Panel"); ?>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>users">
+                                                <span class="glyphicon glyphicon-user"></span>
+                                                <?php echo __("Users"); ?>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>usersGroups">
+                                                <span class="fa fa-users"></span>
+                                                <?php echo __("Users Groups"); ?>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>categories">
+                                                <span class="glyphicon glyphicon-list"></span>
+                                                <?php echo __("Categories"); ?>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>update">
+                                                <span class="glyphicon glyphicon-refresh"></span>
+                                                <?php echo __("Update version"); ?>
+                                                <?php
+                                                if (!empty($updateFiles)) {
+                                                    ?><span class="label label-danger"><?php echo count($updateFiles); ?></span><?php
+                                                }
+                                                ?>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations">
+                                                <span class="glyphicon glyphicon-cog"></span>
+                                                <?php echo __("Site Configurations"); ?>
+                                            </a>
+                                        </li>
+                                        <!--
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>locale">
+                                                <span class="glyphicon glyphicon-flag"></span>
+                                        <?php echo __("Create more translations"); ?>
+                                            </a>
+                                        </li>
+                                        -->
+                                        <li>
+                                            <a href="<?php echo $global['webSiteRootURL']; ?>plugins">
+                                                <i class="fas fa-puzzle-piece"></i>
+                                                <?php echo __("Plugins"); ?>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+
+                                <?php
+                            }
+                            ?>
+                            <?php
+                        } else {
+                            ?>
+                            <li>
+                                <div>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-success btn-block">
+                                        <i class="fas fa-sign-in-alt"></i>
+                                        <?php echo __("Sign In"); ?>
+                                    </a>
+                                </div>
+                            </li>
                             <li>
                                 <hr>
-                                <h2 class="text-danger"><?php echo __("Admin Menu"); ?></h2>
-                                <ul  class="nav navbar" style="margin-bottom: 10px;">
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>admin/">
-                                            <i class="fas fa-star"></i>
-                                            <?php echo __("Admin Panel"); ?>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>users">
-                                            <span class="glyphicon glyphicon-user"></span>
-                                            <?php echo __("Users"); ?>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>usersGroups">
-                                            <span class="fa fa-users"></span>
-                                            <?php echo __("Users Groups"); ?>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>categories">
-                                            <span class="glyphicon glyphicon-list"></span>
-                                            <?php echo __("Categories"); ?>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>update">
-                                            <span class="glyphicon glyphicon-refresh"></span>
-                                            <?php echo __("Update version"); ?>
-                                            <?php
-                                            if (!empty($updateFiles)) {
-                                                ?><span class="label label-danger"><?php echo count($updateFiles); ?></span><?php
-                                            }
-                                            ?>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations">
-                                            <span class="glyphicon glyphicon-cog"></span>
-                                            <?php echo __("Site Configurations"); ?>
-                                        </a>
-                                    </li>
-                                    <!--
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>locale">
-                                            <span class="glyphicon glyphicon-flag"></span>
-                                    <?php echo __("Create more translations"); ?>
-                                        </a>
-                                    </li>
-                                    -->
-                                    <li>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>plugins">
-                                            <i class="fas fa-puzzle-piece"></i>
-                                            <?php echo __("Plugins"); ?>
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-
                             <?php
                         }
+                    }
+                    if (User::isAdmin()) {
                         ?>
-                        <?php
-                    } else {
-                        ?>
+
                         <li>
-                            <div>
-                                <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-success btn-block">
-                                    <i class="fas fa-sign-in-alt"></i>
-                                    <?php echo __("Sign In"); ?>
-                                </a>
-                            </div>
+                            <h2 class="text-danger"><?php echo __("Admin Menu"); ?></h2>
+                            <ul  class="nav navbar" style="margin-bottom: 10px;">
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>admin/">
+                                        <i class="fas fa-star"></i>
+                                        <?php echo __("Admin Panel"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>users">
+                                        <span class="glyphicon glyphicon-user"></span>
+                                        <?php echo __("Users"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>usersGroups">
+                                        <span class="fa fa-users"></span>
+                                        <?php echo __("Users Groups"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>categories">
+                                        <span class="glyphicon glyphicon-list"></span>
+                                        <?php echo __("Categories"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>update">
+                                        <span class="glyphicon glyphicon-refresh"></span>
+                                        <?php echo __("Update version"); ?>
+                                        <?php
+                                        if (!empty($updateFiles)) {
+                                            ?><span class="label label-danger"><?php echo count($updateFiles); ?></span><?php
+                                        }
+                                        ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations">
+                                        <span class="glyphicon glyphicon-cog"></span>
+                                        <?php echo __("Site Configurations"); ?>
+                                    </a>
+                                </li>
+                                <!--
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>locale">
+                                        <span class="glyphicon glyphicon-flag"></span>
+                                <?php echo __("Create more translations"); ?>
+                                    </a>
+                                </li>
+                                -->
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>plugins">
+                                        <i class="fas fa-puzzle-piece"></i>
+                                        <?php echo __("Plugins"); ?>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li>
+                            <hr>
                         </li>
                         <?php
                     }
@@ -570,9 +813,6 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                     <?php
                     if (empty($advancedCustom->doNotShowLeftMenuAudioAndVideoButtons)) {
                         ?>
-                        <li>
-                            <hr>
-                        </li>
                         <li class="nav-item <?php echo empty($_SESSION['type']) ? "active" : ""; ?>">
                             <a class="nav-link " href="<?php echo $global['webSiteRootURL']; ?>?type=all">
                                 <span class="glyphicon glyphicon-star"></span>
@@ -619,26 +859,28 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                         <h3 class="text-danger"><?php echo __("Categories"); ?></h3>
                     </li>
                     <?php
+                    if (!function_exists('mkSub')) {
 
-                    function mkSub($catId) {
-                        global $global;
-                        unset($_GET['parentsOnly']);
-                        $subcats = Category::getChildCategories($catId);
-                        if (!empty($subcats)) {
-                            echo "<ul style='margin-bottom: 0px; list-style-type: none;'>";
-                            foreach ($subcats as $subcat) {
-                                if (empty($subcat['total'])) {
-                                    continue;
+                        function mkSub($catId) {
+                            global $global;
+                            unset($_GET['parentsOnly']);
+                            $subcats = Category::getChildCategories($catId);
+                            if (!empty($subcats)) {
+                                echo "<ul style='margin-bottom: 0px; list-style-type: none;'>";
+                                foreach ($subcats as $subcat) {
+                                    if (empty($subcat['total'])) {
+                                        continue;
+                                    }
+                                    echo '<li class="' . ($subcat['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
+                                    . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $subcat['clean_name'] . '" >'
+                                    . '<span class="' . (empty($subcat['iconClass']) ? "fa fa-folder" : $subcat['iconClass']) . '"></span>  ' . $subcat['name'] . ' <span class="badge">' . $subcat['total'] . '</span></a></li>';
+                                    mkSub($subcat['id']);
                                 }
-                                echo '<li class="' . ($subcat['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
-                                . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $subcat['clean_name'] . '" >'
-                                . '<span class="' . (empty($subcat['iconClass']) ? "fa fa-folder" : $subcat['iconClass']) . '"></span>  ' . $subcat['name'] . ' <span class="badge">' . $subcat['total'] . '</span></a></li>';
-                                mkSub($subcat['id']);
+                                echo "</ul>";
                             }
-                            echo "</ul>";
                         }
-                    }
 
+                    }
                     //var_dump($categories);exit;
                     foreach ($categories as $value) {
                         if (empty($value['total'])) {

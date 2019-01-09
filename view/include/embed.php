@@ -78,7 +78,7 @@
                         <script>
                             var player;
                             var mediaId = <?php echo $video['id']; ?>;
-    <?php if (!CustomizeUser::canDownloadVideosFromUser($video['users_id'])) { ?>
+    <?php if (!CustomizeUser::canDownloadVideosFromVideo($video['id'])) { ?>
                                 // Prevent HTML5 video from being downloaded (right-click saved)?
                                 $('#mainVideo').bind('contextmenu', function () {
                                     return false;
@@ -149,7 +149,7 @@
                         $url = VideoLogoOverlay::getLink();
                         ?>
                         <div style="<?php echo $style; ?>">
-                            <a href="<?php echo $url; ?>">
+                            <a href="<?php echo $url; ?>"  target="_blank">
                                 <img src="<?php echo $global['webSiteRootURL']; ?>videos/logoOverlay.png"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6">
                             </a>
                         </div>

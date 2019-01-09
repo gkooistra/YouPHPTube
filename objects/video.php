@@ -38,6 +38,8 @@ if (!class_exists('Video')) {
         private $trailer2;
         private $trailer3;
         private $rate;
+        private $can_download;
+        private $can_share;
         static $statusDesc = array(
             'a' => 'active',
             'i' => 'inactive',
@@ -147,6 +149,12 @@ if (!class_exists('Video')) {
                     $this->categories_id = $categories_id;
                 }
             }
+            // check if category exists
+            $cat = new Category($this->categories_id);
+            if(empty($cat->getName())){
+                $catDefault = Category::getCategoryDefault();
+                $this->categories_id = $catDefault['id'];
+            }
             $this->setTitle($global['mysqli']->real_escape_string(trim($this->title)));
             $this->setDescription($global['mysqli']->real_escape_string($this->description));
 
@@ -162,6 +170,9 @@ if (!class_exists('Video')) {
             if (empty($this->next_videos_id)) {
                 $this->next_videos_id = 'NULL';
             }
+            
+            $this->can_download = intval($this->can_download);
+            $this->can_share = intval($this->can_share);
 
             $this->rate = floatval($this->rate);
             if (!empty($this->id)) {
@@ -172,12 +183,12 @@ if (!class_exists('Video')) {
                 $sql = "UPDATE videos SET title = '{$this->title}',clean_title = '{$this->clean_title}',"
                         . " filename = '{$this->filename}', categories_id = '{$this->categories_id}', status = '{$this->status}',"
                         . " description = '{$this->description}', duration = '{$this->duration}', type = '{$this->type}', videoDownloadedLink = '{$this->videoDownloadedLink}', youtubeId = '{$this->youtubeId}', videoLink = '{$this->videoLink}', next_videos_id = {$this->next_videos_id}, isSuggested = {$this->isSuggested}, users_id = {$this->users_id}, "
-                        . " trailer1 = '{$this->trailer1}', trailer2 = '{$this->trailer2}', trailer3 = '{$this->trailer3}', rate = '{$this->rate}' , modified = now()"
+                        . " trailer1 = '{$this->trailer1}', trailer2 = '{$this->trailer2}', trailer3 = '{$this->trailer3}', rate = '{$this->rate}', can_download = '{$this->can_download}', can_share = '{$this->can_share}' , modified = now()"
                         . " WHERE id = {$this->id}";
             } else {
                 $sql = "INSERT INTO videos "
-                        . "(title,clean_title, filename, users_id, categories_id, status, description, duration,type,videoDownloadedLink, next_videos_id, created, modified, videoLink) values "
-                        . "('{$this->title}','{$this->clean_title}', '{$this->filename}', {$this->users_id},{$this->categories_id}, '{$this->status}', '{$this->description}', '{$this->duration}', '{$this->type}', '{$this->videoDownloadedLink}', {$this->next_videos_id},now(), now(), '{$this->videoLink}')";
+                        . "(title,clean_title, filename, users_id, categories_id, status, description, duration,type,videoDownloadedLink, next_videos_id, created, modified, videoLink, can_download, can_share) values "
+                        . "('{$this->title}','{$this->clean_title}', '{$this->filename}', {$this->users_id},{$this->categories_id}, '{$this->status}', '{$this->description}', '{$this->duration}', '{$this->type}', '{$this->videoDownloadedLink}', {$this->next_videos_id},now(), now(), '{$this->videoLink}', '{$this->can_download}', '{$this->can_share}')";
             }
             $insert_row = sqlDAL::writeSql($sql);
             if ($insert_row) {
@@ -1690,7 +1701,24 @@ if (!class_exists('Video')) {
         function setVideoLink($videoLink) {
             $this->videoLink = $videoLink;
         }
+        
+        function getCan_download() {
+            return $this->can_download;
+        }
 
+        function getCan_share() {
+            return $this->can_share;
+        }
+
+        function setCan_download($can_download) {
+            $this->can_download = (empty($can_download)||$can_download==="false")?0:1;
+        }
+
+        function setCan_share($can_share) {
+            $this->can_share = (empty($can_share)||$can_share==="false")?0:1;
+        }
+
+        
         /**
          *
          * @param type $filename
@@ -1730,7 +1758,10 @@ if (!class_exists('Video')) {
             }
             $source = array();
             $source['path'] = "{$global['systemRootPath']}videos/{$filename}{$type}";
-            if (!empty($advancedCustom->videosCDN)) {
+            $video = Video::getVideoFromFileName(str_replace(array('_Low', '_SD', '_HD'), array('', '', ''),$filename));
+            $canUseCDN = canUseCDN($video['id']);
+            //error_log(json_encode(array('$filename'=>$filename, '$advancedCustom->videosCDN'=>$advancedCustom->videosCDN,'canUseCDN($video[id])'=>canUseCDN($video['id']),'$video[id]'=>$video['id'])));
+            if (!empty($advancedCustom->videosCDN) && canUseCDN($video['id'])) {
                 $advancedCustom->videosCDN = rtrim($advancedCustom->videosCDN, '/') . '/';
                 $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}{$type}{$token}";
             }else{

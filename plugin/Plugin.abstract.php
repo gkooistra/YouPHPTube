@@ -201,6 +201,10 @@ abstract class PluginAbstract {
     public function getChannelButton() {
         return "";
     }
+    
+    public function getVideoManagerButton() {
+        return "";
+    }
 
     public function getLivePanel() {
         return "";
@@ -262,8 +266,11 @@ abstract class PluginAbstract {
         return array();
     }
     
-    public function navBarButtons()
-    {
+    public function navBarButtons(){
+        return "";
+    }
+    
+    public function navBar(){
         return "";
     }
     

@@ -585,8 +585,30 @@ function parseVideos($videoString = null)
     // return data
 }
 
-function getVideosURL($fileName)
-{
+$canUseCDN = array();
+function canUseCDN($videos_id){
+    if(empty($videos_id)){
+        return false;
+    }
+    global $global, $canUseCDN;
+    if(!isset($canUseCDN[$videos_id])){
+        require_once $global['systemRootPath'] . 'plugin/VR360/Objects/VideosVR360.php';
+        $pvr360 = YouPHPTubePlugin::isEnabledByName('VR360');
+        // if the VR360 is enabled you can not use the CDN, it fail to load the GL
+        $isVR360Enabled = VideosVR360::isVR360Enabled($videos_id);
+        if($pvr360 && $isVR360Enabled){
+            $ret = false;
+        }else{
+            $ret = true;
+        }
+        
+        //error_log(json_encode(array('canUseCDN'=>$ret, '$pvr360'=>$pvr360, '$isVR360Enabled'=>$isVR360Enabled, '$videos_id'=>$videos_id)));
+        $canUseCDN[$videos_id] = $ret;
+    }
+    return $canUseCDN[$videos_id];
+}
+
+function getVideosURL($fileName){
     global $global;
     $types = array('', '_Low', '_SD', '_HD');
     $files = array();
