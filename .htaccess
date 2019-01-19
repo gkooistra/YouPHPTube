@@ -251,7 +251,6 @@ Options All -Indexes
   AddOutputFilterByType DEFLATE text/javascript
   AddOutputFilterByType DEFLATE text/plain
   AddOutputFilterByType DEFLATE text/xml
-.
 </IfModule>
 
 RewriteEngine On
