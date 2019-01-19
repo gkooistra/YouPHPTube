@@ -253,3 +253,9 @@ Options All -Indexes
   AddOutputFilterByType DEFLATE text/xml
 
 </IfModule>
+
++</IfModule>
++
++RewriteEngine On
++RewriteBase /
++RewriteRule ^index\.html?$ / [NC,R,L]
