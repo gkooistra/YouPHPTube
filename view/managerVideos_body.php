@@ -261,6 +261,11 @@
                                         <label for="inputCleanTitle" ><?php echo __("Clean Title"); ?></label>
                                         <input type="text" id="inputCleanTitle" class="form-control" placeholder="<?php echo __("Clean Title"); ?>" required>
                                     </div>
+                                    <?php
+                                    if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                                        echo VideoTags::getTagsInputs();
+                                    }
+                                    ?>
                                     <label for="inputDescription" ><?php echo __("Description"); ?></label>
                                     <textarea id="inputDescription" class="form-control" placeholder="<?php echo __("Description"); ?>" required></textarea>
                                     <?php
@@ -348,122 +353,6 @@
                                             </ul>
                                         </div>
                                     </div>
-                                    <div class="row">
-                                        <div class="col-md-12 col-12 watch8-action-buttons text-muted">
-                                            <?php if ((($advancedCustom != false) && ($advancedCustom->disableShareAndPlaylist == false)) || ($advancedCustom == false)) { ?>
-                                                <label for="addBtn" class=""><?php echo __("Playlists"); ?></label>
-                                                <button class="btn btn-default no-outline" style="float:right;" id="addBtn" data-placement="top">
-                                                    <?php echo __("Manage playlists"); ?>
-                                                </button>
-                                                <div class="webui-popover-content" >
-                                                    <?php if (User::isLogged()) { ?>
-                                                        <form role="form">
-                                                            <div class="form-group">
-                                                                <input class="form-control" id="searchinput" type="search" placeholder="<?php echo __("Search"); ?>..." />
-                                                            </div>
-                                                            <div id="searchlist" class="list-group">
-                                                            </div>
-                                                        </form>
-                                                        <div>
-                                                            <hr>
-                                                            <div class="form-group">
-                                                                <input id="playListName" class="form-control" placeholder="<?php echo __("Create a New Play List"); ?>"  >
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <?php echo __("Make it public"); ?>
-                                                                <div class="material-switch pull-right">
-                                                                    <input id="publicPlayList" name="publicPlayList" type="checkbox" checked="checked"/>
-                                                                    <label for="publicPlayList" class="label-success"></label>
-                                                                </div>
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <button class="btn btn-success btn-block" id="addPlayList" ><?php echo __("Create a New Play List"); ?></button>
-                                                            </div>
-                                                        </div>
-                                                    <?php } ?>
-                                                </div>
-                                                <script>
-                                                    function loadPlayLists() {
-                                                        $.ajax({
-                                                            url: '<?php echo $global['webSiteRootURL']; ?>objects/playlists.json.php',
-                                                            success: function (response) {
-                                                                $('#searchlist').html('');
-                                                                for (var i in response) {
-                                                                    if (!response[i].id) {
-                                                                        continue;
-                                                                    }
-                                                                    var icon = "lock"
-                                                                    if (response[i].status == "public") {
-                                                                        icon = "globe"
-                                                                    }
-
-                                                                    var checked = "";
-                                                                    for (var x in response[i].videos) {
-                                                                        if (
-                                                                                typeof (response[i].videos[x]) === 'object'
-                                                                                && response[i].videos[x].videos_id == $('#inputVideoId').val()) {
-                                                                            checked = "checked";
-                                                                        }
-                                                                    }
-
-                                                                    $("#searchlist").append('<a class="list-group-item"><i class="fa fa-' + icon + '"></i> <span>'
-                                                                            + response[i].name + '</span><div class="material-switch pull-right"><input id="someSwitchOptionDefault'
-                                                                            + response[i].id + '" name="someSwitchOption' + response[i].id + '" class="playListsIds" type="checkbox" value="'
-                                                                            + response[i].id + '" ' + checked + '/><label for="someSwitchOptionDefault'
-                                                                            + response[i].id + '" class="label-success"></label></div></a>');
-                                                                }
-                                                                $('#searchlist').btsListFilter('#searchinput', {itemChild: 'span'});
-                                                                $('.playListsIds').change(function () {
-                                                                    modal.showPleaseWait();
-                                                                    $.ajax({
-                                                                        url: '<?php echo $global['webSiteRootURL']; ?>objects/playListAddVideo.json.php',
-                                                                        method: 'POST',
-                                                                        data: {
-                                                                            'videos_id': $('#inputVideoId').val(),
-                                                                            'add': $(this).is(":checked"),
-                                                                            'playlists_id': $(this).val()
-                                                                        },
-                                                                        success: function (response) {
-                                                                            modal.hidePleaseWait();
-                                                                        }
-                                                                    });
-                                                                    return false;
-                                                                });
-                                                            }
-                                                        });
-                                                    }
-                                                    $(document).ready(function () {
-                                                        loadPlayLists();
-                                                        $('#addBtn').webuiPopover();
-                                                        $('#addPlayList').click(function () {
-                                                            modal.showPleaseWait();
-                                                            $.ajax({
-                                                                url: '<?php echo $global['webSiteRootURL']; ?>objects/playlistAddNew.json.php',
-                                                                method: 'POST',
-                                                                data: {
-                                                                    'videos_id': $('#inputVideoId').val(),
-                                                                    'status': $('#publicPlayList').is(":checked") ? "public" : "private",
-                                                                    'name': $('#playListName').val()
-                                                                },
-                                                                success: function (response) {
-                                                                    if (response.status * 1 > 0) {
-                                                                        // update list
-                                                                        loadPlayLists();
-                                                                        $('#searchlist').btsListFilter('#searchinput', {itemChild: 'span'});
-                                                                        $('#playListName').val("");
-                                                                        $('#publicPlayList').prop('checked', true);
-                                                                    }
-                                                                    modal.hidePleaseWait();
-                                                                }
-                                                            });
-                                                            return false;
-                                                        });
-
-                                                    });
-                                                </script>
-                                            <?php } ?>
-                                        </div>
-                                    </div>
                                     <div class="panel panel-default">
                                         <div class="panel-heading">
                                             <?php echo __("Autoplay Next Video"); ?>
@@ -482,6 +371,9 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <label for="inputTrailer"><?php echo __("Embed code for trailer"); ?></label>
+                                    <input type="text" id="inputTrailer" class="form-control" placeholder="<?php echo __("Embed code for trailer"); ?>" required autofocus>
+
 
                                     <script>
                                         $(function () {
@@ -610,6 +502,14 @@
 <script src="<?php echo $global['webSiteRootURL']; ?>view/mini-upload-form/assets/js/jquery.ui.widget.js"></script>
 <script src="<?php echo $global['webSiteRootURL']; ?>view/mini-upload-form/assets/js/jquery.iframe-transport.js"></script>
 <script src="<?php echo $global['webSiteRootURL']; ?>view/mini-upload-form/assets/js/jquery.fileupload.js"></script>
+<?php
+if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+    ?>
+    <script src="<?php echo $global['webSiteRootURL']; ?>plugin/VideoTags/bootstrap-tagsinput/bootstrap-tagsinput.min.js" type="text/javascript"></script>
+    <script src="<?php echo $global['webSiteRootURL']; ?>plugin/VideoTags/bootstrap-tagsinput/typeahead.bundle.js" type="text/javascript"></script>
+    <?php
+}
+?>
 
 <script>
                                         var timeOut;
@@ -789,7 +689,7 @@
 
                                         function editVideo(row) {
                                             console.log(row.id);
-                                            if(!row.id){
+                                            if (!row.id) {
                                                 row.id = videos_id;
                                             }
                                             $('.uploadFile').hide();
@@ -805,9 +705,25 @@
                                             }
                                             $('#inputVideoId').val(row.id);
                                             $('#inputTitle').val(row.title);
+                                            $('#inputTrailer').val(row.trailer1);
                                             $('#inputCleanTitle').val(row.clean_title);
                                             $('#inputDescription').val(row.description);
                                             $('#inputCategory').val(row.categories_id);
+<?php
+if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+    echo VideoTags::getTagsInputsJqueryRemoveAll();
+    
+    ?>                                          
+                                            if (typeof row.videoTags !== 'undefined' && row.videoTags.length) {
+                                                console.log(row.videoTags);
+                                                for (i = 0; i < row.videoTags.length; i++) {
+                                                    $('#inputTags'+row.videoTags[i].tag_types_id).tagsinput('add', row.videoTags[i].name);
+                                                }
+                                            }
+    <?php
+}
+?>
+
                                             if (row.next_video && row.next_video.id) {
                                                 $('#inputNextVideo-poster').attr('src', "<?php echo $global['webSiteRootURL']; ?>videos/" + row.next_video.filename + ".jpg");
                                                 $('#inputNextVideo').val(row.next_video.title);
@@ -950,6 +866,12 @@
                                                 data: {
                                                     "id": $('#inputVideoId').val(),
                                                     "title": $('#inputTitle').val(),
+                                                    <?php
+if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+    echo '"videoTags": '.VideoTags::getTagsInputsJquery().',';
+}
+?>
+                                                    "trailer1": $('#inputTrailer').val(),
                                                     "videoLink": $('#videoLink').val(),
                                                     "videoLinkType": $('#videoLinkType').val(),
                                                     "clean_title": $('#inputCleanTitle').val(),
@@ -993,11 +915,17 @@
                                             $('#videoLinkContent').slideUp();
                                             $('#inputVideoId').val(0);
                                             $('#inputTitle').val("");
+                                            $('#inputTrailer').val("");
                                             $('#inputCleanTitle').val("");
                                             $('#inputDescription').val("");
                                             $('#inputCategory').val("");
                                             $('#removeAutoplay').trigger('click');
-
+                                            
+<?php
+if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+    echo VideoTags::getTagsInputsJqueryRemoveAll();
+}
+?>
                                             var photoURL = '<?php echo User::getPhoto(); ?>';
                                             $("#inputUserOwner-img").attr("src", photoURL);
                                             $('#inputUserOwner').val('<?php echo User::getUserName(); ?>');
@@ -1026,12 +954,12 @@
                                                 showClose: false,
                                                 layoutTemplates: {actionDelete: ''}, // disable thumbnail deletion
                                                 allowedFileExtensions: ["jpg"],
-                                                uploadExtraData: function() {
+                                                uploadExtraData: function () {
                                                     return {
                                                         videos_id: $('#fileUploadVideos_id').val()
                                                     };
                                                 },
-                                                fileuploaded:function(event, data, previewId, index) {
+                                                fileuploaded: function (event, data, previewId, index) {
                                                     $("#grid").bootgrid('reload');
                                                 }
                                             });
@@ -1050,7 +978,7 @@
                                                 showClose: false,
                                                 layoutTemplates: {actionDelete: ''}, // disable thumbnail deletion
                                                 allowedFileExtensions: ["jpg"],
-                                                uploadExtraData: function() {
+                                                uploadExtraData: function () {
                                                     return {
                                                         videos_id: $('#fileUploadVideos_id').val()
                                                     };
@@ -1071,7 +999,7 @@
                                                 showClose: false,
                                                 layoutTemplates: {actionDelete: ''}, // disable thumbnail deletion
                                                 allowedFileExtensions: ["gif"],
-                                                uploadExtraData: function() {
+                                                uploadExtraData: function () {
                                                     return {
                                                         videos_id: $('#fileUploadVideos_id').val()
                                                     };
@@ -1092,7 +1020,7 @@
                                                 showClose: false,
                                                 layoutTemplates: {actionDelete: ''}, // disable thumbnail deletion
                                                 allowedFileExtensions: ["gif"],
-                                                uploadExtraData: function() {
+                                                uploadExtraData: function () {
                                                     return {
                                                         videos_id: $('#fileUploadVideos_id').val()
                                                     };
@@ -1118,6 +1046,13 @@
                                             videos_id = 0;
                                         }
 
+                                        function getEmbedCode(id){
+                                            copyToClipboard($('#embedInput' + id).val());
+                                            $('#copied'+id).fadeIn();
+                                            setTimeout(function(){
+                                                $('#copied'+id).fadeOut();
+                                            },2000);
+                                        }
 
                                         function createQueueItem(queueItem, position) {
                                             var id = queueItem.return_vars.videos_id;
@@ -1265,6 +1200,7 @@ if (!empty($row)) {
                                             $('#linkExternalVideo').click(function () {
                                                 $('#inputVideoId').val("");
                                                 $('#inputTitle').val("");
+                                                $('#inputTrailer').val("");
                                                 $('#inputCleanTitle').val("");
                                                 $('#inputDescription').val("");
                                                 $('#inputCategory').val($('#inputCategory option:first').val());
@@ -1279,6 +1215,12 @@ if (!empty($row)) {
                                                 $('#postersImage, #videoIsAdControl, .titles').slideUp();
                                                 $('#videoLinkContent').slideDown();
                                                 $('#videoLink').val('');
+<?php
+if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+    echo VideoTags::getTagsInputsJqueryRemoveAll();
+}
+?>
+
                                                 setTimeout(function () {
                                                     waitToSubmit = false;
                                                 }, 2000);
@@ -1405,6 +1347,9 @@ if (!empty($row)) {
                                                 formatters: {
                                                     "commands": function (column, row)
                                                     {
+                                                        var embedBtn = '<button type="button" class="btn btn-xs btn-default command-embed" id="embedBtn' + row.id + '"  onclick="getEmbedCode(' + row.id + ')" data-toggle="tooltip" data-placement="left" title="<?php echo str_replace("'", "\\'", __("Copy embed code")); ?>"><span class="fa fa-copy" aria-hidden="true"></span> <span id="copied' + row.id + '" style="display:none;"><?php echo str_replace("'", "\\'", __("Copied")); ?></span></button>'
+                                                        embedBtn += '<input type="hidden" id="embedInput' + row.id + '" value=\'<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="<?php echo $global['webSiteRootURL']; ?>vEmbed/' + row.id + '" frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay"></iframe>\'/>';
+    
                                                         var editBtn = '<button type="button" class="btn btn-xs btn-default command-edit" data-row-id="' + row.id + '" data-toggle="tooltip" data-placement="left" title="<?php echo str_replace("'", "\\'", __("Edit")); ?>"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>'
                                                         var deleteBtn = '<button type="button" class="btn btn-default btn-xs command-delete"  data-row-id="' + row.id + '"  data-toggle="tooltip" data-placement="left" title="<?php echo str_replace("'", "\\'", __("Delete")); ?>"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></button>';
                                                         var activeBtn = '<button style="color: #090" type="button" class="btn btn-default btn-xs command-active"  data-row-id="' + row.id + '"  data-toggle="tooltip" data-placement="left" title="<?php echo str_replace("'", "\\'", __("Inactivate")); ?>"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span></button>';
@@ -1433,7 +1378,7 @@ if (User::isAdmin()) {
                                                         var pluginsButtons = '<br><?php echo YouPHPTubePlugin::getVideosManagerListButton(); ?>';
                                                         var download = "";
                                                         for (var k in row.videosURL) {
-                                                            download += '<a href="' + row.videosURL[k].url + '?download=1" class="btn btn-default btn-xs" ><span class="fa fa-download " aria-hidden="true"></span> ' + k + '</a><br>';
+                                                            download += '<a href="' + row.videosURL[k].url + '?download=1" class="btn btn-default btn-xs" target="_blank" ><span class="fa fa-download " aria-hidden="true"></span> ' + k + '</a><br>';
                                                         }
 
                                                         if (row.status == "i") {
@@ -1462,7 +1407,7 @@ if (User::isAdmin()) {
                                                             }
                                                             nextIsSet = "<span class='label label-success' data-toggle='tooltip' title='" + row.next_video.title + "'>Next video: " + nextVideoTitle + "</span>";
                                                         }
-                                                        return editBtn + deleteBtn + status + suggestBtn + rotateBtn + pluginsButtons + "<br>" + download + nextIsSet;
+                                                        return embedBtn + editBtn + deleteBtn + status + suggestBtn + rotateBtn + pluginsButtons + "<br>" + download + nextIsSet;
 
                                                     },
                                                     "tags": function (column, row) {

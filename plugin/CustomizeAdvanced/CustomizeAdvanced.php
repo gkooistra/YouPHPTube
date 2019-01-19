@@ -25,15 +25,24 @@ class CustomizeAdvanced extends PluginAbstract {
     }    
     
     public function getEmptyDataObject() {
+        global $global;
         $obj = new stdClass();
+        $obj->logoMenuBarURL = $global['webSiteRootURL'];
         $obj->encoderNetwork = "https://network.youphptube.com/";
         $obj->useEncoderNetworkRecomendation = false;
         $obj->doNotShowUploadButton = false;
+        $obj->uploadButtonDropdownIcon = "fas fa-video";
+        $obj->uploadButtonDropdownText = "";
         $obj->doNotShowEncoderNetwork = true;
+        $obj->encoderNetworkLabel = "";
         $obj->doNotShowUploadMP4Button = true;
+        $obj->uploadMP4ButtonLabel = "";
         $obj->doNotShowImportMP4Button = true;
+        $obj->importMP4ButtonLabel = "";
         $obj->doNotShowEncoderButton = false;
+        $obj->encoderButtonLabel = "";
         $obj->doNotShowEmbedButton = false;
+        $obj->embedButtonLabel = "";
         $obj->doNotShowEncoderResolutionLow = false;
         $obj->doNotShowEncoderResolutionSD = false;
         $obj->doNotShowEncoderResolutionHD = false;
@@ -46,8 +55,6 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->showAdsenseBannerOnLeft = true;
         $obj->disableAnimatedGif = false;
         $obj->removeBrowserChannelLinkFromMenu = false;
-        $obj->uploadButtonDropdownIcon = "fas fa-video";
-        $obj->uploadButtonDropdownText = "";
         $obj->EnableWavesurfer = true;
         $obj->EnableMinifyJS = false;
         $obj->disableShareAndPlaylist = false;

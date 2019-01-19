@@ -1,4 +1,3 @@
-/sitemap.xml
 /nbproject/private/
 /videos/
 /nbproject/
@@ -46,3 +45,6 @@
 /plugin/SecondLife/
 /plugin/YouPHPTV/
 /plugin/CreateUserManager/
+/plugin/PlayListEmbed/
+/plugin/VideoTags/
+/sitemap.xml

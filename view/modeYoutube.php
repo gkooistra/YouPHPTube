@@ -207,7 +207,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
         <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
     </head>
 
-    <body>
+    <body class="<?php echo $global['bodyClass']; ?>">
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
         <?php
         if (!empty($advancedCustomUser->showChannelBannerOnModeYoutube)) {
@@ -264,6 +264,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                     <meta itemprop="embedURL" content="<?php echo Video::getLink($video['id'], $video['clean_title'], true); ?>" />
                                     <meta itemprop="uploadDate" content="<?php echo $video['created']; ?>" />
                                     <meta itemprop="description" content="<?php echo str_replace('"', '', $video['title']); ?> - <?php echo htmlentities($video['description']); ?>" />
+
                                 </div>
                                 <div class="col-xs-8 col-sm-8 col-md-8">
                                     <h1 itemprop="name">
@@ -294,6 +295,11 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                         <?php echo $video['creator']; ?>
                                     </div>
                                     <span class="watch-view-count pull-right text-muted" itemprop="interactionCount"><span class="view-count<?php echo $video['id']; ?>"><?php echo number_format($video['views_count'], 0); ?></span> <?php echo __("Views"); ?></span>
+<?php
+if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+    echo VideoTags::getLabels($video['id']);
+}
+?>
                                 </div>
                             </div>
 
