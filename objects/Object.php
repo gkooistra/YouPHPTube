@@ -85,6 +85,13 @@ abstract class ObjectYPT implements ObjectInterface {
             $_POST['sort'][$_GET['columns'][$index]['data']] = $_GET['order'][0]['dir'];
         }
         
+        // add a security here 
+        if(!empty($_POST['sort'])){
+            foreach ($_POST['sort'] as $key => $value) {
+                $_POST['sort'][xss_esc($key)] = xss_esc($value);
+            }
+        }
+        
         if (!empty($_POST['sort'])) {
             $orderBy = array();
             foreach ($_POST['sort'] as $key => $value) {
@@ -98,17 +105,21 @@ abstract class ObjectYPT implements ObjectInterface {
         if(empty($_POST['rowCount']) && !empty($_GET['length'])){
             $_POST['rowCount'] = intval($_GET['length']);
         }
+        
         if(empty($_POST['current']) && !empty($_GET['start'])){
             $_POST['current'] = ($_GET['start']/$_GET['length'])+1;
         }else if (empty($_POST['current']) && isset($_GET['start'])){
             $_POST['current'] = 1;
         }
         
+        $_POST['current'] = intval(@$_POST['current']);
+        $_POST['rowCount'] = intval(@$_POST['rowCount']);
 
         if (!empty($_POST['rowCount']) && !empty($_POST['current']) && $_POST['rowCount'] > 0) {
             $_POST['rowCount'] = intval($_POST['rowCount']);
             $_POST['current'] = intval($_POST['current']);
             $current = ($_POST['current'] - 1) * $_POST['rowCount'];
+            $current = $current<0?0:$current;
             $sql .= " LIMIT $current, {$_POST['rowCount']} ";
         } else {
             $_POST['current'] = 0;
@@ -127,7 +138,7 @@ abstract class ObjectYPT implements ObjectInterface {
         }
         if (!empty($_GET['q'])) {
             global $global;
-            $search = $global['mysqli']->real_escape_string($_GET['q']);
+            $search = $global['mysqli']->real_escape_string(xss_esc($_GET['q']));
 
             $like = array();
             $searchFields = static::getSearchFieldsNames();
@@ -145,6 +156,10 @@ abstract class ObjectYPT implements ObjectInterface {
     }
 
     function save() {
+        if(!$this->tableExists()){
+            error_log("Save error, table ".static::getTableName()." does not exists");
+            return false;
+        }
         global $global;
         $fieldsName = $this->getAllFields();
         if (!empty($this->id)) {
@@ -247,8 +262,15 @@ abstract class ObjectYPT implements ObjectInterface {
             unlink($cachefile);
         }
     }
+    
+    function tableExists(){
+        global $global;
+        $sql = "SHOW TABLES LIKE '" . static::getTableName() . "';";
+        $res = sqlDAL::readSql($sql); 
+        $countRow = sqlDAL::num_rows($res);
+        sqlDAL::close($res);
+        return !empty($countRow);
+    }
 
 }
-
-;
 //abstract class Object extends ObjectYPT{};

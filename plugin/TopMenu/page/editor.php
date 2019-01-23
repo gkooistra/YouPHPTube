@@ -39,7 +39,7 @@ $groups = UserGroups::getAllUsersGroups();
             }
         </style>
     </head>
-    <body>
+    <body class="<?php echo $global['bodyClass']; ?>">
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
@@ -155,7 +155,7 @@ $groups = UserGroups::getAllUsersGroups();
                                             <div class="form-group">
                                                 <label>Icon:</label><br>
                                                 <div class="btn-group">
-                                                    <button data-selected="graduation-cap" type="button" class="icp iconMenu btn btn-light dropdown-toggle iconpicker-component" data-toggle="dropdown">
+                                                    <button data-selected="graduation-cap" type="button" class="icp iconMenu btn  btn-default btn-light  dropdown-toggle iconpicker-component" data-toggle="dropdown">
                                                         <?php echo __("Select an icon for the menu"); ?>  <i class="fa fa-fw"></i>
                                                         <span class="caret"></span>
                                                     </button>
@@ -261,6 +261,7 @@ $groups = UserGroups::getAllUsersGroups();
                                             <label for="pageType">Type:</label>
                                             <select class="form-control" id="pageType">
                                                 <option value="url"><?php echo __('URL'); ?></option>
+                                                <option value="urlIframe"><?php echo __('URL Iframe'); ?></option>
                                                 <option value="page"><?php echo __('Page'); ?></option>
                                             </select>
                                         </div>
@@ -269,7 +270,7 @@ $groups = UserGroups::getAllUsersGroups();
                                         <div class="form-group">
                                             <label>Icon:</label><br>
                                             <div class="btn-group">
-                                                <button data-selected="graduation-cap" type="button" class="icp iconMenuItem btn btn-light dropdown-toggle iconpicker-component" data-toggle="dropdown">
+                                                <button data-selected="graduation-cap" type="button" class="icp iconMenuItem btn  btn-default btn-light dropdown-toggle iconpicker-component" data-toggle="dropdown">
                                                     <?php echo __("Select an icon for the menu"); ?>  <i class="fa fa-fw"></i>
                                                     <span class="caret"></span>
                                                 </button>
@@ -283,6 +284,12 @@ $groups = UserGroups::getAllUsersGroups();
                                             <div class="form-group">
                                                 <label for="url">URL:</label>
                                                 <input type="text" class="form-control" id="url">
+                                            </div>
+                                        </div>
+                                        <div id="divURLIframe" class="divType" style="display: none;">
+                                            <div class="form-group">
+                                                <label for="urlIframe">URL:</label>
+                                                <input type="text" class="form-control" id="urlIframe">
                                             </div>
                                         </div>
                                         <div id="divText" class="divType"  style="display: none;">
@@ -313,10 +320,10 @@ $groups = UserGroups::getAllUsersGroups();
 
         </div>
     <li class="ui-state-default hidden liModel" itemid="0">
-        <button class="btn btn-light btn-sm" onclick="editItem(this)">
+        <button class="btn  btn-default btn-light btn-sm" onclick="editItem(this)">
             <i class="fa fa-edit"></i>
         </button>
-        <button class="btn btn-light btn-sm" onclick="removeItem(this)">
+        <button class="btn  btn-default btn-light btn-sm" onclick="removeItem(this)">
             <i class="fa fa-trash"></i>
         </button>
         <i class="icon"></i>
@@ -481,6 +488,11 @@ $groups = UserGroups::getAllUsersGroups();
                     } else {
                         $('#pageType').val('page');
                     }
+                    expr = /iframe:/;
+                    if(expr.test(item.url)){
+                        $('#url').val(item.url.replace("iframe:", ""));
+                        $('#pageType').val('urlIframe');
+                    }
                     $('#pageType').trigger('change');
                 }
             }
@@ -497,7 +509,7 @@ $groups = UserGroups::getAllUsersGroups();
 
                 $('#pageType').change(function () {
                     console.log($(this).val());
-                    if ($(this).val() == 'url') {
+                    if ($(this).val() == 'url' || $(this).val() == 'urlIframe') {
                         $('#divText').slideUp();
                         $('#divURL').slideDown();
                     } else {
@@ -584,7 +596,7 @@ $groups = UserGroups::getAllUsersGroups();
                             "menuId": $('#menuId').val(),
                             "title": $('#title').val(),
                             "image": $('#image').val(),
-                            "url": $('#pageType').val() == 'url' ? $('#url').val() : '',
+                            "url": $('#pageType').val() == 'url' ? $('#url').val() : ($('#pageType').val() == 'urlIframe' ? ("iframe:"+$('#url').val()) : ''),
                             "menuSeoUrlItem": $("#menuSeoUrlItem").val(),
                             "class": $('#class').val(),
                             "style": $('#style').val(),

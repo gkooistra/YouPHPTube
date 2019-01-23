@@ -14,7 +14,7 @@ if(empty($plugin)){
 if(empty($_GET['link'])){
     die('Link not found');
 }
-
+$_GET['link'] = intval($_GET['link']);
 $liveLink = new LiveLinksTable($_GET['link']);
 
 if($liveLink->getType()=='logged_only' && !User::isLogged()){
@@ -65,7 +65,7 @@ if(!empty($_GET['embed'])){
         <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
     </head>
 
-    <body>
+    <body class="<?php echo $global['bodyClass']; ?>">
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>

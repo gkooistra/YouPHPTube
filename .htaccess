@@ -70,6 +70,8 @@ Options All -Indexes
     RewriteRule    ^getDownloadProgress$ objects/downloadVideoProgress.php    [NC,L]
     RewriteRule    ^status$ objects/status.json.php    [NC,L]
     RewriteRule    ^menu/([A-Za-z0-9-_.]+)/? plugin/TopMenu/seo.php?menuSeoUrlItem=$1    [QSA,L]
+    RewriteRule    ^admin/plugin/(.+)$ plugin/$1 [NC,L]
+    RewriteRule    ^trending/?$ view/trending.php    [NC,L,QSA]
 
     RewriteRule    ^about$ view/about.php    [NC,L]
     RewriteRule    ^contact$ view/contact.php    [NC,L]
@@ -83,6 +85,8 @@ Options All -Indexes
     #for the category name
     RewriteRule    ^cat/([A-Za-z0-9-]+)/?$ view/?catName=$1    [NC,L,QSA]
     RewriteRule    ^cat/([A-Za-z0-9-]+)/page/([0-9]+)/?$ view/?catName=$1&page=$2    [NC,L,QSA]
+
+    RewriteRule    ^tag/([0-9-]+)(.*)?$ view/?tags_id=$1    [NC,L,QSA]
 
 
     #for the video name
@@ -171,7 +175,6 @@ Options All -Indexes
     RewriteRule    ^setCategoryVideo$ objects/videoCategory.json.php    [NC,L]
     RewriteRule    ^reencodeVideo$ objects/videoReencode.json.php    [NC,L]
     RewriteRule    ^rotateVideo$ objects/videoRotate.json.php    [NC,L]
-    RewriteRule    ^addViewCountVideo$ objects/videoAddViewCount.json.php    [NC,L]
 
 
     # Subscribes
@@ -248,5 +251,8 @@ Options All -Indexes
   AddOutputFilterByType DEFLATE text/javascript
   AddOutputFilterByType DEFLATE text/plain
   AddOutputFilterByType DEFLATE text/xml
-
 </IfModule>
+
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.html?$ / [NC,R,L]

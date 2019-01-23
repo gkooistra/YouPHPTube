@@ -16,6 +16,7 @@ $global['mysqli']->query("SET time_zone='$offset';");
 
 require_once $global['systemRootPath'].'objects/mysql_dal.php';
 require_once $global['systemRootPath'] . 'objects/configuration.php';
+require_once $global['systemRootPath'].'objects/security.php';
 $config = new Configuration();
 
 // for update config from old versions
@@ -50,7 +51,11 @@ require_once $global['systemRootPath'].'objects/plugin.php';
 require_once $global['systemRootPath'].'objects/user.php';
 require_once $global['systemRootPath'].'plugin/YouPHPTubePlugin.php';
 if(class_exists("Plugin")){YouPHPTubePlugin::getStart();}
+if(empty($global['bodyClass'])){
+    $global['bodyClass'] = "";
+}
 else{error_log("Class Plugin Not found: {$_SERVER['REQUEST_URI']}");}
-$global['allowedExtension'] = array('gif', 'jpg', 'mp4', 'webm');
+$global['allowedExtension'] = array('gif', 'jpg', 'mp4', 'webm', 'mp3', 'ogg');
 $advancedCustom = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeAdvanced");
+$advancedCustomUser = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
 $sitemapFile = "{$global['systemRootPath']}sitemap.xml";

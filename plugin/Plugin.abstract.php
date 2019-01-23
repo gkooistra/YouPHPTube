@@ -201,12 +201,20 @@ abstract class PluginAbstract {
     public function getChannelButton() {
         return "";
     }
+    
+    public function getVideoManagerButton() {
+        return "";
+    }
 
     public function getLivePanel() {
         return "";
     }
 
     public function getPlayListButtons($playlist_id) {
+	return "";
+    }
+    
+    public function getMyAccount($users_id) {
 	return "";
     }
     /**
@@ -218,6 +226,11 @@ abstract class PluginAbstract {
     }
     
     public function addRoutes()
+    {
+        return false;
+    }
+    
+    public function addView($videos_id, $total)
     {
         return false;
     }
@@ -237,6 +250,15 @@ abstract class PluginAbstract {
     }
     
     /**
+     * Loads a channel before display the channel page, usefull to create customized channel pages
+     * @param type $user is an database array from channels owner
+     * @return boolean
+     */
+    public function getChannel($user_id, $user){
+        return false;
+    }
+    
+    /**
      * 
      * @return type return a list of IDs of the user groups
      */
@@ -244,8 +266,11 @@ abstract class PluginAbstract {
         return array();
     }
     
-    public function navBarButtons()
-    {
+    public function navBarButtons(){
+        return "";
+    }
+    
+    public function navBar(){
         return "";
     }
     

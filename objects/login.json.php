@@ -117,8 +117,14 @@ if(empty($_POST['user']) || empty($_POST['pass'])){
 $user = new User(0, $_POST['user'], $_POST['pass']);
 $resp = $user->login(false, @$_POST['encodedPass']);
 
+$object->isCaptchaNeed = User::isCaptchaNeed();
 if($resp === User::USER_NOT_VERIFIED){
     $object->error = __("Your user is not verified, we sent you a new e-mail");
+    die(json_encode($object));
+}
+
+if($resp === User::CAPTCHA_ERROR){
+    $object->error = __("Invalid Captcha");
     die(json_encode($object));
 }
 $object->siteLogo = $global['webSiteRootURL'].$config->getLogo();
@@ -132,7 +138,11 @@ $object->isLogged = User::isLogged();
 $object->isAdmin = User::isAdmin();
 $object->canUpload = User::canUpload();
 $object->canComment = User::canComment();
-$object->categories = Category::getAllCategories();
+if (empty($advancedCustomUser->userCanNotChangeCategory) || User::isAdmin()) {
+    $object->categories = Category::getAllCategories(true);
+}else{
+    $object->categories = array();
+}
 $object->streamServerURL = "";
 $object->streamKey = "";
 if($object->isLogged){
@@ -150,6 +160,7 @@ if($object->isLogged){
         $object->encoder = $config->getEncoderURL();
     }
 }
+
 $json = json_encode($object);
 header("Content-length: ".  strlen($json));
 echo $json;

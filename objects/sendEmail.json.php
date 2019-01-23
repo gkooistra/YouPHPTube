@@ -10,7 +10,7 @@ $valid = Captcha::validation($_POST['captcha']);
 $obj = new stdClass();
 if ($valid) {
 
-    $msg = "<b>Name:</b> {$_POST['first_name']}<br> <b>Email:</b> {$_POST['email']}<br><br>{$_POST['comment']}";
+    $msg = "<b>Name:</b> {$_POST['first_name']}<br> <b>Email:</b> {$_POST['email']}<br><b>Website:</b> {$_POST['website']}<br><br>{$_POST['comment']}";
 
     require_once $global['systemRootPath'] . 'objects/PHPMailer/PHPMailerAutoload.php';
 
@@ -27,6 +27,12 @@ if ($valid) {
     }
 
     $sendTo = $_POST['email'];
+    
+    // if it is from contact form send the message to the siteowner and the sender is the email on the form field
+    if(!empty($_POST['contactForm'])){
+        $replyTo = $_POST['email'];
+        $sendTo = $config->getContactEmail();;
+    }
     
     if (filter_var($sendTo, FILTER_VALIDATE_EMAIL)) {
         $mail->AddReplyTo($replyTo);

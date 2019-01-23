@@ -5,7 +5,9 @@ require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
 class YouPHPFlix2 extends PluginAbstract {
 
     public function getDescription() {
-        return "Make the first page looks like a Netflix site";
+        $txt = "Make the first page looks like a Netflix site";
+        $help = "<br><small><a href='https://github.com/DanielnetoDotCom/YouPHPTube/wiki/Configure-a-Netflix-Clone-Page' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
+        return $txt.$help;
     }
 
     public function getName() {
@@ -39,6 +41,7 @@ class YouPHPFlix2 extends PluginAbstract {
         $obj->BigVideo = true;
         $obj->backgroundRGB = "20,20,20";
         $obj->landscapePosters = true;
+        $obj->playVideoOnFullscreen = true;
         return $obj;
     }
     
@@ -62,8 +65,30 @@ class YouPHPFlix2 extends PluginAbstract {
         $css = "";
         //$css .= "<link href=\"{$global['webSiteRootURL']}view/css/custom/".$obj->theme.".css\" rel=\"stylesheet\" type=\"text/css\"/>";
         $css .= "<link href=\"{$global['webSiteRootURL']}plugin/YouPHPFlix2/view/css/style.css\" rel=\"stylesheet\" type=\"text/css\"/>";
+        if(!empty($obj->playVideoOnFullscreen) && !empty($_GET['videoName'])){
+            $css .= '<link href="' . $global['webSiteRootURL'] . 'plugin/YouPHPFlix2/view/css/fullscreen.css" rel="stylesheet" type="text/css"/>';
         
+            $css .= '<style>.container-fluid {overflow: visible;padding: 0;}#mvideo{padding: 0 !important;}</style>';
+            
+        }
+        if(!empty($obj->playVideoOnFullscreen)){
+            $css .= '<style>body.fullScreen{overflow: hidden;}</style>';
+        }
         return $css;
+    }
+    
+    public function getFooterCode() {
+        $obj = $this->getDataObject();
+        global $global;
+        
+        $js = '';
+        if(!empty($obj->playVideoOnFullscreen)){
+            $js = '<script>var playVideoOnFullscreen = true</script>';
+        }else{
+            $js = '<script>var playVideoOnFullscreen = false</script>';
+        }
+        $js .= '<script src="' . $global['webSiteRootURL'] . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
+        return $js;
     }
     
     public function getTags() {

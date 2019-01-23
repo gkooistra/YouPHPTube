@@ -34,7 +34,6 @@ class User {
     private $country;
     private $region;
     private $city;
-    
     static $DOCUMENT_IMAGE_TYPE = "Document Image";
 
     function __construct($id, $user = "", $password = "") {
@@ -131,6 +130,23 @@ if (typeof gtag !== \"function\") {
         return $code;
     }
 
+    function addExternalOptions($id, $value) {
+        $eo = unserialize(base64_decode($this->externalOptions));
+        if(!is_array($eo)){
+            $eo = array();
+        }
+        $eo[$id] = $value;
+        $this->setExternalOptions($eo);
+        return $this->save();
+    }
+    
+    function removeExternalOptions($id) {
+        $eo = unserialize(base64_decode($this->externalOptions));
+        unset($eo[$id]);
+        $this->setExternalOptions($eo);
+        return $this->save();
+    }
+    
     function setExternalOptions($options) {
         //we convert it to base64 to sanitize the input since we do not validate input from externalOptions
         $this->externalOptions = base64_encode(serialize($options));
@@ -138,6 +154,9 @@ if (typeof gtag !== \"function\") {
 
     function getExternalOption($id) {
         $eo = unserialize(base64_decode($this->externalOptions));
+        if(empty($eo[$id])){
+            return NULL;
+        }
         return $eo[$id];
     }
 
@@ -231,13 +250,13 @@ if (typeof gtag !== \"function\") {
     static function getNameIdentification() {
         global $advancedCustom;
         if (self::isLogged()) {
-            if (!empty(self::getName()) && empty($advancedCustom->doNotIndentifyByName)) {
+            if (!empty(self::getName()) && empty($advancedCustomUser->doNotIndentifyByName)) {
                 return self::getName();
             }
-            if (!empty(self::getMail()) && empty($advancedCustom->doNotIndentifyByEmail)) {
+            if (!empty(self::getMail()) && empty($advancedCustomUser->doNotIndentifyByEmail)) {
                 return self::getMail();
             }
-            if (!empty(self::getUserName()) && empty($advancedCustom->doNotIndentifyByUserName)) {
+            if (!empty(self::getUserName()) && empty($advancedCustomUser->doNotIndentifyByUserName)) {
                 return self::getUserName();
             }
         }
@@ -341,7 +360,7 @@ if (typeof gtag !== \"function\") {
     }
 
     function save($updateUserGroups = false) {
-        global $global, $config, $advancedCustom;
+        global $global, $config, $advancedCustom, $advancedCustomUser;
         if (is_object($config) && $config->currentVersionLowerThen('5.6')) {
             // they dont have analytics code
             return false;
@@ -355,7 +374,7 @@ if (typeof gtag !== \"function\") {
         }
         if (empty($this->canStream)) {
             if (empty($this->id)) { // it is a new user
-                if (empty($advancedCustom->newUsersCanStream)) {
+                if (empty($advancedCustomUser->newUsersCanStream)) {
                     $this->canStream = "0";
                 } else {
                     $this->canStream = "1";
@@ -440,7 +459,7 @@ if (typeof gtag !== \"function\") {
         if ($insert_row) {
             if (empty($this->id)) {
                 $id = $global['mysqli']->insert_id;
-                if (!empty($advancedCustom->unverifiedEmailsCanNOTLogin)) {
+                if (!empty($advancedCustomUser->unverifiedEmailsCanNOTLogin)) {
                     self::sendVerificationLink($id);
                 }
             } else {
@@ -475,33 +494,32 @@ if (typeof gtag !== \"function\") {
         }
         return $user;
     }
-    
-    static function canWatchVideo($videos_id){ 
+
+    static function canWatchVideo($videos_id) {
         if (User::isAdmin()) {
             return true;
         }
         // check if the video is not public 
         $rows = UserGroups::getVideoGroups($videos_id);
-        
-        if(empty($rows)){
+
+        if (empty($rows)) {
             return true; // the video is public
         }
-        
+
         if (!User::isLogged()) {
             return false;
         }
         // if is not public check if the user is on one of its groups
         $rowsUser = UserGroups::getUserGroups(User::getId());
-        
+
         foreach ($rows as $value) {
             foreach ($rowsUser as $value2) {
-                if($value['id'] === $value2['id']){
+                if ($value['id'] === $value2['id']) {
                     return true;
                 }
             }
         }
         return false;
-        
     }
 
     function delete() {
@@ -525,17 +543,25 @@ if (typeof gtag !== \"function\") {
     const USER_LOGGED = 0;
     const USER_NOT_VERIFIED = 1;
     const USER_NOT_FOUND = 2;
+    const CAPTCHA_ERROR = 3;
 
     function login($noPass = false, $encodedPass = false) {
+        global $global,$advancedCustom, $advancedCustomUser;
         if ($noPass) {
             $user = $this->find($this->user, false, true);
         } else {
             $user = $this->find($this->user, $this->password, true, $encodedPass);
         }
+        
+        if(!self::checkLoginAttempts()){
+            return self::CAPTCHA_ERROR;
+        }
         session_write_close();
         session_start();
+        
+        // check for multiple logins attempts to prevent hacking end
         // if user is not verified
-        if (!empty($user) && empty($user['isAdmin']) && empty($user['emailVerified']) && !empty($advancedCustom->unverifiedEmailsCanNOTLogin)) {
+        if (!empty($user) && empty($user['isAdmin']) && empty($user['emailVerified']) && !empty($advancedCustomUser->unverifiedEmailsCanNOTLogin)) {
             unset($_SESSION['user']);
             self::sendVerificationLink($user['id']);
             return self::USER_NOT_VERIFIED;
@@ -551,11 +577,73 @@ if (typeof gtag !== \"function\") {
                 setcookie("user", $user['user'], time() + 3600 * 24 * 30 * 12 * 10, "/");
                 setcookie("pass", $user['password'], time() + 3600 * 24 * 30 * 12 * 10, "/");
             }
+            $_SESSION['loginAttempts'] = 0;
             return self::USER_LOGGED;
         } else {
             unset($_SESSION['user']);
             return self::USER_NOT_FOUND;
         }
+    }
+    
+    static function isCaptchaNeed(){
+        global $advancedCustomUser;
+        // check for multiple logins attempts to prevent hacking
+        if(!empty($_SESSION['loginAttempts']) && !empty($advancedCustomUser->requestCaptchaAfterLoginsAttempts)){
+            if($_SESSION['loginAttempts']>$advancedCustomUser->requestCaptchaAfterLoginsAttempts){
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    static function checkLoginAttempts(){
+        global $advancedCustomUser, $global;
+        session_write_close();
+        session_start();
+        // check for multiple logins attempts to prevent hacking
+        if(empty($_SESSION['loginAttempts'])){
+            $_SESSION['loginAttempts'] = 0;
+        }
+        if(!empty($advancedCustomUser->requestCaptchaAfterLoginsAttempts)){
+            $_SESSION['loginAttempts']++;
+            session_write_close();
+            if($_SESSION['loginAttempts']>$advancedCustomUser->requestCaptchaAfterLoginsAttempts){
+                if(empty($_POST['captcha'])){
+                    return false;
+                }
+                require_once $global['systemRootPath'] . 'objects/captcha.php';
+                if(!Captcha::validation($_POST['captcha'])){
+                    return false;
+                }
+            }
+        }
+        session_write_close();
+        return true;
+    }
+    
+    static function getCaptchaFormIfNeed() {
+        // check for multiple logins attempts to prevent hacking
+        if(self::isCaptchaNeed()){
+            return self::getCaptchaForm();
+        }
+        return "";
+    }
+    
+    static function getCaptchaForm($uid="") {
+        global $global;
+        return '<div class="input-group">'
+                . '<span class="input-group-addon"><img src="'.$global['webSiteRootURL'].'captcha" id="captcha'.$uid.'"></span>
+                    <span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha'.$uid.'"><span class="glyphicon glyphicon-refresh"></span></span></span>
+                    <input name="captcha" placeholder="'.__("Type the code").'" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText'.$uid.'">
+                </div>
+                <script>
+                $(document).ready(function () {
+                    $("#btnReloadCapcha'.$uid.'").click(function () {
+                        $("#captcha'.$uid.'").attr("src", "'.$global['webSiteRootURL'].'captcha?" + Math.random());
+                        $("#captchaText'.$uid.'").val("");
+                    });
+                });
+                </script>';
     }
 
     private function setLastLogin($user_id) {
@@ -650,22 +738,82 @@ if (typeof gtag !== \"function\") {
         if ($mustBeactive) {
             $sql .= " AND status = 'a' ";
         }
+
+        $sql .= " LIMIT 1";
+        $res = sqlDAL::readSql($sql, $formats, $values);
+        $result = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if (!empty($result)) {
+            if ($pass !== false) {
+                if(!encryptPasswordVerify($pass, $result['password'], $encodedPass)){
+                    error_log("Password check new hash pass does not match, trying MD5");
+                    return $this->find_Old($user, $pass, $mustBeactive, $encodedPass);
+                }
+            }
+            $user = $result;
+        } else {
+            error_log("Password check new hash user not found");
+            //check if is the old password style
+            $user = false;
+            //$user = false;
+        }
+        return $user;
+    }
+
+    /**
+     * this is the deprecated function, with week password
+     * @global type $global
+     * @param type $user
+     * @param type $pass
+     * @param type $mustBeactive
+     * @param type $encodedPass
+     * @return boolean
+     */
+    private function find_Old($user, $pass, $mustBeactive = false, $encodedPass = false) {
+        global $global;
+        $formats = "";
+        $values = array();
+        $user = $global['mysqli']->real_escape_string($user);
+        $sql = "SELECT * FROM users WHERE user = ? ";
+
+        $formats .= "s";
+        $values[] = $user;
+
+        if ($mustBeactive) {
+            $sql .= " AND status = 'a' ";
+        }
         if ($pass !== false) {
             if (!$encodedPass || $encodedPass === 'false') {
-                $pass = md5($pass);
+                error_log("Password check Old not encoded pass");
+                $passEncoded = md5($pass);
+            } else {
+                error_log("Password check Old encoded pass");
+                $passEncoded = $pass;
             }
             $sql .= " AND password = ? ";
             $formats .= "s";
-            $values[] = $pass;
+            $values[] = $passEncoded;
         }
         $sql .= " LIMIT 1";
         $res = sqlDAL::readSql($sql, $formats, $values);
         $result = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
-        if ($res) {
+        if (!empty($result)) {
+            if (!$encodedPass || $encodedPass === 'false') {
+                //update the password
+                $u = new User($result['id']);
+                $u->setPassword($pass);
+                $u->save();
+                $result['password'] = $u->getPassword();
+            }
             $user = $result;
         } else {
             $user = false;
+        }
+        if(empty($user)){
+            error_log("Password check Old not found");
+        }else{
+            error_log("Password check Old found");
         }
         return $user;
     }
@@ -739,7 +887,7 @@ if (typeof gtag !== \"function\") {
 
     function setPassword($password) {
         if (!empty($password)) {
-            $this->password = md5($password);
+            $this->password = encryptPassword($password);
         }
     }
 
@@ -784,8 +932,8 @@ if (typeof gtag !== \"function\") {
             foreach ($downloadedArray as $row) {
                 $row['groups'] = UserGroups::getUserGroups($row['id']);
                 $row['identification'] = self::getNameIdentificationById($row['id']);
-                $row['photo'] = self::getPhoto();
-                $row['background'] = self::getBackground();
+                $row['photo'] = self::getPhoto($row['id']);
+                $row['background'] = self::getBackground($row['id']);
                 $row['tags'] = self::getTags($row['id']);
                 $row['name'] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/u', '', $row['name']);
                 $row['isEmailVerified'] = $row['emailVerified'];
@@ -878,7 +1026,7 @@ if (typeof gtag !== \"function\") {
             if (empty($pass)) {
                 $pass = rand();
             }
-            $pass = md5($pass);
+            $pass = encryptPassword($pass);
             $userObject = new User(0, $user, $pass);
             $userObject->setEmail($email);
             $userObject->setName($name);
@@ -1212,18 +1360,18 @@ if (typeof gtag !== \"function\") {
     function setCity($city) {
         $this->city = $city;
     }
-    
-    static function getDocumentImage($users_id){
+
+    static function getDocumentImage($users_id) {
         $row = static::getBlob($users_id, User::$DOCUMENT_IMAGE_TYPE);
-        if(!empty($row['blob'])){
+        if (!empty($row['blob'])) {
             return $row['blob'];
         }
         return false;
     }
-    
-    static function saveDocumentImage($image, $users_id){
+
+    static function saveDocumentImage($image, $users_id) {
         $row = static::saveBlob($image, $users_id, User::$DOCUMENT_IMAGE_TYPE);
-        if(!empty($row['blob'])){
+        if (!empty($row['blob'])) {
             return $row['blob'];
         }
         return false;
@@ -1245,19 +1393,19 @@ if (typeof gtag !== \"function\") {
         if (!empty($row['id'])) {
             $sql = "UPDATE users_blob SET `blob` = ? , modified = now() WHERE id = ?";
             $stmt = $global['mysqli']->prepare($sql);
-            $stmt->bind_param('bi',$null,$row['id']);
+            $stmt->bind_param('bi', $null, $row['id']);
         } else {
             $sql = "INSERT INTO users_blob (`blob`, users_id, `type`, modified, created) VALUES (?,?,?, now(), now())";
             $stmt = $global['mysqli']->prepare($sql);
-            $stmt->bind_param('bis',$null,$users_id,$type);
+            $stmt->bind_param('bis', $null, $users_id, $type);
         }
-        
-        $stmt->send_long_data(0,$blob);
+
+        $stmt->send_long_data(0, $blob);
 
 
         return $stmt->execute();
     }
-    
+
     static function deleteBlob($users_id, $type) {
         global $global;
         $row = self::getBlob($users_id, $type);
@@ -1266,7 +1414,7 @@ if (typeof gtag !== \"function\") {
             $sql .= " WHERE id = ?";
             $global['lastQuery'] = $sql;
             //error_log("Delete Query: ".$sql);
-            return sqlDAL::writeSql($sql,"i",array($row['id']));
+            return sqlDAL::writeSql($sql, "i", array($row['id']));
         }
         error_log("Id for table users_blob not defined for deletion");
         return false;

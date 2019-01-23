@@ -25,36 +25,36 @@ class CustomizeAdvanced extends PluginAbstract {
     }    
     
     public function getEmptyDataObject() {
+        global $global;
         $obj = new stdClass();
+        $obj->logoMenuBarURL = $global['webSiteRootURL'];
         $obj->encoderNetwork = "https://network.youphptube.com/";
         $obj->useEncoderNetworkRecomendation = false;
+        $obj->doNotShowUploadButton = false;
+        $obj->uploadButtonDropdownIcon = "fas fa-video";
+        $obj->uploadButtonDropdownText = "";
+        $obj->doNotShowEncoderNetwork = true;
+        $obj->encoderNetworkLabel = "";
         $obj->doNotShowUploadMP4Button = true;
-        $obj->doNotShowImportMP4Button = false;
-        $obj->doNotShowImportLocalVideosButton = false;
+        $obj->uploadMP4ButtonLabel = "";
+        $obj->doNotShowImportMP4Button = true;
+        $obj->importMP4ButtonLabel = "";
         $obj->doNotShowEncoderButton = false;
+        $obj->encoderButtonLabel = "";
         $obj->doNotShowEmbedButton = false;
+        $obj->embedButtonLabel = "";
         $obj->doNotShowEncoderResolutionLow = false;
         $obj->doNotShowEncoderResolutionSD = false;
         $obj->doNotShowEncoderResolutionHD = false;
         $obj->doNotShowLeftMenuAudioAndVideoButtons = false;
-        $obj->disableNativeSignUp = false;
-        $obj->disableNativeSignIn = false;
-        $obj->disablePersonalInfo = true;
         $obj->doNotShowWebsiteOnContactForm = false;
-        $obj->newUsersCanStream = false;
-        $obj->doNotIndentifyByEmail = false;
-        $obj->doNotIndentifyByName = false;
-        $obj->doNotIndentifyByUserName = false;
         $obj->doNotUseXsendFile = false;
         $obj->makeVideosInactiveAfterEncode = false;
         $obj->usePermalinks = false;
         $obj->showAdsenseBannerOnTop = false;
         $obj->showAdsenseBannerOnLeft = true;
         $obj->disableAnimatedGif = false;
-        $obj->unverifiedEmailsCanNOTLogin = false;
         $obj->removeBrowserChannelLinkFromMenu = false;
-        $obj->uploadButtonDropdownIcon = "fas fa-video";
-        $obj->uploadButtonDropdownText = "";
         $obj->EnableWavesurfer = true;
         $obj->EnableMinifyJS = false;
         $obj->disableShareAndPlaylist = false;
@@ -63,9 +63,6 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->utf8Encode = false;
         $obj->utf8Decode = false;
         $obj->embedBackgroundColor = "white";
-        $obj->userMustBeLoggedIn = false;
-        $obj->onlyVerifiedEmailCanUpload= false;
-        $obj->sendVerificationMailAutomaic=false;
         $o = new stdClass();
         $o->type = "textarea";
         $o->value = "";        
@@ -91,6 +88,14 @@ class CustomizeAdvanced extends PluginAbstract {
                 }
             }
         }
+                
+        $obj->disableHelpLeftMenu= false;
+        $obj->disableAboutLeftMenu= false;
+        $obj->disableContactLeftMenu= false;
+        $obj->disableNavbar= false;
+        $obj->videosCDN = "";
+        $obj->useFFMPEGToGenerateThumbs = false;
+        $obj->showImageDownloadOption = false;
         
         return $obj;
     }

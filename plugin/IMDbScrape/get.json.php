@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 require_once '../../videos/configuration.php';
 //require_once $global['systemRootPath'] . 'plugin/Bookmark/Objects/BookmarkTable.php';
 require_once $global['systemRootPath'] . 'plugin/IMDbScrape/imdb.class.php';
+require_once $global['systemRootPath'] . 'objects/video.php';
 
 $plugin = YouPHPTubePlugin::getObjectData("IMDbScrape");
 
@@ -42,9 +43,10 @@ if ($oIMDB->isReady) {
     }
 
     if (empty($_GET['what']) || $_GET['what'] == 4) {
+        $encodeTrailerInWebm = intval($plugin->encodeTrailerInWebm);
         // trailer
         $trailer = $oIMDB->getTrailerAsUrl(true);
-        $encoderURL = $config->getEncoderURL() . "youtubeDl.json?videoURL=" . urlencode($trailer) . "&webSiteRootURL=" . urlencode($global['webSiteRootURL']) . "&user=" . urlencode(User::getUserName()) . "&pass=" . urlencode(User::getUserPass());
+        $encoderURL = $config->getEncoderURL() . "youtubeDl.json?webm={$encodeTrailerInWebm}&videoURL=" . urlencode($trailer) . "&webSiteRootURL=" . urlencode($global['webSiteRootURL']) . "&user=" . urlencode(User::getUserName()) . "&pass=" . urlencode(User::getUserPass());
         error_log("IMDB encoder URL {$encoderURL}");
         $json = url_get_contents($encoderURL);
         error_log("IMDB encoder answer {$json}");
