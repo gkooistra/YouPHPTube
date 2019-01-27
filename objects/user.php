@@ -1228,11 +1228,16 @@ if (typeof gtag !== \"function\") {
     }
 
     static function sendVerificationLink($users_id) {
-        global $global, $config;
+        global $global;
+        $config = new Configuration();
         $user = new User($users_id);
         $code = urlencode(static::createVerificationCode($users_id));
         require_once $global['systemRootPath'] . 'objects/PHPMailer/PHPMailerAutoload.php';
         //Create a new PHPMailer instance
+        if(!is_object($config)){
+            error_log("sendVerificationLink: config is not a object ".json_encode($config));
+            return false;
+        }
         $contactEmail = $config->getContactEmail();
         $webSiteTitle = $config->getWebSiteTitle();
         $email = $user->getEmail();
