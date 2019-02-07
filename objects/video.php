@@ -1,6 +1,5 @@
 <?php
-
-global $global, $config;
+global $global, $config, $videosPaths;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
@@ -40,6 +39,7 @@ if (!class_exists('Video')) {
         private $rate;
         private $can_download;
         private $can_share;
+        private $rrating;
         static $statusDesc = array(
             'a' => 'active',
             'i' => 'inactive',
@@ -51,6 +51,7 @@ if (!class_exists('Video')) {
             'xmp3' => 'encoding mp3 error',
             'xogg' => 'encoding ogg error',
             'ximg' => 'get image error');
+        static $rratingOptions = array('', 'g', 'pg', 'pg-13', 'r', 'nc-17', 'ma');
         //ver 3.4
         private $youtubeId;
         static $typeOptions = array('audio', 'video', 'embed', 'linkVideo', 'linkAudio');
@@ -183,12 +184,12 @@ if (!class_exists('Video')) {
                 $sql = "UPDATE videos SET title = '{$this->title}',clean_title = '{$this->clean_title}',"
                         . " filename = '{$this->filename}', categories_id = '{$this->categories_id}', status = '{$this->status}',"
                         . " description = '{$this->description}', duration = '{$this->duration}', type = '{$this->type}', videoDownloadedLink = '{$this->videoDownloadedLink}', youtubeId = '{$this->youtubeId}', videoLink = '{$this->videoLink}', next_videos_id = {$this->next_videos_id}, isSuggested = {$this->isSuggested}, users_id = {$this->users_id}, "
-                        . " trailer1 = '{$this->trailer1}', trailer2 = '{$this->trailer2}', trailer3 = '{$this->trailer3}', rate = '{$this->rate}', can_download = '{$this->can_download}', can_share = '{$this->can_share}' , modified = now()"
+                        . " trailer1 = '{$this->trailer1}', trailer2 = '{$this->trailer2}', trailer3 = '{$this->trailer3}', rate = '{$this->rate}', can_download = '{$this->can_download}', can_share = '{$this->can_share}', rrating = '{$this->rrating}' , modified = now()"
                         . " WHERE id = {$this->id}";
             } else {
                 $sql = "INSERT INTO videos "
-                        . "(title,clean_title, filename, users_id, categories_id, status, description, duration,type,videoDownloadedLink, next_videos_id, created, modified, videoLink, can_download, can_share) values "
-                        . "('{$this->title}','{$this->clean_title}', '{$this->filename}', {$this->users_id},{$this->categories_id}, '{$this->status}', '{$this->description}', '{$this->duration}', '{$this->type}', '{$this->videoDownloadedLink}', {$this->next_videos_id},now(), now(), '{$this->videoLink}', '{$this->can_download}', '{$this->can_share}')";
+                        . "(title,clean_title, filename, users_id, categories_id, status, description, duration,type,videoDownloadedLink, next_videos_id, created, modified, videoLink, can_download, can_share, rrating) values "
+                        . "('{$this->title}','{$this->clean_title}', '{$this->filename}', {$this->users_id},{$this->categories_id}, '{$this->status}', '{$this->description}', '{$this->duration}', '{$this->type}', '{$this->videoDownloadedLink}', {$this->next_videos_id},now(), now(), '{$this->videoLink}', '{$this->can_download}', '{$this->can_share}', '{$this->rrating}')";
             }
             $insert_row = sqlDAL::writeSql($sql);
             if ($insert_row) {
@@ -585,7 +586,10 @@ if (!class_exists('Video')) {
             }
 
             $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'));
-
+            $arrayNotIN = YouPHPTubePlugin::getAllVideosExcludeVideosIDArray();
+            if (!empty($arrayNotIN) && is_array($arrayNotIN)) {
+                $sql .= " AND v.id NOT IN ( '" . implode("', '", $arrayNotIN) . "') ";
+            }
             if (!empty($id)) {
                 $sql .= " AND v.id = '$id' ";
             } elseif (empty($random) && !empty($_GET['videoName'])) {
@@ -613,6 +617,10 @@ if (!class_exists('Video')) {
                     $video['title'] = UTF8encode($video['title']);
                     $video['description'] = UTF8encode($video['description']);
                     $video['progress'] = self::getVideoPogressPercent($video['id']);
+                    if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                        $video['videoTags'] = Tags::getAllFromVideosId($video['id']);
+                        $video['videoTagsObject'] = Tags::getObjectFromVideosId($video['id']);
+                    }
                 }
             } else {
                 $video = false;
@@ -670,18 +678,18 @@ if (!class_exists('Video')) {
          * @param type $videosArrayId an array with videos to return (for filter only)
          * @return boolean
          */
-        static function getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false) {
+        static function getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true) {
             global $global, $config;
             if ($config->currentVersionLowerThen('5')) {
                 return false;
             }
-            
+
             if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
-                if(!empty($_GET['tags_id']) && empty($videosArrayId)){
+                if (!empty($_GET['tags_id']) && empty($videosArrayId)) {
                     $videosArrayId = VideoTags::getAllVideosIdFromTagsId($_GET['tags_id']);
                 }
             }
-            
+
             $sql = "SELECT u.*, v.*, c.iconClass, c.name as category, c.clean_name as clean_category,c.description as category_description, v.created as videoCreation, v.modified as videoModified, "
                     . " (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes, "
                     . " (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = -1 ) as dislikes "
@@ -689,10 +697,19 @@ if (!class_exists('Video')) {
                     . " LEFT JOIN categories c ON categories_id = c.id "
                     . " LEFT JOIN users u ON v.users_id = u.id "
                     . " WHERE 1=1 ";
-            
+
+            if ($activeUsersOnly) {
+                $sql .= " AND u.status = 'a' ";
+            }
+
             $sql .= static::getVideoQueryFileter();
             if (!empty($videosArrayId) && is_array($videosArrayId)) {
                 $sql .= " AND v.id IN ( '" . implode("', '", $videosArrayId) . "') ";
+            }
+
+            $arrayNotIN = YouPHPTubePlugin::getAllVideosExcludeVideosIDArray();
+            if (!empty($arrayNotIN) && is_array($arrayNotIN)) {
+                $sql .= " AND v.id NOT IN ( '" . implode("', '", $arrayNotIN) . "') ";
             }
 
             if (!$ignoreGroup) {
@@ -749,7 +766,7 @@ if (!class_exists('Video')) {
                 $sql .= " LIMIT 1";
                 unset($_GET['limitOnceToOne']);
             }
-            
+            //echo $sql;
             //error_log("getAllVideos($status, $showOnlyLoggedUserVideos , $ignoreGroup , ". json_encode($videosArrayId).")" . $sql);
             $res = sqlDAL::readSql($sql);
             $fullData = sqlDAL::fetchAllAssoc($res);
@@ -774,6 +791,7 @@ if (!class_exists('Video')) {
                     $row['tags'] = self::getTags($row['id']);
                     if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
                         $row['videoTags'] = Tags::getAllFromVideosId($row['id']);
+                        $row['videoTagsObject'] = Tags::getObjectFromVideosId($row['id']);
                     }
                     $row['title'] = UTF8encode($row['title']);
                     $row['description'] = UTF8encode($row['description']);
@@ -884,6 +902,10 @@ if (!class_exists('Video')) {
                 }
             }
 
+            $arrayNotIN = YouPHPTubePlugin::getAllVideosExcludeVideosIDArray();
+            if (!empty($arrayNotIN) && is_array($arrayNotIN)) {
+                $sql .= " AND v.id NOT IN ( '" . implode("', '", $arrayNotIN) . "') ";
+            }
             if (!empty($_GET['channelName'])) {
                 $user = User::getChannelOwner($_GET['channelName']);
                 $sql .= " AND v.users_id = {$user['id']} ";
@@ -1120,8 +1142,27 @@ if (!class_exists('Video')) {
             $files = glob("{$filePath}*");
             foreach ($files as $file) {
                 if (file_exists($file)) {
-                    @unlink($file);
+                    if (is_dir($file)) {
+                        self::rrmdir($file);
+                    } else {
+                        @unlink($file);
+                    }
                 }
+            }
+        }
+
+        static private function rrmdir($dir) {
+            if (is_dir($dir)) {
+                $objects = scandir($dir);
+                foreach ($objects as $object) {
+                    if ($object != "." && $object != "..") {
+                        if (is_dir($dir . "/" . $object))
+                            self::rrmdir($dir . "/" . $object);
+                        else
+                            unlink($dir . "/" . $object);
+                    }
+                }
+                rmdir($dir);
             }
         }
 
@@ -1202,6 +1243,22 @@ if (!class_exists('Video')) {
             return static::getCleanDuration(@$ThisFileInfo['playtime_string']);
         }
 
+        static function getHLSDurationFromFile($file) {
+            $plugin = YouPHPTubePlugin::loadPluginIfEnabled("VideoHLS");
+            if (empty($plugin)) {
+                return 0;
+            }
+            return VideoHLS::getHLSDurationFromFile($file);
+        }
+
+        function updateHLSDurationIfNeed() {
+            $plugin = YouPHPTubePlugin::loadPluginIfEnabled("VideoHLS");
+            if (empty($plugin)) {
+                return false;
+            }
+            return VideoHLS::updateHLSDurationIfNeed($this);
+        }
+
         function updateDurationIfNeed($fileExtension = ".mp4") {
             global $global;
             $source = self::getSourceFile($this->filename, $fileExtension, true);
@@ -1209,13 +1266,13 @@ if (!class_exists('Video')) {
 
             if (!empty($this->id) && $this->duration == "EE:EE:EE" && file_exists($file)) {
                 $this->duration = Video::getDurationFromFile($file);
-                error_log("Duration Updated: " . print_r($this, true));
+                error_log("Duration Updated: " . json_encode($this));
 
                 $sql = "UPDATE videos SET duration = ?, modified = now() WHERE id = ?";
                 $res = sqlDAL::writeSql($sql, "si", array($this->duration, $this->id));
                 return $this->id;
             } else {
-                error_log("Do not need update duration: " . print_r($this, true));
+                error_log("Do not need update duration: " . json_encode($this));
                 return false;
             }
         }
@@ -1393,18 +1450,18 @@ if (!class_exists('Video')) {
                     if ($status == 'u') {
                         $obj->type = "info";
                         $obj->text = __("Unlisted");
+                        $tags[] = $obj;
+                        $obj = new stdClass();
                     } else {
-                        $obj->type = "success";
-                        $obj->text = __("Public");
+                        //$obj->type = "success";
+                        //$obj->text = __("Public");
                     }
-                    $tags[] = $obj;
-                    $obj = new stdClass();
                 } else {
                     foreach ($groups as $value) {
                         $obj = new stdClass();
                         $obj->label = __("Group");
                         $obj->type = "warning";
-                        $obj->text = "{$value['id']} {$value['group_name']}";
+                        $obj->text = "{$value['group_name']}";
                         $tags[] = $obj;
                         $obj = new stdClass();
                     }
@@ -1741,68 +1798,100 @@ if (!class_exists('Video')) {
          * @return type .jpg .gif _thumbs.jpg _Low.mp4 _SD.mp4 _HD.mp4
          */
         static function getSourceFile($filename, $type = ".jpg", $includeS3 = false) {
-            global $global, $advancedCustom;
-            /*
-              $name = "getSourceFile_{$filename}{$type}_";
-              $cached = ObjectYPT::getCache($name, 86400);//one day
-              if(!empty($cached)){
-              return (array) $cached;
-              }
-             *
-             */
-            $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
-            $bb_b2 = YouPHPTubePlugin::loadPluginIfEnabled('Blackblaze_B2');
-            $ftp = YouPHPTubePlugin::loadPluginIfEnabled('FTP_Storage');
-            if (!empty($aws_s3)) {
-                $aws_s3_obj = $aws_s3->getDataObject();
-                if (!empty($aws_s3_obj->useS3DirectLink)) {
+            global $global, $advancedCustom, $videosPaths;
+            
+            if (empty($videosPaths[$filename][$type][intval($includeS3)])) {
+                $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
+                $bb_b2 = YouPHPTubePlugin::loadPluginIfEnabled('Blackblaze_B2');
+                $ftp = YouPHPTubePlugin::loadPluginIfEnabled('FTP_Storage');
+                if (!empty($aws_s3)) {
+                    $aws_s3_obj = $aws_s3->getDataObject();
+                    if (!empty($aws_s3_obj->useS3DirectLink)) {
+                        $includeS3 = true;
+                    }
+                } else if (!empty($bb_b2)) {
+                    $bb_b2_obj = $bb_b2->getDataObject();
+                    if (!empty($bb_b2_obj->useDirectLink)) {
+                        $includeS3 = true;
+                    }
+                } else if (!empty($ftp)) {
                     $includeS3 = true;
                 }
-            } else if (!empty($bb_b2)) {
-                $bb_b2_obj = $bb_b2->getDataObject();
-                if (!empty($bb_b2_obj->useDirectLink)) {
-                    $includeS3 = true;
+                $token = "";
+                $secure = YouPHPTubePlugin::loadPluginIfEnabled('SecureVideosDirectory');
+                if (!empty($secure) && ($type == ".mp4" || $type == ".webm" || $type == ".m3u8")) {
+                    $token = "?" . $secure->getToken($filename);
                 }
-            } else if (!empty($ftp)) {
-                $includeS3 = true;
-            }
-            $token = "";
-            $secure = YouPHPTubePlugin::loadPluginIfEnabled('SecureVideosDirectory');
-            if (!empty($secure) && ($type == ".mp4" || $type == ".webm")) {
-                $token = "?" . $secure->getToken($filename);
-            }
-            $source = array();
-            $source['path'] = "{$global['systemRootPath']}videos/{$filename}{$type}";
-            $video = Video::getVideoFromFileName(str_replace(array('_Low', '_SD', '_HD'), array('', '', ''), $filename));
-            $canUseCDN = canUseCDN($video['id']);
-            //error_log(json_encode(array('$filename'=>$filename, '$advancedCustom->videosCDN'=>$advancedCustom->videosCDN,'canUseCDN($video[id])'=>canUseCDN($video['id']),'$video[id]'=>$video['id'])));
-            if (!empty($advancedCustom->videosCDN) && canUseCDN($video['id'])) {
-                $advancedCustom->videosCDN = rtrim($advancedCustom->videosCDN, '/') . '/';
-                $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}{$type}{$token}";
-            } else {
-                $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}{$type}{$token}";
-            }
-            /* need it because getDurationFromFile */
-            if ($includeS3 && ($type == ".mp4" || $type == ".webm" || $type == ".mp3" || $type == ".ogg")) {
-                if (!file_exists($source['path']) || filesize($source['path']) < 1024) {
-                    if (!empty($aws_s3)) {
-                        $source = $aws_s3->getAddress("{$filename}{$type}");
-                    } else if (!empty($bb_b2)) {
-                        $source = $bb_b2->getAddress("{$filename}{$type}");
-                    } else if (!empty($ftp)) {
-                        $source = $ftp->getAddress("{$filename}{$type}");
+                $source = array();
+                $source['path'] = "{$global['systemRootPath']}videos/{$filename}{$type}";
+                if ($type == ".m3u8") {
+                    $source['path'] = "{$global['systemRootPath']}videos/{$filename}/index.m3u8";
+                }
+                $video = Video::getVideoFromFileName(str_replace(array('_Low', '_SD', '_HD'), array('', '', ''), $filename));
+                $canUseCDN = canUseCDN($video['id']);
+                //error_log(json_encode(array('$filename'=>$filename, '$advancedCustom->videosCDN'=>$advancedCustom->videosCDN,'canUseCDN($video[id])'=>canUseCDN($video['id']),'$video[id]'=>$video['id'])));
+                if (!empty($advancedCustom->videosCDN) && $canUseCDN) {
+                    $advancedCustom->videosCDN = rtrim($advancedCustom->videosCDN, '/') . '/';
+                    $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}{$type}{$token}";
+                    if ($type == ".m3u8") {
+                        $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}/index.m3u8{$token}";
+                    }
+                } else {
+                    $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}{$type}{$token}";
+                    if ($type == ".m3u8") {
+                        $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}/index.m3u8{$token}";
                     }
                 }
+                /* need it because getDurationFromFile */
+                if ($includeS3 && ($type == ".mp4" || $type == ".webm" || $type == ".m3u8" || $type == ".mp3" || $type == ".ogg")) {
+                    if (!file_exists($source['path']) || filesize($source['path']) < 1024) {
+                        if (!empty($aws_s3)) {
+                            $source = $aws_s3->getAddress("{$filename}{$type}");
+                        } else if (!empty($bb_b2)) {
+                            $source = $bb_b2->getAddress("{$filename}{$type}");
+                        } else if (!empty($ftp)) {
+                            $source = $ftp->getAddress("{$filename}{$type}");
+                        }
+                    }
+                }
+
+                if (!file_exists($source['path'])) {
+                    if ($type != "_thumbsV2.jpg" && $type != "_thumbsSmallV2.jpg") {
+                        return array('path' => false, 'url' => false);
+                    }
+                }
+
+                $videosPaths[$filename][$type][intval($includeS3)] = $source;
+            } else {
+                $source = $videosPaths[$filename][$type][intval($includeS3)];
+            }
+            //ObjectYPT::setCache($name, $source);
+            return $source;
+        }
+
+        static function getVideosPaths($filename, $includeS3 = false) {
+            $types = array('', '_Low', '_SD', '_HD');
+            $videos = array();
+
+            $plugin = YouPHPTubePlugin::loadPluginIfEnabled("VideoHLS");
+            if (!empty($plugin)) {
+                $videos = VideoHLS::getSourceFile($filename, $includeS3);
             }
 
-            if (!file_exists($source['path'])) {
-                if ($type != "_thumbsV2.jpg" && $type != "_thumbsSmallV2.jpg") {
-                    return array('path' => false, 'url' => false);
+            foreach ($types as $value) {
+                $source = self::getSourceFile($filename, $value . ".mp4", $includeS3);
+                if (!empty($source['url'])) {
+                    $videos['mp4'][str_replace("_", "", $value)] = $source['url'];
                 }
             }
 
-            //ObjectYPT::setCache($name, $source);
-            return $source;
+            foreach ($types as $value) {
+                $source = self::getSourceFile($filename, $value . ".webm", $includeS3);
+                if (!empty($source['url'])) {
+                    $videos['webm'][str_replace("_", "", $value)] = $source['url'];
+                }
+            }
+            return $videos;
         }
 
         static function getStoragePath() {
@@ -1877,7 +1966,7 @@ if (!class_exists('Video')) {
                 $obj->thumbsJpgSmall = $obj->poster;
             }
             //ObjectYPT::setCache($name, $obj);
-            if (!empty($advancedCustom->disableAnimatedGif)) {
+            if ($type !== "video" || !empty($advancedCustom->disableAnimatedGif)) {
                 $obj->thumbsGif = false;
             }
             return $obj;
@@ -2110,6 +2199,44 @@ if (!class_exists('Video')) {
             }
 
             return array('percent' => ($lastVideoTime / $duration) * 100, 'lastVideoTime' => $lastVideoTime);
+        }
+
+        function getRrating() {
+            return $this->rrating;
+        }
+
+        function setRrating($rrating) {
+            $rrating = strtolower($rrating);
+            if (!in_array($rrating, self::$rratingOptions)) {
+                $rrating = '';
+            }
+            $this->rrating = $rrating;
+        }
+
+        static function getVideoType($filename) {
+            $obj = new stdClass();
+            $paths = self::getVideosPaths($filename);
+
+            $obj->mp4 = !empty($paths['mp4']) ? true : false;
+            $obj->webm = !empty($paths['webm']) ? true : false;
+            $obj->m3u8 = !empty($paths['m3u8']) ? true : false;
+
+            return $obj;
+        }
+        
+        static function getVideoTypeLabels($filename) {
+            $obj = self::getVideoType($filename);
+            $labels = "";
+            if($obj->mp4){
+                $labels .= '<span class="label label-success">MP4</span>';
+            }
+            if($obj->webm){
+                $labels .= '<span class="label label-warning">Webm</span>';
+            }
+            if($obj->m3u8){
+                $labels .= '<span class="label label-primary">HLS</span>';
+            }
+            return $labels;
         }
 
     }

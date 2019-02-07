@@ -80,10 +80,10 @@ foreach ($playlists as $playlist) {
 
                         <?php
                     }
-                    if (YouPHPTubePlugin::isEnabledByName("PlayListEmbed")) {
+                    if (YouPHPTubePlugin::isEnabledByName("PlayLists")) {
                         ?>
                         <button class="btn btn-xs btn-default" onclick="copyToClipboard($('#playListEmbedCode<?php echo $playlist['id']; ?>').val());setTextEmbedCopied();" ><span class="fa fa-copy"></span> <span id="btnEmbedText"><?php echo __("Copy embed code"); ?></span></button>
-                        <input type="hidden" id="playListEmbedCode<?php echo $playlist['id']; ?>" value='<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="<?php echo $global['webSiteRootURL']; ?>plugin/PlayListEmbed/embed.php?playlists_id=<?php echo $playlist['id']; ?>" frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay"></iframe>'/>
+                        <input type="hidden" id="playListEmbedCode<?php echo $playlist['id']; ?>" value='<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/embed.php?playlists_id=<?php echo $playlist['id']; ?>" frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay"></iframe>'/>
                         <?php
                     }
                     ?>
@@ -137,12 +137,19 @@ foreach ($playlists as $playlist) {
                                             }
                                             ?>
                                         </div>
-                                        <div>
-                                            <i class="fa fa-eye"></i>
-                                            <span itemprop="interactionCount">
-                                                <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
-                                            </span>
-                                        </div>
+                                        <?php
+                                        if (empty($advancedCustom->doNotDisplayViews)) {
+                                            ?> 
+                                            <div>
+                                                <i class="fa fa-eye"></i>
+                                                <span itemprop="interactionCount">
+                                                    <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
+                                                </span>
+                                            </div>
+                                            <?php
+                                        }
+                                        ?>
+
                                         <div>
                                             <i class="fa fa-clock-o"></i>
                                             <?php
@@ -203,19 +210,18 @@ foreach ($playlists as $playlist) {
 }
 
 $_GET['channelName'] = $channelName;
-
 ?>
 <script>
-    
+
     var timoutembed;
-    function setTextEmbedCopied(){
+    function setTextEmbedCopied() {
         clearTimeout(timoutembed);
         $("#btnEmbedText").html("<?php echo __("Copied!"); ?>");
-        setTimeout(function(){
+        setTimeout(function () {
             $("#btnEmbedText").html("<?php echo __("Copy embed code"); ?>");
-        },3000);
+        }, 3000);
     }
-    
+
     function saveSortable($sortableObject, playlist_id) {
         var list = $($sortableObject).sortable("toArray");
         $.ajax({

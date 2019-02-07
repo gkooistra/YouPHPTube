@@ -54,7 +54,7 @@ unset($_POST['sort']);
     <body class="<?php echo $global['bodyClass']; ?>">
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
 
-        <div class="container">     
+        <div class="container">
             <div class="row results gallery">
                 <?php
                 //var_dump($rows);
@@ -73,7 +73,7 @@ unset($_POST['sort']);
                                 <img src="<?php echo $images->thumbsJpgSmall; ?>" data-src="<?php echo $poster; ?>" alt="<?php echo $value['title']; ?>" class="thumbsJPG img img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>  <?php echo ($poster != $images->thumbsJpgSmall) ? "blur" : ""; ?>" id="thumbsJPG<?php echo $value['id']; ?>" />
                                 <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
                             </div>
-                            <div class="progress" style="height: 3px;">
+                            <div class="progress" style="height: 3px; margin-bottom: 2px;">
                                 <div class="progress-bar progress-bar-danger" role="progressbar" style="width: <?php echo $value['progress']['percent'] ?>%;" aria-valuenow="<?php echo $value['progress']['percent'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </a>
@@ -107,12 +107,17 @@ unset($_POST['sort']);
                                     }
                                     ?>
                                 </div>
-                                <div>
-                                    <i class="fa fa-eye"></i>
-                                    <span itemprop="interactionCount">
-                                        <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
-                                    </span>
-                                </div>
+
+                                <?php
+                                if (empty($advancedCustom->doNotDisplayViews)) {
+                                    ?>
+                                    <div>
+                                        <i class="fa fa-eye"></i>
+                                        <span itemprop="interactionCount">
+                                            <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
+                                        </span>
+                                    </div>
+                                <?php } ?>
                                 <div>
                                     <i class="fa fa-clock-o"></i>
                                     <?php echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago'); ?>
@@ -133,88 +138,18 @@ unset($_POST['sort']);
                                         </a>
                                     </div>
                                 <?php }
+                                YouPHPTubePlugin::getgalleryActionButton($value['id']);
                                 ?>
-                                <div class="">
-                                    <?php if ((empty($_POST['disableAddTo'])) && (( ($advancedCustom != false) && ($advancedCustom->disableShareAndPlaylist == false)) || ($advancedCustom == false))) { ?>
-                                        <a href="#" class="text-primary" style="float:right;" id="addBtn<?php echo $value['id']; ?>" data-placement="top" onclick="loadPlayLists('<?php echo $value['id']; ?>', '<?php echo $value['id']; ?>');">
-                                            <span class="fa fa-plus"></span> <?php echo __("Add to"); ?>
-                                        </a>
-                                        <div class="webui-popover-content" >
-                                            <?php if (User::isLogged()) { ?>
-                                                <form role="form">
-                                                    <div class="form-group">
-                                                        <input class="form-control" id="searchinput<?php echo $value['id']; ?>" type="search" placeholder="<?php echo __("Search"); ?>..." />
-                                                    </div>
-                                                    <div id="searchlist<?php echo $value['id']; ?>" class="list-group">
-                                                    </div>
-                                                </form>
-                                                <div>
-                                                    <hr>
-                                                    <div class="form-group">
-                                                        <input id="playListName<?php echo $value['id']; ?>" class="form-control" placeholder="<?php echo __("Create a New Play List"); ?>"  >
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <?php echo __("Make it public"); ?>
-                                                        <div class="material-switch pull-right">
-                                                            <input id="publicPlayList<?php echo $value['id']; ?>" name="publicPlayList" type="checkbox" checked="checked"/>
-                                                            <label for="publicPlayList" class="label-success"></label>
-                                                        </div>
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <button class="btn btn-success btn-block" id="addPlayList<?php echo $value['id']; ?>" ><?php echo __("Create a New Play List"); ?></button>
-                                                    </div>
-                                                </div>
-                                            <?php } else { ?>
-                                                <h5><?php echo __("Want to watch this again later?"); ?></h5>
-                                                <?php echo __("Sign in to add this video to a playlist."); ?>
-                                                <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-primary">
-                                                    <span class="fas fa-sign-in-alt"></span>
-                                                    <?php echo __("Login"); ?>
-                                                </a>
-                                            <?php } ?>
-                                        </div>
-                                        <script>
-                                            $(document).ready(function () {
-                                                loadPlayLists('<?php echo $value['id']; ?>', '<?php echo $value['id']; ?>');
-                                                $('#addBtn<?php echo $value['id']; ?>').webuiPopover();
-                                                $('#addPlayList<?php echo $value['id']; ?>').click(function () {
-                                                    modal.showPleaseWait();
-                                                    $.ajax({
-                                                        url: '<?php echo $global['webSiteRootURL']; ?>objects/playlistAddNew.json.php',
-                                                        method: 'POST',
-                                                        data: {
-                                                            'videos_id': <?php echo $value['id']; ?>,
-                                                            'status': $('#publicPlayList<?php echo $value['id']; ?>').is(":checked") ? "public" : "private",
-                                                            'name': $('#playListName<?php echo $value['id']; ?>').val()
-                                                        },
-                                                        success: function (response) {
-                                                            if (response.status === "1") {
-                                                                playList = [];
-                                                                console.log(1);
-                                                                reloadPlayLists();
-                                                                loadPlayLists('<?php echo $value['id']; ?>', '<?php echo $value['id']; ?>');
-                                                                $('#playListName<?php echo $value['id']; ?>').val("");
-                                                                $('#publicPlayList<?php echo $value['id']; ?>').prop('checked', true);
-                                                            }
-                                                            modal.hidePleaseWait();
-                                                        }
-                                                    });
-                                                    return false;
-                                                });
-                                            });
-                                        </script>
-                                    <?php } ?>
-                                </div>
                             </div>
                             <div class="mainAreaDescriptionContainer  col-lg-12">
                                 <h4 class="mainAreaDescription" itemprop="description" style="max-height: 7vw; padding: 0; margin: 5px 0;"><?php echo nl2br(textToLink($value['description'])); ?></h4>
                             </div>
                         </div>
-                    </div>    
+                    </div>
                     <?php
                 }
                 ?>
-            </div>    
+            </div>
             <?php
             if (!empty($pages)) {
                 ?>
@@ -287,29 +222,29 @@ unset($_POST['sort']);
         <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Gallery/script.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/infinite-scroll.pkgd.min.js" type="text/javascript"></script>
         <script>
-                                            $(document).ready(function () {
-                                                $container = $('.results').infiniteScroll({
-                                                    path: '.pagination__next',
-                                                    append: '.searchResult',
-                                                    status: '.scroller-status',
-                                                    hideNav: '.pagination',
-                                                });
-                                                $container.on('append.infiniteScroll', function (event, response, path, items) {
-                                                    lazyImage();
-                                                });
-                                                lazyImage();
-                                            });
-                                            function lazyImage() {
-                                                $('.thumbsJPG').lazy({
-                                                    effect: 'fadeIn',
-                                                    visibleOnly: true,
-                                                    // called after an element was successfully handled
-                                                    afterLoad: function (element) {
-                                                        element.removeClass('blur');
-                                                    }
-                                                });
-                                                mouseEffect();
+                                    $(document).ready(function () {
+                                        $container = $('.results').infiniteScroll({
+                                            path: '.pagination__next',
+                                            append: '.searchResult',
+                                            status: '.scroller-status',
+                                            hideNav: '.pagination',
+                                        });
+                                        $container.on('append.infiniteScroll', function (event, response, path, items) {
+                                            lazyImage();
+                                        });
+                                        lazyImage();
+                                    });
+                                    function lazyImage() {
+                                        $('.thumbsJPG').lazy({
+                                            effect: 'fadeIn',
+                                            visibleOnly: true,
+                                            // called after an element was successfully handled
+                                            afterLoad: function (element) {
+                                                element.removeClass('blur');
                                             }
+                                        });
+                                        mouseEffect();
+                                    }
         </script>
     </body>
 </html>

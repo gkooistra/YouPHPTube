@@ -32,6 +32,11 @@ if (!$includeDefaultNavBar) {
         margin-left: 5px;
     }
 
+    #rightProfileButton{
+        padding: 0; 
+        margin-right: 40px; 
+        border: 0;
+    }
     @media (max-width : 992px) {
         #searchForm input{
             width: 100px;
@@ -40,6 +45,9 @@ if (!$includeDefaultNavBar) {
     @media (max-width : 767px) {
         #searchForm {
             padding-left: 10px;
+        }
+        #rightProfileButton{
+            margin-right: 5px; 
         }
 
         #searchForm > div{
@@ -105,7 +113,6 @@ if (!isset($global['systemRootPath'])) {
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/category.php';
 $_GET['parentsOnly'] = "1";
-$categories = Category::getAllCategories();
 if (empty($_SESSION['language'])) {
     $lang = 'us';
 } else {
@@ -235,10 +242,10 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                             if (!empty($advancedCustom->encoderNetwork) && empty($advancedCustom->doNotShowEncoderNetwork)) {
                                                 ?>
                                                 <li>
-                                                    <form id="formEncoderN" method="post" action="<?php echo $advancedCustom->encoderNetwork; ?>" target="encoder">
-                                                        <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>" />
-                                                        <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>" />
-                                                        <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>" />
+                                                    <form id="formEncoderN" method="post" action="<?php echo $advancedCustom->encoderNetwork; ?>" target="encoder"  autocomplete="off">
+                                                        <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>"  autocomplete="off" />
+                                                        <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>"  autocomplete="off" />
+                                                        <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>"  autocomplete="off" />
                                                     </form>
                                                     <a href="#" onclick="$('#formEncoderN').submit();
                                                                             return false;">
@@ -251,10 +258,10 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                                 if (!empty($config->getEncoderURL())) {
                                                     ?>
                                                     <li>
-                                                        <form id="formEncoder" method="post" action="<?php echo $config->getEncoderURL(); ?>" target="encoder">
-                                                            <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>" />
-                                                            <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>" />
-                                                            <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>" />
+                                                        <form id="formEncoder" method="post" action="<?php echo $config->getEncoderURL(); ?>" target="encoder"  autocomplete="off" >
+                                                            <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>"  autocomplete="off"  />
+                                                            <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>"  autocomplete="off"  />
+                                                            <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>"  autocomplete="off"  />
                                                         </form>
                                                         <a href="#" onclick="$('#formEncoder').submit();
                                                                                     return false;">
@@ -401,7 +408,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                             ?>
                             <li class="rightProfile">
                                 <div class="btn-group">
-                                    <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown" id="rightProfileButton" style="padding: 0; border: 0;">
+                                    <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown" id="rightProfileButton" style="">
                                         <img src="<?php echo User::getPhoto(); ?>" style="width: 32px; height: 32px; max-width: 32px;"  class="img img-responsive img-circle"/>
                                     </button>
 
@@ -546,7 +553,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                     <li>
 
                         <div>
-                            <a href="<?php echo $global['webSiteRootURL']; ?>" class="btn btn-block">
+                            <a href="<?php echo $global['webSiteRootURL']; ?>" class="btn btn-primary btn-block  ">
                                 <span class="fa fa-home"></span>
                                 <?php echo __("Home"); ?>
                             </a>
@@ -557,7 +564,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                     <li>
 
                         <div>
-                            <a href="<?php echo $global['webSiteRootURL']; ?>trending" class="btn btn-block">
+                            <a href="<?php echo $global['webSiteRootURL']; ?>trending" class="btn btn-primary btn-block ">
                                 <i class="fas fa-fire"></i>
                                 <?php echo __("Trending"); ?>
                             </a>
@@ -852,16 +859,18 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                         }
 
                     }
-                    //var_dump($categories);exit;
-                    foreach ($categories as $value) {
-                        if (empty($value['total'])) {
-                            continue;
+                    if(empty($advancedCustom->doNotDisplayCategoryLeftMenu)){
+                        $categories = Category::getAllCategories();
+                        foreach ($categories as $value) {
+                            if (empty($value['total'])) {
+                                continue;
+                            }
+                            echo '<li class="' . ($value['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
+                            . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $value['clean_name'] . '" >'
+                            . '<span class="' . (empty($value['iconClass']) ? "fa fa-folder" : $value['iconClass']) . '"></span>  ' . $value['name'] . ' <span class="badge">' . $value['total'] . '</span></a>';
+                            mkSub($value['id']);
+                            echo '</li>';
                         }
-                        echo '<li class="' . ($value['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
-                        . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $value['clean_name'] . '" >'
-                        . '<span class="' . (empty($value['iconClass']) ? "fa fa-folder" : $value['iconClass']) . '"></span>  ' . $value['name'] . ' <span class="badge">' . $value['total'] . '</span></a>';
-                        mkSub($value['id']);
-                        echo '</li>';
                     }
                     ?>
 

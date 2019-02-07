@@ -177,7 +177,15 @@ abstract class PluginAbstract {
         return $obj;
     }
 
-    public function getWatchActionButton() {
+    public function getWatchActionButton($videos_id) {
+        return "";
+    }
+    
+    public function getNetflixActionButton($videos_id) {
+        return "";
+    }    
+    
+    public function getGalleryActionButton($videos_id) {
         return "";
     }
 
@@ -301,6 +309,23 @@ abstract class PluginAbstract {
         }
         
         return $desc;
+    }
+    
+    public function getAllVideosExcludeVideosIDArray(){
+        return array();
+    }
+    
+    public function userCanWatchVideo($users_id, $videos_id){
+        return true;
+    }
+    
+    /**
+     * temporary, to avoid error on old secureVideosDirectory plugins
+     * @return boolean
+     */
+    
+    function verifyEmbedSecurity(){
+        return true;
     }
 
 }
