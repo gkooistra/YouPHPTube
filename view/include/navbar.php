@@ -98,7 +98,7 @@ if (!$includeDefaultNavBar) {
 
         }
         .left-side {
-            padding: 5px;
+            padding: 0 5px;
         }
         .searchul{
             padding-left: 0px;
@@ -184,7 +184,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                     </li>
                     <li>
                         <a class="navbar-brand" href="<?php echo empty($advancedCustom->logoMenuBarURL) ? $global['webSiteRootURL'] : $advancedCustom->logoMenuBarURL; ?>" >
-                            <img src="<?php echo $global['webSiteRootURL'], $config->getLogo(); ?>" alt="<?php echo $config->getWebSiteTitle(); ?>" class="img-responsive ">
+                            <img src="<?php echo $global['webSiteRootURL'], $config->getLogo(true); ?>" alt="<?php echo $config->getWebSiteTitle(); ?>" class="img-responsive ">
                         </a>
                     </li>
 

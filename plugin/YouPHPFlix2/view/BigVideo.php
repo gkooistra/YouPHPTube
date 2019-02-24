@@ -12,9 +12,11 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
     $poster = $images->poster;
     //var_dump($video);
     $canWatchPlayButton = "";
-    if (User::canWatchVideo($video['id'])) {
+    $get = $_GET;
+    if (User::canWatchVideoWithAds($video['id'])) {
         $canWatchPlayButton = "canWatchPlayButton";
     }
+    $_GET = $get;
     ?>
     <div class="clear clearfix" id="bigVideo" style="background: url(<?php echo $poster; ?>) no-repeat center center fixed; -webkit-background-size: cover;
          -moz-background-size: cover;
@@ -58,7 +60,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                     ?>
 
                     <?php
-                    if (empty($advancedCustom->doNotDisplayViews)) {
+                    if (!empty($advancedCustom) && empty($advancedCustom->doNotDisplayViews)) {
                         ?>
                         <span class="label label-default"><i class="fa fa-eye"></i> <?php echo $video['views_count']; ?></span>
                     <?php } ?>
@@ -67,7 +69,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                     <?php
                     if (!empty($video['rrating'])) {
                         include $global['systemRootPath'] . 'view/rrating/rating-' . $video['rrating'] . '.php';
-                    }else if($advancedCustom->showNotRatedLabel){
+                    }else if(!empty($advancedCustom) && $advancedCustom->showNotRatedLabel){
                         include $global['systemRootPath'] . 'view/rrating/notRated.php';
                     }
                     ?>
@@ -77,7 +79,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                     if (!empty($images->posterPortrait)) {
                         ?>
                         <div class="col-md-2 col-sm-4 col-xs-6">
-                            <img alt="<?php echo $video['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" />
+                            <img alt="<?php echo $video['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" style="min-width: 135px;" />
                         </div>
                         <?php
                     }

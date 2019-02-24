@@ -2,8 +2,9 @@
 require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
 $head = YouPHPTubePlugin::getHeadCode();
 $custom = "Video's over ICT onderwerpen / Videos with ICT subjects.";
-if (YouPHPTubePlugin::isEnabled("c4fe1b83-8f5a-4d1b-b912-172c608bf9e3")) {
-    require_once $global['systemRootPath'] . 'plugin/Customize/Objects/ExtraConfig.php';
+$extraPluginFile = $global['systemRootPath'] . 'plugin/Customize/Objects/ExtraConfig.php';
+if (file_exists($extraPluginFile) && YouPHPTubePlugin::isEnabled("c4fe1b83-8f5a-4d1b-b912-172c608bf9e3")) {
+    require_once $extraPluginFile;
     $ec = new ExtraConfig();
     $custom = $ec->getDescription();
 }
@@ -40,6 +41,7 @@ $cssURL = combineFiles($cssFiles, "css");
 <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.3.1.min.js"></script>
 <script>
     var webSiteRootURL = '<?php echo $global['webSiteRootURL']; ?>';
+    var player;
 </script>
 <?php
 if (!$config->getDisable_analytics()) {

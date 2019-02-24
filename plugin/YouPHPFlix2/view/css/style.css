@@ -186,6 +186,14 @@ iframe{
     border-width: 0;
 }
 
+#divIframeFull iframe {
+    width: 0;
+    height: 0;
+
+    min-width: 100%;
+    min-height: 100%;    
+}
+
 /* carousel height */
 .carousel {
     height: 160px;
@@ -319,3 +327,20 @@ body.fullscreen{
         height: 450px !important;
     }
 }
+/*
+.poster {
+  -webkit-animation: zoomin 30s ease-in infinite;
+  animation: zoomin 30s ease-in infinite;
+  transition: all .5s ease-in-out;
+}
+@-webkit-keyframes zoomin {
+  0% {transform: scale(1);}
+  50% {transform: scale(1.5);}
+  100% {transform: scale(1);}
+}
+@keyframes zoomin {
+  0% {transform: scale(1);}
+  50% {transform: scale(1.5);}
+  100% {transform: scale(1);}
+} 
+*/

@@ -1,4 +1,5 @@
 <?php
+
 global $global, $config, $videosPaths;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
@@ -52,7 +53,7 @@ if (!class_exists('Video')) {
             'xogg' => 'encoding ogg error',
             'ximg' => 'get image error');
         static $rratingOptions = array('', 'g', 'pg', 'pg-13', 'r', 'nc-17', 'ma');
-        //ver 3.4
+//ver 3.4
         private $youtubeId;
         static $typeOptions = array('audio', 'video', 'embed', 'linkVideo', 'linkAudio');
 
@@ -93,7 +94,7 @@ if (!class_exists('Video')) {
         }
 
         function load($id) {
-            $video = self::getVideo($id, "", true);
+            $video = self::getVideoLight($id);
             if (empty($video))
                 return false;
             foreach ($video as $key => $value) {
@@ -150,7 +151,7 @@ if (!class_exists('Video')) {
                     $this->categories_id = $categories_id;
                 }
             }
-            // check if category exists
+// check if category exists
             $cat = new Category($this->categories_id);
             if (empty($cat->getName())) {
                 $catDefault = Category::getCategoryDefault();
@@ -198,7 +199,7 @@ if (!class_exists('Video')) {
                     $id = $global['mysqli']->insert_id;
                     $this->id = $id;
 
-                    // check if needs to add the video in a user group
+// check if needs to add the video in a user group
                     $p = YouPHPTubePlugin::loadPluginIfEnabled("PredefinedCategory");
                     if ($p) {
                         $updateVideoGroups = true;
@@ -209,7 +210,7 @@ if (!class_exists('Video')) {
                 }
                 if ($updateVideoGroups) {
                     require_once $global['systemRootPath'] . 'objects/userGroups.php';
-                    // update the user groups
+// update the user groups
                     UserGroups::updateVideoGroups($id, $this->videoGroups);
                 }
                 Video::autosetCategoryType($id);
@@ -237,9 +238,9 @@ if (!class_exists('Video')) {
             $videoFound = false;
             $audioFound = false;
             if ($catTypeCache) {
-                // 3 means auto
+// 3 means auto
                 if ($catTypeCache['manualSet'] == "0") {
-                    // start incremental search and save
+// start incremental search and save
                     $sql = "SELECT * FROM `videos` WHERE categories_id = ?";
                     $res = sqlDAL::readSql($sql, "i", array($catId));
                     $fullResult = sqlDAL::fetchAllAssoc($res);
@@ -248,10 +249,10 @@ if (!class_exists('Video')) {
                         foreach ($fullResult as $row) {
 
                             if ($row['type'] == "audio") {
-                                // echo "found audio";
+// echo "found audio";
                                 $audioFound = true;
                             } else if ($row['type'] == "video") {
-                                //echo "found video";
+//echo "found video";
                                 $videoFound = true;
                             }
                         }
@@ -263,7 +264,7 @@ if (!class_exists('Video')) {
                         $fullResult = sqlDAL::fetchAllAssoc($res);
                         sqlDAL::close($res);
                         if ($res != false) {
-                            //$tmpVid = $res->fetch_assoc();
+//$tmpVid = $res->fetch_assoc();
                             foreach ($fullResult as $row) {
                                 $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = ?;";
                                 $res = sqlDAL::readSql($sql, "i", array($row['parentId']));
@@ -271,10 +272,10 @@ if (!class_exists('Video')) {
                                 sqlDAL::close($res);
                                 foreach ($fullResult2 as $row) {
                                     if ($row['type'] == "audio") {
-                                        //  echo "found audio";
+//  echo "found audio";
                                         $audioFound = true;
                                     } else if ($row['type'] == "video") {
-                                        //echo "found video";
+//echo "found video";
                                         $videoFound = true;
                                     }
                                 }
@@ -295,7 +296,7 @@ if (!class_exists('Video')) {
                     sqlDAL::writeSql($sql, "i", array($catId));
                 }
             } else {
-                // start incremental search and save - and a lot of this redundant stuff in a method..
+// start incremental search and save - and a lot of this redundant stuff in a method..
                 $sql = "SELECT type,categories_id FROM `videos` WHERE categories_id = ?;";
                 $res = sqlDAL::readSql($sql, "i", array($catId));
                 $fullResult2 = sqlDAL::fetchAllAssoc($res);
@@ -356,7 +357,7 @@ if (!class_exists('Video')) {
             }
         }
 
-        // i would like to simplify the big part of the method above in this method, but won't work as i want.
+// i would like to simplify the big part of the method above in this method, but won't work as i want.
         static function internalAutoset($catId, $videoFound, $audioFound) {
             global $config;
             if ($config->currentVersionLowerThen('5.01')) {
@@ -532,6 +533,11 @@ if (!class_exists('Video')) {
                 return false;
             }
 
+            if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                if (!empty($_GET['tags_id']) && empty($videosArrayId)) {
+                    $videosArrayId = VideoTags::getAllVideosIdFromTagsId($_GET['tags_id']);
+                }
+            }
             $sql = "SELECT u.*, v.*, "
                     . " nv.title as next_title,"
                     . " nv.clean_title as next_clean_title,"
@@ -550,6 +556,11 @@ if (!class_exists('Video')) {
                     . "LEFT JOIN users u ON v.users_id = u.id "
                     . "LEFT JOIN videos nv ON v.next_videos_id = nv.id "
                     . " WHERE 1=1 ";
+            
+            if (!empty($id)) {
+                $sql .= " AND v.id = '$id' ";
+            }
+            
             $sql .= static::getVideoQueryFileter();
             if (!$ignoreGroup) {
                 $sql .= self::getUserGroupsCanSeeSQL();
@@ -564,6 +575,9 @@ if (!class_exists('Video')) {
                 }
             }
 
+            if (!empty($videosArrayId) && is_array($videosArrayId)) {
+                $sql .= " AND v.id IN ( '" . implode("', '", $videosArrayId) . "') ";
+            }
             if ($status == "viewable") {
                 $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "')";
             } elseif ($status == "viewableNotUnlisted") {
@@ -585,27 +599,36 @@ if (!class_exists('Video')) {
                 $_POST['searchPhrase'] = $_GET['search'];
             }
 
-            $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'));
+            if (!empty($_POST['searchPhrase'])) {
+                if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                    $sql .= " AND (";
+                    $sql .= "v.id IN (select videos_id FROM tags_has_videos LEFT JOIN tags as t ON tags_id = t.id AND t.name LIKE '%{$_POST['searchPhrase']}%' WHERE t.id is NOT NULL)";
+                    $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'), "OR");
+                    $sql .= ")";
+                } else {
+                    $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'));
+                }
+            }
+
             $arrayNotIN = YouPHPTubePlugin::getAllVideosExcludeVideosIDArray();
             if (!empty($arrayNotIN) && is_array($arrayNotIN)) {
                 $sql .= " AND v.id NOT IN ( '" . implode("', '", $arrayNotIN) . "') ";
             }
-            if (!empty($id)) {
-                $sql .= " AND v.id = '$id' ";
-            } elseif (empty($random) && !empty($_GET['videoName'])) {
-                $sql .= " AND v.clean_title = '{$_GET['videoName']}' ";
-            } elseif (!empty($random)) {
-                $sql .= " AND v.id != {$random} ";
-                $sql .= " ORDER BY RAND() ";
-            } else if ($suggetedOnly && empty($_GET['videoName']) && empty($_GET['search']) && empty($_GET['searchPhrase'])) {
-                $sql .= " AND v.isSuggested = 1 ";
-                $sql .= " ORDER BY RAND() ";
-            } else {
-                $sql .= " ORDER BY v.Created DESC ";
+            if (empty($id)) {
+                if (empty($random) && !empty($_GET['videoName'])) {
+                    $sql .= " AND v.clean_title = '{$_GET['videoName']}' ";
+                } elseif (!empty($random)) {
+                    $sql .= " AND v.id != {$random} ";
+                    $sql .= " ORDER BY RAND() ";
+                } else if ($suggetedOnly && empty($_GET['videoName']) && empty($_GET['search']) && empty($_GET['searchPhrase'])) {
+                    $sql .= " AND v.isSuggested = 1 ";
+                    $sql .= " ORDER BY RAND() ";
+                } else {
+                    $sql .= " ORDER BY v.Created DESC ";
+                }
             }
-
             $sql .= " LIMIT 1";
-
+//echo $sql;exit;
             $res = sqlDAL::readSql($sql);
             $video = sqlDAL::fetchAssoc($res);
             sqlDAL::close($res);
@@ -628,11 +651,21 @@ if (!class_exists('Video')) {
             return $video;
         }
 
+        static function getVideoLight($id) {
+            global $global, $config;
+            $id = intval($id);
+            $sql = "SELECT * FROM videos WHERE id = '$id' LIMIT 1";
+            $res = sqlDAL::readSql($sql);
+            $video = sqlDAL::fetchAssoc($res);
+            sqlDAL::close($res);
+            return $video;
+        }
+
         static function getVideoFromFileName($fileName, $ignoreGroup = false) {
-            //error_log('Enter getVideoFromFileName ('.$fileName.')');
+//error_log('Enter getVideoFromFileName ('.$fileName.')');
             global $global;
             if (empty($fileName)) {
-                error_log("getVideoFromFileName ERROR File name is empry ");
+//error_log("getVideoFromFileName ERROR File name is empty ");
                 return false;
             }
             $sql = "SELECT id FROM videos WHERE filename = ? LIMIT 1";
@@ -644,15 +677,15 @@ if (!class_exists('Video')) {
                 if (!empty($video['id'])) {
                     return self::getVideo($video['id'], "", $ignoreGroup);
                 }
-                //$video['groups'] = UserGroups::getVideoGroups($video['id']);
+//$video['groups'] = UserGroups::getVideoGroups($video['id']);
             }
-            error_log(" Not Found getVideoFromFileName({$fileName}) ");
+//error_log(" Not Found getVideoFromFileName({$fileName}) ");
             return false;
         }
 
         static function getVideoFromCleanTitle($clean_title) {
-            // for some reason in some servers (CPanel) we got the error "Error while sending QUERY packet centos on a select"
-            // even increasing the max_allowed_packet it only goes away when close and reopen the connection
+// for some reason in some servers (CPanel) we got the error "Error while sending QUERY packet centos on a select"
+// even increasing the max_allowed_packet it only goes away when close and reopen the connection
             global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, $mysqlPort;
             $global['mysqli']->close();
             $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
@@ -663,7 +696,7 @@ if (!class_exists('Video')) {
             sqlDAL::close($res);
             if ($res) {
                 return self::getVideo($video['id'], "", true);
-                //$video['groups'] = UserGroups::getVideoGroups($video['id']);
+//$video['groups'] = UserGroups::getVideoGroups($video['id']);
             } else {
                 return false;
             }
@@ -698,14 +731,23 @@ if (!class_exists('Video')) {
                     . " LEFT JOIN users u ON v.users_id = u.id "
                     . " WHERE 1=1 ";
 
+            if ($showOnlyLoggedUserVideos === true && !User::isAdmin()) {
+                $sql .= " AND v.users_id = '" . User::getId() . "'";
+            } elseif (!empty($showOnlyLoggedUserVideos)) {
+                $sql .= " AND v.users_id = '{$showOnlyLoggedUserVideos}'";
+            } else if (!empty($_GET['channelName'])) {
+                $user = User::getChannelOwner($_GET['channelName']);
+                $sql .= " AND v.users_id = {$user['id']} ";
+            }
+            if (!empty($videosArrayId) && is_array($videosArrayId)) {
+                $sql .= " AND v.id IN ( '" . implode("', '", $videosArrayId) . "') ";
+            }
+
             if ($activeUsersOnly) {
                 $sql .= " AND u.status = 'a' ";
             }
 
             $sql .= static::getVideoQueryFileter();
-            if (!empty($videosArrayId) && is_array($videosArrayId)) {
-                $sql .= " AND v.id IN ( '" . implode("', '", $videosArrayId) . "') ";
-            }
 
             $arrayNotIN = YouPHPTubePlugin::getAllVideosExcludeVideosIDArray();
             if (!empty($arrayNotIN) && is_array($arrayNotIN)) {
@@ -736,19 +778,9 @@ if (!class_exists('Video')) {
             } elseif (!empty($status)) {
                 $sql .= " AND v.status = '{$status}'";
             }
-            if ($showOnlyLoggedUserVideos === true && !User::isAdmin()) {
-                $sql .= " AND v.users_id = '" . User::getId() . "'";
-            } elseif (!empty($showOnlyLoggedUserVideos)) {
-                $sql .= " AND v.users_id = '{$showOnlyLoggedUserVideos}'";
-            }
 
             if (!empty($_GET['catName'])) {
                 $sql .= " AND (c.clean_name = '{$_GET['catName']}' OR c.parentId IN (SELECT cs.id from categories cs where cs.clean_name = '{$_GET['catName']}' ))";
-            }
-
-            if (!empty($_GET['channelName'])) {
-                $user = User::getChannelOwner($_GET['channelName']);
-                $sql .= " AND v.users_id = {$user['id']} ";
             }
 
             if (!empty($_GET['search'])) {
@@ -760,14 +792,25 @@ if (!class_exists('Video')) {
                 $sql .= " AND v.modified >= '{$_GET['modified']}'";
             }
 
-            $sql .= BootGrid::getSqlFromPost(array('v.title', 'v.description', 'c.name', 'c.description'), empty($_POST['sort']['likes']) ? "v." : "");
+            if (!empty($_POST['searchPhrase'])) {
+                if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                    $sql .= " AND (";
+                    $sql .= "v.id IN (select videos_id FROM tags_has_videos LEFT JOIN tags as t ON tags_id = t.id AND t.name LIKE '%{$_POST['searchPhrase']}%' WHERE t.id is NOT NULL)";
+                    $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'), "OR");
+                    $sql .= ")";
+                } else {
+                    $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'));
+                }
+            }
+
+            $sql .= BootGrid::getSqlFromPost(array(), empty($_POST['sort']['likes']) ? "v." : "", "", true);
 
             if (!empty($_GET['limitOnceToOne'])) {
                 $sql .= " LIMIT 1";
                 unset($_GET['limitOnceToOne']);
             }
-            //echo $sql;
-            //error_log("getAllVideos($status, $showOnlyLoggedUserVideos , $ignoreGroup , ". json_encode($videosArrayId).")" . $sql);
+//echo $sql;exit;
+//error_log("getAllVideos($status, $showOnlyLoggedUserVideos , $ignoreGroup , ". json_encode($videosArrayId).")" . $sql);
             $res = sqlDAL::readSql($sql);
             $fullData = sqlDAL::fetchAllAssoc($res);
             sqlDAL::close($res);
@@ -797,12 +840,35 @@ if (!class_exists('Video')) {
                     $row['description'] = UTF8encode($row['description']);
                     $videos[] = $row;
                 }
-                //$videos = $res->fetch_all(MYSQLI_ASSOC);
+//$videos = $res->fetch_all(MYSQLI_ASSOC);
             } else {
                 $videos = false;
                 die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
             }
             return $videos;
+        }
+
+        static function getAllVideosAsync($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true) {
+            global $global;
+            $return = array();
+            $users_id = User::getId();
+            $get = json_encode(@$_GET);
+            $post = json_encode(@$_POST);
+            $md5 = md5("{$users_id}{$get}{$post}{$status}{$showOnlyLoggedUserVideos}{$ignoreGroup}" . implode("_", $videosArrayId) . "{$getStatistcs}{$showUnlisted}{$activeUsersOnly}");
+            $cacheFileName = $global['systemRootPath'] . "videos/cache/getAllVideosAsync_{$md5}";
+            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+                $total = static::getAllVideos($status, $showOnlyLoggedUserVideos, $ignoreGroup, $videosArrayId, $getStatistcs, $showUnlisted, $activeUsersOnly);
+                file_put_contents($cacheFileName, json_encode($total));
+                return $total;
+            }
+            $return = json_decode(file_get_contents($cacheFileName));
+            if (time() - filemtime($cacheFileName) > 300) {
+                // file older than 1 min
+                $command = ("php '{$global['systemRootPath']}objects/getAllVideosAsync.php' '$status' '$showOnlyLoggedUserVideos' '$ignoreGroup' '" . json_encode($videosArrayId) . "' '$getStatistcs' '$showUnlisted' '$activeUsersOnly' '{$get}' '{$post}' '{$cacheFileName}'");
+                error_log("getAllVideosAsync: {$command}");
+                exec($command . " > /dev/null 2>/dev/null &");
+            }
+            return object_to_array($return);
         }
 
         /**
@@ -852,7 +918,7 @@ if (!class_exists('Video')) {
                 foreach ($fullData as $row) {
                     $videos[] = $row;
                 }
-                //$videos = $res->fetch_all(MYSQLI_ASSOC);
+//$videos = $res->fetch_all(MYSQLI_ASSOC);
             } else {
                 $videos = false;
                 die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
@@ -937,6 +1003,27 @@ if (!class_exists('Video')) {
             return $obj;
         }
 
+        static function getTotalVideosInfoAsync($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false) {
+            global $global;
+            $cacheFileName = $global['systemRootPath'] . "videos/cache/getTotalVideosInfo{$status}_{$showOnlyLoggedUserVideos}_{$ignoreGroup}_" . implode($videosArrayId) . "_{$getStatistcs}";
+            $return = array();
+            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+                $total = static::getTotalVideosInfo($status, $showOnlyLoggedUserVideos, $ignoreGroup, $videosArrayId, $getStatistcs);
+                file_put_contents($cacheFileName, json_encode($total));
+                return $total;
+            }
+            $return = json_decode(file_get_contents($cacheFileName));
+            if (time() - filemtime($cacheFileName) > 300) {
+                // file older than 1 min
+                $command = ("php '{$global['systemRootPath']}objects/getTotalVideosInfoAsync.php' "
+                        . " '$status' '$showOnlyLoggedUserVideos' '$ignoreGroup', '" . json_encode($videosArrayId) . "', "
+                        . " '$getStatistcs', '$cacheFileName'");
+                error_log("getTotalVideosInfoAsync: {$command}");
+                exec($command . " > /dev/null 2>/dev/null &");
+            }
+            return $return;
+        }
+
         static function getViewableStatus($showUnlisted = false) {
             /**
               a = active
@@ -981,7 +1068,7 @@ if (!class_exists('Video')) {
                 if (!empty($object->$value->progress) && !is_numeric($object->$value->progress)) {
 
                     $video = self::getVideoFromFileName($filename);
-                    //var_dump($video, $filename);
+//var_dump($video, $filename);
                     if (!empty($video)) {
                         $object->$value->progress = self::$statusDesc[$video['status']];
                     }
@@ -994,20 +1081,20 @@ if (!class_exists('Video')) {
         }
 
         static private function parseProgress($content) {
-            //get duration of source
+//get duration of source
 
             $obj = new stdClass();
 
             $obj->duration = 0;
             $obj->currentTime = 0;
             $obj->progress = 0;
-            //var_dump($content);exit;
+//var_dump($content);exit;
             preg_match("/Duration: (.*?), start:/", $content, $matches);
             if (!empty($matches[1])) {
 
                 $rawDuration = $matches[1];
 
-                //rawDuration is in 00:00:00.00 format. This converts it to seconds.
+//rawDuration is in 00:00:00.00 format. This converts it to seconds.
                 $ar = array_reverse(explode(":", $rawDuration));
                 $duration = floatval($ar[0]);
                 if (!empty($ar[1])) {
@@ -1017,17 +1104,17 @@ if (!class_exists('Video')) {
                     $duration += intval($ar[2]) * 60 * 60;
                 }
 
-                //get the time in the file that is already encoded
+//get the time in the file that is already encoded
                 preg_match_all("/time=(.*?) bitrate/", $content, $matches);
 
                 $rawTime = array_pop($matches);
 
-                //this is needed if there is more than one match
+//this is needed if there is more than one match
                 if (is_array($rawTime)) {
                     $rawTime = array_pop($rawTime);
                 }
 
-                //rawTime is in 00:00:00.00 format. This converts it to seconds.
+//rawTime is in 00:00:00.00 format. This converts it to seconds.
                 $ar = array_reverse(explode(":", $rawTime));
                 $time = floatval($ar[0]);
                 if (!empty($ar[1])) {
@@ -1038,7 +1125,7 @@ if (!class_exists('Video')) {
                 }
 
                 if (!empty($duration)) {
-                    //calculate the progress
+//calculate the progress
                     $progress = round(($time / $duration) * 100);
                 } else {
                     $progress = 'undefined';
@@ -1068,7 +1155,6 @@ if (!class_exists('Video')) {
             if ($resp == false) {
                 die('Error (delete on video) : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
             } else {
-                $this->removeFiles($video['filename']);
                 $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
                 $bb_b2 = YouPHPTubePlugin::loadPluginIfEnabled('Blackblaze_B2');
                 $ftp = YouPHPTubePlugin::loadPluginIfEnabled('FTP_Storage');
@@ -1081,6 +1167,7 @@ if (!class_exists('Video')) {
                 if (!empty($ftp)) {
                     $ftp->removeFiles($video['filename']);
                 }
+                $this->removeFiles($video['filename']);
             }
             return $resp;
         }
@@ -1138,7 +1225,7 @@ if (!class_exists('Video')) {
             if (empty($filePath)) {
                 return false;
             }
-            // Streamlined for less coding space.
+// Streamlined for less coding space.
             $files = glob("{$filePath}*");
             foreach ($files as $file) {
                 if (file_exists($file)) {
@@ -1175,7 +1262,7 @@ if (!class_exists('Video')) {
                 return false;
             }
 
-            // to update old cat as well when auto..
+// to update old cat as well when auto..
             if (!empty($this->categories_id)) {
                 $this->old_categories_id = $this->categories_id;
             }
@@ -1231,14 +1318,14 @@ if (!class_exists('Video')) {
         static function getDurationFromFile($file) {
             global $global;
             require_once($global['systemRootPath'] . 'objects/getid3/getid3.php');
-            // get movie duration HOURS:MM:SS.MICROSECONDS
+// get movie duration HOURS:MM:SS.MICROSECONDS
             if (!file_exists($file)) {
                 error_log('{"status":"error", "msg":"getDurationFromFile ERROR, File (' . $file . ') Not Found"}');
                 return "EE:EE:EE";
             }
-            // Initialize getID3 engine
+// Initialize getID3 engine
             $getID3 = new getID3;
-            // Analyze file and store returned data in $ThisFileInfo
+// Analyze file and store returned data in $ThisFileInfo
             $ThisFileInfo = $getID3->analyze($file);
             return static::getCleanDuration(@$ThisFileInfo['playtime_string']);
         }
@@ -1299,7 +1386,7 @@ if (!class_exists('Video')) {
 
         static function isLandscape($pathFileName) {
             global $config;
-            // get movie duration HOURS:MM:SS.MICROSECONDS
+// get movie duration HOURS:MM:SS.MICROSECONDS
             if (!file_exists($pathFileName)) {
                 echo '{"status":"error", "msg":"getDurationFromFile ERROR, File (' . $pathFileName . ') Not Found"}';
                 exit;
@@ -1339,16 +1426,19 @@ if (!class_exists('Video')) {
                     }
                 }
             }
-            //var_dump($cmd, $w, $h, $rotation, $resp);exit;
+//var_dump($cmd, $w, $h, $rotation, $resp);exit;
             return $resp;
         }
 
         function userCanManageVideo() {
+            if (User::isAdmin()) {
+                return true;
+            }
             if (empty($this->users_id) || !User::canUpload()) {
                 return false;
             }
-            // if you not admin you can only manager yours video
-            if (!User::isAdmin() && $this->users_id != User::getId()) {
+// if you not admin you can only manager yours video
+            if ($this->users_id != User::getId()) {
                 return false;
             }
             return true;
@@ -1371,6 +1461,10 @@ if (!class_exists('Video')) {
          * label Default Primary Success Info Warning Danger
          */
         static function getTags($video_id, $type = "") {
+            return self::getTagsAsync($video_id, $type);
+        }
+
+        static function getTags_($video_id, $type = "") {
             $video = new Video("", "", $video_id);
             $tags = array();
 
@@ -1441,6 +1535,7 @@ if (!class_exists('Video')) {
                 $tags[] = $obj;
                 $obj = new stdClass();
             }
+
             if (empty($type) || $type === "userGroups") {
                 $groups = UserGroups::getVideoGroups($video_id);
                 $obj = new stdClass();
@@ -1453,8 +1548,8 @@ if (!class_exists('Video')) {
                         $tags[] = $obj;
                         $obj = new stdClass();
                     } else {
-                        //$obj->type = "success";
-                        //$obj->text = __("Public");
+//$obj->type = "success";
+//$obj->text = __("Public");
                     }
                 } else {
                     foreach ($groups as $value) {
@@ -1467,6 +1562,7 @@ if (!class_exists('Video')) {
                     }
                 }
             }
+
             if (empty($type) || $type === "category") {
                 require_once 'category.php';
                 if (!empty($_POST['sort']['title'])) {
@@ -1482,6 +1578,7 @@ if (!class_exists('Video')) {
                     $obj = new stdClass();
                 }
             }
+
             if (empty($type) || $type === "source") {
                 $url = $video->getVideoDownloadedLink();
                 $parse = parse_url($url);
@@ -1500,6 +1597,25 @@ if (!class_exists('Video')) {
                 }
             }
             return $tags;
+        }
+
+        static function getTagsAsync($video_id, $type = "video") {
+            global $global;
+            $cacheFileName = $global['systemRootPath'] . "videos/cache/getTags_{$video_id}_{$type}";
+            $return = array();
+            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+                $total = static::getTags_($filename, $type = "video");
+                file_put_contents($cacheFileName, json_encode($total));
+                return $total;
+            }
+            $return = json_decode(file_get_contents($cacheFileName));
+            if (time() - filemtime($cacheFileName) > 600) {
+                // file older than 1 min
+                $command = ("php '{$global['systemRootPath']}objects/getTags.php' '$video_id' '$type' '{$cacheFileName}'");
+                error_log("getTags: {$command}");
+                exec($command . " > /dev/null 2>/dev/null &");
+            }
+            return (array) $return;
         }
 
         function getCategories_id() {
@@ -1757,7 +1873,7 @@ if (!class_exists('Video')) {
             $obj->response = $r;
             if ($errno = curl_errno($curl)) {
                 $error_message = curl_strerror($errno);
-                //echo "cURL error ({$errno}):\n {$error_message}";
+//echo "cURL error ({$errno}):\n {$error_message}";
                 $obj->msg = "cURL error ({$errno}):\n {$error_message}";
             } else {
                 $obj->error = false;
@@ -1799,7 +1915,7 @@ if (!class_exists('Video')) {
          */
         static function getSourceFile($filename, $type = ".jpg", $includeS3 = false) {
             global $global, $advancedCustom, $videosPaths;
-            
+
             if (empty($videosPaths[$filename][$type][intval($includeS3)])) {
                 $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
                 $bb_b2 = YouPHPTubePlugin::loadPluginIfEnabled('Blackblaze_B2');
@@ -1825,21 +1941,21 @@ if (!class_exists('Video')) {
                 $source = array();
                 $source['path'] = "{$global['systemRootPath']}videos/{$filename}{$type}";
                 if ($type == ".m3u8") {
-                    $source['path'] = "{$global['systemRootPath']}videos/{$filename}/index.m3u8";
+                    $source['path'] = "{$global['systemRootPath']}videos/{$filename}/index{$type}";
                 }
                 $video = Video::getVideoFromFileName(str_replace(array('_Low', '_SD', '_HD'), array('', '', ''), $filename));
                 $canUseCDN = canUseCDN($video['id']);
-                //error_log(json_encode(array('$filename'=>$filename, '$advancedCustom->videosCDN'=>$advancedCustom->videosCDN,'canUseCDN($video[id])'=>canUseCDN($video['id']),'$video[id]'=>$video['id'])));
+//error_log(json_encode(array('$filename'=>$filename, '$advancedCustom->videosCDN'=>$advancedCustom->videosCDN,'canUseCDN($video[id])'=>canUseCDN($video['id']),'$video[id]'=>$video['id'])));
                 if (!empty($advancedCustom->videosCDN) && $canUseCDN) {
                     $advancedCustom->videosCDN = rtrim($advancedCustom->videosCDN, '/') . '/';
                     $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}{$type}{$token}";
                     if ($type == ".m3u8") {
-                        $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}/index.m3u8{$token}";
+                        $source['url'] = "{$advancedCustom->videosCDN}videos/{$filename}/index{$type}{$token}";
                     }
                 } else {
                     $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}{$type}{$token}";
                     if ($type == ".m3u8") {
-                        $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}/index.m3u8{$token}";
+                        $source['url'] = "{$global['webSiteRootURL']}videos/{$filename}/index{$type}{$token}";
                     }
                 }
                 /* need it because getDurationFromFile */
@@ -1854,9 +1970,8 @@ if (!class_exists('Video')) {
                         }
                     }
                 }
-
-                if (!file_exists($source['path'])) {
-                    if ($type != "_thumbsV2.jpg" && $type != "_thumbsSmallV2.jpg") {
+                if (!file_exists($source['path']) || ($type !== ".m3u8" && !is_dir($source['path']) && (filesize($source['path']) < 1000 && filesize($source['path']) != 10 ))) {
+                    if ($type != "_thumbsV2.jpg" && $type != "_thumbsSmallV2.jpg" && $type != "_portrait_thumbsV2.jpg" && $type != "_portrait_thumbsSmallV2.jpg") {
                         return array('path' => false, 'url' => false);
                     }
                 }
@@ -1865,7 +1980,7 @@ if (!class_exists('Video')) {
             } else {
                 $source = $videosPaths[$filename][$type][intval($includeS3)];
             }
-            //ObjectYPT::setCache($name, $source);
+//ObjectYPT::setCache($name, $source);
             return $source;
         }
 
@@ -1901,6 +2016,10 @@ if (!class_exists('Video')) {
         }
 
         static function getImageFromFilename($filename, $type = "video") {
+            return self::getImageFromFilenameAsync($filename, $type);
+        }
+
+        static function getImageFromFilename_($filename, $type = "video") {
             global $global, $advancedCustom;
             /*
               $name = "getImageFromFilename_{$filename}{$type}_";
@@ -1915,10 +2034,14 @@ if (!class_exists('Video')) {
             $gifPortraitSource = self::getSourceFile($filename, "_portrait.gif");
             $jpegSource = self::getSourceFile($filename, ".jpg");
             $jpegPortraitSource = self::getSourceFile($filename, "_portrait.jpg");
+            $jpegPortraitThumbs = self::getSourceFile($filename, "_portrait_thumbsV2.jpg");
+            $jpegPortraitThumbsSmall = self::getSourceFile($filename, "_portrait_thumbsSmallV2.jpg");
             $thumbsSource = self::getSourceFile($filename, "_thumbsV2.jpg");
             $thumbsSmallSource = self::getSourceFile($filename, "_thumbsSmallV2.jpg");
             $obj->poster = $jpegSource['url'];
             $obj->posterPortrait = $jpegPortraitSource['url'];
+            $obj->posterPortraitThumbs = $jpegPortraitThumbs['url'];
+            $obj->posterPortraitThumbsSmall = $jpegPortraitThumbsSmall['url'];
             $obj->thumbsGif = $gifSource['url'];
             $obj->gifPortrait = $gifPortraitSource['url'];
             $obj->thumbsJpg = $thumbsSource['url'];
@@ -1926,10 +2049,35 @@ if (!class_exists('Video')) {
             if (file_exists($gifSource['path'])) {
                 $obj->thumbsGif = $gifSource['url'];
             }
+
+            if (file_exists($jpegPortraitSource['path'])) {
+// create thumbs
+                if (!file_exists($jpegPortraitThumbs['path']) && filesize($jpegPortraitSource['path']) > 1024) {
+                    error_log("Resize JPG {$jpegPortraitSource['path']}, {$jpegPortraitThumbs['path']}");
+                    if (!empty($advancedCustom->useFFMPEGToGenerateThumbs)) {
+                        im_resizeV3($jpegPortraitSource['path'], $jpegPortraitThumbs['path'], 170, 250);
+                    } else {
+                        im_resizeV2($jpegPortraitSource['path'], $jpegPortraitThumbs['path'], 170, 250);
+                    }
+                }
+// create thumbs
+                if (!file_exists($jpegPortraitThumbsSmall['path']) && filesize($jpegPortraitSource['path']) > 1024) {
+                    error_log("Resize JPG {$jpegPortraitSource['path']}, {$jpegPortraitThumbsSmall['path']}");
+                    if (!empty($advancedCustom->useFFMPEGToGenerateThumbs)) {
+                        im_resizeV3($jpegPortraitSource['path'], $jpegPortraitThumbsSmall['path'], 170, 250);
+                    } else {
+                        im_resizeV2($jpegPortraitSource['path'], $jpegPortraitThumbsSmall['path'], 170, 250, 5);
+                    }
+                }
+            } else {
+                $obj->posterPortraitThumbs = false;
+                $obj->posterPortraitThumbsSmall = false;
+            }
+
             if (file_exists($jpegSource['path'])) {
                 $obj->poster = $jpegSource['url'];
                 $obj->thumbsJpg = $thumbsSource['url'];
-                // create thumbs
+// create thumbs
                 if (!file_exists($thumbsSource['path']) && filesize($jpegSource['path']) > 1024) {
                     error_log("Resize JPG {$jpegSource['path']}, {$thumbsSource['path']}");
                     if (!empty($advancedCustom->useFFMPEGToGenerateThumbs)) {
@@ -1938,7 +2086,7 @@ if (!class_exists('Video')) {
                         im_resizeV2($jpegSource['path'], $thumbsSource['path'], 250, 140);
                     }
                 }
-                // create thumbs
+// create thumbs
                 if (!file_exists($thumbsSmallSource['path']) && filesize($jpegSource['path']) > 1024) {
                     error_log("Resize Small JPG {$jpegSource['path']}, {$thumbsSmallSource['path']}");
                     if (!empty($advancedCustom->useFFMPEGToGenerateThumbs)) {
@@ -1965,11 +2113,30 @@ if (!class_exists('Video')) {
             if (empty($obj->thumbsJpgSmall)) {
                 $obj->thumbsJpgSmall = $obj->poster;
             }
-            //ObjectYPT::setCache($name, $obj);
+//ObjectYPT::setCache($name, $obj);
             if ($type !== "video" || !empty($advancedCustom->disableAnimatedGif)) {
                 $obj->thumbsGif = false;
             }
             return $obj;
+        }
+
+        static function getImageFromFilenameAsync($filename, $type = "video") {
+            global $global;
+            $return = array();
+            $cacheFileName = $global['systemRootPath'] . "videos/cache/getImageFromFilenameAsync_{$filename}_{$type}";
+            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+                $total = static::getImageFromFilename_($filename, $type = "video");
+                file_put_contents($cacheFileName, json_encode($total));
+                return $total;
+            }
+            $return = json_decode(file_get_contents($cacheFileName));
+            if (time() - filemtime($cacheFileName) > 600) {
+                // file older than 1 min
+                $command = ("php '{$global['systemRootPath']}objects/getImageFromFilenameAsync.php' '$filename' '$type' '{$cacheFileName}'");
+                error_log("getImageFromFilenameAsync: {$command}");
+                exec($command . " > /dev/null 2>/dev/null &");
+            }
+            return $return;
         }
 
         static function getImageFromID($videos_id, $type = "video") {
@@ -2151,7 +2318,7 @@ if (!class_exists('Video')) {
             }
             global $global;
             $filePath = "{$global['systemRootPath']}videos/{$filename}";
-            // Streamlined for less coding space.
+// Streamlined for less coding space.
             $files = glob("{$filePath}_thumbs*.jpg");
             foreach ($files as $file) {
                 if (file_exists($file)) {
@@ -2178,7 +2345,7 @@ if (!class_exists('Video')) {
                 return array('percent' => 0, 'lastVideoTime' => 0);
             }
 
-            // start incremental search and save
+// start incremental search and save
             $sql = "SELECT duration FROM `videos` WHERE id = ? LIMIT 1";
             $res = sqlDAL::readSql($sql, "i", array($videos_id));
             $row = sqlDAL::fetchAssoc($res);
@@ -2223,20 +2390,51 @@ if (!class_exists('Video')) {
 
             return $obj;
         }
-        
+
         static function getVideoTypeLabels($filename) {
             $obj = self::getVideoType($filename);
             $labels = "";
-            if($obj->mp4){
+            if ($obj->mp4) {
                 $labels .= '<span class="label label-success">MP4</span>';
             }
-            if($obj->webm){
+            if ($obj->webm) {
                 $labels .= '<span class="label label-warning">Webm</span>';
             }
-            if($obj->m3u8){
+            if ($obj->m3u8) {
                 $labels .= '<span class="label label-primary">HLS</span>';
             }
             return $labels;
+        }
+
+        static function isPublic($videos_id) {
+// check if the video is not public 
+            $rows = UserGroups::getVideoGroups($videos_id);
+
+            if (empty($rows)) {
+                return true;
+            }
+            return false;
+        }
+
+        static function userGroupAndVideoGroupMatch($users_id, $videos_id) {
+// check if the video is not public 
+            $rows = UserGroups::getVideoGroups($videos_id);
+            if (empty($rows)) {
+                return true;
+            }
+            $rowsUser = UserGroups::getUserGroups(User::getId());
+            if (empty($rowsUser)) {
+                return false;
+            }
+
+            foreach ($rows as $value) {
+                foreach ($rowsUser as $value2) {
+                    if ($value['id'] === $value2['id']) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
     }

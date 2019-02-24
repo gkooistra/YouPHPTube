@@ -27,6 +27,8 @@ function xss_esc_back($text) {
 function cmpPlugin($a, $b) {
     if ($a['name'] == 'SecureVideosDirectory') {
         return -1;
+    } else if ($a['name'] == 'GoogleAds_IMA') {
+        return -1;
     }
 
     return 1;
@@ -428,6 +430,44 @@ function setSiteSendMessage(&$mail) {
     }
 }
 
+function sendSiteEmail($to, $subject, $message) {
+    if (empty($to)) {
+        return false;
+    }
+    global $config, $global;
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/PHPMailerAutoload.php';
+    $contactEmail = $config->getContactEmail();
+    $webSiteTitle = $config->getWebSiteTitle();
+    try {
+        $mail = new PHPMailer;
+        setSiteSendMessage($mail);
+        //$mail->SMTPDebug = 4;
+        //Set who the message is to be sent from
+        $mail->setFrom($contactEmail, $webSiteTitle);
+        //Set who the message is to be sent to
+        if (!is_array($to)) {
+            $mail->addAddress($to);
+        } else {
+            foreach ($to as $value) {
+                $mail->addBCC($value);
+            }
+        }
+        //Set the subject line
+        $mail->Subject = $subject . " - " . $webSiteTitle;
+
+        $mail->msgHTML($message);
+        $resp = $mail->send();
+        if (!$resp) {
+            error_log("sendSiteEmail Error Info: {$mail->ErrorInfo}");
+        }
+        return $resp;
+    } catch (phpmailerException $e) {
+        error_log($e->errorMessage()); //Pretty error messages from PHPMailer
+    } catch (Exception $e) {
+        error_log($e->getMessage()); //Boring error messages from anything else!
+    }
+}
+
 function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $showinfo = 0, $controls = 1, $time = 0) {
     if (strpos($videoString, 'youtube.com/embed') !== false) {
         return $videoString . (parse_url($videoString, PHP_URL_QUERY) ? '&' : '?') . 'modestbranding=1&showinfo='
@@ -621,6 +661,9 @@ function canUseCDN($videos_id) {
 }
 
 function getVideosURL($fileName) {
+    if (empty($fileName)) {
+        return array();
+    }
     global $global;
     $types = array('', '_Low', '_SD', '_HD');
     $files = array();
@@ -942,6 +985,13 @@ function decideMoveUploadedToVideos($tmp_name, $filename) {
         $dir = "{$global['systemRootPath']}videos/{$path_info['filename']}";
         unzipDirectory($tmp_name, $dir); // unzip it
         cleanDirectory($dir);
+        if (!empty($aws_s3)) {
+            //$aws_s3->move_uploaded_file($tmp_name, $filename);
+        } else if (!empty($bb_b2)) {
+            $bb_b2->move_uploaded_directory($dir);
+        } else if (!empty($ftp)) {
+            //$ftp->move_uploaded_file($tmp_name, $filename);
+        }
     } else {
         if (!empty($aws_s3)) {
             $aws_s3->move_uploaded_file($tmp_name, $filename);
@@ -963,8 +1013,55 @@ function decideMoveUploadedToVideos($tmp_name, $filename) {
 }
 
 function unzipDirectory($filename, $destination) {
+    global $global;
+    ini_set('memory_limit', '-1');
+    ini_set('max_execution_time', 7200); // 2 hours
     error_log("unzipDirectory: {$filename}");
-    exec("unzip {$filename} -d {$destination}");
+    exec("unzip {$filename} -d {$destination}" . "  2>&1", $output, $return_val);
+    if ($return_val !== 0) {
+        // try to unzip using PHP
+        error_log("unzipDirectory: TRY to use PHP {$filename}");
+        $zip = zip_open($filename);
+        if ($zip) {
+            while ($zip_entry = zip_read($zip)) {
+                $path = "{$destination}/" . zip_entry_name($zip_entry);
+                error_log("unzipDirectory: fopen $path");
+                if (substr(zip_entry_name($zip_entry), -1) == '/') {
+                    make_path($path);
+                } else {
+                    make_path($path);
+                    $fp = fopen($path, "w");
+                    if (zip_entry_open($zip, $zip_entry, "r")) {
+                        $buf = zip_entry_read($zip_entry, zip_entry_filesize($zip_entry));
+                        fwrite($fp, "$buf");
+                        zip_entry_close($zip_entry);
+                        fclose($fp);
+                    }
+                }
+            }
+            zip_close($zip);
+        } else {
+            error_log("unzipDirectory: ERROR php zip does not work");
+        }
+    } else {
+        error_log("unzipDirectory: Success {$destination}");
+    }
+    @unlink($filename);
+}
+
+function make_path($path) {
+    $dir = pathinfo($path, PATHINFO_DIRNAME);
+    if (is_dir($dir)) {
+        return true;
+    } else {
+        if (make_path($dir)) {
+            if (mkdir($dir)) {
+                chmod($dir, 0777);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /**
@@ -1348,4 +1445,106 @@ function encryptPasswordVerify($password, $hash, $encodedPass = false) {
 
 function isMobile() {
     return preg_match("/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i", $_SERVER["HTTP_USER_AGENT"]);
+}
+
+function siteMap() {
+    global $global;
+    $date = date('Y-m-d\TH:i:s') . "+00:00";
+
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>
+    <urlset
+        xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+        <!-- Main Page -->
+        <url>
+            <loc>' . $global['webSiteRootURL'] . '</loc>
+            <lastmod>' . $date . '</lastmod>
+            <changefreq>always</changefreq>
+            <priority>1.00</priority>
+        </url>
+
+        <url>
+            <loc>' . $global['webSiteRootURL'] . 'help</loc>
+            <lastmod>' . $date . '</lastmod>
+            <changefreq>monthly</changefreq>
+            <priority>0.50</priority>
+        </url>
+        <url>
+            <loc>' . $global['webSiteRootURL'] . 'about</loc>
+            <lastmod>' . $date . '</lastmod>
+            <changefreq>monthly</changefreq>
+            <priority>0.50</priority>
+        </url>
+        <url>
+            <loc>' . $global['webSiteRootURL'] . 'contact</loc>
+            <lastmod>' . $date . '</lastmod>
+            <changefreq>monthly</changefreq>
+            <priority>0.50</priority>
+        </url>
+
+        <!-- Channels -->
+        <url>
+            <loc>' . $global['webSiteRootURL'] . 'channels</loc>
+            <lastmod>' . $date . '</lastmod>
+            <changefreq>daily</changefreq>
+            <priority>0.80</priority>
+        </url>
+        ';
+    $users = User::getAllUsers(true);
+    foreach ($users as $value) {
+        $xml .= '        
+            <url>
+                <loc>' . User::getChannelLink($value['id']) . '</loc>
+                <lastmod>' . $date . '</lastmod>
+                <changefreq>daily</changefreq>
+                <priority>0.70</priority>
+            </url>
+            ';
+    }
+    $xml .= ' 
+        <!-- Categories -->
+        ';
+    $rows = Category::getAllCategories();
+    foreach ($rows as $value) {
+        $xml .= '  
+            <url>
+                <loc>' . $global['webSiteRootURL'] . 'cat/' . $value['clean_name'] . '</loc>
+                <lastmod>' . $date . '</lastmod>
+                <changefreq>weekly</changefreq>
+                <priority>0.80</priority>
+            </url>
+            ';
+    }
+    $xml .= '<!-- Videos -->';
+    $rows = Video::getAllVideos("viewable");
+    foreach ($rows as $value) {
+        $xml .= '   
+            <url>
+                <loc>' . Video::getLink($value['id'], $value['clean_title']) . '</loc>
+                <lastmod>' . $date . '</lastmod>
+                <changefreq>monthly</changefreq>
+                <priority>0.80</priority>
+            </url>
+            ';
+    }
+    $xml .= '</urlset> ';
+    return $xml;
+}
+
+function object_to_array($obj) {
+    //only process if it's an object or array being passed to the function
+    if (is_object($obj) || is_array($obj)) {
+        $ret = (array) $obj;
+        foreach ($ret as &$item) {
+            //recursively process EACH element regardless of type
+            $item = object_to_array($item);
+        }
+        return $ret;
+    }
+    //otherwise (i.e. for scalar values) return without modification
+    else {
+        return $obj;
+    }
 }

@@ -47,6 +47,9 @@ $video = Video::getVideo("", "viewable", false, false, true, true);
 if (empty($video)) {
     $video = Video::getVideo("", "viewable", false, false, false, true);
 }
+if(empty($video)){
+    $video = YouPHPTubePlugin::getVideo();
+}
 // add this because if you change the video category the video was not loading anymore
 $_GET['catName'] = $catName;
 
@@ -304,7 +307,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                     ?>
                                     <?php
                                     if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
-                                        echo VideoTags::getLabels($video['id']);
+                                        echo VideoTags::getLabels($video['id'], false);
                                     }
                                     ?>
                                 </div>
