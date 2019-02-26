@@ -54,8 +54,8 @@ class LiveTransmition extends ObjectYPT {
 
     function setTitle($title) {
         global $global;
-        $title = $global['mysqli']->real_escape_string($title);
-        $this->title = $title;
+        //$title = $global['mysqli']->real_escape_string($title);
+        $this->title = xss_esc($title);
     }
 
     function setPublic($public) {
@@ -80,8 +80,8 @@ class LiveTransmition extends ObjectYPT {
 
     function setDescription($description) {
         global $global;
-        $description = $global['mysqli']->real_escape_string($description);
-        $this->description = $description;
+        //$description = $global['mysqli']->real_escape_string($description);
+        $this->description = xss_esc($description);
     }
 
     function loadByUser($user_id) {

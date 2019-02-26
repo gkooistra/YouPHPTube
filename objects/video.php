@@ -849,20 +849,25 @@ if (!class_exists('Video')) {
         }
 
         static function getAllVideosAsync($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true) {
-            global $global;
+            global $global, $advancedCustom;
             $return = array();
             $users_id = User::getId();
             $get = json_encode(@$_GET);
             $post = json_encode(@$_POST);
             $md5 = md5("{$users_id}{$get}{$post}{$status}{$showOnlyLoggedUserVideos}{$ignoreGroup}" . implode("_", $videosArrayId) . "{$getStatistcs}{$showUnlisted}{$activeUsersOnly}");
-            $cacheFileName = $global['systemRootPath'] . "videos/cache/getAllVideosAsync_{$md5}";
-            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+            $path = $global['systemRootPath'] . "videos/cache/getAllVideosAsync/";
+            make_path($path);
+            $cacheFileName = "{$path}{$md5}";
+            if (empty($advancedCustom->AsyncJobs) || !file_exists($cacheFileName) || filesize($cacheFileName)===0) {
+                if(file_exists($cacheFileName.".lock")){
+                   return array(); 
+                }
                 $total = static::getAllVideos($status, $showOnlyLoggedUserVideos, $ignoreGroup, $videosArrayId, $getStatistcs, $showUnlisted, $activeUsersOnly);
                 file_put_contents($cacheFileName, json_encode($total));
                 return $total;
             }
             $return = json_decode(file_get_contents($cacheFileName));
-            if (time() - filemtime($cacheFileName) > 300) {
+            if (time() - filemtime($cacheFileName) > 60) {
                 // file older than 1 min
                 $command = ("php '{$global['systemRootPath']}objects/getAllVideosAsync.php' '$status' '$showOnlyLoggedUserVideos' '$ignoreGroup' '" . json_encode($videosArrayId) . "' '$getStatistcs' '$showUnlisted' '$activeUsersOnly' '{$get}' '{$post}' '{$cacheFileName}'");
                 error_log("getAllVideosAsync: {$command}");
@@ -984,14 +989,14 @@ if (!class_exists('Video')) {
             return $numRows;
         }
 
-        static function getTotalVideosInfo($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false) {
+        static function getTotalVideosInfo($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array()) {
             $obj = new stdClass();
             $obj->likes = 0;
             $obj->disLikes = 0;
             $obj->views_count = 0;
             $obj->total_minutes = 0;
 
-            $videos = static::getAllVideos($status, $showOnlyLoggedUserVideos, $ignoreGroup, $videosArrayId, $getStatistcs);
+            $videos = static::getAllVideos($status, $showOnlyLoggedUserVideos, $ignoreGroup, $videosArrayId);
 
             foreach ($videos as $value) {
                 $obj->likes += intval($value['likes']);
@@ -1004,21 +1009,26 @@ if (!class_exists('Video')) {
         }
 
         static function getTotalVideosInfoAsync($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false) {
-            global $global;
-            $cacheFileName = $global['systemRootPath'] . "videos/cache/getTotalVideosInfo{$status}_{$showOnlyLoggedUserVideos}_{$ignoreGroup}_" . implode($videosArrayId) . "_{$getStatistcs}";
+            global $global, $advancedCustom;
+            $path = $global['systemRootPath'] . "videos/cache/getTotalVideosInfo/";
+            make_path($path);
+            $cacheFileName = "{$path}_{$status}_{$showOnlyLoggedUserVideos}_{$ignoreGroup}_" . implode($videosArrayId) . "_{$getStatistcs}";
             $return = array();
-            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+            if (empty($advancedCustom->AsyncJobs) || !file_exists($cacheFileName)) {
+                if(file_exists($cacheFileName.".lock")){
+                   return array(); 
+                }
                 $total = static::getTotalVideosInfo($status, $showOnlyLoggedUserVideos, $ignoreGroup, $videosArrayId, $getStatistcs);
                 file_put_contents($cacheFileName, json_encode($total));
                 return $total;
             }
             $return = json_decode(file_get_contents($cacheFileName));
-            if (time() - filemtime($cacheFileName) > 300) {
+            if (time() - filemtime($cacheFileName) > 60) {
                 // file older than 1 min
                 $command = ("php '{$global['systemRootPath']}objects/getTotalVideosInfoAsync.php' "
                         . " '$status' '$showOnlyLoggedUserVideos' '$ignoreGroup', '" . json_encode($videosArrayId) . "', "
                         . " '$getStatistcs', '$cacheFileName'");
-                error_log("getTotalVideosInfoAsync: {$command}");
+                //error_log("getTotalVideosInfoAsync: {$command}");
                 exec($command . " > /dev/null 2>/dev/null &");
             }
             return $return;
@@ -1600,19 +1610,25 @@ if (!class_exists('Video')) {
         }
 
         static function getTagsAsync($video_id, $type = "video") {
-            global $global;
-            $cacheFileName = $global['systemRootPath'] . "videos/cache/getTags_{$video_id}_{$type}";
+            global $global, $advancedCustom;
+            $path = $global['systemRootPath'] . "videos/cache/getTagsAsync/";
+            make_path($path);
+            $cacheFileName = "{$path}_{$video_id}_{$type}";
+            
             $return = array();
-            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
-                $total = static::getTags_($filename, $type = "video");
+            if (empty($advancedCustom->AsyncJobs) || !file_exists($cacheFileName)) {
+                if(file_exists($cacheFileName.".lock")){
+                   return array(); 
+                }
+                $total = static::getTags_($video_id, $type);
                 file_put_contents($cacheFileName, json_encode($total));
                 return $total;
             }
             $return = json_decode(file_get_contents($cacheFileName));
-            if (time() - filemtime($cacheFileName) > 600) {
+            if (time() - filemtime($cacheFileName) > 300) {
                 // file older than 1 min
                 $command = ("php '{$global['systemRootPath']}objects/getTags.php' '$video_id' '$type' '{$cacheFileName}'");
-                error_log("getTags: {$command}");
+                //error_log("getTags: {$command}");
                 exec($command . " > /dev/null 2>/dev/null &");
             }
             return (array) $return;
@@ -2121,19 +2137,24 @@ if (!class_exists('Video')) {
         }
 
         static function getImageFromFilenameAsync($filename, $type = "video") {
-            global $global;
+            global $global, $advancedCustom;
             $return = array();
-            $cacheFileName = $global['systemRootPath'] . "videos/cache/getImageFromFilenameAsync_{$filename}_{$type}";
-            if (!file_exists($cacheFileName) && !file_exists($cacheFileName.".lock")) {
+            $path = $global['systemRootPath'] . "videos/cache/getImageFromFilenameAsync/";
+            make_path($path);
+            $cacheFileName = "{$path}_{$filename}_{$type}";
+            if (empty($advancedCustom->AsyncJobs) || !file_exists($cacheFileName)) {
+                if(file_exists($cacheFileName.".lock")){
+                   return array(); 
+                }
                 $total = static::getImageFromFilename_($filename, $type = "video");
                 file_put_contents($cacheFileName, json_encode($total));
                 return $total;
             }
             $return = json_decode(file_get_contents($cacheFileName));
-            if (time() - filemtime($cacheFileName) > 600) {
+            if (time() - filemtime($cacheFileName) > 60) {
                 // file older than 1 min
                 $command = ("php '{$global['systemRootPath']}objects/getImageFromFilenameAsync.php' '$filename' '$type' '{$cacheFileName}'");
-                error_log("getImageFromFilenameAsync: {$command}");
+                //error_log("getImageFromFilenameAsync: {$command}");
                 exec($command . " > /dev/null 2>/dev/null &");
             }
             return $return;

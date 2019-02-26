@@ -20,7 +20,7 @@ class API extends PluginAbstract {
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
-
+        $obj->APISecret=md5($global['systemRootPath']);
         return $obj;
     }
 
@@ -36,6 +36,9 @@ class API extends PluginAbstract {
         } else {
             if (!empty($parameters['pass'])) {
                 $parameters['password'] = $parameters['pass'];
+            }
+            if(!empty($parameters['encodedPass']) && strtolower($parameters['encodedPass'])==='false'){
+                $parameters['encodedPass'] = false;
             }
             if (!empty($parameters['user']) && !empty($parameters['password'])) {
                 $user = new User("", $parameters['user'], $parameters['password']);
@@ -60,6 +63,9 @@ class API extends PluginAbstract {
                 $parameters['password'] = $parameters['pass'];
             }
             if (!empty($parameters['user']) && !empty($parameters['password'])) {
+                if(!empty($parameters['encodedPass']) && strtolower($parameters['encodedPass'])==='false'){
+                    $parameters['encodedPass'] = false;
+                }
                 $user = new User("", $parameters['user'], $parameters['password']);
                 $user->login(false, !empty($parameters['encodedPass']));
             }
@@ -233,12 +239,18 @@ class API extends PluginAbstract {
      * 'pass' password  of the user
      * 'email' email of the user
      * 'name' real name of the user
-     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&user=admin&pass=123&email=me@mysite.com&name=Yeshua
+     * 'APISecret' mandatory for security reasons
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}&user=admin&pass=123&email=me@mysite.com&name=Yeshua
      * @return type
      */
     public function set_api_signUp($parameters) {
         global $global;
         $this->getToPost();
+        $obj = $this->getDataObject();
+        if($obj->APISecret!==@$_GET['APISecret']){
+            return new ApiObject("APISecret Not valid");
+        }
+        $ignoreCaptcha = 1;
         require_once $global['systemRootPath'] . 'objects/userCreate.json.php';
         exit;
     }
@@ -288,9 +300,8 @@ class API extends PluginAbstract {
         if (empty($plugin)) {
             return new ApiObject("Plugin disabled");
         }
-        if (!empty($parameters['user']) && !empty($parameters['pass'])) {
-            $user = new User(0, $parameters['user'], $parameters['pass']);
-            $user->login(false, !empty($parameters['encodedPass']));
+        if (!User::isLogged()) {
+            return new ApiObject("User must be logged");
         }
         $row = PlayList::getAllFromUser(User::getId(), false, 'favorite');
         echo json_encode($row);
@@ -329,10 +340,6 @@ class API extends PluginAbstract {
         $plugin = YouPHPTubePlugin::loadPluginIfEnabled("PlayLists");
         if (empty($plugin)) {
             return new ApiObject("Plugin disabled");
-        }
-        if (!empty($parameters['user']) && !empty($parameters['pass'])) {
-            $user = new User(0, $parameters['user'], $parameters['pass']);
-            $user->login(false, !empty($parameters['encodedPass']));
         }
         if(!User::isLogged()){
             return new ApiObject("Wrong user or password");
