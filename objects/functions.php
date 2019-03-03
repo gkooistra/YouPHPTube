@@ -17,6 +17,7 @@ function xss_esc($text) {
     return @htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 }
 
+
 function xss_esc_back($text) {
     $text = htmlspecialchars_decode($text, ENT_QUOTES);
     $text = str_replace(array('&amp;', '&#039;', "#039;"), array(" ", "`", "`"), $text);
@@ -491,6 +492,15 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
 
         preg_match(
                 '/[\\?\\&]v=([^\\?\\&]+)/', $link, $matches
+        );
+        //the ID of the YouTube URL: x6qe_kVaBpg
+        $id = $matches[1];
+        return '//www.youtube.com/embed/' . $id . '?modestbranding=1&showinfo='
+                . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&te=$time";
+    }else if (strpos($link, 'youtu.be') !== false) {
+        //https://youtu.be/9XXOBSsPoMU
+        preg_match(
+                '/youtu.be\/([a-zA-Z0-9_]+)($|\/)/', $link, $matches
         );
         //the ID of the YouTube URL: x6qe_kVaBpg
         $id = $matches[1];

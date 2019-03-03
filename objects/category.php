@@ -129,21 +129,21 @@ class Category {
         if (!self::canCreateCategory()) {
             return false;
         }
-        
-        if(!empty($this->id) && !self::userCanEditCategory($this->id)){
+
+        if (!empty($this->id) && !self::userCanEditCategory($this->id)) {
             return false;
         }
-        
-        if(empty($this->users_id)){
+
+        if (empty($this->users_id)) {
             $this->users_id = User::getId();
         }
-        
+
         // check if clean name exists
         $exists = $this->getCategoryByName(xss_esc($this->clean_name));
-        if(!empty($exists)){
+        if (!empty($exists)) {
             $this->clean_name .= uniqid();
         }
-        
+
         $this->nextVideoOrder = intval($this->nextVideoOrder);
         $this->parentId = intval($this->parentId);
         if (!empty($this->id)) {
@@ -189,11 +189,11 @@ class Category {
         if (!self::canCreateCategory()) {
             return false;
         }
-        
-        if(!self::userCanEditCategory($this->id)){
+
+        if (!self::userCanEditCategory($this->id)) {
             return false;
         }
-        
+
         // cannot delete default category
         if ($this->id == 1) {
             return false;
@@ -291,7 +291,7 @@ class Category {
             } else {
                 $users_id = User::getId();
             }
-            
+
             if ($config->currentVersionGreaterThen('6.1')) {
                 $sql .= " AND (private=0 OR users_id = '{$users_id}') ";
             }
@@ -311,6 +311,7 @@ class Category {
             foreach ($fullResult as $row) {
                 $row['name'] = xss_esc_back($row['name']);
                 $row['total'] = self::getTotalVideosFromCategory($row['id']);
+                $row['fullTotal'] = self::getTotalVideosFromCategory($row['id'], false, true, true);
                 $row['owner'] = User::getNameIdentificationById(@$row['users_id']);
                 $row['canEdit'] = self::userCanEditCategory($row['id']);
                 $row['canAddVideo'] = self::userCanAddInCategory($row['id']);
@@ -324,14 +325,14 @@ class Category {
         return $category;
     }
 
-    static function userCanAddInCategory($categories_id, $users_id=0) {
-        if(empty($categories_id)){
+    static function userCanAddInCategory($categories_id, $users_id = 0) {
+        if (empty($categories_id)) {
             return false;
         }
-        if(empty($users_id)){
+        if (empty($users_id)) {
             $users_id = User::getId();
-        }        
-        if(empty($users_id)){
+        }
+        if (empty($users_id)) {
             return false;
         }
         $cat = new Category($categories_id);
@@ -340,24 +341,22 @@ class Category {
         }
         return false;
     }
-    
-    
 
-    static function userCanEditCategory($categories_id, $users_id=0) {
-        if(empty($categories_id)){
+    static function userCanEditCategory($categories_id, $users_id = 0) {
+        if (empty($categories_id)) {
             return false;
         }
-        if(empty($users_id)){
+        if (empty($users_id)) {
             $users_id = User::getId();
-        }        
-        if(empty($users_id)){
+        }
+        if (empty($users_id)) {
             return false;
         }
-        
-        if(User::isAdmin()){
+
+        if (User::isAdmin()) {
             return true;
         }
-        
+
         $cat = new Category($categories_id);
         if ($users_id == $cat->getUsers_id()) {
             return true;
@@ -416,9 +415,9 @@ class Category {
         return self::getChildCategories($row['id']);
     }
 
-    static function getTotalVideosFromCategory($categories_id, $showUnlisted = false) {
+    static function getTotalVideosFromCategory($categories_id, $showUnlisted = false, $getAllVideos = false, $renew=false) {
         global $global, $config;
-        if (!isset($_SESSION['categoryTotal'][$categories_id])) {
+        if ($renew || empty($_SESSION['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)])) {
             $sql = "SELECT count(id) as total FROM videos v WHERE 1=1 AND categories_id = ? ";
 
             if (User::isLogged()) {
@@ -426,9 +425,9 @@ class Category {
             } else {
                 $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "')";
             }
-
-            $sql .= Video::getUserGroupsCanSeeSQL();
-
+            if (!$getAllVideos) {
+                $sql .= Video::getUserGroupsCanSeeSQL();
+            }
             //echo $categories_id, $sql;exit;
             $res = sqlDAL::readSql($sql, "i", array($categories_id));
             $fullResult = sqlDAL::fetchAllAssoc($res);
@@ -440,10 +439,10 @@ class Category {
             }
             session_write_close();
             session_start();
-            $_SESSION['categoryTotal'][$categories_id] = $total;
+            $_SESSION['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)] = $total;
             session_write_close();
         }
-        return $_SESSION['categoryTotal'][$categories_id];
+        return $_SESSION['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)];
     }
 
     static function clearCacheCount() {
@@ -505,6 +504,4 @@ class Category {
         return $this->description;
     }
 
-
-    
 }
