@@ -1,12 +1,12 @@
 <?php
-if ((!empty($videos)) || ($obj->SubCategorys)) {
+if ((!empty($videos)) || ($objYTube->SubCategorys)) {
     ?>
-    <?php if (($obj->CategoryDescription) && (!empty($_GET['catName']))) { ?>
+    <?php if (($objYTube->CategoryDescription) && (!empty($_GET['catName']))) { ?>
         <h1 style="text-align: center;"><?php echo $video['category']; ?></h1>
         <p style="margin-left: 10%; margin-right: 10%; max-height: 200px; overflow-x: auto;"><?php echo $video['category_description']; ?></p>
         <?php
     }
-    if (($obj->SubCategorys) && (!empty($_GET['catName']))) {
+    if (($objYTube->SubCategorys) && (!empty($_GET['catName']))) {
         unset($_POST['rowCount']);
         if (!empty($currentCat)) {
             $childCategories = Category::getChildCategories($currentCat['id']);
@@ -18,7 +18,7 @@ if ((!empty($videos)) || ($obj->SubCategorys)) {
                     <div>
                         <a class="btn btn-default btn-sm pull-right"  href="<?php echo $global['webSiteRootURL']; ?>">
                             <i class="fa fa-backward"></i>
-                            <?php echo __("Back to startpage"); ?> 
+                            <?php echo __("Back to startpage"); ?>
                         </a>
                         <hr>
                     </div>
@@ -29,7 +29,7 @@ if ((!empty($videos)) || ($obj->SubCategorys)) {
                 <div>
                     <a class="btn btn-default btn-sm pull-right" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $parentCat['clean_name']; ?>">
                         <i class="fa fa-backward"></i>
-                        <?php echo __("Back to") . " " . $parentCat['name']; ?> 
+                        <?php echo __("Back to") . " " . $parentCat['name']; ?>
                     </a>
                     <hr>
                 </div>
@@ -43,7 +43,7 @@ if ((!empty($videos)) || ($obj->SubCategorys)) {
             <?php
         }
         if ((!empty($childCategories)) && ((($currentCat['parentId'] != "0") || ($currentCat['parentId'] != "-1")))) {
-            ?>         
+            ?>
             <div class="clear clearfix">
                 <h3 class="YouTubeTitle"><i class="glyphicon glyphicon-download"></i>
                     <?php echo __("Sub-Category-YouTube"); ?>
@@ -115,10 +115,10 @@ if ((!empty($videos)) || ($obj->SubCategorys)) {
                                     <?php echo $cat['name']; ?>
                                 </div>
                             </a>
-                        </div>          
+                        </div>
 
                         <?php
-                    } // end of foreach-cat       
+                    } // end of foreach-cat
                     unset($_POST['sort']);
                     if (!empty($originalCat)) {
                         $_GET['catName'] = $originalCat;
