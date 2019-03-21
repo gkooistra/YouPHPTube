@@ -279,7 +279,7 @@ abstract class PluginAbstract {
      * 
      * @return type return a list of IDs of the user groups
      */
-    public function getDynamicUserGroupsId() {
+    public function getDynamicUserGroupsId($users_id) {
         return array();
     }
 
@@ -364,6 +364,19 @@ abstract class PluginAbstract {
     
     public function thumbsOverlay($videos_id){
         return "";
+    }    
+    
+    public static function profileTabName($users_id){
+        return "";
     }
+    
+    public static function profileTabContent($users_id){
+        return "";
+    }
+    
+    public static function getVideoTags($videos_id){
+        return array();
+    }
+    
 
 }
