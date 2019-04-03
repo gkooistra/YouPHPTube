@@ -15,7 +15,7 @@
                         <div class="col-md-8 inputGroupContainer">
                             <div class="input-group">
                                 <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
-                                <input  id="inputUser" placeholder="<?php echo __("User"); ?>" class="form-control"  type="<?php echo empty($advancedCustomUser->forceLoginToBeTheEmail) ? "text" : "email"; ?>" value="" required >
+                                <input  id="inputUser" placeholder="<?php echo !empty($advancedCustomUser->forceLoginToBeTheEmail) ? "me@example.com" : __("User"); ?>" class="form-control"  type="<?php echo empty($advancedCustomUser->forceLoginToBeTheEmail) ? "text" : "email"; ?>" value="" required >
                             </div>
                         </div>
                     </div>
@@ -120,7 +120,7 @@ if (!empty($_GET['error'])) {
             modal.showPleaseWait();
             $.ajax({
                 url: '<?php echo $global['webSiteRootURL']; ?>objects/login.json.php',
-                data: {"user": $('#inputUser').val(), "pass": $('#inputPassword').val(), "rememberme": $('#inputRememberMe').is(":checked"), "captcha": $('#captchaText').val()},
+                data: {"user": $('#inputUser').val(), "pass": $('#inputPassword').val(), "rememberme": $('#inputRememberMe').is(":checked"), "captcha": $('#captchaText').val(), "redirectUri": "<?php print isset($_GET['redirectUri']) ? $_GET['redirectUri'] : ""; ?>"},
                 type: 'post',
                 success: function (response) {
                     if (!response.isLogged) {
@@ -135,7 +135,8 @@ if (!empty($_GET['error'])) {
                             $('#captchaForm').slideDown();
                         }
                     } else {
-                        document.location = '<?php echo $global['webSiteRootURL']; ?>'
+
+                        document.location = response.redirectUri;
                     }
                 }
             });

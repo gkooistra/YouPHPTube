@@ -10,7 +10,12 @@ if (!empty($_GET['c'])) {
         $_GET['u'] = $user['user'];
     }
 }
-
+if(!empty($_GET['c'])){
+    $user = User::getChannelOwner($_GET['c']);
+    if($user['status']!=='a'){
+        header("Location: {$global['webSiteRootURL']}");
+    }
+}
 if (!empty($_GET['u']) && !empty($_GET['embedv2'])) {
     include $global['systemRootPath'] . 'plugin/Live/view/videoEmbededV2.php';
     exit;
@@ -168,7 +173,7 @@ if (empty($channelName)) {
                                     <a class="btn btn-default" href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?resetKey=1"><i class="fa fa-refresh"></i> <?php echo __("Reset Key"); ?></a>
                                 </span>
                             </div>
-                            <span class="label label-warning"><i class="fa fa-warning"></i> <?php echo __("Anyone with this key can watch your live stream."); ?></span>
+                            <span class="label label-warning"><i class="fa fa-warning"></i> <?php echo __("Keep Key Private, Anyone with key can broadcast on your account"); ?></span>
                         </div>
                     </div>
                 </div>

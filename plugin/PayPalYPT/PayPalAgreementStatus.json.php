@@ -25,14 +25,14 @@ if(empty($agreement)){
     $obj->msg = "Agreement not found";
     die(json_encode($obj));
 }
-error_log("PayPalAgreementStatus: ".json_encode($agreement->getPlan()->payment_definitions));
+error_log("PayPalAgreementStatus: ".json_encode($agreement->getAgreementDetails()));
 $obj->error = false;
 $obj->msg  = "<b>State: </b>".$agreement->getState();
 $obj->msg .= "<br><b>Description: </b>".$agreement->getDescription();
-$obj->msg .= "<br><b>Plan: </b>".$agreement->getPlan()->name;
-$obj->msg .= "<br><b>Plan Frequency: </b>".$agreement->getPlan()->frequency;
-$obj->msg .= "<br><b>Plan Frequency Interval: </b>".$agreement->getPlan()->frequency_interval;
-$obj->msg .= "<br><b>Plan Value: </b>".$agreement->getPlan()->payment_definitions->amount->value." ".$agreement->getPlan()->payment_definitions->amount->currency;
+//$obj->msg .= "<br><b>Plan: </b>".$agreement->getPlan()->name;
+//$obj->msg .= "<br><b>Plan Frequency: </b>".$agreement->getPlan()->frequency;
+//$obj->msg .= "<br><b>Plan Frequency Interval: </b>".$agreement->getPlan()->frequency_interval;
+$obj->msg .= "<br><b>Last Payment: </b>".$agreement->getAgreementDetails()->last_payment_amount->value." ".$agreement->getAgreementDetails()->last_payment_amount->currency;
 $obj->msg .= "<br><b>Start Date: </b>".$agreement->getStartDate();
 $obj->msg .= "<br><b>Cycles Completed: </b>".$agreement->getAgreementDetails()->cycles_completed;
 $obj->msg .= "<br><b>Next Billing Date: </b>".$agreement->getAgreementDetails()->next_billing_date;
