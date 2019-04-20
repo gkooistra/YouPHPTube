@@ -505,13 +505,6 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
         $id = $matches[1];
         return '//www.youtube.com/embed/' . $id . '?modestbranding=1&showinfo='
                 . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&te=$time";
-    } else if (strpos($link, 'youtu.be') !== false) {
-        preg_match(
-                '/youtu.be\/([a-zA-Z0-9_]+)\??/i', $link, $matches
-        );
-        $id = $matches[1];
-        return '//www.youtube.com/embed/' . $id . '?modestbranding=1&showinfo='
-                . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
     } else if (strpos($link, 'player.vimeo.com') !== false) {
         // works on:
         // http://player.vimeo.com/video/37985580?title=0&amp;byline=0&amp;portrait=0
@@ -584,15 +577,16 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
 
         $id = $matches[2];
         return '//streamable.com/s/' . $id;
-    } else if (strpos($link, 'twitch.tv/videos') !== false) {
+    } 
+    else if (strpos($link, 'twitch.tv/videos') !== false) {
         //extract the ID
         preg_match(
                 '/\/\/(www\.)?twitch.tv\/videos\/([a-zA-Z0-9_-]+)$/', $link, $matches
         );
-
-        $id = $matches[2];
-        return '//player.twitch.tv/?video=' . $id . '#';
-    } else if (strpos($link, 'twitch.tv/videos') !== false) {
+        if(!empty($matches[2])){
+            $id = $matches[2];
+            return '//player.twitch.tv/?video=' . $id . '#';
+        }
         //extract the ID
         preg_match(
                 '/\/\/(www\.)?twitch.tv\/[a-zA-Z0-9_-]+\/v\/([a-zA-Z0-9_-]+)$/', $link, $matches
@@ -622,6 +616,9 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
 
     $url = $videoString;
     $url_parsed = parse_url($url);
+    if(empty($url_parsed['query'])){
+        return "";
+    }
     $new_qs_parsed = array();
 // Grab our first query string
     parse_str($url_parsed['query'], $new_qs_parsed);
@@ -1438,15 +1435,17 @@ function encryptPassword($password, $noSalt = false) {
 function encryptPasswordVerify($password, $hash, $encodedPass = false) {
     global $advancedCustom, $global;
     if (!$encodedPass || $encodedPass === 'false') {
+        error_log("encryptPasswordVerify: encrypt");
         $passwordSalted = encryptPassword($password);
         // in case you enable the salt later
         $passwordUnSalted = encryptPassword($password, true);
     } else {
+        error_log("encryptPasswordVerify: do not encrypt");
         $passwordSalted = $password;
         // in case you enable the salt later
         $passwordUnSalted = $password;
     }
-
+    //error_log("passwordSalted = $passwordSalted,  hash=$hash, passwordUnSalted=$passwordUnSalted");
     return $passwordSalted === $hash || $passwordUnSalted === $hash;
 }
 
@@ -1567,6 +1566,7 @@ function allowOrigin() {
 }
 
 if (!function_exists("rrmdir")) {
+
     function rrmdir($dir) {
         if (is_dir($dir)) {
             $objects = scandir($dir);
@@ -1581,4 +1581,53 @@ if (!function_exists("rrmdir")) {
             rmdir($dir);
         }
     }
+
+}
+
+/**
+ * You can now configure it on the configuration.php
+ * @return boolean
+ */
+function ddosProtection() {
+    global $global;
+    $maxCon = empty($global['ddosMaxConnections']) ? 40 : $global['ddosMaxConnections'];
+    $secondTimeout = empty($global['ddosSecondTimeout']) ? 5 : $global['ddosSecondTimeout'];
+    $whitelistedFiles = array(
+        'playlists.json.php',
+        'playlistsFromUserVideos.json.php'
+    );
+
+    if (in_array(basename($_SERVER["SCRIPT_FILENAME"]), $whitelistedFiles)) {
+        return true;
+    }
+
+    $time = time();
+    if (!isset($_SESSION['bruteForceBlock']) || empty($_SESSION['bruteForceBlock'])) {
+        $_SESSION['bruteForceBlock'] = array();
+        $_SESSION['bruteForceBlock'][] = $time;
+        return true;
+    }
+
+    $_SESSION['bruteForceBlock'][] = $time;
+
+    //remove requests that are older than secondTimeout
+    foreach ($_SESSION['bruteForceBlock'] as $key => $request_time) {
+        if ($request_time < $time - $secondTimeout) {
+            unset($_SESSION['bruteForceBlock'][$key]);
+        }
+    }
+
+    //progressive timeout-> more requests, longer timeout
+    $active_connections = count($_SESSION['bruteForceBlock']);
+    $timeoutReal = ($active_connections / $maxCon) < 1 ? 0 : ($active_connections / $maxCon) * $secondTimeout;
+    sleep($timeoutReal);
+
+    //with strict mode, penalize "attacker" with sleep() above, log and then die
+    if ($global['strictDDOSprotection'] && $timeoutReal > 0) {
+        $str = "bruteForceBlock: maxCon: $maxCon => secondTimeout: $secondTimeout | IP: " . getRealIpAddr() . " | count:" . count($_SESSION['bruteForceBlock']);
+        error_log($str);
+        die($str);
+    }
+
+    return true;
 }

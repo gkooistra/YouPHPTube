@@ -20,12 +20,7 @@ require_once $global['systemRootPath'] . 'objects/security.php';
 $config = new Configuration();
 
 // for update config from old versions
-if (function_exists("getAllFlags")) {
-    Configuration::rewriteConfigFile();
-}
-
-// for update config to v5.3
-if (empty($global['salt'])) {
+if (empty($global['configurationVersion']) || $global['configurationVersion'] < 2) {
     Configuration::rewriteConfigFile();
 }
 
@@ -39,8 +34,10 @@ ini_set('session.gc_maxlifetime', $config->getSession_timeout());
 // each client should remember their session id for EXACTLY 1 hour
 session_set_cookie_params($config->getSession_timeout());
 
-
 session_start();
+
+// DDOS protection can be disabled in video/configuration.php
+if(!empty($global['enableDDOSprotection'])) ddosProtection();
 
 // set the reffer for youPHPTube
 $url1['host'] = "";

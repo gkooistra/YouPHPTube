@@ -44,7 +44,11 @@ foreach ($playlists as $playlist) {
     $videosArrayId = PlayList::getVideosIdFromPlaylist($playlist['id']);
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
-    $videosP = Video::getAllVideosAsync("viewable", false, true, $videosArrayId);
+    if ($advancedCustom->AsyncJobs) {
+        $videosP = Video::getAllVideosAsync("viewable", false, true, $videosArrayId);
+    } else {
+        $videosP = Video::getAllVideos("viewable", false, true, $videosArrayId);
+    }
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
     //error_log("channelPlaylist videosP: ".json_encode($videosP));
@@ -102,9 +106,21 @@ foreach ($playlists as $playlist) {
                         <button class="btn btn-xs btn-danger deletePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><span class="fa fa-trash-o"></span> <?php echo __("Delete"); ?></button>
                         <button class="btn btn-xs btn-primary renamePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><span class="fa fa-pencil"></span> <?php echo __("Rename"); ?></button>
                         <button class="btn btn-xs btn-default statusPlaylist" playlist_id="<?php echo $playlist['id']; ?>" style="" >
-                            <span class="fa fa-lock" id="statusPrivate" style="color: red; <?php if($playlist['status']!=='private'){echo ' display: none;';} ?> " ></span> 
-                            <span class="fa fa-globe" id="statusPublic" style="color: green; <?php if($playlist['status']!=='public'){echo ' display: none;';} ?>"></span> 
-                            <span class="fa fa-eye-slash" id="statusUnlisted" style="color: gray;   <?php if($playlist['status']!=='unlisted'){echo ' display: none;';} ?>"></span>
+                            <span class="fa fa-lock" id="statusPrivate" style="color: red; <?php
+                            if ($playlist['status'] !== 'private') {
+                                echo ' display: none;';
+                            }
+                            ?> " ></span> 
+                            <span class="fa fa-globe" id="statusPublic" style="color: green; <?php
+                            if ($playlist['status'] !== 'public') {
+                                echo ' display: none;';
+                            }
+                            ?>"></span> 
+                            <span class="fa fa-eye-slash" id="statusUnlisted" style="color: gray;   <?php
+                            if ($playlist['status'] !== 'unlisted') {
+                                echo ' display: none;';
+                            }
+                            ?>"></span>
                         </button>
                         <?php
                     }
@@ -132,9 +148,15 @@ foreach ($playlists as $playlist) {
                         $images = Video::getImageFromFilename($value['filename'], $value['type']);
                         $imgGif = $images->thumbsGif;
                         $poster = $images->thumbsJpg;
+                        $class = "";
+                        $style = "";
+                        if($count>6){
+                            $class = "showMoreLess{$playlist['id']}";
+                            $style = "display: none;";
+                        }
                         ?>
-                        <li class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo " id="<?php echo $value['id']; ?>">
-                            <div class="panel panel-default" playListId="<?php echo $playlist['id']; ?>">
+                        <li class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo <?php echo $class; ?> " id="<?php echo $value['id']; ?>" style="padding: 1px;  <?php echo $style; ?>">
+                            <div class="panel panel-default" playListId="<?php echo $playlist['id']; ?>" style="min-height: 208px;">
                                 <div class="panel-body" style="overflow: hidden;">
 
                                     <a class="aspectRatio16_9" href="<?php echo $global['webSiteRootURL']; ?>video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>" style="margin: 0;" >
@@ -144,7 +166,7 @@ foreach ($playlists as $playlist) {
                                     <a class="hrefLink" href="<?php echo $global['webSiteRootURL']; ?>video/<?php echo $value['clean_title']; ?>" title="<?php echo $value['title']; ?>">
                                         <h2><?php echo $value['title']; ?></h2>
                                     </a>
-                                    <div class="text-muted galeryDetails">
+                                    <div class="text-muted galeryDetails" style="min-height: 60px;">
                                         <div>
                                             <?php
                                             $value['tags'] = Video::getTags($value['id']);
@@ -221,6 +243,10 @@ foreach ($playlists as $playlist) {
                 </div>
             </div>
 
+            <div class="panel-footer">
+                <button class="btn btn-default btn-xs btn-sm showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();$('.<?php echo $class; ?>').slideDown();"><i class="fas fa-angle-down"></i> <?php echo __('Show More'); ?></button>
+                <button class="btn btn-default btn-xs btn-sm  showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();$('.<?php echo $class; ?>').slideUp();" style="display: none;"><i class="fas fa-angle-up"></i> <?php echo __('Show Less'); ?></button>
+            </div>  
             <?php
         }
         ?>
