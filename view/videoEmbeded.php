@@ -5,13 +5,25 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
+
 require_once $global['systemRootPath'] . 'objects/video.php';
+
+// for mobile login
+if(!empty($_GET['user']) && !empty($_GET['pass'])){
+    $user = $_GET['user'];
+    $password = $_GET['pass'];
+
+    $userObj = new User(0, $user, $password);
+    $userObj->login(false, true);
+}
 
 if (!empty($_GET['v'])) {
     $video = Video::getVideo($_GET['v'], "viewable", false, false, false, true);
 } else if (!empty($_GET['videoName'])) {
     $video = Video::getVideoFromCleanTitle($_GET['videoName']);
 }
+
+Video::unsetAddView($video['id']);
 
 if (empty($video)) {
     die("Video not found");
@@ -94,7 +106,7 @@ if (!empty($_GET['t'])) {
 } else if (!empty($video['progress']['lastVideoTime'])) {
     $t = intval($video['progress']['lastVideoTime']);
 } else if (!empty($video['externalOptions']->videoStartSeconds)) {
-    $t = intval($video['externalOptions']->videoStartSeconds);
+    $t = parseDurationToSeconds($video['externalOptions']->videoStartSeconds);
 }
 ?>
 <!DOCTYPE html>
@@ -157,7 +169,7 @@ if (!empty($_GET['t'])) {
         <?php
         if ($video['type'] == "embed") {
             ?>
-            <video playsinline id="mainVideo" style="display: none; height: 0;width: 0;" ></video>
+            <video id="mainVideo" style="display: none; height: 0;width: 0;" ></video>
             <iframe style="width: 100%; height: 100%;"  class="embed-responsive-item" src="<?php
         echo parseVideos($video['videoLink']);
         if ($autoplay) {
@@ -168,9 +180,9 @@ if (!empty($_GET['t'])) {
                     echo YouPHPTubePlugin::getFooterCode();
                     ?>
             <script>
-                $(document).ready(function () {
-                    addView(<?php echo $video['id']; ?>, 0);
-                });
+            $(document).ready(function () {
+                addView(<?php echo $video['id']; ?>, 0);
+            });
             </script>
             <?php
         } else if ($video['type'] == "audio" && !file_exists("{$global['systemRootPath']}videos/{$video['filename']}.mp4")) {
@@ -205,7 +217,7 @@ if (!empty($_GET['t'])) {
             <?php
         } else {
             ?>
-            <video style="width: 100%; height: 100%;" playsinline poster="<?php echo $poster; ?>" <?php echo $controls; ?> <?php echo $loop; ?>   <?php echo $mute; ?>
+            <video style="width: 100%; height: 100%; position: absolute; top: 0;" playsinline webkit-playsinline poster="<?php echo $poster; ?>" <?php echo $controls; ?> <?php echo $loop; ?>   <?php echo $mute; ?>
                    class="video-js vjs-default-skin vjs-big-play-centered <?php echo $vjsClass; ?> " id="mainVideo"  data-setup='{"fluid": true }'>
                        <?php
                        echo getSources($video['filename']);
@@ -221,7 +233,7 @@ if (!empty($_GET['t'])) {
                 $style = VideoLogoOverlay::getStyle();
                 $url = VideoLogoOverlay::getLink();
                 ?>
-                <div style="<?php echo $style; ?>">
+                <div style="<?php echo $style; ?>" class="VideoLogoOverlay">
                     <a href="<?php echo $url; ?>"  target="_blank">
                         <img src="<?php echo $global['webSiteRootURL']; ?>videos/logoOverlay.png"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6">
                     </a>
@@ -250,6 +262,10 @@ if (!empty($_GET['t'])) {
                         if (time >= 5 && time % 5 === 0) {
                             addView(<?php echo $video['id']; ?>, time);
                         }
+                    });
+                    player.on('ended', function () {
+                        var time = Math.round(this.currentTime());
+                        addView(<?php echo $video['id']; ?>, time);
                     });
 
     <?php

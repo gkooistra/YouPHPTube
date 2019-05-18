@@ -4,6 +4,7 @@ $isChannel = 1; // still workaround, for gallery-functions, please let it there.
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
+
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/category.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
@@ -52,6 +53,10 @@ if (empty($video)) {
 if(empty($video)){
     $video = YouPHPTubePlugin::getVideo();
 }
+
+// allow users to count a view again in case it is refreshed
+Video::unsetAddView($video['id']);
+
 // add this because if you change the video category the video was not loading anymore
 $_GET['catName'] = $catName;
 
@@ -147,17 +152,17 @@ if ($video['type'] == "video") {
 
 if (!empty($video)) {
     $source = Video::getSourceFile($video['filename']);
-    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio")) {
+    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
         $img = $source['url'];
         $data = getimgsize($source['path']);
         $imgw = $data[0];
         $imgh = $data[1];
-    } else {
+    } else if($video['type'] == "audio"){
         $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
     }
     $images = Video::getImageFromFilename($video['filename']);
     $poster = $images->poster;
-    if (!empty($images->posterPortrait)) {
+    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg') {
         $img = $images->posterPortrait;
         $data = getimgsize($source['path']);
         $imgw = $data[0];
@@ -187,7 +192,9 @@ if (empty($_GET['videoName'])) {
 
 $v = Video::getVideoFromCleanTitle($_GET['videoName']);
 
+
 YouPHPTubePlugin::getModeYouTube($v['id']);
+
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -387,8 +394,11 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                                     continue;
                                                 }
                                             }
+                                            if(strpos($theLink['url'], '?') === false){
+                                                $theLink['url'] .= "?download=1&title=".urlencode($video['title'] . "_{$key}_.mp4");
+                                            }
                                             ?>
-                                            <a href="<?php echo $theLink['url']; ?>?download=1&title=<?php echo urlencode($video['title'] . "_{$key}_.mp4"); ?>" class="list-group-item list-group-item-action" target="_blank">
+                                            <a href="<?php echo $theLink['url']; ?>" class="list-group-item list-group-item-action" target="_blank">
                                                 <i class="fas fa-download"></i> <?php echo $key; ?>
                                             </a>
                                             <?php
@@ -456,7 +466,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                             </div>
                                             <div class="tab-pane" id="tabEmbed">
                                                 <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?>:</h4>
-                                                <textarea class="form-control" style="min-width: 100%" rows="5" id="textAreaEmbed"><?php
+                                                <textarea class="form-control" style="min-width: 100%" rows="5" id="textAreaEmbed" readonly="readonly"><?php
                                                     if ($video['type'] == 'video' || $video['type'] == 'embed') {
                                                         $code = '<iframe width="640" height="360" style="max-width: 100%;max-height: 100%; border:none;" src="' . Video::getLink($video['id'], $video['clean_title'], true) . '" frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay" scrolling="no">iFrame is not supported!</iframe>';
                                                     } else {

@@ -383,6 +383,9 @@ function getMinutesTotalVideosLength() {
 }
 
 function secondsToVideoTime($seconds) {
+    if(!is_numeric($seconds)){
+        return $seconds;
+    }
     $seconds = round($seconds);
     $hours = floor($seconds / 3600);
     $mins = floor($seconds / 60 % 60);
@@ -391,6 +394,9 @@ function secondsToVideoTime($seconds) {
 }
 
 function parseDurationToSeconds($str) {
+    if(is_numeric($str)){
+        return intval($str);
+    }
     $durationParts = explode(":", $str);
     if (empty($durationParts[1]) || $durationParts[0] == "EE") {
         return 0;
@@ -485,8 +491,9 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
         $link = $videoString;
     }
 
-    if (strpos($link, 'embed') !== false) {
-        return $link;
+    if (stripos($link, 'embed') !== false) {
+        return $link. (parse_url($link, PHP_URL_QUERY) ? '&' : '?') . 'modestbranding=1&showinfo='
+                . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
     } else if (strpos($link, 'youtube.com') !== false) {
 
         preg_match(

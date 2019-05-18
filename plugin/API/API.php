@@ -42,7 +42,7 @@ class API extends PluginAbstract {
             }
             if (!empty($parameters['user']) && !empty($parameters['password'])) {
                 $user = new User("", $parameters['user'], $parameters['password']);
-                $user->login(false, !empty($parameters['encodedPass']));
+                $user->login(false, @$parameters['encodedPass']);
             }
             $APIName = $parameters['APIName'];
             if (method_exists($this, "set_api_$APIName")) {
@@ -67,7 +67,7 @@ class API extends PluginAbstract {
                     $parameters['encodedPass'] = false;
                 }
                 $user = new User("", $parameters['user'], $parameters['password']);
-                $user->login(false, !empty($parameters['encodedPass']));
+                $user->login(false, @$parameters['encodedPass']);
             }
             $APIName = $parameters['APIName'];
             if (method_exists($this, "get_api_$APIName")) {
@@ -158,7 +158,13 @@ class API extends PluginAbstract {
             $totalRows = Video::getTotalVideos();
         }
         $SubtitleSwitcher = YouPHPTubePlugin::loadPluginIfEnabled("SubtitleSwitcher");
-        foreach ($rows as $key=>$value) {       
+        foreach ($rows as $key=>$value) {
+            if(is_object($value)){
+                $value = object_to_array($value);
+            }
+            if(empty($value['filename'])){
+                continue;
+            }
             $rows[$key]['images'] = Video::getImageFromFilename($value['filename']);
             $rows[$key]['videos'] = Video::getVideosPaths($value['filename'], true);
             if ($SubtitleSwitcher) {
