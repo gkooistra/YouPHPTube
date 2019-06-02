@@ -52,7 +52,7 @@ if (!empty($_GET['msg'])) {
 }
 ?>
 <?php
-if (!empty($_GET['success']) && strlen($_GET['success'])>4) {
+if (!empty($_GET['success']) && strlen($_GET['success']) > 4) {
     ?>
             swal({title: "<?php echo __("Congratulations"); ?>", text: "<?php echo $_GET['success']; ?>", type: "success", html: true});
     <?php
@@ -65,12 +65,12 @@ if (!empty($_GET['success']) && strlen($_GET['success'])>4) {
 $jsFiles = array();
 $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.min.js";
 $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.plugins.min.js";
+$jsFiles[] = "view/js/script.js";
 $jsFiles[] = "view/bootstrap/js/bootstrap.min.js";
 $jsFiles[] = "view/js/seetalert/sweetalert.min.js";
 $jsFiles[] = "view/js/bootpag/jquery.bootpag.min.js";
 $jsFiles[] = "view/js/bootgrid/jquery.bootgrid.js";
 $jsFiles[] = "view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js";
-$jsFiles[] = "view/js/script.js";
 //$jsFiles[] = "view/js/bootstrap-toggle/bootstrap-toggle.min.js";
 $jsFiles[] = "view/js/js-cookie/js.cookie.js";
 $jsFiles[] = "view/css/flagstrap/js/jquery.flagstrap.min.js";
@@ -104,6 +104,9 @@ require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
 <?php
 if (isset($_SESSION['savedQuerys'])) {
     echo "<!-- Saved querys: " . $_SESSION['savedQuerys'] . " -->";
+}
+if (!empty($advancedCustom->footerHTMLCode->value)) {
+    echo $advancedCustom->footerHTMLCode->value;
 }
 ?>
 <textarea id="elementToCopy" style="

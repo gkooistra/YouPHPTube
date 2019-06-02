@@ -673,9 +673,84 @@ function canUseCDN($videos_id) {
     return $canUseCDN[$videos_id];
 }
 
-function getVideosURL($fileName) {
+function clearVideosURL($fileName="") {
+    global $global;
+    $path = "{$global['systemRootPath']}videos/cache/getVideosURL/";
+    if(empty($path)){
+        rrmdir($path);
+    }else{
+        $cacheFilename = "{$path}{$fileName}.cache";
+        @unlink($cacheFilename);
+    }
+}
+
+$minimumExpirationTime = false;
+function minimumExpirationTime(){
+    global $minimumExpirationTime;
+    if(empty($minimumExpirationTime)){
+        $aws_s3 = YouPHPTubePlugin::getObjectDataIfEnabled('AWS_S3');
+        $bb_b2 = YouPHPTubePlugin::getObjectDataIfEnabled('Blackblaze_B2');
+        $secure = YouPHPTubePlugin::getObjectDataIfEnabled('SecureVideosDirectory');
+        $minimumExpirationTime = 60*60*24*365;//1 year
+        if(!empty($aws_s3) && $aws_s3->presignedRequestSecondsTimeout < $minimumExpirationTime){
+            $minimumExpirationTime = $aws_s3->presignedRequestSecondsTimeout;
+        }
+        if(!empty($bb_b2) && $bb_b2->presignedRequestSecondsTimeout < $minimumExpirationTime){
+            $minimumExpirationTime = $bb_b2->presignedRequestSecondsTimeout;
+        }
+        if(!empty($secure) && $secure->tokenTimeOut < $minimumExpirationTime){
+            $minimumExpirationTime = $secure->tokenTimeOut;
+        }
+    }
+    return $minimumExpirationTime;
+}
+
+$cacheExpirationTime = false;
+function cacheExpirationTime(){
+    global $cacheExpirationTime;
+    if(empty($cacheExpirationTime)){
+        $obj = YouPHPTubePlugin::getObjectDataIfEnabled('Cache');
+        $cacheExpirationTime = $obj->cacheTimeInSeconds;
+    }
+    return intval($cacheExpirationTime);
+}
+
+/**
+ * tell if a file should recreate a cache, based on its time and the plugins toke expirations
+ * @param type $filename
+ * @return boolean
+ */
+function recreateCache($filename){
+    if(!file_exists($filename) || time()-filemtime($filename)>  minimumExpirationTime()){
+        return true;
+    }
+    return false;
+}
+
+function getVideosURL($fileName, $cache = true) {
+    global $global;
     if (empty($fileName)) {
         return array();
+    }
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $start = $time;
+    
+    $path = "{$global['systemRootPath']}videos/cache/getVideosURL/";
+    make_path($path);
+    $cacheFilename = "{$path}{$fileName}.cache";
+    //var_dump($cacheFilename, recreateCache($cacheFilename), minimumExpirationTime());
+    if(file_exists($cacheFilename) && $cache && !recreateCache($cacheFilename)){
+        $json = file_get_contents($cacheFilename);
+        $time = microtime();
+        $time = explode(' ', $time);
+        $time = $time[1] + $time[0];
+        $finish = $time;
+        $total_time = round(($finish - $start), 4);
+        error_log("getVideosURL Cache in {$total_time} seconds. fileName: $fileName ");
+        error_log("getVideosURL age: ".(time()-filemtime($cacheFilename))." minimumExpirationTime: ".minimumExpirationTime());
+        return object_to_array(json_decode($json));
     }
     global $global;
     $types = array('', '_Low', '_SD', '_HD');
@@ -763,6 +838,15 @@ function getVideosURL($fileName) {
             }
         }
     }
+    
+    file_put_contents($cacheFilename, json_encode($files));
+    
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $finish = $time;
+    $total_time = round(($finish - $start), 4);
+    error_log("getVideosURL generated in {$total_time} seconds. fileName: $fileName ");
     return $files;
 }
 
