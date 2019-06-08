@@ -7,8 +7,13 @@ require_once $global['systemRootPath'] . 'plugin/StripeYPT/init.php';
 class StripeYPT extends PluginAbstract {
 
     public function getDescription() {
-        return "Stripe module for several purposes<br>
-            Go to Stripe dashboard Site here https://dashboard.stripe.com/test/apikeys (you must have Stripe account, of course)";
+        $str = "Stripe module for several purposes<br>
+            Go to Stripe dashboard Site <a href='https://dashboard.stripe.com/apikeys'>here</a>  (you must have Stripe account, of course)<br>";
+        $str .= "Before you can verify signatures, you need to retrieve your endpoint’s secret from your Dashboard’s"
+                . " <br><a href='https://dashboard.stripe.com/account/webhooks'>Webhooks settings</a>."
+                . " <br>Select an endpoint that you want to obtain the secret for, then select the Click to reveal button."
+                . " <br><strong>The SigningSecret will be available after your first purchase attempt, Webhook will be created automatically.</strong>";
+        return $str;
     }
 
     public function getName() {
@@ -27,22 +32,39 @@ class StripeYPT extends PluginAbstract {
         $obj = new stdClass();
         $obj->Publishablekey = "pk_test_aQT12wEjRLKhXgk77TX4ftfa";
         $obj->Restrictedkey = "rk_test_kjyL5JaoAQwyiptuRlSzYJMZ00kRqXkLux";
-        $obj->disableSandbox = false;
+        //Before you can verify signatures, you need to retrieve your endpoint’s secret from your Dashboard’s Webhooks settings. Select an endpoint that you want to obtain the secret for, then select the Click to reveal button.
+        $obj->SigningSecret = "whsec_54gqoVeSuoeXEiNPcFhMN0jkBZY0JJG3";
+        //$obj->disableSandbox = false;
         return $obj;
     }
 
-    private function start() {
+    function start() {
         global $global;
         $obj = $this->getDataObject();
         $notify_url = "{$global['webSiteRootURL']}plugin/StripeYPT/ipn.php";
 
         \Stripe\Stripe::setApiKey($obj->Restrictedkey);
-        if(!empty($obj->disableSandbox)){
-            \Stripe\WebhookEndpoint::create([
-                "url" => $notify_url,
-                "enabled_events" => ["*"]
-            ]);
+        $this->getWebhook();
+    }
+
+    function getWebhook() {
+        global $global;
+        $webhooks = \Stripe\WebhookEndpoint::all(["limit" => 20]);
+        $notify_url = "{$global['webSiteRootURL']}plugin/StripeYPT/ipn.php";
+        if (!empty($webhooks->data)) {
+            foreach ($webhooks->data as $value) {
+                if ($value->url === $notify_url) {
+                    return $value;
+                }
+                //$endpoint = \Stripe\WebhookEndpoint::retrieve($value->id);
+                //$endpoint->delete();
+            }
         }
+
+        return \Stripe\WebhookEndpoint::create([
+                    "url" => $notify_url,
+                    "enabled_events" => ["*"]
+        ]);
     }
 
     public function setUpPayment($total = '1.00', $currency = "USD", $description = "") {
@@ -72,13 +94,13 @@ class StripeYPT extends PluginAbstract {
         return self::addDot($payment->amount);
     }
 
-    private static function addDot($value) {
-        $val = substr($payment->amount, 0, -2);
-        $cents = substr($payment->amount, -2);
+    static function addDot($value) {
+        $val = substr($value, 0, -2);
+        $cents = substr($value, -2);
         return floatval("$val.$cents");
     }
 
-    private static function removeDot($value) {
+    static function removeDot($value) {
         $value = floatval($value);
         return number_format($value, 2, "", "");
     }
@@ -211,16 +233,52 @@ class StripeYPT extends PluginAbstract {
 
         error_log("setUpSubscription: will start");
         $this->start();
-        $Subscription = \Stripe\Subscription::create([
+
+        $metadata = new stdClass();
+        $metadata->users_id = User::getId();
+        $metadata->plans_id = $plans_id;
+        $metadata->stripe_costumer_id = $sub['stripe_costumer_id'];
+
+        $parameters = [
                     "customer" => $sub['stripe_costumer_id'],
                     "items" => [
                         [
                             "plan" => $stripe_plan_id,
-                        ],
+                        ]
+                    ],
+                    "metadata" => [
+                        'users_id' => User::getId(),
+                        'plans_id' => $plans_id,
+                        'stripe_costumer_id' => $sub['stripe_costumer_id']
                     ]
-        ]);
-        error_log("setUpSubscription: result ".  json_encode($Subscription));
+        ];
+        
+        $trialDays = $subs->getHow_many_days_trial();
+        if(!empty($trialDays)) {
+            $trial = strtotime("+{$trialDays} days");
+            $parameters['trial_end'] = $trial;
+        }
+
+        $Subscription = \Stripe\Subscription::create($parameters);
+        error_log("setUpSubscription: result " . json_encode($Subscription));
         return $Subscription;
+    }
+
+    function processSubscriptionIPN($payload) {
+        if (!is_object($payload) || empty($payload->data->object->customer)) {
+            return false;
+        }
+        $pluginS = YouPHPTubePlugin::loadPluginIfEnabled("YPTWallet");
+        $plan = Subscription::getFromStripeCostumerId($payload->data->object->customer);
+        $payment_amount = StripeYPT::addDot($payload->data->object->amount);
+        $users_id = @$plan['users_id'];
+        $plans_id = @$plan['subscriptions_plans_id'];
+        if(!empty($users_id)){
+            $pluginS->addBalance($users_id, $payment_amount, "Stripe recurrent", json_encode($payload));
+            if(!empty($plans_id)){
+                Subscription::renew($users_id, $plans_id);                
+            }
+        }
     }
 
 }

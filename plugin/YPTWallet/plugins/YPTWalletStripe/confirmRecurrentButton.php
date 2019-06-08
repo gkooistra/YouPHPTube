@@ -1,5 +1,6 @@
 <?php
 $obj = YouPHPTubePlugin::getObjectData('StripeYPT');
+$uid = uniqid();
 ?>
 <style>
     /**
@@ -34,19 +35,21 @@ $obj = YouPHPTubePlugin::getObjectData('StripeYPT');
         background-color: #fefde5 !important;
     }
 </style>
-<button type="submit" class="btn btn-primary" id="YPTWalletStripeButton"><i class="fas fa-credit-card"></i> Credit Card</button>
+<button type="submit" class="btn btn-primary" id="YPTWalletStripeButton<?php echo $uid; ?>"><i class="fas fa-credit-card"></i> Credit Card</button>
 <script src="https://js.stripe.com/v3/"></script>
 
-<form action="<?php echo $global['webSiteRootURL']; ?>plugin/YPTWallet/plugins/YPTWalletStripe/requestSubscription.json.php" method="post" id="payment-form" style="display: none;">
+<form 
+    action="<?php echo $global['webSiteRootURL']; ?>plugin/YPTWallet/plugins/YPTWalletStripe/requestSubscription.json.php" 
+    method="post" id="payment-form<?php echo $uid; ?>" style="display: none;">
     <hr>
     <div class="panel panel-default">
         <div class="panel-heading"><strong>Credit or debit card</strong></div>
         <div class="panel-body">
-            <div id="card-element">
+            <div id="card-element<?php echo $uid; ?>">
                 <!-- A Stripe Element will be inserted here. -->
             </div>
             <!-- Used to display form errors. -->
-            <div id="card-errors" role="alert"></div>
+            <div id="card-errors<?php echo $uid; ?>" role="alert"></div>
         </div>
         <div class="panel-footer">
 
@@ -56,16 +59,16 @@ $obj = YouPHPTubePlugin::getObjectData('StripeYPT');
 </form>
 <script>
     $(document).ready(function () {
-        $('#YPTWalletStripeButton').click(function (evt) {
+        $('#YPTWalletStripeButton<?php echo $uid; ?>').click(function (evt) {
             evt.preventDefault();
-            $('#payment-form').slideToggle();
+            $('#payment-form<?php echo $uid; ?>').slideToggle();
         });
     });
     // Create a Stripe client.
-    var stripe = Stripe('<?php echo $obj->Publishablekey; ?>');
+    var stripe<?php echo $uid; ?> = Stripe('<?php echo $obj->Publishablekey; ?>');
 
     // Create an instance of Elements.
-    var elements = stripe.elements();
+    var elements<?php echo $uid; ?> = stripe<?php echo $uid; ?>.elements();
 
     // Custom styling can be passed to options when creating an Element.
     // (Note that this demo uses a wider set of styles than the guide below.)
@@ -86,14 +89,14 @@ $obj = YouPHPTubePlugin::getObjectData('StripeYPT');
     };
 
     // Create an instance of the card Element.
-    var card = elements.create('card', {style: style});
+    var card<?php echo $uid; ?> = elements<?php echo $uid; ?>.create('card', {style: style});
 
     // Add an instance of the card Element into the `card-element` <div>.
-    card.mount('#card-element');
+    card<?php echo $uid; ?>.mount('#card-element<?php echo $uid; ?>');
 
     // Handle real-time validation errors from the card Element.
-    card.addEventListener('change', function (event) {
-        var displayError = document.getElementById('card-errors');
+    card<?php echo $uid; ?>.addEventListener('change', function (event) {
+        var displayError = document.getElementById('card-errors<?php echo $uid; ?>');
         if (event.error) {
             displayError.textContent = event.error.message;
         } else {
@@ -102,15 +105,15 @@ $obj = YouPHPTubePlugin::getObjectData('StripeYPT');
     });
 
     // Handle form submission.
-    var form = document.getElementById('payment-form');
-    form.addEventListener('submit', function (event) {
+    var form<?php echo $uid; ?> = document.getElementById('payment-form<?php echo $uid; ?>');
+    form<?php echo $uid; ?>.addEventListener('submit', function (event) {
         event.preventDefault();
 
-        stripe.createToken(card).then(function (result) {
+        stripe<?php echo $uid; ?>.createToken(card<?php echo $uid; ?>).then(function (result) {
             console.log(result);
             if (result.error) {
                 // Inform the user if there was an error.
-                var errorElement = document.getElementById('card-errors');
+                var errorElement = document.getElementById('card-errors<?php echo $uid; ?>');
                 errorElement.textContent = result.error.message;
             } else {
                 // Send the token to your server.
@@ -135,13 +138,18 @@ $obj = YouPHPTubePlugin::getObjectData('StripeYPT');
             success: function (response) {
                 if (!response.error) {
                     $(".walletBalance").text(response.walletBalance);
-                    swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Payment complete!"); ?>", "success");
+                    setTimeout(function () {
+                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Payment complete!"); ?>", "success");
+                    }, 2000);
+                    setTimeout(function () {
+                        location.reload(); 
+                    }, 5000);
                 } else {
                     swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Error!"); ?>", "error");
+                    setTimeout(function () {
+                        modal.hidePleaseWait();
+                    }, 500);
                 }
-                setTimeout(function () {
-                    modal.hidePleaseWait();
-                }, 500);
 
             }
         });
