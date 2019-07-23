@@ -44,12 +44,13 @@ foreach ($playlists as $playlist) {
     $videosArrayId = PlayList::getVideosIdFromPlaylist($playlist['id']);
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
-    if(empty($videosArrayId)){
+    //getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true)
+    if (empty($videosArrayId)) {
         $videosP = array();
-    }else if ($advancedCustom->AsyncJobs) {
-        $videosP = Video::getAllVideosAsync("viewable", false, true, $videosArrayId);
+    } else if ($advancedCustom->AsyncJobs) {
+        $videosP = Video::getAllVideosAsync("viewable", false, true, $videosArrayId, false, true);
     } else {
-        $videosP = Video::getAllVideos("viewable", false, true, $videosArrayId);
+        $videosP = Video::getAllVideos("viewable", false, true, $videosArrayId, false, true);
     }
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
@@ -88,15 +89,17 @@ foreach ($playlists as $playlist) {
                         $("#sortable<?php echo $playlist['id']; ?>").disableSelection();
                     });
                 </script>
+                <div class="dropdown" style="display: inline-block;">
+                    <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown"><?php echo __("Auto Sort"); ?>
+                        <span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li><a href="<?php echo $global['webSiteRootURL']; ?>objects/playlistSort.php?playlist_id=<?php echo $playlist['id']; ?>&sort=1"><?php echo __("Alphabetical"); ?> A-Z</a></li>
+                        <li><a href="<?php echo $global['webSiteRootURL']; ?>objects/playlistSort.php?playlist_id=<?php echo $playlist['id']; ?>&sort=2"><?php echo __("Alphabetical"); ?> Desc Z-A</a></li>
+                        <li><a href="<?php echo $global['webSiteRootURL']; ?>objects/playlistSort.php?playlist_id=<?php echo $playlist['id']; ?>&sort=3"><?php echo __("Created Date"); ?></a></li>
+                    </ul>
+                </div>
                 <div class="pull-right btn-group">
-
                     <?php
-                    if (!empty($videosArrayId)) {
-                        ?>
-                        <button class="btn btn-xs btn-info" ><i class="fa fa-info-circle"></i> <?php echo __("Drag and drop to sort"); ?></button>
-
-                        <?php
-                    }
                     if ($playlist['status'] != "favorite" && $playlist['status'] != "watch_later") {
                         if (YouPHPTubePlugin::isEnabledByName("PlayLists")) {
                             ?>
@@ -107,18 +110,18 @@ foreach ($playlists as $playlist) {
                         ?>
                         <button class="btn btn-xs btn-danger deletePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><span class="fa fa-trash-o"></span> <?php echo __("Delete"); ?></button>
                         <button class="btn btn-xs btn-primary renamePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><span class="fa fa-pencil"></span> <?php echo __("Rename"); ?></button>
-                        <button class="btn btn-xs btn-default statusPlaylist" playlist_id="<?php echo $playlist['id']; ?>" style="" >
-                            <span class="fa fa-lock" id="statusPrivate" style="color: red; <?php
+                        <button class="btn btn-xs btn-default statusPlaylist statusPlaylist<?php echo $playlist['id']; ?>" playlist_id="<?php echo $playlist['id']; ?>" style="" >
+                            <span class="fa fa-lock" id="statusPrivate<?php echo $playlist['id']; ?>" style="color: red; <?php
                             if ($playlist['status'] !== 'private') {
                                 echo ' display: none;';
                             }
                             ?> " ></span> 
-                            <span class="fa fa-globe" id="statusPublic" style="color: green; <?php
+                            <span class="fa fa-globe" id="statusPublic<?php echo $playlist['id']; ?>" style="color: green; <?php
                             if ($playlist['status'] !== 'public') {
                                 echo ' display: none;';
                             }
                             ?>"></span> 
-                            <span class="fa fa-eye-slash" id="statusUnlisted" style="color: gray;   <?php
+                            <span class="fa fa-eye-slash" id="statusUnlisted<?php echo $playlist['id']; ?>" style="color: gray;   <?php
                             if ($playlist['status'] !== 'unlisted') {
                                 echo ' display: none;';
                             }
@@ -152,7 +155,7 @@ foreach ($playlists as $playlist) {
                         $poster = $images->thumbsJpg;
                         $class = "";
                         $style = "";
-                        if($count>6){
+                        if ($count > 6) {
                             $class = "showMoreLess{$playlist['id']}";
                             $style = "display: none;";
                         }
@@ -248,6 +251,13 @@ foreach ($playlists as $playlist) {
             <div class="panel-footer">
                 <button class="btn btn-default btn-xs btn-sm showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();$('.<?php echo $class; ?>').slideDown();"><i class="fas fa-angle-down"></i> <?php echo __('Show More'); ?></button>
                 <button class="btn btn-default btn-xs btn-sm  showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();$('.<?php echo $class; ?>').slideUp();" style="display: none;"><i class="fas fa-angle-up"></i> <?php echo __('Show Less'); ?></button>
+                <?php
+                if (!empty($videosArrayId)) {
+                    ?>
+                    <span class="label label-info" ><i class="fa fa-info-circle"></i> <?php echo __("Drag and drop to sort"); ?></span>
+                    <?php
+                }
+                ?>
             </div>  
             <?php
         }
@@ -377,22 +387,22 @@ $_GET['channelName'] = $channelName;
         });
 
         $('.statusPlaylist').click(function () {
-            status = "public";
-            if ($('#statusPrivate').is(":visible")) {
+            var playlist_id = $(this).attr('playlist_id');
+            var status = "public";
+            if ($('#statusPrivate' + playlist_id).is(":visible")) {
                 status = "public";
-                $('.statusPlaylist span').hide();
-                $('#statusPublic').fadeIn();
-            } else if ($('#statusPublic').is(":visible")) {
+                $('.statusPlaylist' + playlist_id + ' span').hide();
+                $('#statusPublic' + playlist_id).fadeIn();
+            } else if ($('#statusPublic' + playlist_id).is(":visible")) {
                 status = "unlisted";
-                $('.statusPlaylist span').hide();
-                $('#statusUnlisted').fadeIn();
-            } else if ($('#statusUnlisted').is(":visible")) {
+                $('.statusPlaylist' + playlist_id + ' span').hide();
+                $('#statusUnlisted' + playlist_id).fadeIn();
+            } else if ($('#statusUnlisted' + playlist_id).is(":visible")) {
                 status = "private";
-                $('.statusPlaylist span').hide();
-                $('#statusPrivate').fadeIn();
+                $('.statusPlaylist' + playlist_id + ' span').hide();
+                $('#statusPrivate' + playlist_id).fadeIn();
             }
             modal.showPleaseWait();
-            var playlist_id = $(this).attr('playlist_id');
             console.log(playlist_id);
             $.ajax({
                 url: '<?php echo $global['webSiteRootURL']; ?>objects/playlistStatus.php',

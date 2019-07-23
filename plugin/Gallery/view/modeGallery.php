@@ -45,9 +45,9 @@ if ($obj->sortReverseable) {
     $orderString = str_replace("&&", "&", $orderString);
     $orderString = str_replace("//", "/", $orderString);
 }
-$video = Video::getVideo("", "viewable", false, false, true);
+$video = Video::getVideo("", "viewable", !$obj->hidePrivateVideos, false, true);
 if (empty($video)) {
-    $video = Video::getVideo("", "viewable");
+    $video = Video::getVideo("", "viewable", !$obj->hidePrivateVideos, true);
 }
 if (empty($_GET['page'])) {
     $_GET['page'] = 1;
@@ -136,16 +136,16 @@ $contentSearchFound = false;
                         <!-- For Live Videos End -->
                         <?php
                         if ($obj->SortByName) {
-                            createGallery(!empty($obj->SortByNameCustomTitle) ? $obj->SortByNameCustomTitle : __("Sort by name"), 'title', $obj->SortByNameRowCount, 'sortByNameOrder', "zyx", "abc", $orderString);
+                            createGallery(!empty($obj->SortByNameCustomTitle) ? $obj->SortByNameCustomTitle : __("Sort by name"), 'title', $obj->SortByNameRowCount, 'sortByNameOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos);
                         }
                         if ($obj->DateAdded) {
-                            createGallery(!empty($obj->DateAddedCustomTitle) ? $obj->DateAddedCustomTitle : __("Date added"), 'created', $obj->DateAddedRowCount, 'dateAddedOrder', __("newest"), __("oldest"), $orderString, "DESC");
+                            createGallery(!empty($obj->DateAddedCustomTitle) ? $obj->DateAddedCustomTitle : __("Date added"), 'created', $obj->DateAddedRowCount, 'dateAddedOrder', __("newest"), __("oldest"), $orderString, "DESC", !$obj->hidePrivateVideos);
                         }
                         if ($obj->MostWatched) {
-                            createGallery(!empty($obj->MostWatchedCustomTitle) ? $obj->MostWatchedCustomTitle : __("Most watched"), 'views_count', $obj->MostWatchedRowCount, 'mostWatchedOrder', __("Most"), __("Fewest"), $orderString, "DESC");
+                            createGallery(!empty($obj->MostWatchedCustomTitle) ? $obj->MostWatchedCustomTitle : __("Most watched"), 'views_count', $obj->MostWatchedRowCount, 'mostWatchedOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos);
                         }
                         if ($obj->MostPopular) {
-                            createGallery(!empty($obj->MostPopularCustomTitle) ? $obj->MostPopularCustomTitle : __("Most popular"), 'likes', $obj->MostPopularRowCount, 'mostPopularOrder', __("Most"), __("Fewest"), $orderString, "DESC");
+                            createGallery(!empty($obj->MostPopularCustomTitle) ? $obj->MostPopularCustomTitle : __("Most popular"), 'likes', $obj->MostPopularRowCount, 'mostPopularOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos);
                         }
                         if ($obj->SubscribedChannels && User::isLogged() && empty($_GET['showOnly'])) {
                             $channels = Subscribe::getSubscribedChannels(User::getId());
@@ -154,7 +154,7 @@ $contentSearchFound = false;
                                 createChannelItem($value['users_id'], $value['photoURL'], $value['identification'], $obj->SubscribedChannelsRowCount);
                             }
                         }
-                        if ($obj->Categories && empty($_GET['catName'])) {
+                        if ($obj->Categories && empty($_GET['catName']) && empty($_GET['showOnly'])) {
                             unset($_POST['sort']);
                             $_POST['sort']['name'] = "ASC";
                             $categories = Category::getAllCategories();

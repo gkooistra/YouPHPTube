@@ -94,8 +94,8 @@ if (!class_exists('Video')) {
                 die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
             }
         }
-        
-        function addViewPercent($percent=25) {
+
+        function addViewPercent($percent = 25) {
             global $global;
             if (empty($this->id)) {
                 return false;
@@ -110,18 +110,18 @@ if (!class_exists('Video')) {
                 die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
             }
         }
-        
+
         // allow users to count a view again in case it is refreshed
-        static function unsetAddView($videos_id){
+        static function unsetAddView($videos_id) {
             // allow users to count a view again in case it is refreshed
-            if(!empty($_SESSION['addViewCount'][$videos_id]['time']) && $_SESSION['addViewCount'][$videos_id]['time'] <= time()){
+            if (!empty($_SESSION['addViewCount'][$videos_id]['time']) && $_SESSION['addViewCount'][$videos_id]['time'] <= time()) {
                 $close = false;
                 if (session_status() == PHP_SESSION_NONE) {
                     session_start();
                     $close = true;
                 }
                 unset($_SESSION['addViewCount'][$videos_id]);
-                if(!empty($close)){
+                if (!empty($close)) {
                     session_write_close();
                 }
             }
@@ -470,6 +470,7 @@ if (!class_exists('Video')) {
                 if ($global['mysqli']->errno != 0) {
                     die('Error on update Status: (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
                 }
+                self::deleteTagsAsync($this->id);
             }
             $this->status = $status;
         }
@@ -627,7 +628,7 @@ if (!class_exists('Video')) {
 
             if (!empty($_GET['channelName'])) {
                 $user = User::getChannelOwner($_GET['channelName']);
-                if(!empty($user['id'])){
+                if (!empty($user['id'])) {
                     $sql .= " AND v.users_id = '{$user['id']}' ";
                 }
             }
@@ -721,7 +722,7 @@ if (!class_exists('Video')) {
                 $video = sqlDAL::fetchAssoc($res);
                 sqlDAL::close($res);
                 if (!empty($video['id'])) {
-                    return self::getVideo($video['id'], "", $ignoreGroup);
+                    return self::getVideo($video['id'], "", $ignoreGroup, false, false, true);
                 }
 //$video['groups'] = UserGroups::getVideoGroups($video['id']);
             }
@@ -851,7 +852,7 @@ if (!class_exists('Video')) {
                     $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name', 'c.description'));
                 }
             }
-            
+
             $sql .= YouPHPTubePlugin::getVideoWhereClause();
 
             $sql .= BootGrid::getSqlFromPost(array(), empty($_POST['sort']['likes']) ? "v." : "", "", true);
@@ -860,7 +861,7 @@ if (!class_exists('Video')) {
                 $sql .= " LIMIT 1";
                 unset($_GET['limitOnceToOne']);
             }
-            
+
 //echo $sql;exit;
 //error_log("getAllVideos($status, $showOnlyLoggedUserVideos , $ignoreGroup , ". json_encode($videosArrayId).")" . $sql);
             $res = sqlDAL::readSql($sql);
@@ -967,7 +968,7 @@ if (!class_exists('Video')) {
             }
 
             $sql .= YouPHPTubePlugin::getVideoWhereClause();
-            
+
             $res = sqlDAL::readSql($sql);
             $fullData = sqlDAL::fetchAllAssoc($res);
             sqlDAL::close($res);
@@ -1039,11 +1040,11 @@ if (!class_exists('Video')) {
                 $uid = intval($user['id']);
                 $sql .= " AND v.users_id = '{$uid}' ";
             }
-                        
+
             $sql .= YouPHPTubePlugin::getVideoWhereClause();
-            
+
             $sql .= BootGrid::getSqlSearchFromPost(array('v.title', 'v.description', 'c.name'));
-            
+
             $res = sqlDAL::readSql($sql);
             $numRows = sqlDal::num_rows($res);
             sqlDAL::close($res);
@@ -1112,9 +1113,11 @@ if (!class_exists('Video')) {
               xogg = encoding ogg error
              */
             $viewable = array('a', 'xmp4', 'xwebm', 'xmp3', 'xogg');
-            if (!empty($_GET['videoName'])) {
+            if ($showUnlisted) {
+                $viewable[] = "u";
+            } else if (!empty($_GET['videoName'])) {
                 $post = $_POST;
-                if ($showUnlisted || self::isOwnerFromCleanTitle($_GET['videoName']) || User::isAdmin()) {
+                if (self::isOwnerFromCleanTitle($_GET['videoName']) || User::isAdmin()) {
                     $viewable[] = "u";
                 }
                 $_POST = $post;
@@ -1539,9 +1542,9 @@ if (!class_exists('Video')) {
          */
         static function getTags($video_id, $type = "") {
             global $advancedCustom;
-            if(empty($advancedCustom->AsyncJobs)){
+            if (empty($advancedCustom->AsyncJobs)) {
                 return self::getTags_($video_id, $type);
-            }else{
+            } else {
                 return self::getTagsAsync($video_id, $type);
             }
         }
@@ -1699,6 +1702,24 @@ if (!class_exists('Video')) {
             $tags = array_merge($tags, YouPHPTubePlugin::getVideoTags($video_id));
             //var_dump($tags);
             return $tags;
+        }
+
+        static function deleteTagsAsync($video_id) {
+            if (empty($video_id)) {
+                return false;
+            }
+            global $global, $advancedCustom;
+            $path = $global['systemRootPath'] . "videos/cache/getTagsAsync/";
+            if(!is_dir($path)){
+                return false;
+            }
+            
+            $cacheFileName = "{$path}_{$video_id}_";
+
+            $files = glob("{$cacheFileName}*");
+            foreach ($files as $file) {
+                unlink($file);
+            }
         }
 
         static function getTagsAsync($video_id, $type = "video") {
@@ -1970,6 +1991,11 @@ if (!class_exists('Video')) {
                 'videos_id' => $this->getId(),
                 "notifyURL" => "{$global['webSiteRootURL']}"
             );
+
+            if (YouPHPTubePlugin::isEnabledByName("VideoHLS")) {
+                $postFields['inputHLS'] = 1;
+            }
+
             error_log("SEND To QUEUE: " . print_r($postFields, true));
             $curl = curl_init();
             curl_setopt($curl, CURLOPT_URL, $target);
@@ -2137,11 +2163,22 @@ if (!class_exists('Video')) {
             global $advancedCustom;
             // I dont know why but I had to remove it to avoid ERR_RESPONSE_HEADERS_TOO_BIG
             header_remove('Set-Cookie');
-            if(empty($advancedCustom->AsyncJobs) && !$async){
+            if (empty($advancedCustom->AsyncJobs) && !$async) {
                 return self::getImageFromFilename_($filename, $type);
-            }else{
+            } else {
                 return self::getImageFromFilenameAsync($filename, $type);
             }
+        }
+
+        static function getPoster($videos_id) {
+            $images = self::getImageFromID($videos_id);
+            if (!empty($images->poster)) {
+                return $images->poster;
+            }
+            if (!empty($images->posterPortrait)) {
+                return $images->poster;
+            }
+            return false;
         }
 
         static function getImageFromFilename_($filename, $type = "video") {
@@ -2551,7 +2588,7 @@ if (!class_exists('Video')) {
         }
 
         static function userGroupAndVideoGroupMatch($users_id, $videos_id) {
-            
+
             if (empty($users_id) || empty($videos_id)) {
                 return false;
             }
@@ -2582,8 +2619,8 @@ if (!class_exists('Video')) {
         function setExternalOptions($externalOptions) {
             $this->externalOptions = $externalOptions;
         }
-        
-        function setVideoStartSeconds($videoStartSeconds){
+
+        function setVideoStartSeconds($videoStartSeconds) {
             $externalOptions = json_decode($this->getExternalOptions());
             $externalOptions->videoStartSeconds = $videoStartSeconds;
             $this->setExternalOptions(json_encode($externalOptions));

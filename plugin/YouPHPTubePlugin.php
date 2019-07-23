@@ -25,16 +25,16 @@ class YouPHPTubePlugin {
         }
     }
 
+   
     public static function addRoutes() {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $this->start();
                 $p->addRoutes();
-                self::YPTend("{$value['dirName']}::".__FUNCTION__);
             }
+            self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
         return false;
     }
@@ -1146,6 +1146,20 @@ class YouPHPTubePlugin {
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $r = array_merge($r, $p->getAllVideosArray($videos_id));
+            }
+            self::YPTend("{$value['dirName']}::".__FUNCTION__);
+        }
+        return $r;
+    }
+    
+    public static function getUploadMenuButton(){
+        $plugins = Plugin::getAllEnabled();
+        $r = "";
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $r .= $p->getUploadMenuButton();
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }

@@ -127,6 +127,13 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->paidOnlyShowLabels = false;
         $obj->paidOnlyLabel = "Premium";
         $obj->paidOnlyFreeLabel = "Free";
+        $obj->removeSubscribeButton = false;
+        $obj->removeThumbsUpAndDown = false;
+        
+        $o = new stdClass();
+        $o->type = "textarea";
+        $o->value = "";        
+        $obj->videoNotFoundText = $o;
         
         return $obj;
     }

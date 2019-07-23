@@ -303,6 +303,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                                 </li>
                                                 <?php
                                             }
+                                            echo YouPHPTubePlugin::getUploadMenuButton();
                                             ?>
                                         </ul>
                                         <?php
@@ -366,6 +367,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                         <?php
                         if (!empty($advancedCustomUser->signInOnRight)) {
                             if (User::isLogged()) {
+                                if(!$advancedCustomUser->disableSignOutButton){
                                 ?>
                                 <li>
                                     <a class="btn navbar-btn btn-default"  href="<?php echo $global['webSiteRootURL']; ?>logoff">
@@ -384,6 +386,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                     </a>
                                 </li>
                                 <?php
+                                }
                             } else {
                                 ?>
                                 <li>
@@ -430,22 +433,29 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                             <li>
                                                 <hr>
                                             </li>
-                                            <li>
-                                                <a href="<?php echo $global['webSiteRootURL']; ?>logoff" >
-                                                    <?php
-                                                    if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
-                                                        ?>
-                                                        <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+                                            <?php
+                                            if (!$advancedCustomUser->disableSignOutButton) {
+                                                ?>
+                                                <li>
+                                                    <a href="<?php echo $global['webSiteRootURL']; ?>logoff" >
                                                         <?php
-                                                    } else {
+                                                        if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
+                                                            ?>
+                                                            <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+                                                            <?php
+                                                        } else {
+                                                            ?>
+                                                            <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
+                                                            <?php
+                                                        }
                                                         ?>
-                                                        <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
-                                                        <?php
-                                                    }
-                                                    ?>
-                                                    <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
-                                                </a>
-                                            </li>
+                                                        <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
+                                                    </a>
+                                                </li> 
+                                                <?php
+                                            }
+                                            ?>
+
                                             <li>
                                                 <a href="<?php echo $global['webSiteRootURL']; ?>user" style="border-radius: 4px 4px 0 0;">
                                                     <span class="fa fa-user-circle"></span>
@@ -587,22 +597,30 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                             </li>
                             <li>
                                 <h2 class="text-danger"><?php echo __("My Menu"); ?></h2>
-                                <div>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>logoff" class="btn btn-default btn-block" >
-                                        <?php
-                                        if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
-                                            ?>
-                                            <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+
+                                <?php
+                                if (!$advancedCustomUser->disableSignOutButton) {
+                                    ?>
+                                    <div>
+                                        <a href="<?php echo $global['webSiteRootURL']; ?>logoff" class="btn btn-default btn-block" >
                                             <?php
-                                        } else {
+                                            if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
+                                                ?>
+                                                <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
+                                                <?php
+                                            } else {
+                                                ?>
+                                                <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
+                                                <?php
+                                            }
                                             ?>
-                                            <i class="fas fa-lock-open text-muted" style="opacity: 0.2;"></i>    
-                                            <?php
-                                        }
-                                        ?>
-                                        <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
-                                    </a>
-                                </div>
+                                            <i class="fas fa-sign-out-alt"></i> <?php echo __("Sign out"); ?>
+                                        </a>
+                                    </div>
+                                    <?php
+                                }
+                                ?>
+
                             </li>
                             <li style="min-height: 60px;">
                                 <div class="pull-left" style="margin-left: 10px;">
@@ -868,9 +886,9 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                     if (empty($advancedCustom->doNotDisplayCategoryLeftMenu)) {
                         $categories = Category::getAllCategories();
                         foreach ($categories as $value) {
-                            if($advancedCustom->ShowAllVideosOnCategory){
+                            if ($advancedCustom->ShowAllVideosOnCategory) {
                                 $total = $value['fullTotal'];
-                            }else{
+                            } else {
                                 $total = $value['total'];
                             }
                             if (empty($total)) {
