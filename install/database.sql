@@ -82,6 +82,16 @@ CREATE TABLE IF NOT EXISTS `categories` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+CREATE TABLE IF NOT EXISTS `sites` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NULL DEFAULT NULL,
+  `url` VARCHAR(255)  NOT NULL,
+  `created` DATETIME NULL DEFAULT NULL,
+  `modified` DATETIME NULL DEFAULT NULL,
+  `status` CHAR(1) NULL DEFAULT NULL,
+  `secret` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
 
 -- -----------------------------------------------------
 -- Table `videos`
@@ -96,14 +106,14 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `views_count_50` INT(11) NULL DEFAULT 0,
   `views_count_75` INT(11) NULL DEFAULT 0,
   `views_count_100` INT(11) NULL DEFAULT 0,
-  `status` ENUM('a', 'i', 'e', 'x', 'd', 'xmp4', 'xwebm', 'xmp3', 'xogg', 'ximg', 'u', 'p') NOT NULL DEFAULT 'e' COMMENT 'a = active\ni = inactive\ne = encoding\nx = encoding error\nd = downloading\nu = Unlisted\np = private\nxmp4 = encoding mp4 error \nxwebm = encoding webm error \nxmp3 = encoding mp3 error \nxogg = encoding ogg error \nximg = get image error',
+  `status` ENUM('a', 'i', 'e', 'x', 'd', 'xmp4', 'xwebm', 'xmp3', 'xogg', 'ximg', 'u', 'p', 't') NOT NULL DEFAULT 'e' COMMENT 'a = active\ni = inactive\ne = encoding\nx = encoding error\nd = downloading\nu = Unlisted\np = private\nxmp4 = encoding mp4 error \nxwebm = encoding webm error \nxmp3 = encoding mp3 error \nxogg = encoding ogg error \nximg = get image error\nt = Transfering' ,
   `created` DATETIME NOT NULL,
   `modified` DATETIME NOT NULL,
   `users_id` INT NOT NULL,
   `categories_id` INT NOT NULL,
   `filename` VARCHAR(255) NOT NULL,
   `duration` VARCHAR(15) NOT NULL,
-  `type` ENUM('audio','video','embed','linkVideo','linkAudio','torrent') NOT NULL DEFAULT 'video',
+  `type` ENUM('audio', 'video', 'embed', 'linkVideo', 'linkAudio', 'torrent', 'pdf', 'image', 'gallery') NOT NULL DEFAULT 'video',
   `videoDownloadedLink` VARCHAR(255) NULL,
   `order` INT UNSIGNED NOT NULL DEFAULT 1,
   `rotation` SMALLINT NULL DEFAULT 0,
@@ -121,12 +131,19 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `rrating` VARCHAR(45) NULL DEFAULT NULL,
   `externalOptions` TEXT NULL DEFAULT NULL,
   `only_for_paid` TINYINT(1) NULL DEFAULT NULL,
+  `sites_id` INT(11) NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_videos_users_idx` (`users_id` ASC),
   INDEX `fk_videos_categories1_idx` (`categories_id` ASC),
   UNIQUE INDEX `clean_title_UNIQUE` (`clean_title` ASC),
   INDEX `index5` (`order` ASC),
   INDEX `fk_videos_videos1_idx` (`next_videos_id` ASC),
+  INDEX `fk_videos_sites1_idx` (`sites_id` ASC),
+  CONSTRAINT `fk_videos_sites1`
+    FOREIGN KEY (`sites_id`)
+    REFERENCES `sites` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
   CONSTRAINT `fk_videos_users`
     FOREIGN KEY (`users_id`)
     REFERENCES `users` (`id`)
