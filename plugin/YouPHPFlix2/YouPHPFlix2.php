@@ -39,11 +39,16 @@ class YouPHPFlix2 extends PluginAbstract {
         $obj->maxVideos = 20;
         $obj->SortByName = false;
         $obj->BigVideo = true;
+        $obj->RemoveBigVideoDescription = false;
+        $obj->BigVideoPlayIcon = true;
         $obj->backgroundRGB = "20,20,20";
         $obj->landscapePosters = true;
         $obj->playVideoOnFullscreen = true;
         $obj->youtubeModeOnFullscreen = false;
         $obj->paidOnlyLabelOverPoster = false;
+        $obj->titleLabel = true;
+        $obj->titleLabelOverPoster = false;
+        $obj->titleLabelCSS = "";
         return $obj;
     }
     

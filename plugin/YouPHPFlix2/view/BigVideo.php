@@ -17,7 +17,6 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
         $images = Video::getImageFromFilename($video['filename'], $video['type']);
         $imgGif = $images->thumbsGif;
         $poster = $images->poster;
-        //var_dump($video);
         $canWatchPlayButton = "";
         $get = $_GET;
         if (User::canWatchVideoWithAds($video['id'])) {
@@ -113,30 +112,49 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                     </h4>
                     <div class="row">                
                         <?php
+                        $colClass = "col-md-2 col-sm-4 col-xs-6";
+                        if (!empty($obj->RemoveBigVideoDescription)) {
+                            $colClass = "col-md-4 col-sm-4 col-xs-6";
+                        }
                         if (empty($obj->landscapePosters) && !empty($images->posterPortrait)) {
                             ?>
-                            <div class="col-md-2 col-sm-4 col-xs-6">
+                            <div class="<?php echo $colClass; ?>">
                                 <img alt="<?php echo $video['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" style="min-width: 135px;" />
                             </div>
                             <?php
-                        }else{
+                        } else {
                             ?>
-                            <div class="col-md-2 col-sm-4 col-xs-6">
-                                <img alt="<?php echo $video['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->poster; ?>" style="min-width: 135px; height: auto;" />
+                            <div class="<?php echo $colClass; ?>">
+                                <a href="<?php echo YouPHPFlix2::getLinkToVideo($video['id']); ?>">
+                                    <div class="thumbsImage">
+                                        <img alt="<?php echo $video['title']; ?>" class="img img-responsive posterPortrait thumbsJPG" src="<?php echo $images->poster; ?>" style="min-width: 135px; height: auto;" />
+                                        <?php if (!empty($images->thumbsGif)) { ?>
+                                            <img style="position: absolute; top: 0; display: none;" src="<?php echo $images->thumbsGif; ?>"  alt="<?php echo $video['title']; ?>" id="thumbsGIFBig<?php echo $video['id']; ?>" class="thumbsGIF img-responsive img" />
+                                        <?php } ?>
+                                        <?php if (!empty($obj->BigVideoPlayIcon)) { ?>
+                                            <i class="far fa-play-circle" style="font-size: 100px; position: absolute; left: 50%; top: 50%; margin-left: -50px; margin-top: -50px;opacity: .6;
+                                               text-shadow: 0px 0px 30px rgba(0, 0, 0, 0.5);"></i>
+                                           <?php } ?>
+                                    </div>
+                                </a>
+                            </div>
+                            <?php
+                        }
+                        if (empty($obj->RemoveBigVideoDescription)) {
+                            ?>
+                            <div class="infoText col-md-4 col-sm-6 col-xs-6">
+                                <h4 class="mainInfoText" itemprop="description">
+                                    <?php echo $video['description']; ?>
+                                </h4>
+                                <?php
+                                if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                                    echo VideoTags::getLabels($video['id']);
+                                }
+                                ?>
                             </div>
                             <?php
                         }
                         ?>
-                        <div class="infoText col-md-4 col-sm-6 col-xs-6">
-                            <h4 class="mainInfoText" itemprop="description">
-                                <?php echo nl2br(textToLink($video['description'])); ?>
-                            </h4>
-                            <?php
-                            if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
-                                echo VideoTags::getLabels($video['id']);
-                            }
-                            ?>
-                        </div>
                     </div>
 
 

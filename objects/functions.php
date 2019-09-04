@@ -14,7 +14,14 @@ function forbiddenWords($text) {
 }
 
 function xss_esc($text) {
-    return @htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    if (empty($text)) {
+        return "";
+    }
+    $result = @htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    if (empty($result)) {
+        $result = str_replace(array('"', "'", "\\"), array("", "", ""), strip_tags($text));
+    }
+    return $result;
 }
 
 function xss_esc_back($text) {
@@ -470,6 +477,8 @@ function sendSiteEmail($to, $subject, $message) {
         $resp = $mail->send();
         if (!$resp) {
             error_log("sendSiteEmail Error Info: {$mail->ErrorInfo}");
+        } else {
+            error_log("sendSiteEmail Success Info: $subject " . json_encode($to));
         }
         return $resp;
     } catch (phpmailerException $e) {
@@ -798,6 +807,59 @@ function getVideosURLPDF($fileName) {
     return $files;
 }
 
+function getVideosURLArticle($fileName) {
+    global $global;
+    if (empty($fileName)) {
+        return array();
+    }
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $start = $time;
+    $files = array();
+    $source = Video::getSourceFile($fileName, ".jpg");
+    $file = $source['path'];
+    if (file_exists($file)) {
+        $files["jpg"] = array(
+            'filename' => "{$fileName}.jpg",
+            'path' => $file,
+            'url' => $source['url'],
+            'type' => 'image',
+        );
+    } else {
+        $files["jpg"] = array(
+            'filename' => "pdf.png",
+            'path' => "{$global['systemRootPath']}view/img/article.png",
+            'url' => "{$global['webSiteRootURL']}view/img/article.png",
+            'type' => 'image',
+        );
+    }
+    $source = Video::getSourceFile($fileName, "_portrait.jpg");
+    $file = $source['path'];
+    if (file_exists($file)) {
+        $files["pjpg"] = array(
+            'filename' => "{$fileName}_portrait.jpg",
+            'path' => $file,
+            'url' => $source['url'],
+            'type' => 'image',
+        );
+    } else {
+        $files["pjpg"] = array(
+            'filename' => "pdf_portrait.png",
+            'path' => "{$global['systemRootPath']}view/img/article_portrait.png",
+            'url' => "{$global['webSiteRootURL']}view/img/article_portrait.png",
+            'type' => 'image',
+        );
+    }
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $finish = $time;
+    $total_time = round(($finish - $start), 4);
+    error_log("getVideosURLPDF generated in {$total_time} seconds. fileName: $fileName ");
+    return $files;
+}
+
 function getVideosURLAudio($fileName) {
     global $global;
     if (empty($fileName)) {
@@ -955,6 +1017,13 @@ function getVideosURL($fileName, $cache = true) {
                     'url' => $source['url'],
                     'type' => 'image',
                 );
+            } else {
+                $files["jpg"] = array(
+                    'filename' => "notfound.jpg",
+                    'path' => "{$global['systemRootPath']}view/img/notfound.jpg",
+                    'url' => "{$global['webSiteRootURL']}view/img/notfound.jpg",
+                    'type' => 'image',
+                );
             }
             $source = Video::getSourceFile($filename, ".gif");
             $file = $source['path'];
@@ -965,6 +1034,13 @@ function getVideosURL($fileName, $cache = true) {
                     'url' => $source['url'],
                     'type' => 'image',
                 );
+            } else {
+                $files["gif"] = array(
+                    'filename' => "static2.jpg",
+                    'path' => "{$global['systemRootPath']}view/img/static2.jpg",
+                    'url' => "{$global['webSiteRootURL']}view/img/static2.jpg",
+                    'type' => 'image',
+                );
             }
             $source = Video::getSourceFile($filename, "_portrait.jpg");
             $file = $source['path'];
@@ -973,6 +1049,13 @@ function getVideosURL($fileName, $cache = true) {
                     'filename' => "{$fileName}_portrait.jpg",
                     'path' => $file,
                     'url' => $source['url'],
+                    'type' => 'image',
+                );
+            } else {
+                $files["pjpg"] = array(
+                    'filename' => "notfound_portrait.jpg",
+                    'path' => "{$global['systemRootPath']}view/img/notfound_portrait.jpg",
+                    'url' => "{$global['webSiteRootURL']}view/img/notfound_portrait.jpg",
                     'type' => 'image',
                 );
             }
@@ -1288,7 +1371,7 @@ function unzipDirectory($filename, $destination) {
 
 function make_path($path) {
     if (!is_dir($path)) {
-        mkdir($path, 0755, true);
+        @mkdir($path, 0755, true);
     }
 }
 
@@ -1517,6 +1600,9 @@ function url_get_contents($Url, $ctx = "") {
                 }
                 $_SESSION = $session;
                 $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
+                if (!empty($global['mysqli_charset'])) {
+                    $global['mysqli']->set_charset($global['mysqli_charset']);
+                }
                 return $tmp;
             }
         } catch (ErrorException $e) {
@@ -1535,6 +1621,9 @@ function url_get_contents($Url, $ctx = "") {
         }
         $_SESSION = $session;
         $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
+        if (!empty($global['mysqli_charset'])) {
+            $global['mysqli']->set_charset($global['mysqli_charset']);
+        }
         return $output;
     }
     $result = @file_get_contents($Url, false, $context);
@@ -1543,6 +1632,9 @@ function url_get_contents($Url, $ctx = "") {
     }
     $_SESSION = $session;
     $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
+    if (!empty($global['mysqli_charset'])) {
+        $global['mysqli']->set_charset($global['mysqli_charset']);
+    }
     return $result;
 }
 
@@ -1704,7 +1796,9 @@ function isMobile() {
 }
 
 function siteMap() {
-    global $global;
+    ini_set('memory_limit', '-1');
+    ini_set('max_execution_time', 0);
+    global $global, $advancedCustom;
     $date = date('Y-m-d\TH:i:s') . "+00:00";
 
     $xml = '<?xml version="1.0" encoding="UTF-8"?>
@@ -1748,6 +1842,9 @@ function siteMap() {
             <priority>0.80</priority>
         </url>
         ';
+
+    $_POST['rowCount'] = $advancedCustom->siteMapRowsLimit;
+    $_POST['sort']['modified'] = "DESC";
     $users = User::getAllUsers(true);
     foreach ($users as $value) {
         $xml .= '        
@@ -1762,6 +1859,8 @@ function siteMap() {
     $xml .= ' 
         <!-- Categories -->
         ';
+    $_POST['rowCount'] = $advancedCustom->siteMapRowsLimit;
+    $_POST['sort']['modified'] = "DESC";
     $rows = Category::getAllCategories();
     foreach ($rows as $value) {
         $xml .= '  
@@ -1774,6 +1873,8 @@ function siteMap() {
             ';
     }
     $xml .= '<!-- Videos -->';
+    $_POST['rowCount'] = $advancedCustom->siteMapRowsLimit * 10;
+    $_POST['sort']['created'] = "DESC";
     $rows = Video::getAllVideos("viewable");
     foreach ($rows as $value) {
         $xml .= '   
@@ -1880,4 +1981,48 @@ function ddosProtection() {
     }
 
     return true;
+}
+
+function getAdsLeaderBoardTop() {
+    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    if (!empty($ad)) {
+        if (isMobile()) {
+            return $ad->leaderBoardTopMobile->value;
+        } else {
+            return $ad->leaderBoardTop->value;
+        }
+    }
+}
+
+function getAdsLeaderBoardMiddle() {
+    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    if (!empty($ad)) {
+        if (isMobile()) {
+            return $ad->leaderBoardMiddleMobile->value;
+        } else {
+            return $ad->leaderBoardMiddle->value;
+        }
+    }
+}
+
+function getAdsLeaderBoardFooter() {
+    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    if (!empty($ad)) {
+        if (isMobile()) {
+            return $ad->leaderBoardFooterMobile->value;
+        } else {
+            return $ad->leaderBoardFooter->value;
+        }
+    }
+}
+
+function getAdsSideRectangle() {
+    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    if (!empty($ad)) {
+        if (isMobile()) {
+            return $ad->sideRectangle->value;
+        } else {
+            return $ad->sideRectangle->value;
+        }
+    }
 }

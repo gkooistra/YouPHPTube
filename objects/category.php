@@ -51,8 +51,8 @@ class Category {
     }
 
     function setClean_name($clean_name) {
-        preg_replace('/\W+/', '-', strtolower(cleanString($clean_name)));
-        $this->clean_name = xss_esc($clean_name);
+        $clean_name = preg_replace('/\W+/', '-', strtolower(cleanString($clean_name)));
+        $this->clean_name = $clean_name;
     }
 
     function setNextVideoOrder($nextVideoOrder) {
@@ -123,14 +123,14 @@ class Category {
         $this->load($this->getId());
     }
 
-    function save() {
+    function save($allowOfflineUser = false) {
         global $global;
 
-        if (!self::canCreateCategory()) {
+        if (!$allowOfflineUser && !self::canCreateCategory()) {
             return false;
         }
 
-        if (!empty($this->id) && !self::userCanEditCategory($this->id)) {
+        if (!$allowOfflineUser && !empty($this->id) && !self::userCanEditCategory($this->id)) {
             return false;
         }
 
@@ -138,8 +138,10 @@ class Category {
             $this->users_id = User::getId();
         }
 
+        $this->clean_name = self::fixCleanTitle($this->clean_name, 1, $this->id);
+        
         // check if clean name exists
-        $exists = $this->getCategoryByName(xss_esc($this->clean_name));
+        $exists = $this->getCategoryByName($this->clean_name);
         if (!empty($exists) && $exists['id'] != $this->id) {
             $this->clean_name .= uniqid();
         }
@@ -184,6 +186,27 @@ class Category {
             die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
     }
+    
+    static function fixCleanTitle($clean_title, $count, $id, $original_title = "") {
+            global $global;
+
+            if (empty($original_title)) {
+                $original_title = $clean_title;
+            }
+
+            $sql = "SELECT * FROM categories WHERE clean_name = '{$clean_title}' ";
+            if (!empty($id)) {
+                $sql .= " AND id != {$id} ";
+            }
+            $sql .= " LIMIT 1";
+            $res = sqlDAL::readSql($sql, "", array(), true);
+            $cleanTitleExists = sqlDAL::fetchAssoc($res);
+            sqlDAL::close($res);
+            if ($cleanTitleExists != false) {
+                return self::fixCleanTitle($original_title . "-" . $count, $count + 1, $videoId, $original_title);
+            }
+            return $clean_title;
+        }
 
     function delete() {
         if (!self::canCreateCategory()) {

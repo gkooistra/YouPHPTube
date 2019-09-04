@@ -303,6 +303,15 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                                 </li>
                                                 <?php
                                             }
+                                            if (YouPHPTubePlugin::isEnabledByName("Articles")) {
+                                                ?>
+                                                <li>
+                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?article=1" >
+                                                        <i class="far fa-newspaper"></i> <?php echo  __("Add Article"); ?>
+                                                    </a>
+                                                </li>
+                                                <?php
+                                            }
                                             echo YouPHPTubePlugin::getUploadMenuButton();
                                             ?>
                                         </ul>
@@ -895,10 +904,13 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                 continue;
                             }
                             echo '<li class="' . ($value['clean_name'] == @$_GET['catName'] ? "active" : "") . '">'
-                            . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $value['clean_name'] . '" >'
-                            . '<span class="' . (empty($value['iconClass']) ? "fa fa-folder" : $value['iconClass']) . '"></span>  ' . $value['name'] . ' <span class="badge">' . $total . '</span></a>';
+                            . '<a href="' . $global['webSiteRootURL'] . 'cat/' . $value['clean_name'] . '" >';
+                            echo '<span class="' . (empty($value['iconClass']) ? "fa fa-folder" : $value['iconClass']) . '"></span>  ' . $value['name']; 
+                            if(empty($advancedCustom->hideCategoryVideosCount)){
+                               echo ' <span class="badge">' . $total . '</span>'; 
+                            }
                             mkSub($value['id']);
-                            echo '</li>';
+                            echo '</a></li>';
                         }
                     }
                     ?>

@@ -10,6 +10,11 @@ if($global['mysqli']===false || !empty($global['mysqli']->connect_errno)){
     exit;
 }
 
+// if you set it on configuration file it will help you to encode
+if(!empty($global['mysqli_charset'])){
+    $global['mysqli']->set_charset($global['mysqli_charset']);
+}
+
 $now = new DateTime();
 $mins = $now->getOffset() / 60;
 $sgn = ($mins < 0 ? -1 : 1);
@@ -79,9 +84,11 @@ require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
 allowOrigin();
-if (class_exists("Plugin")) {
+
+$baseName = basename($_SERVER["SCRIPT_FILENAME"]);
+if ($baseName !== 'xsendfile.php' && class_exists("Plugin")) {
     YouPHPTubePlugin::getStart();
-} else {
+} else if($baseName !== 'xsendfile.php') {
     error_log("Class Plugin Not found: {$_SERVER['REQUEST_URI']}");
 }
 if (empty($global['bodyClass'])) {

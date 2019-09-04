@@ -18,6 +18,34 @@ class PlayList extends ObjectYPT {
     static function getTableName() {
         return 'playlists';
     }
+    
+    static protected function getFromDbFromName($name) {
+        global $global;
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  name = ? users_id = ". User::getId()." LIMIT 1";
+        $res = sqlDAL::readSql($sql, "s", array($name));
+        $data = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($res) {
+            $row = $data;
+        } else {
+            $row = false;
+        }
+        return $row;
+    }
+
+    function loadFromName($name) {
+        if(!User::isLogged()){
+            return false;
+        }
+        $this->setName($name);
+        $row = self::getFromDbFromName($this->getName());
+        if (empty($row))
+            return false;
+        foreach ($row as $key => $value) {
+            $this->$key = $value;
+        }
+        return true;
+    }
 
     /**
      *
@@ -34,6 +62,7 @@ class PlayList extends ObjectYPT {
         $sql = "SELECT u.*, pl.* FROM  " . static::getTableName() . " pl "
                 . " LEFT JOIN users u ON u.id = users_id WHERE 1=1 ";
         if (!empty($status)) {
+            $status = str_replace("'","", $status);
             $sql .= " AND pl.status = '{$status}' ";
         } else
         if ($publicOnly) {
@@ -112,7 +141,9 @@ class PlayList extends ObjectYPT {
 
     static function getVideosFromPlaylist($playlists_id) {
         global $global;
-        $sql = "SELECT *,v.created as cre, p.`order` as video_order, v.externalOptions as externalOptions FROM  playlists_has_videos p "
+        $sql = "SELECT *,v.created as cre, p.`order` as video_order, v.externalOptions as externalOptions "
+                . ", (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes "
+                . " FROM  playlists_has_videos p "
                 . " LEFT JOIN videos as v ON videos_id = v.id "
                 . " LEFT JOIN users u ON u.id = v.users_id "
                 . " WHERE playlists_id = ? ORDER BY p.`order` ASC ";
@@ -150,6 +181,7 @@ class PlayList extends ObjectYPT {
 
     private static function isVideoOn($videos_id, $users_id, $status) {
         global $global;
+        $status = str_replace("'","", $status);
 
         $sql = "SELECT pl.id FROM  " . static::getTableName() . " pl "
                 . " LEFT JOIN users u ON u.id = users_id "
@@ -198,6 +230,7 @@ class PlayList extends ObjectYPT {
     private static function getIdFromUser($users_id, $status) {
         global $global;
 
+        $status = str_replace("'","", $status);
         $sql = "SELECT * FROM  " . static::getTableName() . " pl  WHERE"
                 . " users_id = ? AND pl.status = '{$status}' LIMIT 1 ";
         $res = sqlDAL::readSql($sql, "i", array($users_id));
@@ -304,7 +337,10 @@ class PlayList extends ObjectYPT {
     }
 
     function setName($name) {
+        if (strlen($name) > 45)
+            $name = substr($name, 0, 42) . '...';
         $this->name = xss_esc($name);
+        //var_dump($name,$this->name);exit;
     }
 
     function setUsers_id($users_id) {

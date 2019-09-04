@@ -77,7 +77,7 @@ class sqlDAL {
         if (empty($debug[2]['class']) || $debug[2]['class'] !== "AuditTable") {
             $audit = YouPHPTubePlugin::loadPluginIfEnabled('Audit');
             if (!empty($audit)) {
-                $audit->exec($debug[1]['function'], $debug[1]['class'], $preparedStatement, $formats, json_encode($values), User::getId());
+                $audit->exec(@$debug[1]['function'], @$debug[1]['class'], $preparedStatement, $formats, json_encode($values), User::getId());
             }
         }
 
@@ -112,7 +112,7 @@ class sqlDAL {
         // $refreshCache = true;
         global $global, $disableMysqlNdMethods, $readSqlCached, $crc;
         // need to add dechex because some times it return an negative value and make it fails on javascript playlists
-        $crc = dechex(crc32($preparedStatement . implode($values)));
+        $crc = (md5($preparedStatement . implode($values)));
 
         if (!isset($readSqlCached)) {
             $readSqlCached = array();

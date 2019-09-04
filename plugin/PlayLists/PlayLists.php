@@ -26,6 +26,8 @@ class PlayLists extends PluginAbstract {
         $obj->playOnSelect = true;
         $obj->autoadvance = true;
         $obj->usersCanOnlyCreatePlayListsFromTheirContent = false;
+        $obj->useOldPlayList = false;
+        $obj->expandPlayListOnChannels = false;
         
         return $obj;
     }

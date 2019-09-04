@@ -248,11 +248,8 @@ if (typeof gtag !== \"function\") {
      * @return String
      */
     static function getNameIdentification() {
-        global $advancedCustom;
+        global $advancedCustomUser;
         if (self::isLogged()) {
-            if (!empty(self::getUserChannelName())) {
-                return self::getUserChannelName();
-            }
             if (!empty(self::getName()) && empty($advancedCustomUser->doNotIndentifyByName)) {
                 return self::getName();
             }
@@ -261,6 +258,9 @@ if (typeof gtag !== \"function\") {
             }
             if (!empty(self::getUserName()) && empty($advancedCustomUser->doNotIndentifyByUserName)) {
                 return self::getUserName();
+            }
+            if (!empty(self::getUserChannelName())) {
+                return self::getUserChannelName();
             }
         }
         return __("Unknown User");
@@ -271,15 +271,18 @@ if (typeof gtag !== \"function\") {
      * @return String
      */
     function getNameIdentificationBd() {
-        global $advancedCustom;
-        if (!empty($this->name) && empty($advancedCustom->doNotIndentifyByName)) {
+        global $advancedCustomUser;
+        if (!empty($this->name) && empty($advancedCustomUser->doNotIndentifyByName)) {
             return $this->name;
         }
-        if (!empty($this->email) && empty($advancedCustom->doNotIndentifyByEmail)) {
+        if (!empty($this->email) && empty($advancedCustomUser->doNotIndentifyByEmail)) {
             return $this->email;
         }
-        if (!empty($this->user) && empty($advancedCustom->doNotIndentifyByUserName)) {
+        if (!empty($this->user) && empty($advancedCustomUser->doNotIndentifyByUserName)) {
             return $this->user;
+        }
+        if (!empty($this->channelName)) {
+            return $this->channelName;
         }
         return __("Unknown User");
     }
@@ -369,8 +372,9 @@ if (typeof gtag !== \"function\") {
             return false;
         }
         if (empty($this->user) || empty($this->password)) {
-            echo "u:" . $this->user . "|p:" . strlen($this->password);
-            die('Error : ' . __("You need a user and passsword to register"));
+            //echo "u:" . $this->user . "|p:" . strlen($this->password);
+            error_log('Error : ' . __("You need a user and passsword to register"));
+            return false;
         }
         if (empty($this->isAdmin)) {
             $this->isAdmin = "false";
@@ -475,11 +479,8 @@ if (typeof gtag !== \"function\") {
             }
             return $id;
         } else {
-            if ($global['mysqli']->error == "Duplicate entry 'admin' for key 'user_UNIQUE'") {
-                echo '{"error":"' . __("User name already exists") . '"}';
-                exit;
-            }
-            die(' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            error_log(' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error . " $sql");
+            return false;
         }
     }
 
@@ -794,7 +795,7 @@ if (typeof gtag !== \"function\") {
     }
 
     private function find($user, $pass, $mustBeactive = false, $encodedPass = false) {
-        global $global;
+        global $global, $advancedCustom;
         $formats = "";
         $values = array();
         $user = $global['mysqli']->real_escape_string($user);
@@ -808,14 +809,18 @@ if (typeof gtag !== \"function\") {
         }
 
         $sql .= " LIMIT 1";
-        $res = sqlDAL::readSql($sql, $formats, $values);
+        $res = sqlDAL::readSql($sql, $formats, $values, true);
         $result = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if (!empty($result)) {
             if ($pass !== false) {
                 if(!encryptPasswordVerify($pass, $result['password'], $encodedPass)){
-                    error_log("Password check new hash pass does not match, trying MD5");
-                    return $this->find_Old($user, $pass, $mustBeactive, $encodedPass);
+                    if($advancedCustom->enableOldPassHashCheck){
+                        error_log("Password check new hash pass does not match, trying MD5");
+                        return $this->find_Old($user, $pass, $mustBeactive, $encodedPass);
+                    }else{
+                        return false;
+                    }
                 }
             }
             $user = $result;
@@ -863,7 +868,7 @@ if (typeof gtag !== \"function\") {
             $values[] = $passEncoded;
         }
         $sql .= " LIMIT 1";
-        $res = sqlDAL::readSql($sql, $formats, $values);
+        $res = sqlDAL::readSql($sql, $formats, $values, true);
         $result = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if (!empty($result)) {
@@ -954,6 +959,12 @@ if (typeof gtag !== \"function\") {
     }
 
     function setUser($user) {
+        global $advancedCustomUser;
+        if(empty($advancedCustomUser->userCanChangeUsername)){
+            if(!empty($this->user)){
+                return false;
+            }
+        }
         $this->user = strip_tags($user);
     }
 
@@ -1291,7 +1302,6 @@ if (typeof gtag !== \"function\") {
 
     function setEmailVerified($emailVerified) {
         $this->emailVerified = (empty($emailVerified) || strtolower($emailVerified) === 'false') ? 0 : 1;
-        ;
     }
 
     static function getChannelLink($users_id = 0) {

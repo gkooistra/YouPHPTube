@@ -33,6 +33,9 @@ class User_Location extends PluginAbstract {
     }    
     
     static  function getThisUserLocation() {
+        if(!empty($_SESSION['User_Location'])){
+            return $_SESSION['User_Location'];
+        }
         return IP2Location::getLocation(getRealIpAddr());
     }
     
@@ -40,6 +43,9 @@ class User_Location extends PluginAbstract {
         global $global;
         $obj = $this->getDataObject();
         $User_Location = self::getThisUserLocation();
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
         if($obj->autoChangeLanguage){
             if(empty($_SESSION['User_Location']) && !empty($User_Location['country_code'])){
                 $_SESSION['language'] = strtolower($User_Location['country_code']);

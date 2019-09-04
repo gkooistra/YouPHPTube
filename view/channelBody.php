@@ -27,6 +27,7 @@ unset($_POST['rowCount']);
 unset($_POST['current']);
 
 $get = array('channelName' => $_GET['channelName']);
+$palyListsObj = YouPHPTubePlugin::getObjectDataIfEnabled('PlayLists');
 ?>
 <div class="bgWhite list-group-item gallery clear clearfix" >
     <?php
@@ -103,7 +104,9 @@ $get = array('channelName' => $_GET['channelName']);
         </div>
     </div>
     <?php
-    include $global['systemRootPath'] . 'view/channelPlaylist.php';
+    if(!empty($palyListsObj)){
+        include $global['systemRootPath'] . 'view/channelPlaylist.php';
+    }
     ?>
 </div>
 <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Gallery/script.js" type="text/javascript"></script>

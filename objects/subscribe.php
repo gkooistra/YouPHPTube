@@ -88,6 +88,7 @@ class Subscribe {
 
     static function getSubscribeFromEmail($email, $user_id, $status = "a") {
         global $global;
+        $status = str_replace("'","", $status);
         $sql = "SELECT * FROM subscribes WHERE  email = '$email' AND users_id = {$user_id} ";
         if (!empty($status)) {
             $sql .= " AND status = '{$status}' ";
@@ -106,6 +107,7 @@ class Subscribe {
 
     static function getSubscribeFromID($subscriber_users_id, $user_id, $status = "a") {
         global $global;
+        $status = str_replace("'","", $status);
         $sql = "SELECT * FROM subscribes WHERE  subscriber_users_id = '$subscriber_users_id' AND users_id = {$user_id} ";
         if (!empty($status)) {
             $sql .= " AND status = '{$status}' ";
@@ -128,16 +130,27 @@ class Subscribe {
      * @param type $user_id
      * @return boolean
      */
-    static function getAllSubscribes($user_id = "") {
+    static function getAllSubscribes($user_id = "", $status = "a") {
         global $global;
-        $sql = "SELECT su.id as subscriber_id, s.* FROM subscribes as s "
-                . " LEFT JOIN users as su ON s.email = su.email   "
-                . " LEFT JOIN users as u ON users_id = u.id  WHERE 1=1 ";
+        $status = str_replace("'","", $status);
+        $sql = "SELECT subscriber_users_id as subscriber_id, s.id, s.status, s.ip, s.users_id, s.notify, "
+                . " s.subscriber_users_id , s.created , s.modified, suId.email as email FROM subscribes as s "
+                //. " LEFT JOIN users as su ON s.email = su.email   "
+                . " LEFT JOIN users as suId ON suId.id = s.subscriber_users_id   "
+                . " LEFT JOIN users as u ON users_id = u.id  WHERE 1=1 AND subscriber_users_id > 0 ";
         if (!empty($user_id)) {
             $sql .= " AND users_id = {$user_id} ";
         }
+        if (!empty($status)) {
+            $sql .= " AND u.status = '{$status}' ";
+            //$sql .= " AND su.status = '{$status}' ";
+        }
+        
+        //$sql .= " GROUP BY subscriber_id ";
+        
         $sql .= BootGrid::getSqlFromPost(array('email'));
 
+        
         $res = sqlDAL::readSql($sql);
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
@@ -146,7 +159,7 @@ class Subscribe {
             $emails = array();
             foreach ($fullData as $row) {
                 if (in_array($row['email'], $emails)) {
-                    continue;
+                    //continue;
                 }
                 $emails[] = $row['email'];
                 $row['identification'] = User::getNameIdentificationById($row['subscriber_id']);
@@ -202,7 +215,7 @@ class Subscribe {
 
     static function getTotalSubscribes($user_id = "") {
         global $global;
-        $sql = "SELECT id FROM subscribes WHERE status = 'a' ";
+        $sql = "SELECT id FROM subscribes WHERE status = 'a' AND subscriber_users_id > 0 ";
         if (!empty($user_id)) {
             $sql .= " AND users_id = '{$user_id}' ";
         }

@@ -2,13 +2,15 @@
 global $advancedCustom;
 $uid = uniqid();
 $landscape = "rowPortrait";
+$css = "";
 if (!empty($obj->landscapePosters)) {
     $landscape = "landscapeTile";
+    if (!empty($obj->titleLabel)) { $css = "height: 185px;"; }
 }
 $get = $_GET;
 $post = $_POST;
 ?>
-<div class="carousel <?php echo $landscape; ?>" data-flickity='<?php echo json_encode($dataFlickirty) ?>'>
+<div class="carousel <?php echo $landscape; ?>" data-flickity='<?php echo json_encode($dataFlickirty) ?>' style="<?php echo $css; ?>">
     <?php
     foreach ($videos as $value) {
         $images = Video::getImageFromFilename($value['filename'], $value['type']);
@@ -38,7 +40,12 @@ $post = $_POST;
                                 }
                             }
                         }
+                        if (!empty($obj->titleLabel)) {
                         ?>  
+                        <h4 style="<?php if (!empty($obj->titleLabelOverPoster)) { ?>margin-top: -27px;<?php } echo $obj->titleLabelCSS; ?> "><?php echo $value['title']; ?></h4>
+                        <?php
+                        }
+                        ?>
                         <div class="progress" style="height: 3px; margin-bottom: 2px;">
                             <div class="progress-bar progress-bar-danger" role="progressbar" style="width: <?php echo $value['progress']['percent'] ?>%;" aria-valuenow="<?php echo $value['progress']['percent'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
@@ -135,28 +142,43 @@ foreach ($videos as $value) {
             </h4>
             <div class="row">
                 <?php
-                if (!empty($images->posterPortraitThumbs)) {
+                if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
                     ?>
                     <div class="col-md-2 col-sm-3 col-xs-4">
                         <center>
-                            <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
+                            <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" style="min-width: 86px;" />
                         </center>
                     </div>
                     <?php
-                }else{
+                } else if (!empty($images->poster) && basename($images->poster) !== 'notfound.jpg' && basename($images->poster) !== 'pdf.png' && basename($images->poster) !== 'article.png') {
                     ?>
                     <div class="col-md-2 col-sm-3 col-xs-4">
                         <center>
-                            <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->thumbsJpg; ?>" style="min-width: 86px;" />
+                            <img alt="<?php echo $value['title']; ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
                         </center>
                     </div>
                     <?php
-                    
+                } else if (empty($obj->landscapePosters) && !empty($images->posterPortrait)) {
+                    ?>
+                    <div class="col-md-2 col-sm-3 col-xs-4">
+                        <center>
+                            <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortrait; ?>" style="min-width: 86px;" />
+                        </center>
+                    </div>
+                    <?php
+                } else {
+                    ?>
+                    <div class="col-md-2 col-sm-3 col-xs-4">
+                        <center>
+                            <img alt="<?php echo $value['title']; ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
+                        </center>
+                    </div>
+                    <?php
                 }
                 ?>
                 <div class="infoText col-md-4 col-sm-6 col-xs-8">
                     <h4 class="mainInfoText" itemprop="description">
-                        <?php echo nl2br(textToLink($value['description'])); ?>
+                        <?php echo $value['description']; ?>
                     </h4>
                     <?php
                     if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
