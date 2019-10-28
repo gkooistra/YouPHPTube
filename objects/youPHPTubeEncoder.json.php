@@ -67,7 +67,7 @@ if ($status !== 'u' && $status !== 'a') {
     }
 }
 $video->setVideoDownloadedLink($_POST['videoDownloadedLink']);
-error_log("youPHPTubeEncoder.json: Encoder receiving post");
+error_log("youPHPTubeEncoder.json: Encoder receiving post " . json_encode($_POST));
 //error_log(print_r($_POST, true));
 if (preg_match("/(mp3|wav|ogg)$/i", $_POST['format'])) {
     $type = 'audio';
@@ -86,6 +86,39 @@ if (empty($videoFileName)) {
 
 
 $destination_local = "{$global['systemRootPath']}videos/{$videoFileName}";
+
+if (!empty($_FILES)) {
+    error_log("youPHPTubeEncoder.json: Files " . json_encode($_FILES));
+} else {
+    error_log("youPHPTubeEncoder.json: Files EMPTY");
+}
+
+if (!empty($_FILES['video']['error'])) {
+    $phpFileUploadErrors = array(
+        0 => 'There is no error, the file uploaded with success',
+        1 => 'The uploaded file exceeds the upload_max_filesize directive in php.ini',
+        2 => 'The uploaded file exceeds the MAX_FILE_SIZE directive that was specified in the HTML form',
+        3 => 'The uploaded file was only partially uploaded',
+        4 => 'No file was uploaded',
+        6 => 'Missing a temporary folder',
+        7 => 'Failed to write file to disk.',
+        8 => 'A PHP extension stopped the file upload.',
+    );
+    error_log("youPHPTubeEncoder.json: ********  Files ERROR " . $phpFileUploadErrors[$_FILES['video']['error']]);
+    if(!empty($_POST['downloadURL']) && !empty($_FILES['video']['name'])){
+        error_log("youPHPTubeEncoder.json: Try to download ".$_POST['downloadURL']);
+        $file = url_get_contents($_POST['downloadURL']);
+        error_log("youPHPTubeEncoder.json: Got the download ".$_POST['downloadURL']);
+        if($file){
+            $temp = "{$global['systemRootPath']}videos/cache/tmpFile/{$_FILES['video']['name']}";
+            error_log("youPHPTubeEncoder.json: save ".$temp);
+            make_path($temp);
+            file_put_contents($temp, $file);
+            $_FILES['video']['tmp_name'] = $temp;
+        }
+    }
+}
+
 // get video file from encoder
 if (!empty($_FILES['video']['tmp_name'])) {
     $resolution = "";
@@ -93,7 +126,7 @@ if (!empty($_FILES['video']['tmp_name'])) {
         $resolution = "_{$_POST['resolution']}";
     }
     $filename = "{$videoFileName}{$resolution}.{$_POST['format']}";
-    error_log("youPHPTubeEncoder.json: receiving video upload to {$filename} ". json_encode($_FILES));
+    error_log("youPHPTubeEncoder.json: receiving video upload to {$filename} " . json_encode($_FILES));
     decideMoveUploadedToVideos($_FILES['video']['tmp_name'], $filename);
 } else {
     // set encoding
@@ -102,14 +135,14 @@ if (!empty($_FILES['video']['tmp_name'])) {
 if (!empty($_FILES['image']['tmp_name']) && !file_exists("{$destination_local}.jpg")) {
     if (!move_uploaded_file($_FILES['image']['tmp_name'], "{$destination_local}.jpg")) {
         $obj->msg = print_r(sprintf(__("Could not move image file [%s.jpg]"), $destination_local), true);
-        error_log("youPHPTubeEncoder.json: ".$obj->msg);
+        error_log("youPHPTubeEncoder.json: " . $obj->msg);
         die(json_encode($obj));
     }
 }
 if (!empty($_FILES['gifimage']['tmp_name']) && !file_exists("{$destination_local}.gif")) {
     if (!move_uploaded_file($_FILES['gifimage']['tmp_name'], "{$destination_local}.gif")) {
         $obj->msg = print_r(sprintf(__("Could not move gif image file [%s.gif]"), $destination_local), true);
-        error_log("youPHPTubeEncoder.json: ".$obj->msg);
+        error_log("youPHPTubeEncoder.json: " . $obj->msg);
         die(json_encode($obj));
     }
 }

@@ -79,7 +79,7 @@ $contentSearchFound = false;
 
     <body class="<?php echo $global['bodyClass']; ?>">
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
-        <div class="container-fluid gallery" itemscope itemtype="http://schema.org/VideoObject">
+        <div class="container-fluid gallery">
             <div class="row text-center" style="padding: 10px;">
                 <?php echo getAdsLeaderBoardTop(); ?>
             </div>
@@ -129,6 +129,9 @@ $contentSearchFound = false;
                         ?>
                         <!-- For Live Videos End -->
                         <?php
+                        if ($obj->Trending) {
+                            createGallery(!empty($obj->TrendingCustomTitle) ? $obj->TrendingCustomTitle : __("Trending"), 'trending', $obj->TrendingRowCount, 'TrendingOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos);
+                        }
                         if ($obj->SortByName) {
                             createGallery(!empty($obj->SortByNameCustomTitle) ? $obj->SortByNameCustomTitle : __("Sort by name"), 'title', $obj->SortByNameRowCount, 'sortByNameOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos);
                         }

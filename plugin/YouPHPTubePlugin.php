@@ -175,7 +175,10 @@ class YouPHPTubePlugin {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $allFiles = array_merge($allFiles, $p->getJSFiles());
+                $js = $p->getJSFiles();
+                if(is_array($js)){
+                    $allFiles = array_merge($allFiles, $js);
+                }
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
@@ -753,12 +756,15 @@ class YouPHPTubePlugin {
         $p = static::loadPlugin($name);
         $currentVersion = $p->getPluginVersion();
         $uuid = $p->getUUID();
+        error_log("YouPHPTubePlugin::updatePlugin name=($name) uuid=($uuid) ");
         if (method_exists($p, 'updateScript')) {
+            error_log("YouPHPTubePlugin::updatePlugin method_exists ");
             if ($p->updateScript())
                 Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
             else
                 return false;
         }else {
+            error_log("YouPHPTubePlugin::updatePlugin method NOT exists ");
             Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
         }
         return true;
@@ -1049,7 +1055,7 @@ class YouPHPTubePlugin {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $r = $r && $p->saveVideosAddNew($post, $videos_id);
+                $r = $p->saveVideosAddNew($post, $videos_id) && $r;
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }

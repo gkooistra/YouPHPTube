@@ -134,7 +134,7 @@ if (!empty($_GET['t'])) {
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="icon" href="view/img/favicon.ico">
+        <link rel="icon" href="<?php echo $config->getFavicon(); ?>">
         <title><?php echo $config->getWebSiteTitle(); ?> :: <?php echo $video['title']; ?></title>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css"/>
 
@@ -178,7 +178,25 @@ if (!empty($_GET['t'])) {
 
     <body>
         <?php
-        if ($video['type'] == "article") {
+        if ($video['type'] == "serie") {
+            ?>
+            <video id="mainVideo" style="display: none; height: 0;width: 0;" ></video>
+            <iframe style="width: 100%; height: 100%;"  class="embed-responsive-item" src="<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/embed.php?playlists_id=<?php
+                echo $video['serie_playlists_id'];
+                if ($config->getAutoplay()) {
+                    echo "&autoplay=1";
+                }
+                ?>"></iframe>
+                    <?php
+                    echo YouPHPTubePlugin::getFooterCode();
+                    ?>
+            <script>
+                $(document).ready(function () {
+                    addView(<?php echo $video['id']; ?>, 0);
+                });
+            </script>
+            <?php
+        } else if ($video['type'] == "article") {
             ?>
             <div id="main-video" class="bgWhite list-group-item" style="max-height: 100vh; overflow: hidden; overflow-y: auto; font-size: 1.5em;">
                 <h1 style="font-size: 1.5em; font-weight: bold; text-transform: uppercase; border-bottom: #CCC solid 1px;">

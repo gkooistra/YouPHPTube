@@ -1,4 +1,7 @@
 <?php
+if(!empty($_GET['noNavbar'])){
+    return '';
+}
 global $includeDefaultNavBar, $global, $config, $advancedCustom, $advancedCustomUser;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
@@ -119,7 +122,7 @@ if (!$includeDefaultNavBar) {
     }
 </style>
 <?php
-if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->disableNavbar)) || $thisScriptFile["basename"] === "signUp.php") || User::isLogged()) {
+if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->disableNavbar)) || $thisScriptFile["basename"] === "signUp.php" || $thisScriptFile["basename"] === "userRecoverPass.php") || User::isLogged()) {
     $updateFiles = getUpdatesFilesArray();
     ?>
     <nav class="navbar navbar-default navbar-fixed-top " id="mainNavBar">
@@ -805,6 +808,16 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                     <a href="<?php echo $global['webSiteRootURL']; ?>plugins">
                                         <i class="fas fa-puzzle-piece"></i>
                                         <?php echo __("Plugins"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="clearCacheButton">
+                                        <i class="fa fa-trash"></i> <?php echo __("Clear Cache Directory"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="generateSiteMapButton">
+                                        <i class="fa fa-sitemap"></i> <?php echo __("Generate Sitemap"); ?>
                                     </a>
                                 </li>
                             </ul>

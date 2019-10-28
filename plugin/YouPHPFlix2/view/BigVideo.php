@@ -28,11 +28,12 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
              -moz-background-size: cover;
              -o-background-size: cover;
              background-size: cover; 
-             min-height: 70vh; 
-             margin: -20px; 
+             height: 0;
+             padding-bottom: 56.25%;/* Aspect ratio */
+             margin: -120px -20px; 
              margin-bottom: 0; 
              position: relative;
-             margin-bottom: -100px;
+             margin-bottom: -200px;
              z-index: 0;" >
              <?php
              if (!isMobile() && !empty($video['trailer1'])) {
@@ -41,7 +42,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                     <iframe src="<?php echo parseVideos($video['trailer1'], 1, 1, 1, 0, 0, 'fill'); ?>" frameborder="0"  allowtransparency="true" allow="autoplay"></iframe>
                 </div>
                 <div id="bg_container_overlay" ></div>
-                <div class="posterDetails " style=" padding: 30px;
+                <div class="posterDetails " style=" padding: 30px; padding-top: 120px;
                      background: -webkit-linear-gradient(bottom, rgba(<?php echo $obj->backgroundRGB; ?>,1) 2%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
                      background: -o-linear-gradient(top, rgba(<?php echo $obj->backgroundRGB; ?>,1) 2%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
                      background: linear-gradient(top, rgba(<?php echo $obj->backgroundRGB; ?>,1) 2%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
@@ -49,7 +50,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                      <?php
                  } else {
                      ?>
-                    <div class="posterDetails " style=" padding: 30px; 
+                    <div class="posterDetails " style=" padding: 30px;  padding-top: 120px;
                          background: -webkit-linear-gradient(left, rgba(<?php echo $obj->backgroundRGB; ?>,1) 40%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
                          background: -o-linear-gradient(right, rgba(<?php echo $obj->backgroundRGB; ?>,1) 40%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
                          background: linear-gradient(right, rgba(<?php echo $obj->backgroundRGB; ?>,1) 40%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);

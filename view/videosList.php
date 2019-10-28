@@ -42,8 +42,8 @@ $_SESSION['rowCount'] = $_POST['rowCount'];
 $_SESSION['sort'] = $_POST['sort'];
 
 
-$videos = Video::getAllVideos("viewable");
-$total = Video::getTotalVideos("viewable");
+$videos = Video::getAllVideos("viewableNotUnlisted");
+$total = Video::getTotalVideos("viewableNotUnlisted");
 $totalPages = ceil($total / $_POST['rowCount']);
 $_POST = $post;
 if (empty($totalPages)) {
@@ -100,7 +100,7 @@ foreach ($videos as $key => $value) {
     if (!empty($video['id']) && $video['id'] == $value['id']) {
         continue; // skip video
     }
-    $name = User::getNameIdentificationById($value['users_id']);
+    $name = User::getNameIdentificationById($value['users_id']).' '. User::getEmailVerifiedIcon($value['users_id']);
     $value['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($value['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 20px;"/></div><div class="commentDetails" style="margin-left:25px;"><div class="commenterName text-muted"><strong>' . $name . '</strong> <small>' . humanTiming(strtotime($value['videoCreation'])) . '</small></div></div>';
     ?>
     <div class="col-lg-12 col-sm-12 col-xs-12 bottom-border" id="divVideo-<?php echo $value['id']; ?>" itemscope itemtype="http://schema.org/VideoObject">
@@ -191,6 +191,10 @@ foreach ($videos as $key => $value) {
                 </div>
             </div>
         </a>
+        <?php
+        getLdJson($value['id']);
+        getItemprop($value['id']);
+        ?>
     </div>
     <?php
 }

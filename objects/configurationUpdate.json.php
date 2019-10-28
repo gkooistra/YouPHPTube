@@ -1,7 +1,8 @@
 <?php
+
 header('Content-Type: application/json');
 global $global, $config;
-if(!isset($global['systemRootPath'])){
+if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 require_once $global['systemRootPath'] . 'objects/user.php';
@@ -76,5 +77,36 @@ if (!empty($_POST['logoImgBase64'])) {
         );
     }
 }
+if (!empty($_POST['faviconBase64'])) {
+    $imagePath = "videos/";
+    $fileData = base64DataToImage($_POST['faviconBase64']);
+    $fileName = 'favicon.png';
+    $photoURL = $imagePath . $fileName;
+    $bytes = file_put_contents($global['systemRootPath'] . $photoURL, $fileData);
+    if ($bytes > 10) {
+        $response2 = array(
+            "status" => 'success',
+            "url" => $global['systemRootPath'] . $photoURL
+        );
+        require(  $global['systemRootPath'] . 'objects/php-ico/class-php-ico.php' );
+        
+        $sizes = array(
+            array(16, 16),
+            array(24, 24),
+            array(32, 32),
+            array(48, 48),
+            array(144, 144),
+        );
 
-echo '{"status":"' . $config->save() . '", "respnseLogo": ' . json_encode($response) . '}';
+        $ico_lib = new PHP_ICO($global['systemRootPath'] . $photoURL, $sizes);
+        $ico_lib->save_ico($global['systemRootPath'] . $imagePath.'favicon.ico');
+    } else {
+        $response2 = array(
+            "status" => 'error',
+            "msg" => 'We could not save favicon',
+            "url" => $global['systemRootPath'] . $photoURL
+        );
+    }
+}
+
+echo '{"status":"' . $config->save() . '", "respnseLogo": ' . json_encode($response) . ', "respnseFavicon": ' . json_encode($response2) . '}';

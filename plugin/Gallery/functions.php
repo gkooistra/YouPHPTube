@@ -127,6 +127,7 @@ function createGallerySection($videos, $crc = "", $get = array()) {
 
         $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
         $name = User::getNameIdentificationById($value['users_id']);
+        $name .= " ".User::getEmailVerifiedIcon($value['users_id']);;
         // make a row each 6 cols
         if ($countCols % $obj->screenColsLarge === 0) {
             echo '</div><div class="row aligned-row ">';
@@ -134,7 +135,7 @@ function createGallerySection($videos, $crc = "", $get = array()) {
 
         $countCols ++;
         ?>
-        <div class="col-lg-<?php echo 12 / $obj->screenColsLarge; ?> col-md-<?php echo 12 / $obj->screenColsMedium; ?> col-sm-<?php echo 12 / $obj->screenColsSmall; ?> col-xs-<?php echo 12 / $obj->screenColsXSmall; ?> galleryVideo thumbsImage fixPadding" style="z-index: <?php echo $zindex--; ?>; min-height: 175px;">
+        <div class="col-lg-<?php echo 12 / $obj->screenColsLarge; ?> col-md-<?php echo 12 / $obj->screenColsMedium; ?> col-sm-<?php echo 12 / $obj->screenColsSmall; ?> col-xs-<?php echo 12 / $obj->screenColsXSmall; ?> galleryVideo thumbsImage fixPadding" style="z-index: <?php echo $zindex--; ?>; min-height: 175px;" itemscope itemtype="http://schema.org/VideoObject">
             <a class="galleryLink" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title'], false, $getCN); ?>" title="<?php echo $value['title']; ?>">
                 <?php
                 @$timesG[__LINE__] += microtime(true) - $startG;
@@ -164,7 +165,7 @@ function createGallerySection($videos, $crc = "", $get = array()) {
                     ?>
                 </div>
                 <?php
-                if ($value['type'] !== 'pdf' && $value['type'] !== 'article') {
+                if ($value['type'] !== 'pdf' && $value['type'] !== 'article' && $value['type'] !== 'serie') {
                     ?>
                     <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
                     <div class="progress" style="height: 3px; margin-bottom: 2px;">
@@ -288,6 +289,8 @@ function createGallerySection($videos, $crc = "", $get = array()) {
             }
             @$timesG[__LINE__] += microtime(true) - $startG;
             $startG = microtime(true);
+            getLdJson($value['id']);
+            getItemprop($value['id']);
             ?>
         </div>
 

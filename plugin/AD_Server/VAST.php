@@ -2,10 +2,16 @@
 header('Content-type: application/xml');
 
 require_once '../../videos/configuration.php';
+allowOrigin();
 require_once $global['systemRootPath'] . 'objects/video.php';
 $ad_server = YouPHPTubePlugin::loadPlugin('AD_Server');
 $obj = YouPHPTubePlugin::getObjectData('AD_Server');
 $types = array('', '_Low', '_SD', '_HD');
+
+if(empty($_GET['campaign_has_videos_id'])){
+    $video = VastCampaignsVideos::getRandomCampainVideo(0);
+    $_GET['campaign_has_videos_id'] = $video['id'];
+}
 
 $vastCampaingVideos = new VastCampaignsVideos($_GET['campaign_has_videos_id']);
 $video = new Video("", "", $vastCampaingVideos->getVideos_id());
@@ -43,15 +49,17 @@ $files = getVideosURL($video->getFilename());
                         </TrackingEvents>
                         <?php
                         $campaignVideo = new VastCampaignsVideos($_GET['campaign_has_videos_id']);
-                        $link = $campaignVideo->getLink();
-                        if (filter_var($link, FILTER_VALIDATE_URL)) {
-                            ?>
-                            <VideoClicks>
-                                <ClickThrough id="GDFP"><![CDATA[<?php echo $global['webSiteRootURL']; ?>plugin/AD_Server/log.php?label=ClickThrough&campaign_has_videos_id=<?php echo $_GET['campaign_has_videos_id']; ?>]]></ClickThrough>
-                            </VideoClicks>
-                            <?php
-                        }else{
-                            error_log("VastCampaignsVideos has not a valid link: {$link}");
+                        if(!empty($campaignVideo)){
+                            $link = $campaignVideo->getLink();
+                            if (filter_var($link, FILTER_VALIDATE_URL)) {
+                                ?>
+                                <VideoClicks>
+                                    <ClickThrough id="GDFP"><![CDATA[<?php echo $global['webSiteRootURL']; ?>plugin/AD_Server/log.php?label=ClickThrough&campaign_has_videos_id=<?php echo $_GET['campaign_has_videos_id']; ?>]]></ClickThrough>
+                                </VideoClicks>
+                                <?php
+                            }else{
+                                error_log("VastCampaignsVideos has not a valid link: {$link}");
+                            }
                         }
                         ?>
                         <MediaFiles>

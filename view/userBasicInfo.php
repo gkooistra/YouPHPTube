@@ -71,7 +71,7 @@
     <div class="col-md-8 inputGroupContainer">
         <div class="input-group">
             <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-            <input  id="inputPassword" placeholder="<?php echo __("New Password"); ?>" class="form-control"  type="password" value="" >
+            <input  id="inputPassword" placeholder="<?php echo __("New Password"); ?>" class="form-control"  type="password" value="" autocomplete="off" >
         </div>
     </div>
 </div>
@@ -81,7 +81,7 @@
     <div class="col-md-8 inputGroupContainer">
         <div class="input-group">
             <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-            <input  id="inputPasswordConfirm" placeholder="<?php echo __("Confirm New Password"); ?>" class="form-control"  type="password" value="" >
+            <input  id="inputPasswordConfirm" placeholder="<?php echo __("Confirm New Password"); ?>" class="form-control"  type="password" value="" autocomplete="off" >
         </div>
     </div>
 </div>
@@ -92,6 +92,16 @@
         <div class="input-group">
             <span class="input-group-addon"><i class="fab fa-youtube"></i></span>
             <input  id="channelName" placeholder="<?php echo __("Channel Name"); ?>" class="form-control"  type="text" value="<?php echo $user->getChannelName(); ?>" >
+        </div>
+    </div>
+</div>
+
+<div class="form-group <?php if(empty($advancedCustomUser->allowDonationLink)){echo " hidden ";} ?>">
+    <label class="col-md-4 control-label"><?php echo __("Donation Link"); ?></label>
+    <div class="col-md-8 inputGroupContainer">
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fas fa-donate"></i></span>
+            <input  id="donationLink" placeholder="<?php echo __("Donation Link"); ?>" class="form-control"  type="url" value="<?php echo $user->getDonationLink(); ?>" >
         </div>
     </div>
 </div>
@@ -141,6 +151,7 @@ YouPHPTubePlugin::getMyAccount(User::getId());
     var uploadCrop;
 
     function isAnalytics() {
+        return true;
         str = $('#analyticsCode').val();
         return str === '' || (/^ua-\d{4,9}-\d{1,4}$/i).test(str.toString());
     }
@@ -177,6 +188,7 @@ YouPHPTubePlugin::getMyAccount(User::getId());
                 "name": $('#inputName').val(),
                 "about": $('#textAbout').val(),
                 "channelName": $('#channelName').val(),
+                "donationLink": $('#donationLink').val(),
                 "analyticsCode": $('#analyticsCode').val()
             },
             type: 'post',

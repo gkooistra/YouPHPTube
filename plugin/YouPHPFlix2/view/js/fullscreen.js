@@ -25,9 +25,13 @@ function flixFullScreen(link){
 }
 
 function closeFlixFullScreen() {
+    setTimeout(function(){
+        $('body').removeClass('fullscreen');
+        $('body').attr('class', '');
+    },500);
+    
     if($('#divIframeFull').length){
         $("#divIframeFull").fadeOut("slow", function () {
-            $('body').removeClass('fullscreen');
             $('#divIframeFull').remove();
         });
     }

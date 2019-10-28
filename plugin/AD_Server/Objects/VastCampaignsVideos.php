@@ -44,8 +44,32 @@ class VastCampaignsVideos extends ObjectYPT {
         return $row;
     }
     
+    static function getRandomCampainVideo($vast_campaigns_id) {
+        global $global;
+        $vast_campaigns_id = intval($vast_campaigns_id);
+        if(empty($vast_campaigns_id)){
+            $campaings = VastCampaigns::getValidCampaigns();
+            if(empty($campaings[0])){
+                return false;
+            }
+            $vast_campaigns_id = $campaings[0]['id'];
+        }
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  vast_campaigns_id = ? ORDER BY RAND() LIMIT 1";
+        // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/YouPHPTube/about
+        $res = sqlDAL::readSql($sql,"i",array($vast_campaigns_id)); 
+        $data = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($res) {
+            $row = $data;
+        } else {
+            $row = false;
+        }
+        return $row;
+    }
+    
     static function getAllFromCampaign($vast_campaigns_id, $getImages = false) {
         global $global;
+        $vast_campaigns_id = intval($vast_campaigns_id);
         $sql = "SELECT v.*, c.* FROM  " . static::getTableName() . " c "
                 . " LEFT JOIN videos v ON videos_id = v.id WHERE 1=1 ";
         

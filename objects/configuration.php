@@ -1,6 +1,7 @@
 <?php
+
 global $global, $config;
-if(!isset($global['systemRootPath'])){
+if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 require_once $global['systemRootPath'] . 'objects/user.php';
@@ -198,16 +199,38 @@ class Configuration {
         return $this->head;
     }
 
-    function getLogo($timestamp=false) {
+    function getLogo($timestamp = false) {
         global $global;
         if (empty($this->logo)) {
             return "view/img/logo.png";
         }
         $get = "";
-        if($timestamp){
-            $get .= "?".filemtime(str_replace("?", "", $global['systemRootPath'].$this->logo));
+        $file = str_replace("?", "", $global['systemRootPath'] . $this->logo);
+        if ($timestamp && file_exists($file)) {
+            $get .= "?" . filemtime($file);
         }
-        return $this->logo.$get;
+        return $this->logo . $get;
+    }
+
+    function getFavicon($getPNG = false) {
+        global $global;
+        if (!$getPNG) {
+            $file = $global['systemRootPath'] . "videos/favicon.ico";
+            $url = "{$global['webSiteRootURL']}videos/favicon.ico";
+            if (!file_exists($file)) {
+                $file = $global['systemRootPath'] . "view/img/favicon.ico";
+                $url = "{$global['webSiteRootURL']}view/img/favicon.ico";
+            }
+        }
+        if (empty($url) || !file_exists($file)) {
+            $file = $global['systemRootPath'] . "videos/favicon.png";
+            $url = "{$global['webSiteRootURL']}videos/favicon.png";
+            if (!file_exists($file)) {
+                $file = $global['systemRootPath'] . "view/img/favicon.png";
+                $url = "{$global['webSiteRootURL']}view/img/favicon.png";
+            }
+        }
+        return $url . "?" . filectime($file);
     }
 
     function setHead($head) {
@@ -293,7 +316,7 @@ class Configuration {
 
     static function rewriteConfigFile() {
         global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase;
-        if(empty($global['salt'])){
+        if (empty($global['salt'])) {
             $global['salt'] = uniqid();
         }
         $content = "<?php
@@ -401,18 +424,19 @@ require_once \$global['systemRootPath'].'objects/include_config.php';
     function _getEncoderURL() {
         return $this->encoderURL;
     }
+
     function getEncoderURL() {
         global $advancedCustom;
-        if(!empty($advancedCustom->useEncoderNetworkRecomendation) && !empty($advancedCustom->encoderNetwork)){
+        if (!empty($advancedCustom->useEncoderNetworkRecomendation) && !empty($advancedCustom->encoderNetwork)) {
             if (substr($advancedCustom->encoderNetwork, -1) !== '/') {
                 $advancedCustom->encoderNetwork .= "/";
             }
-            $bestEncoder = json_decode(url_get_contents($advancedCustom->encoderNetwork."view/getBestEncoder.php"));
-            if(!empty($bestEncoder->siteURL)){
+            $bestEncoder = json_decode(url_get_contents($advancedCustom->encoderNetwork . "view/getBestEncoder.php"));
+            if (!empty($bestEncoder->siteURL)) {
                 $this->encoderURL = $bestEncoder->siteURL;
             }
         }
-        
+
         if (empty($this->encoderURL)) {
             return "https://encoder.youphptube.com/";
         }

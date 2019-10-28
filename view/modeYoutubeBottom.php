@@ -4,7 +4,7 @@ require_once $global['systemRootPath'] . 'objects/subscribe.php';
 if (empty($video) && !empty($_GET['videos_id'])) {
     $video = Video::getVideo(intval($_GET['videos_id']), "viewable", false, false, true, true);
     $name = User::getNameIdentificationById($video['users_id']);
-    $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name}</a>";
+    $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id']) . "</a>";
     $subscribe = Subscribe::getButton($video['users_id']);
     $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
     $source = Video::getSourceFile($video['filename']);
@@ -373,7 +373,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
             if($video['type']!=='article'){
             ?>
             <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
-            <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description"><?php echo $video['description']; ?></div>
+            <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description"><?php echo empty($advancedCustom->disableHTMLDescription)?$video['description']:nl2br(textToLink(htmlentities($video['description']))); ?></div>
             <?php
             }
             ?>
@@ -391,6 +391,12 @@ if (empty($video) && !empty($_GET['videos_id'])) {
         });
     });
 </script>
-<div class="row bgWhite list-group-item">
-    <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
-</div>
+<?php
+if(empty($advancedCustom->disableComments)){
+    ?>
+        <div class="row bgWhite list-group-item">
+            <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
+        </div>
+    <?php
+}
+?>

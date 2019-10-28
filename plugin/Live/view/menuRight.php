@@ -40,10 +40,11 @@ if (User::canStream()) {
         </div>
     </a>
 </li>
-<div class="col-lg-12 col-sm-12 col-xs-12 bottom-border hidden extraVideosModel liveVideo" itemscope itemtype="http://schema.org/VideoObject">
+<div class="col-lg-12 col-sm-12 col-xs-12 bottom-border hidden extraVideosModel liveVideo">
     <a href="" class="h6 videoLink">
         <div class="col-lg-5 col-sm-5 col-xs-5 nopadding thumbsImage" style="min-height: 70px; position:relative;" >
-            <img src="" class="thumbsJPG img-responsive" height="130" />
+            <img src="<?php echo $global['webSiteRootURL']; ?>videos/userPhoto/logo.png" class="thumbsJPG img-responsive" height="130" itemprop="thumbnailUrl" />
+            <meta itemprop="uploadDate" content="<?php echo date("Y-m-d h:i:s"); ?>" />
             <img src="" style="position: absolute; top: 0; display: none;" class="thumbsGIF img-responsive" height="130" />
             <span class="label label-danger liveNow faa-flash faa-slow animated"><?php echo __("LIVE NOW"); ?></span>
         </div>
@@ -161,7 +162,13 @@ if (User::canStream()) {
                                             views = response.applications[i].users.views;
                                             key = response.applications[i].key;
                                             createLiveItem(href, title, name, photo, false, online, views, key);
-                                            createExtraVideos(href, title, name, photo, user, online, views, key, disableGif);
+                                            <?php
+                                            if(empty($obj->doNotShowLiveOnVideosList)){
+                                                ?>
+                                                createExtraVideos(href, title, name, photo, user, online, views, key, disableGif);    
+                                                <?php
+                                            }
+                                            ?>
                                         }
                                     }
                                     mouseEffect();

@@ -1,4 +1,5 @@
 <?php
+global $t;
 
 $t['%s ERROR: You must set a ID on config'] = "%s ERROR: You must set a ID on config";
 $t['%s ERROR: You must set a KEY on config'] = "%s ERROR: You must set a KEY on config";

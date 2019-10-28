@@ -85,17 +85,18 @@ if (!empty($_GET['playlist_id'])) {
     }
 
     $videosArrayId = PlayList::getVideosIdFromPlaylist($_GET['playlist_id']);
-    $videosPlayList = Video::getAllVideos("viewable");
+    $videosPlayList = Video::getAllVideos("viewable",false, false, $videosArrayId, false, true);
     $videosPlayList = PlayList::sortVideos($videosPlayList, $videosArrayId);
-    $video = Video::getVideo($videosPlayList[$playlist_index]['id']);
+    
+    $video = Video::getVideo($videosPlayList[$playlist_index]['id'], "viewable", false, false, false, true);
     if (!empty($videosPlayList[$playlist_index + 1])) {
-        $autoPlayVideo = Video::getVideo($videosPlayList[$playlist_index + 1]['id']);
+        $autoPlayVideo = Video::getVideo($videosPlayList[$playlist_index + 1]['id'], "viewable", false, false, false, true);
         $autoPlayVideo['url'] = $global['webSiteRootURL'] . "playlist/{$playlist_id}/" . ($playlist_index + 1);
     } else if (!empty($videosPlayList[0])) {
-        $autoPlayVideo = Video::getVideo($videosPlayList[0]['id']);
+        $autoPlayVideo = Video::getVideo($videosPlayList[0]['id'], "viewable", false, false, false, true);
         $autoPlayVideo['url'] = $global['webSiteRootURL'] . "playlist/{$playlist_id}/0";
     }
-
+   
     unset($_GET['playlist_id']);
 } else {
     if (!empty($video['next_videos_id'])) {
@@ -128,7 +129,7 @@ if (!empty($_GET['playlist_id'])) {
 
     if (!empty($autoPlayVideo)) {
 
-        $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']);
+        $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']).' '. User::getEmailVerifiedIcon($autoPlayVideo['users_id']);
         $autoPlayVideo['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($autoPlayVideo['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName"><strong>' . $name2 . '</strong> <small>' . humanTiming(strtotime($autoPlayVideo['videoCreation'])) . '</small></div></div>';
         $autoPlayVideo['tags'] = Video::getTags($autoPlayVideo['id']);
         //$autoPlayVideo['url'] = $global['webSiteRootURL'] . $catLink . "video/" . $autoPlayVideo['clean_title'];
@@ -138,7 +139,7 @@ if (!empty($_GET['playlist_id'])) {
 
 if (!empty($video)) {
     $name = User::getNameIdentificationById($video['users_id']);
-    $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name}</a>";
+    $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id'])."</a>";
     $subscribe = Subscribe::getButton($video['users_id']);
     $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
     $obj = new Video("", "", $video['id']);
@@ -214,18 +215,12 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/social.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
-        <?php include $global['systemRootPath'] . 'view/include/head.php'; ?>
-        <link rel="image_src" href="<?php echo $img; ?>" />
-        <meta property="fb:app_id"             content="774958212660408" />
-        <meta property="og:url"                content="<?php echo $global['webSiteRootURL'], $catLink, "video/", $video['clean_title']; ?>" />
-        <meta property="og:type"               content="video.other" />
-        <meta property="og:title"              content="<?php echo str_replace('"', '', $video['title']); ?> - <?php echo $config->getWebSiteTitle(); ?>" />
-        <meta property="og:description"        content="<?php echo!empty($custom) ? $custom : str_replace('"', '', $video['title']); ?>" />
-        <meta property="og:image"              content="<?php echo $img; ?>" />
-        <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
-        <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
-        <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
-        <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
+        <?php 
+        include $global['systemRootPath'] . 'view/include/head.php'; 
+        getOpenGraph(0);
+        getLdJson(0);
+        ?>
+        
     </head>
 
     <body class="<?php echo $global['bodyClass']; ?>">
@@ -239,7 +234,7 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
             <?php
         }
         ?>
-        <div class="container-fluid principalContainer" itemscope itemtype="http://schema.org/VideoObject">
+        <div class="container-fluid principalContainer">
             <?php
             if (!empty($video)) {
                 if (empty($video['type'])) {

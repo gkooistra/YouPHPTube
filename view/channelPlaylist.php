@@ -48,7 +48,7 @@ foreach ($playlists as $playlist) {
     //getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true)
     if (empty($videosArrayId) && ($playlist['status'] == "favorite" || $playlist['status'] == "watch_later")) {
         continue;
-    }else if (empty($videosArrayId)) {
+    } else if (empty($videosArrayId)) {
         $videosP = array();
     } else if ($advancedCustom->AsyncJobs) {
         $videosP = Video::getAllVideosAsync("viewable", false, true, $videosArrayId, false, true);
@@ -75,15 +75,10 @@ foreach ($playlists as $playlist) {
 
             <?php
             if (!empty($videosArrayId)) {
-                if(empty($playListsObj->useOldPlayList)){
+                $link = PlayLists::getLink($playlist['id']);
                 ?>
-                <a href="<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/player.php?playlists_id=<?php echo $playlist['id']; ?>" class="btn btn-xs btn-default playAll hrefLink" ><span class="fa fa-play"></span> <?php echo __("Play All"); ?></a><?php echo $playListButtons; ?>
+                <a href="<?php echo $link; ?>" class="btn btn-xs btn-default playAll hrefLink" ><span class="fa fa-play"></span> <?php echo __("Play All"); ?></a><?php echo $playListButtons; ?>
                 <?php
-                }else{
-                ?>
-                <a href="<?php echo $global['webSiteRootURL']; ?>playlist/<?php echo $playlist['id']; ?>" class="btn btn-xs btn-default playAll hrefLink" ><span class="fa fa-play"></span> <?php echo __("Play All"); ?></a><?php echo $playListButtons; ?>
-                <?php
-                }
             }
             if ($isMyChannel) {
                 ?>
@@ -118,24 +113,53 @@ foreach ($playlists as $playlist) {
                             <?php
                         }
                         ?>
-                        <button class="btn btn-xs btn-danger deletePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><span class="fa fa-trash-o"></span> <?php echo __("Delete"); ?></button>
-                        <button class="btn btn-xs btn-primary renamePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><span class="fa fa-pencil"></span> <?php echo __("Rename"); ?></button>
+                        <button class="btn btn-xs btn-info seriePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><i class="fas fa-film"></i> <?php echo __("Serie"); ?></button>
+
+                        <div id="seriePlaylistModal" class="modal fade" tabindex="-1" role="dialog" >
+                            <div class="modal-dialog" role="document" style="width: 90%; margin: auto;">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                        <h4 class="modal-title"><?php echo __("Serie"); ?></h4>
+                                    </div>
+                                    <div class="modal-body">
+                                        <iframe style="width: 100%; height: 80vh;" src="about:blank">
+
+                                        </iframe>
+                                    </div>
+                                </div><!-- /.modal-content -->
+                            </div><!-- /.modal-dialog -->
+                        </div><!-- /.modal -->
+                        <script>
+                            $(function () {
+                                $('.seriePlaylist').click(function () {
+                                    $($('#seriePlaylistModal').find('iframe')[0]).attr('src', 'about:blank');
+                                    var playlist_id = $(this).attr('playlist_id');
+                                    $($('#seriePlaylistModal').find('iframe')[0]).attr('src', '<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/playListToSerie.php?playlist_id=' + playlist_id);
+                                    $('#seriePlaylistModal').modal();
+                                    //$('#seriePlaylistModal').modal('hide');
+                                });
+                            });
+                        </script>
+
+                        <button class="btn btn-xs btn-danger deletePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><i class="fas fa-trash"></i> <?php echo __("Delete"); ?></button>
+                        <button class="btn btn-xs btn-primary renamePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><i class="fas fa-edit"></i> <?php echo __("Rename"); ?></button>
                         <button class="btn btn-xs btn-default statusPlaylist statusPlaylist<?php echo $playlist['id']; ?>" playlist_id="<?php echo $playlist['id']; ?>" style="" >
                             <span class="fa fa-lock" id="statusPrivate<?php echo $playlist['id']; ?>" style="color: red; <?php
-                            if ($playlist['status'] !== 'private') {
-                                echo ' display: none;';
-                            }
-                            ?> " ></span> 
+            if ($playlist['status'] !== 'private') {
+                echo ' display: none;';
+            }
+                        ?> " ></span> 
                             <span class="fa fa-globe" id="statusPublic<?php echo $playlist['id']; ?>" style="color: green; <?php
-                            if ($playlist['status'] !== 'public') {
-                                echo ' display: none;';
-                            }
-                            ?>"></span> 
+                      if ($playlist['status'] !== 'public') {
+                          echo ' display: none;';
+                      }
+                        ?>"></span> 
                             <span class="fa fa-eye-slash" id="statusUnlisted<?php echo $playlist['id']; ?>" style="color: gray;   <?php
-                            if ($playlist['status'] !== 'unlisted') {
-                                echo ' display: none;';
-                            }
-                            ?>"></span>
+                      if ($playlist['status'] !== 'unlisted') {
+                          echo ' display: none;';
+                      }
+                        ?>"></span>
                         </button>
                         <?php
                     }
@@ -259,11 +283,13 @@ foreach ($playlists as $playlist) {
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-default btn-xs btn-sm showMoreLessBtn showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();$('.<?php echo $class; ?>').slideDown();"><i class="fas fa-angle-down"></i> <?php echo __('Show More'); ?></button>
-                <button class="btn btn-default btn-xs btn-sm  showMoreLessBtn showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();$('.<?php echo $class; ?>').slideUp();" style="display: none;"><i class="fas fa-angle-up"></i> <?php echo __('Show Less'); ?></button>
-                <?php
-                if (!empty($videosArrayId)) {
-                    ?>
+                <button class="btn btn-default btn-xs btn-sm showMoreLessBtn showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();
+                                $('.<?php echo $class; ?>').slideDown();"><i class="fas fa-angle-down"></i> <?php echo __('Show More'); ?></button>
+                <button class="btn btn-default btn-xs btn-sm  showMoreLessBtn showMoreLessBtn<?php echo $playlist['id']; ?>" onclick="$('.showMoreLessBtn<?php echo $playlist['id']; ?>').toggle();
+                                $('.<?php echo $class; ?>').slideUp();" style="display: none;"><i class="fas fa-angle-up"></i> <?php echo __('Show Less'); ?></button>
+                        <?php
+                        if (!empty($videosArrayId)) {
+                            ?>
                     <span class="label label-info" ><i class="fa fa-info-circle"></i> <?php echo __("Drag and drop to sort"); ?></span>
                     <?php
                 }
@@ -285,7 +311,7 @@ $_GET['channelName'] = $channelName;
     function setTextEmbedCopied() {
         clearTimeout(timoutembed);
         $("#btnEmbedText").html("<?php echo __("Copied!"); ?>");
-        setTimeout(function () {
+        timoutembed = setTimeout(function () {
             $("#btnEmbedText").html("<?php echo __("Copy embed code"); ?>");
         }, 3000);
     }
@@ -334,14 +360,14 @@ $_GET['channelName'] = $channelName;
 
     var currentObject;
     $(function () {
-        <?php
-        if(!empty($palyListsObj->expandPlayListOnChannels)){
-        ?>
-        $('.showMoreLess').slideDown();
-        $('.showMoreLessBtn').toggle();
-        <?php 
-        }
-        ?>
+<?php
+if (!empty($palyListsObj->expandPlayListOnChannels)) {
+    ?>
+            $('.showMoreLess').slideDown();
+            $('.showMoreLessBtn').toggle();
+    <?php
+}
+?>
         $('.removeVideo').click(function () {
             currentObject = this;
             swal({

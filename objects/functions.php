@@ -489,6 +489,7 @@ function sendSiteEmail($to, $subject, $message) {
 }
 
 function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $showinfo = 0, $controls = 1, $time = 0, $objectFit = "") {
+    //error_log("parseVideos: $videoString");
     if (strpos($videoString, 'youtube.com/embed') !== false) {
         return $videoString . (parse_url($videoString, PHP_URL_QUERY) ? '&' : '?') . 'modestbranding=1&showinfo='
                 . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time&objectFit=$objectFit";
@@ -803,7 +804,7 @@ function getVideosURLPDF($fileName) {
     $time = $time[1] + $time[0];
     $finish = $time;
     $total_time = round(($finish - $start), 4);
-    error_log("getVideosURLPDF generated in {$total_time} seconds. fileName: $fileName ");
+    //error_log("getVideosURLPDF generated in {$total_time} seconds. fileName: $fileName ");
     return $files;
 }
 
@@ -856,7 +857,7 @@ function getVideosURLArticle($fileName) {
     $time = $time[1] + $time[0];
     $finish = $time;
     $total_time = round(($finish - $start), 4);
-    error_log("getVideosURLPDF generated in {$total_time} seconds. fileName: $fileName ");
+    //error_log("getVideosURLPDF generated in {$total_time} seconds. fileName: $fileName ");
     return $files;
 }
 
@@ -918,7 +919,7 @@ function getVideosURLAudio($fileName) {
     $time = $time[1] + $time[0];
     $finish = $time;
     $total_time = round(($finish - $start), 4);
-    error_log("getVideosURLAudio generated in {$total_time} seconds. fileName: $fileName ");
+    //error_log("getVideosURLAudio generated in {$total_time} seconds. fileName: $fileName ");
     return $files;
 }
 
@@ -950,8 +951,8 @@ function getVideosURL($fileName, $cache = true) {
         $time = $time[1] + $time[0];
         $finish = $time;
         $total_time = round(($finish - $start), 4);
-        error_log("getVideosURL Cache in {$total_time} seconds. fileName: $fileName ");
-        error_log("getVideosURL age: " . (time() - filemtime($cacheFilename)) . " minimumExpirationTime: " . minimumExpirationTime());
+        //error_log("getVideosURL Cache in {$total_time} seconds. fileName: $fileName ");
+        //error_log("getVideosURL age: " . (time() - filemtime($cacheFilename)) . " minimumExpirationTime: " . minimumExpirationTime());
         return object_to_array(json_decode($json));
     }
     global $global;
@@ -1042,6 +1043,16 @@ function getVideosURL($fileName, $cache = true) {
                     'type' => 'image',
                 );
             }
+            $source = Video::getSourceFile($filename, ".webp");
+            $file = $source['path'];
+            if (file_exists($file)) {
+                $files["gif"] = array(
+                    'filename' => "{$fileName}.webp",
+                    'path' => $file,
+                    'url' => $source['url'],
+                    'type' => 'image',
+                );
+            }
             $source = Video::getSourceFile($filename, "_portrait.jpg");
             $file = $source['path'];
             if (file_exists($file)) {
@@ -1060,7 +1071,7 @@ function getVideosURL($fileName, $cache = true) {
                 );
             }
         }
-
+        make_path($cacheFilename);
         file_put_contents($cacheFilename, json_encode($files));
     }
     $time = microtime();
@@ -1068,7 +1079,7 @@ function getVideosURL($fileName, $cache = true) {
     $time = $time[1] + $time[0];
     $finish = $time;
     $total_time = round(($finish - $start), 4);
-    error_log("getVideosURL generated in {$total_time} seconds. fileName: $fileName ");
+    //error_log("getVideosURL generated in {$total_time} seconds. fileName: $fileName ");
     return $files;
 }
 
@@ -1292,6 +1303,29 @@ function im_resizeV3($file_src, $file_dest, $wd, $hd) {
     exec($ffmpeg . " < /dev/null 2>&1", $output, $return_val);
 }
 
+function im_resize_max_size($file_src, $file_dest, $max_width, $max_height) {
+    $fn = $file_src;
+    $size = getimagesize($fn);
+    $ratio = $size[0] / $size[1]; // width/height
+    if ($size[0] <= $max_width && $size[1] <= $max_height) {
+        $width = $size[0];
+        $height = $size[1];
+    } else
+    if ($ratio > 1) {
+        $width = $max_width;
+        $height = $max_height / $ratio;
+    } else {
+        $width = $max_width * $ratio;
+        $height = $max_height;
+    }
+    $src = imagecreatefromstring(file_get_contents($fn));
+    $dst = imagecreatetruecolor($width, $height);
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $width, $height, $size[0], $size[1]);
+    imagedestroy($src);
+    imagejpeg($dst, $file_dest); // adjust format as needed
+    imagedestroy($dst);
+}
+
 function decideMoveUploadedToVideos($tmp_name, $filename) {
     global $global;
     $obj = new stdClass();
@@ -1370,6 +1404,9 @@ function unzipDirectory($filename, $destination) {
 }
 
 function make_path($path) {
+    if (substr($path, -1) !== '/') {
+        $path = pathinfo($path, PATHINFO_DIRNAME);
+    }
     if (!is_dir($path)) {
         @mkdir($path, 0755, true);
     }
@@ -1562,7 +1599,7 @@ function combineFiles($filesArray, $extension = "js") {
         }
         file_put_contents($cacheDir . $md5FileName, $str);
     }
-    return $global['webSiteRootURL'] . 'videos/cache/' . $extension . "/" . $md5FileName;
+    return $global['webSiteRootURL'] . 'videos/cache/' . $extension . "/" . $md5FileName . "?" . filectime($cacheDir . $md5FileName);
 }
 
 function local_get_contents($path) {
@@ -1574,10 +1611,13 @@ function local_get_contents($path) {
     }
 }
 
-function url_get_contents($Url, $ctx = "") {
+function url_get_contents($Url, $ctx = "", $timeout = 0) {
     global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, $mysqlPort;
     $session = $_SESSION;
     session_write_close();
+    if (!empty($timeout)) {
+        ini_set('default_socket_timeout', $timeout);
+    }
     $global['mysqli']->close();
     if (empty($ctx)) {
         $opts = array(
@@ -1587,6 +1627,10 @@ function url_get_contents($Url, $ctx = "") {
                 "allow_self_signed" => true,
             ),
         );
+        if (!empty($timeout)) {
+            ini_set('default_socket_timeout', $timeout);
+            $opts['http'] = array('timeout' => $timeout);
+        }
         $context = stream_context_create($opts);
     } else {
         $context = $ctx;
@@ -1614,6 +1658,10 @@ function url_get_contents($Url, $ctx = "") {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        if (!empty($timeout)) {
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout + 10);
+        }
         $output = curl_exec($ch);
         curl_close($ch);
         if (session_status() == PHP_SESSION_NONE) {
@@ -1914,25 +1962,22 @@ function allowOrigin() {
     } else {
         header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
     }
+    header("Access-Control-Allow-Credentials: true");
 }
 
-if (!function_exists("rrmdir")) {
-
-    function rrmdir($dir) {
-        if (is_dir($dir)) {
-            $objects = scandir($dir);
-            foreach ($objects as $object) {
-                if ($object != "." && $object != "..") {
-                    if (is_dir($dir . "/" . $object))
-                        rrmdir($dir . "/" . $object);
-                    else
-                        unlink($dir . "/" . $object);
-                }
+function rrmdir($dir) {
+    if (is_dir($dir)) {
+        $objects = scandir($dir);
+        foreach ($objects as $object) {
+            if ($object != "." && $object != "..") {
+                if (is_dir($dir . "/" . $object))
+                    rrmdir($dir . "/" . $object);
+                else
+                    unlink($dir . "/" . $object);
             }
-            rmdir($dir);
         }
+        rmdir($dir);
     }
-
 }
 
 /**
@@ -1983,6 +2028,17 @@ function ddosProtection() {
     return true;
 }
 
+function getAdsLeaderBoardBigVideo() {
+    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    if (!empty($ad)) {
+        if (isMobile()) {
+            return trim($ad->leaderBoardBigVideoMobile->value);
+        } else {
+            return trim($ad->leaderBoardBigVideo->value);
+        }
+    }
+}
+
 function getAdsLeaderBoardTop() {
     $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
     if (!empty($ad)) {
@@ -2025,4 +2081,236 @@ function getAdsSideRectangle() {
             return $ad->sideRectangle->value;
         }
     }
+}
+
+function isToHidePrivateVideos() {
+    $obj = YouPHPTubePlugin::getObjectDataIfEnabled("Gallery");
+    if (!empty($obj)) {
+        return $obj->hidePrivateVideos;
+    }
+    $obj = YouPHPTubePlugin::getObjectDataIfEnabled("YouPHPFlix2");
+    if (!empty($obj)) {
+        return $obj->hidePrivateVideos;
+    }
+    $obj = YouPHPTubePlugin::getObjectDataIfEnabled("YouTube");
+    if (!empty($obj)) {
+        return $obj->hidePrivateVideos;
+    }
+    return false;
+}
+
+function getOpenGraph($videos_id) {
+    global $global, $config;
+    echo "<!-- OpenGraph -->";
+    if (empty($videos_id)) {
+        echo "<!-- OpenGraph no video id -->";
+        if (!empty($_GET['videoName'])) {
+            echo "<!-- OpenGraph videoName {$_GET['videoName']} -->";
+            $video = Video::getVideoFromCleanTitle($_GET['videoName']);
+        }
+    } else {
+        echo "<!-- OpenGraph videos_id {$videos_id} -->";
+        $video = Video::getVideoLight($videos_id);
+    }
+    if (empty($video)) {
+        echo "<!-- OpenGraph no video -->";
+        return false;
+    }
+    $videos_id = $video['id'];
+    $source = Video::getSourceFile($video['filename']);
+    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
+        $img = $source['url'];
+        $data = getimgsize($source['path']);
+        $imgw = $data[0];
+        $imgh = $data[1];
+    } else if ($video['type'] == "audio") {
+        $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+    }
+    $type = 'video';
+    if ($video['type'] === 'pdf') {
+        $type = 'pdf';
+    }
+    if ($video['type'] === 'article') {
+        $type = 'article';
+    }
+    $images = Video::getImageFromFilename($video['filename'], $type);
+    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
+        $img = $images->posterPortrait;
+        $data = getimgsize($images->posterPortraitPath);
+        $imgw = $data[0];
+        $imgh = $data[1];
+    } else {
+        $img = $images->poster;
+    }
+    ?>
+    <link rel="image_src" href="<?php echo $img; ?>" />
+    <meta property="og:image" content="<?php echo $img; ?>" />
+    <meta property="og:image:secure_url" content="<?php echo $img; ?>" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
+    <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
+
+    <meta property="fb:app_id"             content="774958212660408" />
+    <meta property="og:title"              content="<?php echo str_replace('"', '', $video['title']); ?>" />
+    <meta property="og:description"        content="<?php echo str_replace('"', '', $video['description']); ?>" />
+    <meta property="og:url"                content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+    <meta property="og:type"               content="video.other" />
+
+    <meta property="og:video" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+    <meta property="og:video:secure_url" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+
+    <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
+    <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
+    <?php
+}
+
+function getLdJson($videos_id) {
+    global $global, $config;
+    echo "<!-- ld+json -->";
+    if (empty($videos_id)) {
+        echo "<!-- ld+json no video id -->";
+        if (!empty($_GET['videoName'])) {
+            echo "<!-- ld+json videoName {$_GET['videoName']} -->";
+            $video = Video::getVideoFromCleanTitle($_GET['videoName']);
+        }
+    } else {
+        echo "<!-- ld+json videos_id {$videos_id} -->";
+        $video = Video::getVideoLight($videos_id);
+    }
+    if (empty($video)) {
+        echo "<!-- ld+json no video -->";
+        return false;
+    }
+    $videos_id = $video['id'];
+    $source = Video::getSourceFile($video['filename']);
+    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
+        $img = $source['url'];
+        $data = getimgsize($source['path']);
+        $imgw = $data[0];
+        $imgh = $data[1];
+    } else if ($video['type'] == "audio") {
+        $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+    }
+    $type = 'video';
+    if ($video['type'] === 'pdf') {
+        $type = 'pdf';
+    }
+    if ($video['type'] === 'article') {
+        $type = 'article';
+    }
+    $images = Video::getImageFromFilename($video['filename'], $type);
+    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
+        $img = $images->posterPortrait;
+        $data = getimgsize($images->posterPortraitPath);
+        $imgw = $data[0];
+        $imgh = $data[1];
+    } else {
+        $img = $images->poster;
+    }
+
+    $description = str_replace(array('"', "\n", "\r"), array('', ' ', ' '), empty(trim($video['description'])) ? $video['title'] : $video['description']);
+    $duration = Video::getItemPropDuration($video['duration']);
+    if ($duration == "PT0H0M0S") {
+        $duration = "PT0H0M1S";
+    }
+    ?>
+    <script type="application/ld+json">
+        {
+        "@context": "http://schema.org/",
+        "@type": "VideoObject",
+        "name": "<?php echo str_replace('"', '', $video['title']); ?>",
+        "description": "<?php echo $description ?>",
+        "thumbnailUrl": [
+        "<?php echo $img; ?>"
+        ],
+        "uploadDate": "<?php echo date("Y-m-d\Th:i:s", strtotime($video['created'])); ?>",
+        "duration": "<?php echo $duration; ?>",
+        "contentUrl": "<?php echo Video::getLinkToVideo($videos_id); ?>",
+        "embedUrl": "<?php echo parseVideos(Video::getLinkToVideo($videos_id)); ?>",
+        "interactionCount": "<?php echo $video['views_count']; ?>",
+        "@id": "<?php echo Video::getPermaLink($videos_id); ?>",
+        "datePublished": "<?php echo date("Y-m-d", strtotime($video['created'])); ?>",
+        "interactionStatistic": [
+        {
+        "@type": "InteractionCounter",
+        "interactionService": {
+        "@type": "WebSite",
+        "name": "<?php echo str_replace('"', '', $config->getWebSiteTitle()); ?>",
+        "@id": "<?php echo $global['webSiteRootURL']; ?>"
+        },
+        "interactionType": "http://schema.org/LikeAction",
+        "userInteractionCount": "<?php echo $video['views_count']; ?>"
+        },
+        {
+        "@type": "InteractionCounter",
+        "interactionType": "http://schema.org/WatchAction",
+        "userInteractionCount": "<?php echo $video['views_count']; ?>"
+        }
+        ]
+        }
+    </script>
+
+
+    <?php
+}
+
+function getItemprop($videos_id) {
+    global $global, $config;
+    echo "<!-- Itemprop -->";
+    if (empty($videos_id)) {
+        echo "<!-- Itemprop no video id -->";
+        if (!empty($_GET['videoName'])) {
+            echo "<!-- Itemprop videoName {$_GET['videoName']} -->";
+            $video = Video::getVideoFromCleanTitle($_GET['videoName']);
+        }
+    } else {
+        echo "<!-- Itemprop videos_id {$videos_id} -->";
+        $video = Video::getVideoLight($videos_id);
+    }
+    if (empty($video)) {
+        echo "<!-- Itemprop no video -->";
+        return false;
+    }
+    $videos_id = $video['id'];
+    $source = Video::getSourceFile($video['filename']);
+    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
+        $img = $source['url'];
+        $data = getimgsize($source['path']);
+        $imgw = $data[0];
+        $imgh = $data[1];
+    } else if ($video['type'] == "audio") {
+        $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+    }
+    $type = 'video';
+    if ($video['type'] === 'pdf') {
+        $type = 'pdf';
+    }
+    if ($video['type'] === 'article') {
+        $type = 'article';
+    }
+    $images = Video::getImageFromFilename($video['filename'], $type);
+    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
+        $img = $images->posterPortrait;
+        $data = getimgsize($images->posterPortraitPath);
+        $imgw = $data[0];
+        $imgh = $data[1];
+    } else {
+        $img = $images->poster;
+    }
+
+    $description = str_replace(array('"', "\n", "\r"), array('', ' ', ' '), empty(trim($video['description'])) ? $video['title'] : $video['description']);
+    $duration = Video::getItemPropDuration($video['duration']);
+    if ($duration == "PT0H0M0S") {
+        $duration = "PT0H0M1S";
+    }
+    ?>
+    <meta itemprop="name" content="<?php echo str_replace('"', '', $video['title']); ?>" />
+    <meta itemprop="description" content="<?php echo $description ?>" />
+    <meta itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
+    <meta itemprop="uploadDate" content="<?php echo date("Y-m-d\Th:i:s", strtotime($video['created'])); ?>" />
+    <meta itemprop="duration" content="<?php echo $duration; ?>" />
+    <meta itemprop="contentUrl" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+    <meta itemprop="embedUrl" content="<?php echo parseVideos(Video::getLinkToVideo($videos_id)); ?>" />
+    <meta itemprop="interactionCount" content="<?php echo $video['views_count']; ?>" />
+    <?php
 }
