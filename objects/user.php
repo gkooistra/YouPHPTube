@@ -35,6 +35,7 @@ class User {
     private $region;
     private $city;
     private $donationLink;
+    private $modified;
     static $DOCUMENT_IMAGE_TYPE = "Document Image";
 
     function __construct($id, $user = "", $password = "") {
@@ -320,7 +321,7 @@ if (typeof gtag !== \"function\") {
         }
         if (!empty($photo) && preg_match("/videos\/userPhoto\/.*/", $photo)) {
             if (file_exists($global['systemRootPath'] . $photo)) {
-                $photo = $global['webSiteRootURL'] . $photo;
+                $photo = $global['webSiteRootURL'] . $photo."?". filectime($global['systemRootPath'] . $photo);
             } else {
                 $photo = "";
             }
@@ -561,7 +562,7 @@ if (typeof gtag !== \"function\") {
             return true;
         }
 
-        if (YouPHPTubePlugin::userCanWatchVideo(User::getId(), $videos_id)) {
+        if (AVideoPlugin::userCanWatchVideo(User::getId(), $videos_id)) {
             return true;
         }
 
@@ -570,7 +571,7 @@ if (typeof gtag !== \"function\") {
 
         if (empty($rows)) {
             // check if any plugin restrict access to this video
-            if (!YouPHPTubePlugin::userCanWatchVideo(User::getId(), $videos_id)) {
+            if (!AVideoPlugin::userCanWatchVideo(User::getId(), $videos_id)) {
                 return false;
             } else {
                 return true; // the video is public
@@ -595,7 +596,7 @@ if (typeof gtag !== \"function\") {
 
     static function canWatchVideoWithAds($videos_id) {
 
-        if (YouPHPTubePlugin::userCanWatchVideoWithAds(User::getId(), $videos_id) || self::canWatchVideo($videos_id)) {
+        if (AVideoPlugin::userCanWatchVideoWithAds(User::getId(), $videos_id) || self::canWatchVideo($videos_id)) {
             return true;
         }
         return false;
@@ -675,7 +676,7 @@ if (typeof gtag !== \"function\") {
                 setcookie("user", $user['user'], $cookie, "/", $_SERVER['HTTP_HOST']);
                 setcookie("pass", $user['password'], $cookie, "/", $_SERVER['HTTP_HOST']);
             }
-            YouPHPTubePlugin::onUserSignIn($_SESSION['user']['id']);
+            AVideoPlugin::onUserSignIn($_SESSION['user']['id']);
             $_SESSION['loginAttempts'] = 0;
             return self::USER_LOGGED;
         } else {
@@ -1205,7 +1206,12 @@ if (typeof gtag !== \"function\") {
     }
 
     function setRecoverPass($recoverPass) {
+        // let the same recover pass if it was 10 minutes ago
+        if(!empty($this->recoverPass) && !empty($recoverPass) && !empty($this->modified) && strtotime($this->modified) > strtotime("-10 minutes")){
+            return $this->recoverPass;
+        }
         $this->recoverPass = $recoverPass;
+        return $this->recoverPass;
     }
 
     static function canUpload() {
@@ -1463,7 +1469,7 @@ if (typeof gtag !== \"function\") {
         $obj->salt = hash('sha256', $global['salt']);
 
         $user = new User($users_id);
-        $user->setRecoverPass($obj->recoverPass);
+        $obj->recoverPass = $user->setRecoverPass($obj->recoverPass);
         $user->save();
 
         return base64_encode(json_encode($obj));

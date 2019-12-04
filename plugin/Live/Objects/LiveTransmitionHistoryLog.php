@@ -15,7 +15,7 @@ class LiveTransmitionHistoryLog extends ObjectYPT {
     static function getTableName() {
         return 'live_transmition_history_log';
     }
-    
+
     function getLive_transmitions_history_id() {
         return $this->live_transmitions_history_id;
     }
@@ -39,24 +39,24 @@ class LiveTransmitionHistoryLog extends ObjectYPT {
     function setSession_id($session_id) {
         $this->session_id = $session_id;
     }
-    
+
     static function addLog($live_transmitions_history_id){
         $session_id = session_id();
         $users_id = intval(User::getId());
-        
+
         $log = new LiveTransmitionHistoryLog(0);
         $log->setLive_transmitions_history_id($live_transmitions_history_id);
         $log->setUsers_id($users_id);
         $log->setSession_id($session_id);
         $log->save();
-        
+
     }
-    
+
     function getFromHistoryAndSession($live_transmitions_history_id, $session_id){
         global $global;
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  live_transmitions_history_id = ? AND session_id = ? ORDER BY created LIMIT 1";
-        // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/YouPHPTube/about
-        $res = sqlDAL::readSql($sql,"is",array($live_transmitions_history_id, $session_id)); 
+        // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/AVideo/about
+        $res = sqlDAL::readSql($sql,"is",array($live_transmitions_history_id, $session_id));
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {
@@ -66,12 +66,12 @@ class LiveTransmitionHistoryLog extends ObjectYPT {
         }
         return $row;
     }
-    
+
     static function getAllFromHistory($live_transmitions_history_id) {
         global $global;
         $sql = "SELECT * FROM  " . static::getTableName() . " WHERE live_transmitions_history_id={$live_transmitions_history_id} ";
 
-        $res = sqlDAL::readSql($sql); 
+        $res = sqlDAL::readSql($sql);
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
         $rows = array();
@@ -84,7 +84,7 @@ class LiveTransmitionHistoryLog extends ObjectYPT {
         }
         return $rows;
     }
-    
+
     function save() {
         $row = $this->getFromHistoryAndSession($this->live_transmitions_history_id, $this->session_id);
         if(!empty($row)){
@@ -92,5 +92,5 @@ class LiveTransmitionHistoryLog extends ObjectYPT {
         }
         return parent::save();
     }
-    
+
 }

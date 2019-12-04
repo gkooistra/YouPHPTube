@@ -33,7 +33,7 @@ $sources = getVideosURLPDF($video['filename']);
 
             </div>
             <?php
-            if (YouPHPTubePlugin::isEnabled("0e225f8e-15e2-43d4-8ff7-0cb07c2a2b3b")) {
+            if (AVideoPlugin::isEnabled("0e225f8e-15e2-43d4-8ff7-0cb07c2a2b3b")) {
 
                 require_once $global['systemRootPath'] . 'plugin/VideoLogoOverlay/VideoLogoOverlay.php';
                 $style = VideoLogoOverlay::getStyle();
@@ -47,6 +47,10 @@ $sources = getVideosURLPDF($video['filename']);
                 <?php
             }
             ?>
+            
+            <a href="<?php echo $global["HTTP_REFERER"]; ?>" class="btn btn-outline btn-xs" style="position: absolute; top: 5px; right: 5px; display: none;" id="youtubeModeOnFullscreenCloseButton">
+                <i class="fas fa-times"></i>
+            </a>
         </div>
     </div>
     <script>

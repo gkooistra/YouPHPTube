@@ -6,7 +6,7 @@ class AD_Overlay extends PluginAbstract {
 
     public function getDescription() {
         $txt = "Display simple overlays - similar to YouTube's \"Annotations\" feature in appearance - during video playback.";
-        $help = "<br><small><a href='https://github.com/DanielnetoDotCom/YouPHPTube/wiki/AD_Overlay-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
+        $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/AD_Overlay-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
 
         return $txt . $help;
     }
@@ -30,7 +30,7 @@ class AD_Overlay extends PluginAbstract {
         $o = new stdClass();
         $o->type = "textarea";
         $o->value = '<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<!-- YouPHPTube Videos -->
+<!-- AVideo Videos -->
 <ins class="adsbygoogle"
      style="display:inline-block;width:468px;height:60px"
      data-ad-client="ca-pub-8404441263723333"
@@ -61,6 +61,8 @@ class AD_Overlay extends PluginAbstract {
         $obj->debug = false;
         //$obj->adWidth = 0;
         //$obj->adHeight = 0;
+        $obj->allowUserAds = true;
+        $obj->AdminMustApproveUserAds = true;
 
         return $obj;
     }
@@ -70,10 +72,13 @@ class AD_Overlay extends PluginAbstract {
     }
 
     public function getHeadCode() {
+        if (empty($_GET['videoName']) && empty($_GET['u'])) {
+            return false;
+        }
         $obj = $this->getDataObject();
         global $global;
         $style = "width: 100%;";
-        if(!empty($obj->adWidth) && !empty($obj->adHeight)){
+        if (!empty($obj->adWidth) && !empty($obj->adHeight)) {
             $style = "width: $obj->adWidth; height: width: $obj->adHeight;";
         }
         $css = '<link href="' . $global['webSiteRootURL'] . 'plugin/AD_Overlay/videojs-overlay/videojs-overlay.css" rel="stylesheet" type="text/css"/>';
@@ -81,7 +86,7 @@ class AD_Overlay extends PluginAbstract {
         $css .= '<style>.video-js .vjs-overlay-background, .video-js .vjs-overlay-no-background {
 
     max-width: 100%;
-    '.$style.'
+    ' . $style . '
     margin-left:-5px;
 
 }</style>';
@@ -89,6 +94,9 @@ class AD_Overlay extends PluginAbstract {
     }
 
     public function getFooterCode() {
+        if (empty($_GET['videoName']) && empty($_GET['u'])) {
+            return false;
+        }
         $obj = $this->getDataObject();
         global $global;
 
@@ -100,7 +108,7 @@ class AD_Overlay extends PluginAbstract {
 
         $js .= '<script>'
                 . "$(document).ready(function () {     if (typeof player == 'undefined') {
-                    player = videojs('mainVideo'".PlayerSkins::getDataSetup().");
+                    player = videojs('mainVideo'" . PlayerSkins::getDataSetup() . ");
                     setTimeout(function(){
                         \$('#cbb').click(function() {
                             \$('.vjs-overlay').fadeOut();
@@ -122,4 +130,14 @@ class AD_Overlay extends PluginAbstract {
         return $js;
     }
 
+
+    public static function profileTabName($users_id) {
+        global $global;
+        include $global['systemRootPath'] . 'plugin/AD_Overlay/profileTabName.php';
+    }
+
+    public static function profileTabContent($users_id) {
+        global $global;
+        include $global['systemRootPath'] . 'plugin/AD_Overlay/profileTabContent.php';
+    }
 }

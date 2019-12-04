@@ -9,7 +9,7 @@ require_once $global['systemRootPath'] . 'plugin/Gallery/functions.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 require_once $global['systemRootPath'] . 'objects/category.php';
 
-$objYTube = YouPHPTubePlugin::getObjectData("YouTube");
+$objYTube = AVideoPlugin::getObjectData("YouTube");
 if (!empty($_GET['type'])) {
     if ($_GET['type'] == 'audio') {
         $_SESSION['type'] = 'audio';
@@ -109,10 +109,12 @@ $contentSearchFound = false;
                             include $global['systemRootPath'] . 'plugin/YouTube/view/BigVideo.php';
                         }
                         ?>
-
+                        <center style="margin:5px;">
+                            <?php echo getAdsLeaderBoardTop2(); ?>
+                        </center>
                         <!-- For Live Videos -->
                         <div id="liveVideos" class="clear clearfix" style="display: none;">
-                            <h3 class="YouTubeTitle text-danger"> <i class="fab fa-youtube"></i> <?php echo __("Live"); ?></h3>
+                            <h3 class="YouTubeTitle text-danger"> <i class="fas fa-play-circle"></i> <?php echo __("Live"); ?></h3>
                             <div class="row extraVideos"></div>
                         </div>
                         <script>
@@ -126,7 +128,7 @@ $contentSearchFound = false;
                             }
                         </script>
                         <?php
-                        echo YouPHPTubePlugin::getGallerySection();
+                        echo AVideoPlugin::getGallerySection();
                         ?>
                         <!-- For Live Videos End -->
                         <?php

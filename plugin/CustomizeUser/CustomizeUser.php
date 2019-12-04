@@ -70,7 +70,9 @@ class CustomizeUser extends PluginAbstract {
 
         $obj->MyChannelLabel = "My Channel";
         $obj->afterLoginGoToMyChannel = false;
+        $obj->afterLoginGoToURL = "";
         $obj->afterLogoffGoToMyChannel = false;
+        $obj->afterLogoffGoToURL = "";
         $obj->allowDonationLink = false;
 
         $obj->showEmailVerifiedMark = true;
@@ -102,7 +104,7 @@ class CustomizeUser extends PluginAbstract {
 
     static function canDownloadVideosFromUser($users_id) {
         global $config;
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || empty($obj->userCanAllowFilesDownload)) {
             return $config->getAllow_download();
         }
@@ -111,7 +113,7 @@ class CustomizeUser extends PluginAbstract {
     }
 
     static function setCanDownloadVideosFromUser($users_id, $value = true) {
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || empty($obj->userCanAllowFilesDownload)) {
             return false;
         }
@@ -126,7 +128,7 @@ class CustomizeUser extends PluginAbstract {
             return false;
         }
 
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || empty($obj->userCanAllowFilesShare)) {
             return true;
         }
@@ -135,7 +137,7 @@ class CustomizeUser extends PluginAbstract {
     }
 
     static function setCanShareVideosFromUser($users_id, $value = true) {
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || empty($obj->userCanAllowFilesShare)) {
             return false;
         }
@@ -155,7 +157,7 @@ class CustomizeUser extends PluginAbstract {
 
     public function getMyAccount($users_id) {
 
-        $objcu = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $objcu = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
 
         if (!empty($objcu) && !empty($objcu->userCanAllowFilesDownload)) {
             echo '<div class="form-group">
@@ -182,7 +184,7 @@ class CustomizeUser extends PluginAbstract {
         if (!$isMyChannel) {
             return "";
         }
-        $objcu = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $objcu = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         echo "<div style=\"float:right\">";
         if (!empty($objcu) && !empty($objcu->userCanAllowFilesDownload)) {
             echo '<div style=" margin:0 20px 10px 0;  height: 15px;">';
@@ -216,7 +218,11 @@ class CustomizeUser extends PluginAbstract {
         if (!self::canDownloadVideosFromUser($users_id)) {
             return false;
         }
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $category = new Category($video->getCategories_id());
+        if(is_object($category) && !$category->getAllow_download()){
+            return false;
+        }
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (!empty($obj->userCanAllowFilesDownloadSelectPerVideo)) {
             if (empty($video->getCan_download())) {
                 return false;
@@ -234,7 +240,7 @@ class CustomizeUser extends PluginAbstract {
         if (!self::canShareVideosFromUser($users_id)) {
             return false;
         }
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled("CustomizeUser");
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (!empty($obj->userCanAllowFilesShareSelectPerVideo)) {
             if (empty($video->getCan_share())) {
                 return false;

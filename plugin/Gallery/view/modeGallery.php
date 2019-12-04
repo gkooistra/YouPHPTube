@@ -8,7 +8,7 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 require_once $global['systemRootPath'] . 'plugin/Gallery/functions.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 
-$obj = YouPHPTubePlugin::getObjectData("Gallery");
+$obj = AVideoPlugin::getObjectData("Gallery");
 if (!empty($_GET['type'])) {
     if ($_GET['type'] == 'audio') {
         $_SESSION['type'] = 'audio';
@@ -108,10 +108,12 @@ $contentSearchFound = false;
                             include $global['systemRootPath'] . 'plugin/Gallery/view/BigVideo.php';
                         }
                         ?>
-
+                        <center style="margin:5px;">
+                            <?php echo getAdsLeaderBoardTop2(); ?>
+                        </center>
                         <!-- For Live Videos -->
                         <div id="liveVideos" class="clear clearfix" style="display: none;">
-                            <h3 class="galleryTitle text-danger"> <i class="fab fa-youtube"></i> <?php echo __("Live"); ?></h3>
+                            <h3 class="galleryTitle text-danger"> <i class="fas fa-play-circle"></i> <?php echo __("Live"); ?></h3>
                             <div class="row extraVideos"></div>
                         </div>
                         <script>
@@ -125,7 +127,7 @@ $contentSearchFound = false;
                             }
                         </script>
                         <?php
-                        echo YouPHPTubePlugin::getGallerySection();
+                        echo AVideoPlugin::getGallerySection();
                         ?>
                         <!-- For Live Videos End -->
                         <?php
@@ -154,7 +156,9 @@ $contentSearchFound = false;
                         if ($obj->Categories && empty($_GET['catName']) && empty($_GET['showOnly'])) {
                             unset($_POST['sort']);
                             $_POST['sort']['name'] = "ASC";
+                            $_POST['rowCount'] = 1000;
                             $categories = Category::getAllCategories();
+                            $_POST['rowCount'] = $obj->CategoriesRowCount;
                             foreach ($categories as $value) {
                                 $_GET['catName'] = $value['clean_name'];
                                 unset($_POST['sort']);

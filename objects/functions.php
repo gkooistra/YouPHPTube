@@ -424,7 +424,7 @@ function parseDurationToSeconds($str) {
  *
  * @global type $global
  * @param type $mail
- * call it before send mail to let YouPHPTube decide the method
+ * call it before send mail to let AVideo decide the method
  */
 function setSiteSendMessage(&$mail) {
     global $global;
@@ -629,7 +629,7 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
                 '/(http.+)\/video\/([a-zA-Z0-9_-]+)($|\/)/i', $link, $matches
         );
 
-//the YouPHPTube site
+//the AVideo site
         $site = $matches[1];
         $id = $matches[2];
         return $site . '/videoEmbeded/' . $id . "?autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
@@ -672,7 +672,7 @@ function canUseCDN($videos_id) {
     global $global, $canUseCDN;
     if (!isset($canUseCDN[$videos_id])) {
         require_once $global['systemRootPath'] . 'plugin/VR360/Objects/VideosVR360.php';
-        $pvr360 = YouPHPTubePlugin::isEnabledByName('VR360');
+        $pvr360 = AVideoPlugin::isEnabledByName('VR360');
 // if the VR360 is enabled you can not use the CDN, it fail to load the GL
         $isVR360Enabled = VideosVR360::isVR360Enabled($videos_id);
         if ($pvr360 && $isVR360Enabled) {
@@ -703,9 +703,9 @@ $minimumExpirationTime = false;
 function minimumExpirationTime() {
     global $minimumExpirationTime;
     if (empty($minimumExpirationTime)) {
-        $aws_s3 = YouPHPTubePlugin::getObjectDataIfEnabled('AWS_S3');
-        $bb_b2 = YouPHPTubePlugin::getObjectDataIfEnabled('Blackblaze_B2');
-        $secure = YouPHPTubePlugin::getObjectDataIfEnabled('SecureVideosDirectory');
+        $aws_s3 = AVideoPlugin::getObjectDataIfEnabled('AWS_S3');
+        $bb_b2 = AVideoPlugin::getObjectDataIfEnabled('Blackblaze_B2');
+        $secure = AVideoPlugin::getObjectDataIfEnabled('SecureVideosDirectory');
         $minimumExpirationTime = 60 * 60 * 24 * 365; //1 year
         if (!empty($aws_s3) && $aws_s3->presignedRequestSecondsTimeout < $minimumExpirationTime) {
             $minimumExpirationTime = $aws_s3->presignedRequestSecondsTimeout;
@@ -728,7 +728,7 @@ function cacheExpirationTime() {
     }
     global $cacheExpirationTime;
     if (empty($cacheExpirationTime)) {
-        $obj = YouPHPTubePlugin::getObjectDataIfEnabled('Cache');
+        $obj = AVideoPlugin::getObjectDataIfEnabled('Cache');
         $cacheExpirationTime = @$obj->cacheTimeInSeconds;
     }
     return intval($cacheExpirationTime);
@@ -961,7 +961,7 @@ function getVideosURL($fileName, $cache = true) {
 // old
     require_once $global['systemRootPath'] . 'objects/video.php';
 
-    $plugin = YouPHPTubePlugin::loadPluginIfEnabled("VideoHLS");
+    $plugin = AVideoPlugin::loadPluginIfEnabled("VideoHLS");
     if (!empty($plugin)) {
         $files = VideoHLS::getSourceFile($fileName);
     }
@@ -1329,12 +1329,14 @@ function im_resize_max_size($file_src, $file_dest, $max_width, $max_height) {
 function decideMoveUploadedToVideos($tmp_name, $filename) {
     global $global;
     $obj = new stdClass();
-    $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
-    $bb_b2 = YouPHPTubePlugin::loadPluginIfEnabled('Blackblaze_B2');
-    $ftp = YouPHPTubePlugin::loadPluginIfEnabled('FTP_Storage');
+    $aws_s3 = AVideoPlugin::loadPluginIfEnabled('AWS_S3');
+    $bb_b2 = AVideoPlugin::loadPluginIfEnabled('Blackblaze_B2');
+    $ftp = AVideoPlugin::loadPluginIfEnabled('FTP_Storage');
 
+    error_log("decideMoveUploadedToVideos: {$filename}");
     $path_info = pathinfo($filename);
     if ($path_info['extension'] === 'zip') {
+        error_log("decideMoveUploadedToVideos: ZIp file {$filename}");
         $dir = "{$global['systemRootPath']}videos/{$path_info['filename']}";
         unzipDirectory($tmp_name, $dir); // unzip it
         cleanDirectory($dir);
@@ -1346,13 +1348,18 @@ function decideMoveUploadedToVideos($tmp_name, $filename) {
 //$ftp->move_uploaded_file($tmp_name, $filename);
         }
     } else {
+        error_log("decideMoveUploadedToVideos: NOT ZIp file {$filename}");
         if (!empty($aws_s3)) {
+            error_log("decideMoveUploadedToVideos: S3 {$filename}");
             $aws_s3->move_uploaded_file($tmp_name, $filename);
         } else if (!empty($bb_b2)) {
+            error_log("decideMoveUploadedToVideos: B2 {$filename}");
             $bb_b2->move_uploaded_file($tmp_name, $filename);
         } else if (!empty($ftp)) {
+            error_log("decideMoveUploadedToVideos: FTP {$filename}");
             $ftp->move_uploaded_file($tmp_name, $filename);
         } else {
+            error_log("decideMoveUploadedToVideos: Local {$filename}");
             if (!move_uploaded_file($tmp_name, "{$global['systemRootPath']}videos/{$filename}")) {
                 if (!rename($tmp_name, "{$global['systemRootPath']}videos/{$filename}")) {
                     if (!copy($tmp_name, "{$global['systemRootPath']}videos/{$filename}")) {
@@ -1442,9 +1449,9 @@ function cleanDirectory($dir, $allowedExtensions = array('key', 'm3u8', 'ts', 'v
 
 function decideFile_put_contentsToVideos($tmp_name, $filename) {
     global $global;
-    $aws_s3 = YouPHPTubePlugin::loadPluginIfEnabled('AWS_S3');
-    $bb_b2 = YouPHPTubePlugin::loadPluginIfEnabled('Blackblaze_B2');
-    $ftp = YouPHPTubePlugin::loadPluginIfEnabled('FTP_Storage');
+    $aws_s3 = AVideoPlugin::loadPluginIfEnabled('AWS_S3');
+    $bb_b2 = AVideoPlugin::loadPluginIfEnabled('Blackblaze_B2');
+    $ftp = AVideoPlugin::loadPluginIfEnabled('FTP_Storage');
     if (!empty($bb_b2)) {
         $bb_b2->move_uploaded_file($tmp_name, $filename);
     } else if (!empty($aws_s3)) {
@@ -2029,7 +2036,7 @@ function ddosProtection() {
 }
 
 function getAdsLeaderBoardBigVideo() {
-    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
     if (!empty($ad)) {
         if (isMobile()) {
             return trim($ad->leaderBoardBigVideoMobile->value);
@@ -2040,7 +2047,7 @@ function getAdsLeaderBoardBigVideo() {
 }
 
 function getAdsLeaderBoardTop() {
-    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
     if (!empty($ad)) {
         if (isMobile()) {
             return $ad->leaderBoardTopMobile->value;
@@ -2050,8 +2057,19 @@ function getAdsLeaderBoardTop() {
     }
 }
 
+function getAdsLeaderBoardTop2() {
+    $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
+    if (!empty($ad)) {
+        if (isMobile()) {
+            return $ad->leaderBoardTopMobile2->value;
+        } else {
+            return $ad->leaderBoardTop2->value;
+        }
+    }
+}
+
 function getAdsLeaderBoardMiddle() {
-    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
     if (!empty($ad)) {
         if (isMobile()) {
             return $ad->leaderBoardMiddleMobile->value;
@@ -2062,7 +2080,7 @@ function getAdsLeaderBoardMiddle() {
 }
 
 function getAdsLeaderBoardFooter() {
-    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
     if (!empty($ad)) {
         if (isMobile()) {
             return $ad->leaderBoardFooterMobile->value;
@@ -2073,7 +2091,7 @@ function getAdsLeaderBoardFooter() {
 }
 
 function getAdsSideRectangle() {
-    $ad = YouPHPTubePlugin::getObjectDataIfEnabled('ADs');
+    $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
     if (!empty($ad)) {
         if (isMobile()) {
             return $ad->sideRectangle->value;
@@ -2084,15 +2102,15 @@ function getAdsSideRectangle() {
 }
 
 function isToHidePrivateVideos() {
-    $obj = YouPHPTubePlugin::getObjectDataIfEnabled("Gallery");
+    $obj = AVideoPlugin::getObjectDataIfEnabled("Gallery");
     if (!empty($obj)) {
         return $obj->hidePrivateVideos;
     }
-    $obj = YouPHPTubePlugin::getObjectDataIfEnabled("YouPHPFlix2");
+    $obj = AVideoPlugin::getObjectDataIfEnabled("YouPHPFlix2");
     if (!empty($obj)) {
         return $obj->hidePrivateVideos;
     }
-    $obj = YouPHPTubePlugin::getObjectDataIfEnabled("YouTube");
+    $obj = AVideoPlugin::getObjectDataIfEnabled("YouTube");
     if (!empty($obj)) {
         return $obj->hidePrivateVideos;
     }
@@ -2118,6 +2136,8 @@ function getOpenGraph($videos_id) {
     }
     $videos_id = $video['id'];
     $source = Video::getSourceFile($video['filename']);
+    $imgw = 1024;
+    $imgh = 768;
     if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
         $img = $source['url'];
         $data = getimgsize($source['path']);
@@ -2156,9 +2176,23 @@ function getOpenGraph($videos_id) {
     <meta property="og:url"                content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
     <meta property="og:type"               content="video.other" />
 
+    <?php
+    $sourceMP4 = Video::getSourceFile($video['filename'], ".mp4");
+    if(!AVideoPlugin::isEnabledByName("SecureVideosDirectory") && !empty($sourceMP4['url'])){
+    ?>
+    <meta property="og:video" content="<?php echo $sourceMP4['url']; ?>" />
+    <meta property="og:video:secure_url" content="<?php echo $sourceMP4['url']; ?>" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:video:width" content="<?php echo $imgw; ?>" />
+    <meta property="og:video:height" content="<?php echo $imgh; ?>" />
+    <?php
+    }else{
+    ?>
     <meta property="og:video" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
     <meta property="og:video:secure_url" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
-
+    <?php
+    }
+    ?>
     <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
     <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
     <?php
@@ -2304,13 +2338,13 @@ function getItemprop($videos_id) {
         $duration = "PT0H0M1S";
     }
     ?>
-    <meta itemprop="name" content="<?php echo str_replace('"', '', $video['title']); ?>" />
-    <meta itemprop="description" content="<?php echo $description ?>" />
-    <meta itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
-    <meta itemprop="uploadDate" content="<?php echo date("Y-m-d\Th:i:s", strtotime($video['created'])); ?>" />
-    <meta itemprop="duration" content="<?php echo $duration; ?>" />
-    <meta itemprop="contentUrl" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
-    <meta itemprop="embedUrl" content="<?php echo parseVideos(Video::getLinkToVideo($videos_id)); ?>" />
-    <meta itemprop="interactionCount" content="<?php echo $video['views_count']; ?>" />
+    <span itemprop="name" content="<?php echo str_replace('"', '', $video['title']); ?>" />
+    <span itemprop="description" content="<?php echo $description ?>" />
+    <span itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
+    <span itemprop="uploadDate" content="<?php echo date("Y-m-d\Th:i:s", strtotime($video['created'])); ?>" />
+    <span itemprop="duration" content="<?php echo $duration; ?>" />
+    <span itemprop="contentUrl" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+    <span itemprop="embedUrl" content="<?php echo parseVideos(Video::getLinkToVideo($videos_id)); ?>" />
+    <span itemprop="interactionCount" content="<?php echo $video['views_count']; ?>" />
     <?php
 }

@@ -1,6 +1,9 @@
 <?php
 
-ini_set('error_log', $global['systemRootPath'] . 'videos/youphptube.log');
+$global['webSiteRootURL'] .= (substr($global['webSiteRootURL'], -1) == '/' ? '' : '/');
+$global['systemRootPath'] .= (substr($global['systemRootPath'], -1) == '/' ? '' : '/');
+
+ini_set('error_log', $global['systemRootPath'] . 'videos/avideo.log');
 global $global, $config, $advancedCustom, $advancedCustomUser;
 
 $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
@@ -49,10 +52,17 @@ session_start();
 // DDOS protection can be disabled in video/configuration.php
 if(!empty($global['enableDDOSprotection'])) ddosProtection();
 
-// set the reffer for youPHPTube
+// set the reffer for aVideo
 $url1['host'] = "";
 if (!empty($_SERVER["HTTP_REFERER"])) {
-    if((strpos($_SERVER["HTTP_REFERER"], '/video/') !== false || strpos($_SERVER["HTTP_REFERER"], '/v/') !== false) && !empty($_SESSION["LAST_HTTP_REFERER"])){
+    if((
+            strpos($_SERVER["HTTP_REFERER"], '/video/') !== false || strpos($_SERVER["HTTP_REFERER"], '/v/') !== false) && 
+            !empty($_SESSION["LAST_HTTP_REFERER"])){
+        if(strpos($_SESSION["LAST_HTTP_REFERER"], 'cache/css/') !== false ||
+                strpos($_SESSION["LAST_HTTP_REFERER"], 'cache/js/') !== false||
+                strpos($_SESSION["LAST_HTTP_REFERER"], 'cache/img/') !== false){
+            $_SESSION["LAST_HTTP_REFERER"] = $global['webSiteRootURL'];
+        }
         $global["HTTP_REFERER"] = $_SESSION["LAST_HTTP_REFERER"];
         $url1 = parse_url($global["HTTP_REFERER"]);
     }else{
@@ -60,7 +70,7 @@ if (!empty($_SERVER["HTTP_REFERER"])) {
         $url1 = parse_url($global["HTTP_REFERER"]);
     }
 }
-
+//var_dump($global["HTTP_REFERER"]);exit;
 if(!isset($_POST['redirectUri'])){
     $_POST['redirectUri'] = "";
 }
@@ -82,12 +92,12 @@ require_once $global['systemRootPath'] . 'locale/function.php';
 require_once $global['systemRootPath'] . 'objects/plugin.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
-require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
+require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 allowOrigin();
 
 $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
 if ($baseName !== 'xsendfile.php' && class_exists("Plugin")) {
-    YouPHPTubePlugin::getStart();
+    AVideoPlugin::getStart();
 } else if($baseName !== 'xsendfile.php') {
     error_log("Class Plugin Not found: {$_SERVER['REQUEST_URI']}");
 }
@@ -95,7 +105,7 @@ if (empty($global['bodyClass'])) {
     $global['bodyClass'] = "";
 }
 $global['allowedExtension'] = array('gif', 'jpg', 'mp4', 'webm', 'mp3', 'ogg', 'zip');
-$advancedCustom = YouPHPTubePlugin::getObjectData("CustomizeAdvanced");
-$advancedCustomUser = YouPHPTubePlugin::getObjectData("CustomizeUser");
-YouPHPTubePlugin::loadPlugin("PlayerSkins");
+$advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
+$advancedCustomUser = AVideoPlugin::getObjectData("CustomizeUser");
+AVideoPlugin::loadPlugin("PlayerSkins");
 $sitemapFile = "{$global['systemRootPath']}sitemap.xml";

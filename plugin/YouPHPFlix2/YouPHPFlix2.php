@@ -1,12 +1,12 @@
 <?php
 
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
-require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
+require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 class YouPHPFlix2 extends PluginAbstract {
 
     public function getDescription() {
         $txt = "Make the first page looks like a Netflix site";
-        $help = "<br><small><a href='https://github.com/DanielnetoDotCom/YouPHPTube/wiki/Configure-a-Netflix-Clone-Page' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
+        $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/Configure-a-Netflix-Clone-Page' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
         return $txt.$help;
     }
 
@@ -25,6 +25,7 @@ class YouPHPFlix2 extends PluginAbstract {
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
+        $obj->hidePrivateVideos = false;
         $obj->pageDots = true;
         $obj->PlayList = true;
         $obj->PlayListAutoPlay = true;
@@ -43,6 +44,7 @@ class YouPHPFlix2 extends PluginAbstract {
         $obj->BigVideo = true;
         $obj->RemoveBigVideoDescription = false;
         $obj->BigVideoPlayIcon = true;
+        $obj->BigVideoMarginBottom = "-350px";
         $obj->backgroundRGB = "20,20,20";
         $obj->landscapePosters = true;
         $obj->playVideoOnFullscreen = true;
@@ -63,7 +65,7 @@ class YouPHPFlix2 extends PluginAbstract {
     
     public function getFirstPage(){
         global $global; 
-        if(!YouPHPTubePlugin::isEnabled("d3sa2k4l3-23rds421-re323-4ae-423")){
+        if(!AVideoPlugin::isEnabled("d3sa2k4l3-23rds421-re323-4ae-423")){
             return $global['systemRootPath'].'plugin/YouPHPFlix2/view/modeFlix.php';
         }
     }   
@@ -87,7 +89,7 @@ class YouPHPFlix2 extends PluginAbstract {
     }
     
     static function getLinkToVideo($videos_id){
-        $obj = YouPHPTubePlugin::getObjectData("YouPHPFlix2");
+        $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
         $link = Video::getLinkToVideo($videos_id);
         if(!empty($obj->playVideoOnFullscreen)){
             $link = parseVideos($link, 1, 0, 0, 0, 1);

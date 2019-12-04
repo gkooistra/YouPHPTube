@@ -4,8 +4,8 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 class Cache extends PluginAbstract {
 
     public function getDescription() {
-        $txt = "YouPHPTube application accelerator to cache pages.<br>Your website has 10,000 visitors who are online, and your dynamic page has to send 10,000 times the same queries to database on every page load. With this plugin, your page only sends 1 query to your DB, and uses the cache to serve the 9,999 other visitors.";
-        $help = "<br><small><a href='https://github.com/DanielnetoDotCom/YouPHPTube/wiki/Cache-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
+        $txt = "AVideo application accelerator to cache pages.<br>Your website has 10,000 visitors who are online, and your dynamic page has to send 10,000 times the same queries to database on every page load. With this plugin, your page only sends 1 query to your DB, and uses the cache to serve the 9,999 other visitors.";
+        $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/Cache-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
         return $txt . $help;
     }
 
@@ -73,6 +73,12 @@ class Cache extends PluginAbstract {
     public function getStart() {
         global $global;
         // ignore cache if it is command line
+
+        $obj = $this->getDataObject();
+        if ($obj->logPageLoadTime) {
+            $this->start();
+        }
+        
         if (isCommandLineInterface()) {
             return true;
         }
@@ -82,11 +88,6 @@ class Cache extends PluginAbstract {
         $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
         if (!empty($_GET["videoName"]) || in_array($baseName, $whitelistedFiles) || in_array($_SERVER['REQUEST_URI'], $whitelistedFiles) ) {
             return true;
-        }
-
-        $obj = $this->getDataObject();
-        if ($obj->logPageLoadTime) {
-            $this->start();
         }
         
         $isBot = isBot();
@@ -115,7 +116,7 @@ class Cache extends PluginAbstract {
             }
         }
         
-        if($isBot && strpos($_SERVER['REQUEST_URI'], 'youPHPTubeEncoder') === false){
+        if($isBot && strpos($_SERVER['REQUEST_URI'], 'aVideoEncoder') === false){
             if(empty($_SERVER['HTTP_USER_AGENT'])){
                 $_SERVER['HTTP_USER_AGENT'] = "";
             }
@@ -169,6 +170,9 @@ class Cache extends PluginAbstract {
 
     private function end($type = "No Cache") {
         global $global;
+        if(empty($global['start'])){
+            return false;
+        }
         require_once $global['systemRootPath'] . 'objects/user.php';
         $time = microtime();
         $time = explode(' ', $time);

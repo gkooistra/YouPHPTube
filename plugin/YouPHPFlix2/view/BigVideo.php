@@ -33,7 +33,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
              margin: -120px -20px; 
              margin-bottom: 0; 
              position: relative;
-             margin-bottom: -200px;
+             margin-bottom: <?php echo $obj->BigVideoMarginBottom; ?>;
              z-index: 0;" >
              <?php
              if (!isMobile() && !empty($video['trailer1'])) {
@@ -148,7 +148,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                                     <?php echo $video['description']; ?>
                                 </h4>
                                 <?php
-                                if (YouPHPTubePlugin::isEnabledByName("VideoTags")) {
+                                if (AVideoPlugin::isEnabledByName("VideoTags")) {
                                     echo VideoTags::getLabels($video['id']);
                                 }
                                 ?>
@@ -176,7 +176,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                             }
                             ?>
                             <?php
-                            echo YouPHPTubePlugin::getNetflixActionButton($video['id']);
+                            echo AVideoPlugin::getNetflixActionButton($video['id']);
                             ?>
                         </div>
                     </div>      

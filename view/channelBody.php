@@ -27,14 +27,14 @@ unset($_POST['rowCount']);
 unset($_POST['current']);
 
 $get = array('channelName' => $_GET['channelName']);
-$palyListsObj = YouPHPTubePlugin::getObjectDataIfEnabled('PlayLists');
+$palyListsObj = AVideoPlugin::getObjectDataIfEnabled('PlayLists');
 ?>
 <!-- <?php var_dump($uploadedTotalVideos, $user_id, !isToHidePrivateVideos()); ?> -->
 <div class="bgWhite list-group-item gallery clear clearfix" >
     <?php
-    if(empty($advancedCustomUser->doNotShowTopBannerOnChannel)){
+    if (empty($advancedCustomUser->doNotShowTopBannerOnChannel)) {
         ?>
-        <div class="row bg-info profileBg" style="background-image: url('<?php echo $global['webSiteRootURL'], $user->getBackgroundURL(); ?>')">
+        <div class="row bg-info profileBg" style="background-image: url('<?php echo $global['webSiteRootURL'], $user->getBackgroundURL(), "?", @filectime($global['systemRootPath'] . $user->getBackgroundURL()); ?>')">
             <img src="<?php echo User::getPhoto($user_id); ?>" alt="<?php echo $user->_getName(); ?>" class="img img-responsive img-thumbnail" style="max-width: 100px;"/>
         </div>    
         <?php
@@ -71,7 +71,7 @@ $palyListsObj = YouPHPTubePlugin::getObjectDataIfEnabled('PlayLists');
             } else {
                 echo __("My videos");
             }
-            echo YouPHPTubePlugin::getChannelButton();
+            echo AVideoPlugin::getChannelButton();
             ?>
         </div>
         <div class="panel-body">
@@ -108,7 +108,7 @@ $palyListsObj = YouPHPTubePlugin::getObjectDataIfEnabled('PlayLists');
         </div>
     </div>
     <?php
-    if(!empty($palyListsObj)){
+    if (!empty($palyListsObj)) {
         include $global['systemRootPath'] . 'view/channelPlaylist.php';
     }
     ?>

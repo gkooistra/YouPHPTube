@@ -146,22 +146,39 @@ class PlayList extends ObjectYPT {
                 . " FROM  playlists_has_videos p "
                 . " LEFT JOIN videos as v ON videos_id = v.id "
                 . " LEFT JOIN users u ON u.id = v.users_id "
-                . " WHERE playlists_id = ? ORDER BY p.`order` ASC ";
+                . " WHERE playlists_id = ? ";
+        
+        $sort = @$_POST['sort'];
+        $_POST['sort'] = array();
+        $_POST['sort']['p.`order`'] = 'ASC';        
         $sql .= self::getSqlFromPost();
+        $_POST['sort'] = $sort;
         $res = sqlDAL::readSql($sql, "i", array($playlists_id));
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
         $rows = array();
+        $SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
         if ($res != false) {
             foreach ($fullData as $row) {
                 if (!empty($_GET['isChannel'])) {
                     $row['tags'] = Video::getTags($row['id']);
-                    $row['pluginBtns'] = YouPHPTubePlugin::getPlayListButtons($playlists_id);
+                    $row['pluginBtns'] = AVideoPlugin::getPlayListButtons($playlists_id);
                     $row['humancreate'] = humanTiming(strtotime($row['cre']));
                 }
+                $images = Video::getImageFromFilename($row['filename'], $row['type']);
+                $row['images'] = $images;
+                $row['videos'] = Video::getVideosPaths($row['filename'], true);
                 $row['progress'] = Video::getVideoPogressPercent($row['videos_id']);
                 $row['title'] = UTF8encode($row['title']);
                 $row['description'] = UTF8encode($row['description']);
+                $row['tags'] = Video::getTags($row['videos_id']);
+                if (AVideoPlugin::isEnabledByName("VideoTags")) {
+                    $row['videoTags'] = Tags::getAllFromVideosId($row['videos_id']);
+                    $row['videoTagsObject'] = Tags::getObjectFromVideosId($row['videos_id']);
+                }
+                if ($SubtitleSwitcher) {
+                    $row['subtitles'] = getVTTTracks($row['filename'], true);
+                }
                 unset($row['password']);
                 unset($row['recoverPass']);
                 //unset($row['description']);

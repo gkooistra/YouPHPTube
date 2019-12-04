@@ -29,11 +29,11 @@ if (empty($video)) {
     die("Video not found");
 }
 
-YouPHPTubePlugin::getModeYouTube($video['id']);
+AVideoPlugin::getModeYouTube($video['id']);
 
-$customizedAdvanced = YouPHPTubePlugin::getObjectDataIfEnabled('CustomizeAdvanced');
+$customizedAdvanced = AVideoPlugin::getObjectDataIfEnabled('CustomizeAdvanced');
 
-$objSecure = YouPHPTubePlugin::loadPluginIfEnabled('SecureVideosDirectory');
+$objSecure = AVideoPlugin::loadPluginIfEnabled('SecureVideosDirectory');
 if (!empty($objSecure)) {
     $objSecure->verifyEmbedSecurity();
 }
@@ -65,7 +65,7 @@ if (!empty($images->posterPortrait)) {
     $imgh = $data[1];
 }
 
-require_once $global['systemRootPath'] . 'plugin/YouPHPTubePlugin.php';
+require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 /*
  * Swap aspect ratio for rotated (vvs) videos
 
@@ -126,7 +126,7 @@ if (!empty($_GET['t'])) {
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.3.1.min.js" type="text/javascript"></script>
 
         <?php
-        echo YouPHPTubePlugin::getHeadCode();
+        echo AVideoPlugin::getHeadCode();
         ?>
         <script>
             var webSiteRootURL = '<?php echo $global['webSiteRootURL']; ?>';
@@ -188,7 +188,7 @@ if (!empty($_GET['t'])) {
                 }
                 ?>"></iframe>
                     <?php
-                    echo YouPHPTubePlugin::getFooterCode();
+                    echo AVideoPlugin::getFooterCode();
                     ?>
             <script>
                 $(document).ready(function () {
@@ -222,7 +222,7 @@ if (!empty($_GET['t'])) {
             echo $sources["pdf"]['url'];
             ?>"></iframe>
                     <?php
-                    echo YouPHPTubePlugin::getFooterCode();
+                    echo AVideoPlugin::getFooterCode();
                     ?>
             <script>
                 $(document).ready(function () {
@@ -240,7 +240,7 @@ if (!empty($_GET['t'])) {
             }
             ?>"></iframe>
                     <?php
-                    echo YouPHPTubePlugin::getFooterCode();
+                    echo AVideoPlugin::getFooterCode();
                     ?>
             <script>
                 $(document).ready(function () {
@@ -270,7 +270,7 @@ if (!empty($_GET['t'])) {
                 ?>
             </audio>
             <?php
-            echo YouPHPTubePlugin::getFooterCode();
+            echo AVideoPlugin::getFooterCode();
             ?>
             <script>
                 $(document).ready(function () {
@@ -290,7 +290,7 @@ if (!empty($_GET['t'])) {
 
             <?php
             // the live users plugin
-            if (empty($modestbranding) && YouPHPTubePlugin::isEnabled("0e225f8e-15e2-43d4-8ff7-0cb07c2a2b3b")) {
+            if (empty($modestbranding) && AVideoPlugin::isEnabled("0e225f8e-15e2-43d4-8ff7-0cb07c2a2b3b")) {
 
                 require_once $global['systemRootPath'] . 'plugin/VideoLogoOverlay/VideoLogoOverlay.php';
                 $style = VideoLogoOverlay::getStyle();
@@ -305,7 +305,7 @@ if (!empty($_GET['t'])) {
             }
             ?>
             <?php
-            echo YouPHPTubePlugin::getFooterCode();
+            echo AVideoPlugin::getFooterCode();
             ?>
             <script>
                 $(document).ready(function () {
@@ -349,6 +349,21 @@ if (!empty($_GET['t'])) {
                             }
                         }, 150);
         <?php
+    }else{
+        ?>
+                        setTimeout(function () {
+                            if (typeof player === 'undefined') {
+                                player = videojs('mainVideo');
+                            }
+                            try {
+                                player.currentTime(<?php echo $t; ?>);
+                            } catch (e) {
+                                setTimeout(function () {
+                                    player.currentTime(<?php echo $t; ?>);
+                                }, 1000);
+                            }
+                        }, 150);
+        <?php
     }
     ?>
                 });
@@ -371,52 +386,6 @@ if (!empty($_GET['t'])) {
         ?>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
         <script src="<?php echo $jsURL; ?>" type="text/javascript"></script>
-        <script>
-                tinymce.init({
-                    selector: '#inputDescription', // change this value according to your HTML
-                    plugins: 'code print preview fullpage powerpaste searchreplace autolink directionality advcode visualblocks visualchars fullscreen image link media mediaembed codesample table charmap hr pagebreak nonbreaking anchor toc insertdatetime advlist lists wordcount tinymcespellchecker a11ychecker imagetools textpattern help formatpainter permanentpen pageembed tinycomments mentions linkchecker',
-                    //toolbar: 'fullscreen | formatselect | bold italic strikethrough forecolor backcolor permanentpen formatpainter | link image media pageembed | alignleft aligncenter alignright alignjustify  | numlist bullist outdent indent | removeformat | addcomment',
-                    toolbar: 'fullscreen | formatselect | bold italic strikethrough | link image media pageembed | numlist bullist | removeformat | addcomment',
-                    height: 400,
-                    convert_urls: false,
-                    images_upload_handler: function (blobInfo, success, failure) {
-                        var xhr, formData;
-                        if (!videos_id) {
-                            $('#inputTitle').val("Article automatically booked");
-                            saveVideo(false);
-                        }
-                        xhr = new XMLHttpRequest();
-                        xhr.withCredentials = false;
-                        xhr.open('POST', '<?php echo $global['webSiteRootURL']; ?>objects/uploadArticleImage.php?video_id=' + videos_id);
-
-                        xhr.onload = function () {
-                            var json;
-
-                            if (xhr.status != 200) {
-                                failure('HTTP Error: ' + xhr.status);
-                                return;
-                            }
-
-                            json = xhr.responseText;
-                            json = JSON.parse(json);
-                            console.log(json);
-                            if (json.error === false && json.url) {
-                                success(json.url);
-                            } else if (json.msg) {
-                                swal("<?php echo __("Error!"); ?>", json.msg, "error");
-                            } else {
-                                swal("<?php echo __("Error!"); ?>", "<?php echo __("Unknown Error!"); ?>", "error");
-                            }
-
-                        };
-
-                        formData = new FormData();
-                        formData.append('file_data', blobInfo.blob(), blobInfo.filename());
-
-                        xhr.send(formData);
-                    }
-                });
-        </script>
     </body>
 </html>
 

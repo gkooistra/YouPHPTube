@@ -54,7 +54,7 @@ if (empty($video)) {
     $video = Video::getVideo("", "viewable", false, false, false, true);
 }
 if (empty($video)) {
-    $video = YouPHPTubePlugin::getVideo();
+    $video = AVideoPlugin::getVideo();
 }
 
 // allow users to count a view again in case it is refreshed
@@ -85,9 +85,9 @@ if (!empty($_GET['playlist_id'])) {
     }
 
     $videosArrayId = PlayList::getVideosIdFromPlaylist($_GET['playlist_id']);
-    $videosPlayList = Video::getAllVideos("viewable",false, false, $videosArrayId, false, true);
+    $videosPlayList = Video::getAllVideos("viewable", false, false, $videosArrayId, false, true);
     $videosPlayList = PlayList::sortVideos($videosPlayList, $videosArrayId);
-    
+
     $video = Video::getVideo($videosPlayList[$playlist_index]['id'], "viewable", false, false, false, true);
     if (!empty($videosPlayList[$playlist_index + 1])) {
         $autoPlayVideo = Video::getVideo($videosPlayList[$playlist_index + 1]['id'], "viewable", false, false, false, true);
@@ -96,7 +96,7 @@ if (!empty($_GET['playlist_id'])) {
         $autoPlayVideo = Video::getVideo($videosPlayList[0]['id'], "viewable", false, false, false, true);
         $autoPlayVideo['url'] = $global['webSiteRootURL'] . "playlist/{$playlist_id}/0";
     }
-   
+
     unset($_GET['playlist_id']);
 } else {
     if (!empty($video['next_videos_id'])) {
@@ -107,7 +107,7 @@ if (!empty($_GET['playlist_id'])) {
             $category = Category::getAllCategories();
             $_POST['sort']['title'] = "ASC";
 
-            // maybe there's a more slim method?
+// maybe there's a more slim method?
             $videos = Video::getAllVideos();
             $videoFound = false;
             $autoPlayVideo;
@@ -118,7 +118,7 @@ if (!empty($_GET['playlist_id'])) {
                 }
 
                 if ($value['id'] == $video['id']) {
-                    // if the video is found, make another round to have the next video properly.
+// if the video is found, make another round to have the next video properly.
                     $videoFound = true;
                 }
             }
@@ -129,23 +129,23 @@ if (!empty($_GET['playlist_id'])) {
 
     if (!empty($autoPlayVideo)) {
 
-        $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']).' '. User::getEmailVerifiedIcon($autoPlayVideo['users_id']);
+        $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']) . ' ' . User::getEmailVerifiedIcon($autoPlayVideo['users_id']);
         $autoPlayVideo['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($autoPlayVideo['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName"><strong>' . $name2 . '</strong> <small>' . humanTiming(strtotime($autoPlayVideo['videoCreation'])) . '</small></div></div>';
         $autoPlayVideo['tags'] = Video::getTags($autoPlayVideo['id']);
-        //$autoPlayVideo['url'] = $global['webSiteRootURL'] . $catLink . "video/" . $autoPlayVideo['clean_title'];
+//$autoPlayVideo['url'] = $global['webSiteRootURL'] . $catLink . "video/" . $autoPlayVideo['clean_title'];
         $autoPlayVideo['url'] = Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], false, $get);
     }
 }
 
 if (!empty($video)) {
     $name = User::getNameIdentificationById($video['users_id']);
-    $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id'])."</a>";
+    $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id']) . "</a>";
     $subscribe = Subscribe::getButton($video['users_id']);
     $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
     $obj = new Video("", "", $video['id']);
 
-    // dont need because have one embeded video on this page
-    // $resp = $obj->addView();
+// dont need because have one embeded video on this page
+// $resp = $obj->addView();
 }
 
 if ($video['type'] == "video") {
@@ -184,7 +184,7 @@ if (!empty($video)) {
 } else {
     $poster = "{$global['webSiteRootURL']}view/img/notfound.jpg";
 }
-$objSecure = YouPHPTubePlugin::getObjectDataIfEnabled('SecureVideosDirectory');
+$objSecure = AVideoPlugin::getObjectDataIfEnabled('SecureVideosDirectory');
 
 if (!empty($autoPlayVideo)) {
     $autoPlaySources = getSources($autoPlayVideo['filename'], true);
@@ -205,7 +205,7 @@ if (empty($_GET['videoName'])) {
 $v = Video::getVideoFromCleanTitle($_GET['videoName']);
 
 
-YouPHPTubePlugin::getModeYouTube($v['id']);
+AVideoPlugin::getModeYouTube($v['id']);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -215,12 +215,12 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/social.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
-        <?php 
-        include $global['systemRootPath'] . 'view/include/head.php'; 
+        <?php
+        include $global['systemRootPath'] . 'view/include/head.php';
         getOpenGraph(0);
         getLdJson(0);
         ?>
-        
+
     </head>
 
     <body class="<?php echo $global['bodyClass']; ?>">
@@ -270,11 +270,21 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                 } else if ($vType == "linkAudio") {
                     $vType = "audio";
                 }
+                if (!in_array($vType, Video::$typeOptions)) {
+                    $vType = 'video';
+                }
                 require "{$global['systemRootPath']}view/include/{$vType}.php";
                 ?>
-
-
                 <div class="row" id="modeYoutubeBottom">
+                    <div class="row">
+                        <div class="col-sm-1 col-md-1"></div>
+                        <div class="col-sm-10 col-md-10">
+                            <center style="margin:5px;">
+                                <?php echo getAdsLeaderBoardTop2(); ?>
+                            </center>
+                        </div>
+                    </div>
+
                     <div class="col-sm-1 col-md-1"></div>
                     <div class="col-sm-6 col-md-6" id="modeYoutubeBottomContent">
                         <?php
@@ -351,10 +361,10 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                         <?php if (!empty($imgGif)) { ?>
                                             <img src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo str_replace('"', '', $autoPlayVideo['title']); ?>" id="thumbsGIF<?php echo $autoPlayVideo['id']; ?>" class="thumbsGIF img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $autoPlayVideo['rotation']; ?>" height="130" />
                                         <?php } ?>
-                                        <meta itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
-                                        <meta itemprop="contentURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title']); ?>" />
-                                        <meta itemprop="embedURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], true); ?>" />
-                                        <meta itemprop="uploadDate" content="<?php echo $autoPlayVideo['created']; ?>" />
+                                        <span itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
+                                        <span itemprop="contentURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title']); ?>" />
+                                        <span itemprop="embedURL" content="<?php echo Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], true); ?>" />
+                                        <span itemprop="uploadDate" content="<?php echo $autoPlayVideo['created']; ?>" />
                                         <time class="duration" itemprop="duration" datetime="<?php echo Video::getItemPropDuration($autoPlayVideo['duration']); ?>"><?php echo Video::getCleanDuration($autoPlayVideo['duration']); ?></time>
                                     </div>
                                     <div class="col-lg-7 col-sm-7 col-xs-7 videosDetails">
@@ -431,6 +441,19 @@ YouPHPTubePlugin::getModeYouTube($v['id']);
                                         expires: 365
                                     });
                                 });
+
+                                if (typeof Cookies.get('autoplay') === 'undefined') {
+    <?php if ($config->getAutoplay()) { ?>
+                                        $("#autoplay").prop('checked', true);
+                                        Cookies.set('autoplay', true, {
+                                            path: '/',
+                                            expires: 365
+                                        });
+        <?php
+    }
+    ?>
+                                }
+
                                 $("#autoplay").change(function () {
                                     showAutoPlayVideoDiv();
                                 });
