@@ -7,11 +7,13 @@ require_once $global['systemRootPath'] . 'objects/playlist.php';
 class PlayLists extends PluginAbstract {
 
     public function getDescription() {
-        return "A playlist video picker for avideo for embed";
+        return "Playlists or Program Playlists are identified by default as programs of content on the AVideo Platform.<br>"
+                . " You can use the Edit Parameters button to rename it to your choosing.<br>  We recommend to keep the Program name "
+                . "as it is defaulted to in order to be well indexed in the SearchTube and Other AVideo Platform search and network indexing tools.";
     }
 
     public function getName() {
-        return "PlayLists";
+        return "Programs";
     }
 
     public function getUUID() {
@@ -25,6 +27,7 @@ class PlayLists extends PluginAbstract {
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
+        $obj->name = "Program";
         $obj->playOnSelect = true;
         $obj->autoadvance = true;
         $obj->usersCanOnlyCreatePlayListsFromTheirContent = false;
@@ -87,7 +90,7 @@ class PlayLists extends PluginAbstract {
     }
 
     static function canAddVideoOnPlaylist($videos_id) {
-        if(empty($videos_id)){
+        if (empty($videos_id)) {
             return false;
         }
         $obj = AVideoPlugin::getObjectData("PlayLists");
@@ -187,7 +190,7 @@ class PlayLists extends PluginAbstract {
         if (empty($obj->useOldPlayList)) {
             return $global['webSiteRootURL'] . "plugin/PlayLists/player.php?playlists_id=" . $playlists_id;
         } else {
-            return $global['webSiteRootURL'] . "playlist/" . $playlists_id;
+            return $global['webSiteRootURL'] . "program/" . $playlists_id;
         }
     }
 

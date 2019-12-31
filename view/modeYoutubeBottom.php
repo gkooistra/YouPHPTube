@@ -292,7 +292,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                                             <label class="col-md-4 control-label"><?php echo __("Type the code"); ?></label>
                                             <div class="col-md-8 inputGroupContainer">
                                                 <div class="input-group">
-                                                    <span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha" id="captcha"></span>
+                                                    <span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha?<?php echo time(); ?>" id="captcha"></span>
                                                     <span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha"><span class="glyphicon glyphicon-refresh"></span></span></span>
                                                     <input name="captcha" placeholder="<?php echo __("Type the code"); ?>" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText">
                                                 </div>
@@ -342,6 +342,18 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                     }
                     ?>
                     <div class="tab-pane" id="tabPermaLink">
+                        <div class="form-group">
+                            <label class="control-label"><?php echo __("Permanent Link with Channel") ?></label>
+                            <div class="">
+                                <input value="<?php echo Video::getPermaLink($video['id']); ?>?channelName=<?php echo User::_getUserChannelName($video['users_id']); ?>" class="form-control" readonly="readonly"  id="linkPermanent"/>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label"><?php echo __("URL Friendly with Channel") ?> (SEO)</label>
+                            <div class="">
+                                <input value="<?php echo Video::getURLFriendly($video['id']); ?>?channelName=<?php echo User::_getUserChannelName($video['users_id']); ?>" class="form-control" readonly="readonly" id="linkFriendly"/>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label class="control-label"><?php echo __("Permanent Link") ?></label>
                             <div class="">

@@ -1205,9 +1205,9 @@ if (typeof gtag !== \"function\") {
         return $this->recoverPass;
     }
 
-    function setRecoverPass($recoverPass) {
+    function setRecoverPass($recoverPass, $forceChange = false) {
         // let the same recover pass if it was 10 minutes ago
-        if(!empty($this->recoverPass) && !empty($recoverPass) && !empty($this->modified) && strtotime($this->modified) > strtotime("-10 minutes")){
+        if(empty($forceChange) && !empty($this->recoverPass) && !empty($recoverPass) && !empty($this->modified) && strtotime($this->modified) > strtotime("-10 minutes")){
             return $this->recoverPass;
         }
         $this->recoverPass = $recoverPass;
@@ -1350,6 +1350,19 @@ if (typeof gtag !== \"function\") {
         }
         return $this->channelName;
     }
+    
+    static function _getUserChannelName($users_id = 0) {
+        global $global, $config;
+        if (empty($users_id)) {
+            $users_id = self::getId();
+        }
+        $user = new User($users_id);
+        if (empty($user)) {
+            return false;
+        }
+        
+        return $user->getChannelName();
+    }
 
     function getEmailVerified() {
         return $this->emailVerified;
@@ -1402,7 +1415,9 @@ if (typeof gtag !== \"function\") {
         $config = new Configuration();
         $user = new User($users_id);
         $code = urlencode(static::createVerificationCode($users_id));
-        require_once $global['systemRootPath'] . 'objects/PHPMailer/PHPMailerAutoload.php';
+        require_once $global['systemRootPath'] . 'objects/PHPMailer/src/PHPMailer.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/SMTP.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/Exception.php';
         //Create a new PHPMailer instance
         if (!is_object($config)) {
             error_log("sendVerificationLink: config is not a object " . json_encode($config));
@@ -1412,7 +1427,7 @@ if (typeof gtag !== \"function\") {
         $webSiteTitle = $config->getWebSiteTitle();
         $email = $user->getEmail();
         try {
-            $mail = new PHPMailer;
+            $mail = new PHPMailer\PHPMailer\PHPMailer;
             setSiteSendMessage($mail);
             //$mail->SMTPDebug = 4;
             //Set who the message is to be sent from

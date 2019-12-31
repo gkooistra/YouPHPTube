@@ -447,39 +447,77 @@ function setSiteSendMessage(&$mail) {
     }
 }
 
+function array_iunique($array) {
+    return array_intersect_key(
+            $array, array_unique(array_map("strtolower", $array))
+    );
+}
+
+function partition(Array $list, $totalItens) {
+    $listlen = count($list);
+    $p = ceil($listlen / $totalItens);
+    $partlen = floor($listlen / $p);
+    $partrem = $listlen % $p;
+    $partition = array();
+    $mark = 0;
+    for ($px = 0; $px < $p; $px ++) {
+        $incr = ($px < $partrem) ? $partlen + 1 : $partlen;
+        $partition[$px] = array_slice($list, $mark, $incr);
+        $mark += $incr;
+    }
+    return $partition;
+}
+
 function sendSiteEmail($to, $subject, $message) {
     if (empty($to)) {
         return false;
     }
     global $config, $global;
-    require_once $global['systemRootPath'] . 'objects/PHPMailer/PHPMailerAutoload.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/PHPMailer.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/SMTP.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/Exception.php';
     $contactEmail = $config->getContactEmail();
     $webSiteTitle = $config->getWebSiteTitle();
     try {
-        $mail = new PHPMailer;
-        setSiteSendMessage($mail);
-//$mail->SMTPDebug = 4;
-//Set who the message is to be sent from
-        $mail->setFrom($contactEmail, $webSiteTitle);
-//Set who the message is to be sent to
+
         if (!is_array($to)) {
+            $mail = new PHPMailer\PHPMailer\PHPMailer;
+            setSiteSendMessage($mail);
+            $mail->setFrom($contactEmail, $webSiteTitle);
+            $mail->Subject = $subject . " - " . $webSiteTitle;
+            $mail->msgHTML($message);
+
             $mail->addAddress($to);
+
+            $resp = $mail->send();
+            if (!$resp) {
+                error_log("sendSiteEmail Error Info: {$mail->ErrorInfo}");
+            } else {
+                error_log("sendSiteEmail Success Info: $subject " . json_encode($to));
+            }
         } else {
-            $to = array_unique($to);
-            foreach ($to as $value) {
-                $mail->addBCC($value);
+            $to = array_iunique($to);
+            $pieces = partition($to, 90);
+            foreach ($pieces as $piece) {
+                $mail = new PHPMailer\PHPMailer\PHPMailer;
+                setSiteSendMessage($mail);
+                $mail->setFrom($contactEmail, $webSiteTitle);
+                $mail->Subject = $subject . " - " . $webSiteTitle;
+                $mail->msgHTML($message);
+                
+                foreach ($piece as $value) {
+                    $mail->addBCC($value);
+                }
+
+                $resp = $mail->send();
+                if (!$resp) {
+                    error_log("sendSiteEmail Error Info: {$mail->ErrorInfo}");
+                } else {
+                    error_log("sendSiteEmail Success Info: $subject " . json_encode($to));
+                }
             }
         }
 //Set the subject line
-        $mail->Subject = $subject . " - " . $webSiteTitle;
-
-        $mail->msgHTML($message);
-        $resp = $mail->send();
-        if (!$resp) {
-            error_log("sendSiteEmail Error Info: {$mail->ErrorInfo}");
-        } else {
-            error_log("sendSiteEmail Success Info: $subject " . json_encode($to));
-        }
         return $resp;
     } catch (phpmailerException $e) {
         error_log($e->errorMessage()); //Pretty error messages from PHPMailer
@@ -515,6 +553,9 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
                 '/[\\?\\&]v=([^\\?\\&]+)/', $link, $matches
         );
 //the ID of the YouTube URL: x6qe_kVaBpg
+        if (empty($matches[1])) {
+            return $link;
+        }
         $id = $matches[1];
         return '//www.youtube.com/embed/' . $id . '?modestbranding=1&showinfo='
                 . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&te=$time&objectFit=$objectFit";
@@ -1840,7 +1881,7 @@ function encryptPasswordVerify($password, $hash, $encodedPass = false) {
         $passwordUnSalted = $password;
     }
 //error_log("passwordSalted = $passwordSalted,  hash=$hash, passwordUnSalted=$passwordUnSalted");
-    return $passwordSalted === $hash || $passwordUnSalted === $hash;
+    return $passwordSalted === $hash || $passwordUnSalted === $hash || $password === $hash;
 }
 
 function isMobile() {
@@ -2178,19 +2219,19 @@ function getOpenGraph($videos_id) {
 
     <?php
     $sourceMP4 = Video::getSourceFile($video['filename'], ".mp4");
-    if(!AVideoPlugin::isEnabledByName("SecureVideosDirectory") && !empty($sourceMP4['url'])){
-    ?>
-    <meta property="og:video" content="<?php echo $sourceMP4['url']; ?>" />
-    <meta property="og:video:secure_url" content="<?php echo $sourceMP4['url']; ?>" />
-    <meta property="og:video:type" content="video/mp4" />
-    <meta property="og:video:width" content="<?php echo $imgw; ?>" />
-    <meta property="og:video:height" content="<?php echo $imgh; ?>" />
-    <?php
-    }else{
-    ?>
-    <meta property="og:video" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
-    <meta property="og:video:secure_url" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
-    <?php
+    if (!AVideoPlugin::isEnabledByName("SecureVideosDirectory") && !empty($sourceMP4['url'])) {
+        ?>
+        <meta property="og:video" content="<?php echo $sourceMP4['url']; ?>" />
+        <meta property="og:video:secure_url" content="<?php echo $sourceMP4['url']; ?>" />
+        <meta property="og:video:type" content="video/mp4" />
+        <meta property="og:video:width" content="<?php echo $imgw; ?>" />
+        <meta property="og:video:height" content="<?php echo $imgh; ?>" />
+        <?php
+    } else {
+        ?>
+        <meta property="og:video" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+        <meta property="og:video:secure_url" content="<?php echo Video::getLinkToVideo($videos_id); ?>" />
+        <?php
     }
     ?>
     <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
@@ -2347,4 +2388,97 @@ function getItemprop($videos_id) {
     <span itemprop="embedUrl" content="<?php echo parseVideos(Video::getLinkToVideo($videos_id)); ?>" />
     <span itemprop="interactionCount" content="<?php echo $video['views_count']; ?>" />
     <?php
+}
+
+function get_browser_name($user_agent) {
+    // Make case insensitive.
+    $t = strtolower($user_agent);
+
+    // If the string *starts* with the string, strpos returns 0 (i.e., FALSE). Do a ghetto hack and start with a space.
+    // "[strpos()] may return Boolean FALSE, but may also return a non-Boolean value which evaluates to FALSE."
+    //     http://php.net/manual/en/function.strpos.php
+    $t = " " . $t;
+
+    // Humans / Regular Users     
+    if (strpos($t, 'opera') || strpos($t, 'opr/'))
+        return 'Opera';
+    elseif (strpos($t, 'edge'))
+        return 'Edge';
+    elseif (strpos($t, 'chrome'))
+        return 'Chrome';
+    elseif (strpos($t, 'safari'))
+        return 'Safari';
+    elseif (strpos($t, 'firefox'))
+        return 'Firefox';
+    elseif (strpos($t, 'msie') || strpos($t, 'trident/7'))
+        return 'Internet Explorer';
+
+    // Search Engines 
+    elseif (strpos($t, 'google'))
+        return '[Bot] Googlebot';
+    elseif (strpos($t, 'bing'))
+        return '[Bot] Bingbot';
+    elseif (strpos($t, 'slurp'))
+        return '[Bot] Yahoo! Slurp';
+    elseif (strpos($t, 'duckduckgo'))
+        return '[Bot] DuckDuckBot';
+    elseif (strpos($t, 'baidu'))
+        return '[Bot] Baidu';
+    elseif (strpos($t, 'yandex'))
+        return '[Bot] Yandex';
+    elseif (strpos($t, 'sogou'))
+        return '[Bot] Sogou';
+    elseif (strpos($t, 'exabot'))
+        return '[Bot] Exabot';
+    elseif (strpos($t, 'msn'))
+        return '[Bot] MSN';
+
+    // Common Tools and Bots
+    elseif (strpos($t, 'mj12bot'))
+        return '[Bot] Majestic';
+    elseif (strpos($t, 'ahrefs'))
+        return '[Bot] Ahrefs';
+    elseif (strpos($t, 'semrush'))
+        return '[Bot] SEMRush';
+    elseif (strpos($t, 'rogerbot') || strpos($t, 'dotbot'))
+        return '[Bot] Moz or OpenSiteExplorer';
+    elseif (strpos($t, 'frog') || strpos($t, 'screaming'))
+        return '[Bot] Screaming Frog';
+
+    // Miscellaneous
+    elseif (strpos($t, 'facebook'))
+        return '[Bot] Facebook';
+    elseif (strpos($t, 'pinterest'))
+        return '[Bot] Pinterest';
+
+    // Check for strings commonly used in bot user agents  
+    elseif (strpos($t, 'crawler') || strpos($t, 'api') ||
+            strpos($t, 'spider') || strpos($t, 'http') ||
+            strpos($t, 'bot') || strpos($t, 'archive') ||
+            strpos($t, 'info') || strpos($t, 'data'))
+        return '[Bot] Other';
+
+    return 'Other (Unknown)';
+}
+
+function TimeLogStart($name) {
+    global $global;
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $global['start'][$name] = $time;
+}
+
+function TimeLogEnd($name, $line, $limit = 0.05) {
+    global $global;
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $finish = $time;
+    $total_time = round(($finish - $global['start'][$name]), 4);
+    if ($total_time > 0.05) {
+        error_log("Warning: Slow process detected [{$name}] takes {$total_time} seconds to complete. ");
+        error_log($_SERVER["SCRIPT_FILENAME"] . " Line {$line}");
+    }
+    TimeLogStart($name);
 }

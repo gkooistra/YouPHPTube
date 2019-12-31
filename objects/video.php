@@ -582,7 +582,7 @@ if (!class_exists('Video')) {
             return " AND " . $sql;
         }
 
-        static function getVideo($id = "", $status = "viewable", $ignoreGroup = false, $random = false, $suggetedOnly = false, $showUnlisted = false, $ignoreTags = false, $activeUsersOnly = true) {
+        static function getVideo($id = "", $status = "viewable", $ignoreGroup = false, $random = false, $suggestedOnly = false, $showUnlisted = false, $ignoreTags = false, $activeUsersOnly = true) {
             global $global, $config;
             if ($config->currentVersionLowerThen('5')) {
                 return false;
@@ -682,7 +682,7 @@ if (!class_exists('Video')) {
                 } elseif (!empty($random)) {
                     $sql .= " AND v.id != {$random} ";
                     $sql .= " ORDER BY RAND() ";
-                } else if ($suggetedOnly && empty($_GET['videoName']) && empty($_GET['search']) && empty($_GET['searchPhrase'])) {
+                } else if ($suggestedOnly && empty($_GET['videoName']) && empty($_GET['search']) && empty($_GET['searchPhrase'])) {
                     $sql .= " AND v.isSuggested = 1 ";
                     $sql .= " ORDER BY RAND() ";
                 } else {
@@ -798,7 +798,7 @@ if (!class_exists('Video')) {
          * @param type $videosArrayId an array with videos to return (for filter only)
          * @return boolean
          */
-        static function getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true) {
+        static function getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true, $suggestedOnly = false) {
             global $global, $config;
             if ($config->currentVersionLowerThen('5')) {
                 return false;
@@ -895,7 +895,11 @@ if (!class_exists('Video')) {
             }
 
             $sql .= AVideoPlugin::getVideoWhereClause();
-            if (!isset($_POST['sort']['trending']) && !isset($_GET['sort']['trending'])) {
+            
+            if ($suggestedOnly) {
+                $sql .= " AND v.isSuggested = 1 ";
+                $sql .= " ORDER BY RAND() ";
+            }else if (!isset($_POST['sort']['trending']) && !isset($_GET['sort']['trending'])) {
                 $sql .= BootGrid::getSqlFromPost(array(), empty($_POST['sort']['likes']) ? "v." : "", "", true);
             } else {
                 unset($_POST['sort']['trending']);
@@ -910,7 +914,7 @@ if (!class_exists('Video')) {
                     $ids[] = $row['id'];
                 }
                 if (!empty($ids)) {
-                    $sql .= " AND v.id IN (" . implode(",", $ids) . ") ORDER BY RAND() LIMIT {$rowCount}";
+                    $sql .= " AND v.id IN (" . implode(",", $ids) . ") AND v.created  >= (NOW() - INTERVAL 6 MONTH) ORDER BY RAND() LIMIT {$rowCount}";
                 }
             }
 
@@ -994,7 +998,7 @@ if (!class_exists('Video')) {
          * @param type $showOnlyLoggedUserVideos
          * @return boolean
          */
-        static function getAllVideosLight($status = "viewable", $showOnlyLoggedUserVideos = false, $showUnlisted = false) {
+        static function getAllVideosLight($status = "viewable", $showOnlyLoggedUserVideos = false, $showUnlisted = false, $suggestedOnly = false) {
             global $global, $config;
             if ($config->currentVersionLowerThen('5')) {
                 return false;
@@ -1026,9 +1030,13 @@ if (!class_exists('Video')) {
                 $user = User::getChannelOwner($_GET['channelName']);
                 $sql .= " AND v.users_id = '{$user['id']}' ";
             }
-
             $sql .= AVideoPlugin::getVideoWhereClause();
 
+            if ($suggestedOnly) {
+                $sql .= " AND v.isSuggested = 1 ";
+                $sql .= " ORDER BY RAND() ";
+            }
+            //echo $sql;
             $res = sqlDAL::readSql($sql);
             $fullData = sqlDAL::fetchAllAssoc($res);
             sqlDAL::close($res);
@@ -1071,9 +1079,12 @@ if (!class_exists('Video')) {
             }
             if ($status == "viewable") {
                 $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "')";
+            } elseif ($status == "viewableNotUnlisted") {
+                $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus(false)) . "')";
             } elseif (!empty($status)) {
                 $sql .= " AND v.status = '{$status}'";
             }
+            
             if ($showOnlyLoggedUserVideos === true && !User::isAdmin()) {
                 $sql .= " AND v.users_id = '" . User::getId() . "'";
             } elseif (is_int($showOnlyLoggedUserVideos)) {
@@ -2172,13 +2183,12 @@ if (!class_exists('Video')) {
             global $global, $advancedCustom, $videosPaths;
 
             // check if there is a webp image
-            if ($type === '.gif') {
+            if ($type === '.gif' && get_browser_name($_SERVER['HTTP_USER_AGENT'])!=='Safari') {
                 $path = "{$global['systemRootPath']}videos/{$filename}.webp";
                 if (file_exists($path)) {
                     $type = ".webp";
                 }
             }
-
             if (empty($videosPaths[$filename][$type][intval($includeS3)])) {
                 $aws_s3 = AVideoPlugin::loadPluginIfEnabled('AWS_S3');
                 $bb_b2 = AVideoPlugin::loadPluginIfEnabled('Blackblaze_B2');
@@ -2251,8 +2261,8 @@ if (!class_exists('Video')) {
             } else {
                 $source = $videosPaths[$filename][$type][intval($includeS3)];
             }
-            if(substr($type, -4) === ".jpg" || substr($type, -4) === ".png" || substr($type, -4) === ".gif" || substr($type, -4) === ".webp"){
-                $source['url'] .= "?".@filectime($source['path']);
+            if (substr($type, -4) === ".jpg" || substr($type, -4) === ".png" || substr($type, -4) === ".gif" || substr($type, -4) === ".webp") {
+                $source['url'] .= "?" . @filectime($source['path']);
             }
 //ObjectYPT::setCache($name, $source);
             return $source;

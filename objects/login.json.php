@@ -59,7 +59,7 @@ if (!empty($_GET['type'])) {
         $scope = 'sdpp-w';
     }
     if($_GET['type']==='LinkedIn'){
-        $scope = array('r_emailaddress');
+        $scope = ("r_liteprofile r_emailaddress w_member_social");
     }
     
     $config = [
@@ -163,9 +163,13 @@ if ((empty($object->redirectUri) || $object->redirectUri===$global['webSiteRootU
 
 if (empty($advancedCustomUser->userCanNotChangeCategory) || User::isAdmin()) {
     $object->categories = Category::getAllCategories(true);
+    array_multisort(array_column($object->categories, 'hierarchyAndName'), SORT_ASC, $object->categories);
 }else{
     $object->categories = array();
 }
+
+$object->userGroups = UserGroups::getAllUsersGroups();
+
 $object->streamServerURL = "";
 $object->streamKey = "";
 if($object->isLogged){

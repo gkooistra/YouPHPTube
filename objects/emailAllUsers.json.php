@@ -12,12 +12,14 @@ if (!User::isAdmin()) {
 }
 
 header('Content-Type: application/json');
-if(empty($_POST['email'])){
+if (empty($_POST['email'])) {
     $users = User::getAllUsers();
-}else{
+} else {
     $users[0]["email"] = $_POST['email'];
 }
-require_once $global['systemRootPath'] . 'objects/PHPMailer/PHPMailerAutoload.php';
+require_once $global['systemRootPath'] . 'objects/PHPMailer/src/PHPMailer.php';
+require_once $global['systemRootPath'] . 'objects/PHPMailer/src/SMTP.php';
+require_once $global['systemRootPath'] . 'objects/PHPMailer/src/Exception.php';
 // send 100 emails at a time
 $mailsLimit = 100;
 
@@ -25,7 +27,7 @@ $obj = new stdClass();
 $obj->error = false;
 $obj->msg = array();
 //Create a new PHPMailer instance
-$mail = new PHPMailer;
+$mail = new PHPMailer\PHPMailer\PHPMailer;
 setSiteSendMessage($mail);
 //Set who the message is to be sent from
 $mail->setFrom($config->getContactEmail());
@@ -39,7 +41,7 @@ foreach ($users as $value) {
             if (!$mail->send()) {
                 $obj->error = true;
                 $obj->msg[] = __("Message could not be sent") . " " . $mail->ErrorInfo;
-            } 
+            }
             $mail->ClearAddresses();
             $mail->ClearCCs();
             $mail->ClearBCCs();
@@ -53,6 +55,6 @@ foreach ($users as $value) {
 if ($currentCount && !$mail->send()) {
     $obj->error = true;
     $obj->msg[] = __("Message could not be sent") . " " . $mail->ErrorInfo;
-} 
+}
 $obj->count = $count;
 echo json_encode($obj);

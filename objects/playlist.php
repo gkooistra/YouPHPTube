@@ -18,10 +18,10 @@ class PlayList extends ObjectYPT {
     static function getTableName() {
         return 'playlists';
     }
-    
+
     static protected function getFromDbFromName($name) {
         global $global;
-        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  name = ? users_id = ". User::getId()." LIMIT 1";
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  name = ? users_id = " . User::getId() . " LIMIT 1";
         $res = sqlDAL::readSql($sql, "s", array($name));
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
@@ -34,7 +34,7 @@ class PlayList extends ObjectYPT {
     }
 
     function loadFromName($name) {
-        if(!User::isLogged()){
+        if (!User::isLogged()) {
             return false;
         }
         $this->setName($name);
@@ -55,14 +55,18 @@ class PlayList extends ObjectYPT {
      * @param type $isVideoIdPresent pass the ID of the video checking
      * @return boolean
      */
-    static function getAllFromUser($userId, $publicOnly = true, $status = false) {
+    static function getAllFromUser($userId, $publicOnly = true, $status = false, $playlists_id = 0) {
         global $global, $config;
+        $playlists_id = intval($playlists_id);
         $formats = "";
         $values = array();
         $sql = "SELECT u.*, pl.* FROM  " . static::getTableName() . " pl "
                 . " LEFT JOIN users u ON u.id = users_id WHERE 1=1 ";
+        if (!empty($playlists_id)) {
+            $sql .= " AND pl.id = '{$playlists_id}' ";
+        }
         if (!empty($status)) {
-            $status = str_replace("'","", $status);
+            $status = str_replace("'", "", $status);
             $sql .= " AND pl.status = '{$status}' ";
         } else
         if ($publicOnly) {
@@ -129,63 +133,132 @@ class PlayList extends ObjectYPT {
         }
         return $rows;
     }
-    
+
     static function getAllFromUserVideo($userId, $videos_id, $publicOnly = true, $status = false) {
-        $rows = self::getAllFromUser($userId, $publicOnly, $status);
-        foreach ($rows as $key => $value) {
-            $videos = self::getVideosIdFromPlaylist($value['id']);
-            $rows[$key]['isOnPlaylist'] = in_array($videos_id, $videos);
+        if (empty($_SESSION['getAllFromUserVideo'][$videos_id][$userId][intval($publicOnly)][intval($status)])) {
+            $rows = self::getAllFromUser($userId, $publicOnly, $status);
+            foreach ($rows as $key => $value) {
+                $videos = self::getVideosIdFromPlaylist($value['id']);
+                $rows[$key]['isOnPlaylist'] = in_array($videos_id, $videos);
+            }
+
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['getAllFromUserVideo'][$videos_id][$userId][intval($publicOnly)][intval($status)] = $rows;
+        } else {
+            $rows = $_SESSION['getAllFromUserVideo'][$videos_id][$userId][intval($publicOnly)][intval($status)];
         }
+
         return $rows;
     }
 
-    static function getVideosFromPlaylist($playlists_id) {
+    static private function removeCache($videos_id) {
+        $close = false;
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+            $close = true;
+        }
+        unset($_SESSION['getAllFromUserVideo'][$videos_id]);
+        if (!empty($close)) {
+            session_write_close();
+        }
+    }
+
+    static function getVideosIDFromPlaylistLight($playlists_id) {
         global $global;
-        $sql = "SELECT *,v.created as cre, p.`order` as video_order, v.externalOptions as externalOptions "
-                . ", (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes "
-                . " FROM  playlists_has_videos p "
-                . " LEFT JOIN videos as v ON videos_id = v.id "
-                . " LEFT JOIN users u ON u.id = v.users_id "
+        $sql = "SELECT * FROM  playlists_has_videos p "
                 . " WHERE playlists_id = ? ";
-        
+
         $sort = @$_POST['sort'];
         $_POST['sort'] = array();
-        $_POST['sort']['p.`order`'] = 'ASC';        
+        $_POST['sort']['p.`order`'] = 'ASC';
         $sql .= self::getSqlFromPost();
         $_POST['sort'] = $sort;
         $res = sqlDAL::readSql($sql, "i", array($playlists_id));
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
         $rows = array();
-        $SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
         if ($res != false) {
             foreach ($fullData as $row) {
-                if (!empty($_GET['isChannel'])) {
-                    $row['tags'] = Video::getTags($row['id']);
-                    $row['pluginBtns'] = AVideoPlugin::getPlayListButtons($playlists_id);
-                    $row['humancreate'] = humanTiming(strtotime($row['cre']));
-                }
-                $images = Video::getImageFromFilename($row['filename'], $row['type']);
-                $row['images'] = $images;
-                $row['videos'] = Video::getVideosPaths($row['filename'], true);
-                $row['progress'] = Video::getVideoPogressPercent($row['videos_id']);
-                $row['title'] = UTF8encode($row['title']);
-                $row['description'] = UTF8encode($row['description']);
-                $row['tags'] = Video::getTags($row['videos_id']);
-                if (AVideoPlugin::isEnabledByName("VideoTags")) {
-                    $row['videoTags'] = Tags::getAllFromVideosId($row['videos_id']);
-                    $row['videoTagsObject'] = Tags::getObjectFromVideosId($row['videos_id']);
-                }
-                if ($SubtitleSwitcher) {
-                    $row['subtitles'] = getVTTTracks($row['filename'], true);
-                }
-                unset($row['password']);
-                unset($row['recoverPass']);
-                //unset($row['description']);
                 $rows[] = $row;
             }
         } else {
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+        return $rows;
+    }
+
+    public static function setCache($name, $value) {
+        parent::setCache($name, $value);
+    }
+
+    static function getVideosFromPlaylist($playlists_id) {
+        $rows = self::getCache("getVideosFromPlaylist{$playlists_id}", 0);
+        if (empty($rows)) {
+            global $global;
+            $sql = "SELECT *,v.created as cre, p.`order` as video_order, v.externalOptions as externalOptions "
+                    . ", (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes "
+                    . " FROM  playlists_has_videos p "
+                    . " LEFT JOIN videos as v ON videos_id = v.id "
+                    . " LEFT JOIN users u ON u.id = v.users_id "
+                    . " WHERE playlists_id = ? ";
+
+            $sort = @$_POST['sort'];
+            $_POST['sort'] = array();
+            $_POST['sort']['p.`order`'] = 'ASC';
+            $sql .= self::getSqlFromPost();
+            $_POST['sort'] = $sort;
+            $res = sqlDAL::readSql($sql, "i", array($playlists_id));
+            $fullData = sqlDAL::fetchAllAssoc($res);
+            sqlDAL::close($res);
+            $rows = array();
+            $SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
+            if ($res != false) {
+                $timeLog2 = __FILE__ . " - getVideosFromPlaylist: {$playlists_id}";
+                TimeLogStart($timeLog2);
+                foreach ($fullData as $row) {
+                    if (!empty($_GET['isChannel'])) {
+                        $row['tags'] = Video::getTags($row['id']);
+                        $row['pluginBtns'] = AVideoPlugin::getPlayListButtons($playlists_id);
+                        $row['humancreate'] = humanTiming(strtotime($row['cre']));
+                    }
+                    TimeLogEnd($timeLog2, __LINE__);
+                    $images = Video::getImageFromFilename($row['filename'], $row['type']);
+                    TimeLogEnd($timeLog2, __LINE__);
+                    $row['images'] = $images;
+                    $row['videos'] = Video::getVideosPaths($row['filename'], true);
+                    TimeLogEnd($timeLog2, __LINE__);
+                    $row['progress'] = Video::getVideoPogressPercent($row['videos_id']);
+                    TimeLogEnd($timeLog2, __LINE__);
+                    $row['title'] = UTF8encode($row['title']);
+                    TimeLogEnd($timeLog2, __LINE__);
+                    $row['description'] = UTF8encode($row['description']);
+                    TimeLogEnd($timeLog2, __LINE__);
+                    $row['tags'] = Video::getTags($row['videos_id']);
+                    TimeLogEnd($timeLog2, __LINE__);
+                    if (AVideoPlugin::isEnabledByName("VideoTags")) {
+                        $row['videoTags'] = Tags::getAllFromVideosId($row['videos_id']);
+                        $row['videoTagsObject'] = Tags::getObjectFromVideosId($row['videos_id']);
+                    }
+                    TimeLogEnd($timeLog2, __LINE__);
+                    if ($SubtitleSwitcher) {
+                        $row['subtitles'] = getVTTTracks($row['filename'], true);
+                    }
+                    TimeLogEnd($timeLog2, __LINE__);
+                    unset($row['password']);
+                    unset($row['recoverPass']);
+                    //unset($row['description']);
+                    $rows[] = $row;
+                }
+
+                self::setCache("getVideosFromPlaylist{$playlists_id}", $rows);
+            } else {
+                die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            }
+        }
+        else{
+            $rows = object_to_array($rows);
         }
         return $rows;
     }
@@ -200,7 +273,7 @@ class PlayList extends ObjectYPT {
 
     private static function isVideoOn($videos_id, $users_id, $status) {
         global $global;
-        $status = str_replace("'","", $status);
+        $status = str_replace("'", "", $status);
 
         $sql = "SELECT pl.id FROM  " . static::getTableName() . " pl "
                 . " LEFT JOIN users u ON u.id = users_id "
@@ -221,7 +294,7 @@ class PlayList extends ObjectYPT {
 
     static function getFavoriteIdFromUser($users_id) {
         $favorite = self::getIdFromUser($users_id, "favorite");
-        if(empty($favorite)){
+        if (empty($favorite)) {
             $pl = new PlayList(0);
             $pl->setName("Favorite");
             $pl->setUsers_id($users_id);
@@ -234,8 +307,8 @@ class PlayList extends ObjectYPT {
 
     static function getWatchLaterIdFromUser($users_id) {
         $watch_later = self::getIdFromUser($users_id, "watch_later");
-        
-        if(empty($watch_later)){
+
+        if (empty($watch_later)) {
             $pl = new PlayList(0);
             $pl->setName("Watch Later");
             $pl->setUsers_id($users_id);
@@ -249,7 +322,7 @@ class PlayList extends ObjectYPT {
     private static function getIdFromUser($users_id, $status) {
         global $global;
 
-        $status = str_replace("'","", $status);
+        $status = str_replace("'", "", $status);
         $sql = "SELECT * FROM  " . static::getTableName() . " pl  WHERE"
                 . " users_id = ? AND pl.status = '{$status}' LIMIT 1 ";
         $res = sqlDAL::readSql($sql, "i", array($users_id));
@@ -265,7 +338,7 @@ class PlayList extends ObjectYPT {
 
     static function getVideosIdFromPlaylist($playlists_id) {
         $videosId = array();
-        $rows = static::getVideosFromPlaylist($playlists_id);
+        $rows = static::getVideosIDFromPlaylistLight($playlists_id);
         foreach ($rows as $value) {
             $videosId[] = $value['videos_id'];
         }
@@ -292,7 +365,11 @@ class PlayList extends ObjectYPT {
         $this->clearEmptyLists();
         $users_id = User::getId();
         $this->setUsers_id($users_id);
-        return parent::save();
+        $playlists_id = parent::save();
+        if(!empty($playlists_id)){
+            self::deleteCache("getVideosFromPlaylist{$playlists_id}");
+        }
+        return $playlists_id;
     }
 
     /**
@@ -305,7 +382,7 @@ class PlayList extends ObjectYPT {
         return sqlDAL::writeSql($sql);
     }
 
-    public function addVideo($video_id, $add, $order = 0) {
+    public function addVideo($videos_id, $add, $order = 0) {
         global $global;
         $formats = "";
         $values = array();
@@ -313,15 +390,17 @@ class PlayList extends ObjectYPT {
             $sql = "DELETE FROM playlists_has_videos WHERE playlists_id = ? AND videos_id = ? ";
             $formats = "ii";
             $values[] = $this->id;
-            $values[] = $video_id;
+            $values[] = $videos_id;
         } else {
-            $this->addVideo($video_id, false);
+            $this->addVideo($videos_id, false);
             $sql = "INSERT INTO playlists_has_videos ( playlists_id, videos_id , `order`) VALUES (?, ?, ?) ";
             $formats = "iii";
             $values[] = $this->id;
-            $values[] = $video_id;
+            $values[] = $videos_id;
             $values[] = $order;
         }
+        self::deleteCache("getVideosFromPlaylist{$this->id}");
+        self::removeCache($videos_id);
         return sqlDAL::writeSql($sql, $formats, $values);
     }
 
@@ -329,6 +408,7 @@ class PlayList extends ObjectYPT {
         if (empty($this->id)) {
             return false;
         }
+        self::deleteCache("getVideosFromPlaylist{$this->id}");
         global $global;
         $sql = "DELETE FROM playlists WHERE id = ? ";
         //echo $sql;
