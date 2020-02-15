@@ -1,4 +1,6 @@
 <?php
+$modeYouTubeTime = microtime(true);
+$modeYouTubeTimeLog = array();
 global $global, $config;
 $isChannel = 1; // still workaround, for gallery-functions, please let it there.
 if (!isset($global['systemRootPath'])) {
@@ -76,6 +78,8 @@ $obj = new Video("", "", $video['id']);
 
 $get = array('channelName' => @$_GET['channelName'], 'catName' => @$_GET['catName']);
 
+$modeYouTubeTimeLog['Code part 1'] = microtime(true)-$modeYouTubeTime;
+$modeYouTubeTime = microtime(true);
 if (!empty($_GET['playlist_id'])) {
     $playlist_id = $_GET['playlist_id'];
     if (!empty($_GET['playlist_index'])) {
@@ -88,7 +92,27 @@ if (!empty($_GET['playlist_id'])) {
     $videosPlayList = Video::getAllVideos("viewable", false, false, $videosArrayId, false, true);
     $videosPlayList = PlayList::sortVideos($videosPlayList, $videosArrayId);
 
-    $video = Video::getVideo($videosPlayList[$playlist_index]['id'], "viewable", false, false, false, true);
+    $videoSerie = Video::getVideoFromSeriePlayListsId($_GET['playlist_id']);
+
+    unset($_GET['playlist_id']);
+    $isPlayListTrailer = false;
+    if(!empty($videoSerie)){
+        $videoSerie = Video::getVideo($videoSerie["id"], "", true);
+        if (!empty($videoSerie["trailer1"]) && filter_var($videoSerie["trailer1"], FILTER_VALIDATE_URL) !== FALSE) {
+            $videoSerie["type"] = "embed";
+            $videoSerie["videoLink"] = $videoSerie["trailer1"];
+            array_unshift($videosPlayList,$videoSerie);
+            array_unshift($videosArrayId,$videoSerie['id']);
+            $isPlayListTrailer = true;
+        }
+        
+    }
+    if(empty($playlist_index) && $isPlayListTrailer){
+        $video = $videoSerie;
+    }else{
+        $video = Video::getVideo($videosPlayList[$playlist_index]['id'], "viewable", false, false, false, true);
+    }
+    
     if (!empty($videosPlayList[$playlist_index + 1])) {
         $autoPlayVideo = Video::getVideo($videosPlayList[$playlist_index + 1]['id'], "viewable", false, false, false, true);
         $autoPlayVideo['url'] = $global['webSiteRootURL'] . "playlist/{$playlist_id}/" . ($playlist_index + 1);
@@ -96,17 +120,26 @@ if (!empty($_GET['playlist_id'])) {
         $autoPlayVideo = Video::getVideo($videosPlayList[0]['id'], "viewable", false, false, false, true);
         $autoPlayVideo['url'] = $global['webSiteRootURL'] . "playlist/{$playlist_id}/0";
     }
-
-    unset($_GET['playlist_id']);
 } else {
+    $modeYouTubeTimeLog['Code part 1.1'] = microtime(true)-$modeYouTubeTime;
+    $modeYouTubeTime = microtime(true);
     if (!empty($video['next_videos_id'])) {
+        $modeYouTubeTimeLog['Code part 1.2'] = microtime(true)-$modeYouTubeTime;
+        $modeYouTubeTime = microtime(true);
         $autoPlayVideo = Video::getVideo($video['next_videos_id']);
     } else {
+        $modeYouTubeTimeLog['Code part 1.3'] = microtime(true)-$modeYouTubeTime;
+        $modeYouTubeTime = microtime(true);
+        /*
         if ($video['category_order'] == 1) {
+            $modeYouTubeTimeLog['Code part 1.4'] = microtime(true)-$modeYouTubeTime;
+            $modeYouTubeTime = microtime(true);
             unset($_POST['sort']);
             $category = Category::getAllCategories();
             $_POST['sort']['title'] = "ASC";
 
+            $modeYouTubeTimeLog['Code part 1.4.1'] = microtime(true)-$modeYouTubeTime;
+            $modeYouTubeTime = microtime(true);
 // maybe there's a more slim method?
             $videos = Video::getAllVideos();
             $videoFound = false;
@@ -123,10 +156,16 @@ if (!empty($_GET['playlist_id'])) {
                 }
             }
         } else {
+         * 
+         */
+            $modeYouTubeTimeLog['Code part 1.5'] = microtime(true)-$modeYouTubeTime;
+            $modeYouTubeTime = microtime(true);
             $autoPlayVideo = Video::getRandom($video['id']);
-        }
+        //}
     }
 
+    $modeYouTubeTimeLog['Code part 1.6'] = microtime(true)-$modeYouTubeTime;
+    $modeYouTubeTime = microtime(true);
     if (!empty($autoPlayVideo)) {
 
         $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']) . ' ' . User::getEmailVerifiedIcon($autoPlayVideo['users_id']);
@@ -135,8 +174,10 @@ if (!empty($_GET['playlist_id'])) {
 //$autoPlayVideo['url'] = $global['webSiteRootURL'] . $catLink . "video/" . $autoPlayVideo['clean_title'];
         $autoPlayVideo['url'] = Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], false, $get);
     }
+    
 }
-
+$modeYouTubeTimeLog['Code part 2'] = microtime(true)-$modeYouTubeTime;
+$modeYouTubeTime = microtime(true);
 if (!empty($video)) {
     $name = User::getNameIdentificationById($video['users_id']);
     $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id']) . "</a>";
@@ -185,7 +226,8 @@ if (!empty($video)) {
     $poster = "{$global['webSiteRootURL']}view/img/notfound.jpg";
 }
 $objSecure = AVideoPlugin::getObjectDataIfEnabled('SecureVideosDirectory');
-
+$modeYouTubeTimeLog['Code part 3'] = microtime(true)-$modeYouTubeTime;
+$modeYouTubeTime = microtime(true);
 if (!empty($autoPlayVideo)) {
     $autoPlaySources = getSources($autoPlayVideo['filename'], true);
     $autoPlayURL = $autoPlayVideo['url'];
@@ -204,13 +246,16 @@ if (empty($_GET['videoName'])) {
 
 $v = Video::getVideoFromCleanTitle($_GET['videoName']);
 
-
+$modeYouTubeTimeLog['Code part 4'] = microtime(true)-$modeYouTubeTime;
+$modeYouTubeTime = microtime(true);
 AVideoPlugin::getModeYouTube($v['id']);
-
+$modeYouTubeTimeLog['Code part 5'] = microtime(true)-$modeYouTubeTime;
+$modeYouTubeTime = microtime(true);
 if(empty($video)){
     header('HTTP/1.0 404 Not Found', true, 404);
 }
-
+$modeYouTubeTimeLog['Code part 6'] = microtime(true)-$modeYouTubeTime;
+$modeYouTubeTime = microtime(true);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -224,6 +269,8 @@ if(empty($video)){
         include $global['systemRootPath'] . 'view/include/head.php';
         getOpenGraph(0);
         getLdJson(0);
+        $modeYouTubeTimeLog['After head'] = microtime(true)-$modeYouTubeTime;
+        $modeYouTubeTime = microtime(true);
         ?>
 
     </head>
@@ -279,6 +326,8 @@ if(empty($video)){
                     $vType = 'video';
                 }
                 require "{$global['systemRootPath']}view/include/{$vType}.php";
+                $modeYouTubeTimeLog['After include video '.$vType] = microtime(true)-$modeYouTubeTime;
+                $modeYouTubeTime = microtime(true);
                 ?>
                 <div class="row" id="modeYoutubeBottom">
                     <div class="row">
@@ -294,6 +343,8 @@ if(empty($video)){
                     <div class="col-sm-6 col-md-6" id="modeYoutubeBottomContent">
                         <?php
                         require "{$global['systemRootPath']}view/modeYoutubeBottom.php";
+                        $modeYouTubeTimeLog['After include bottom '] = microtime(true)-$modeYouTubeTime;
+                        $modeYouTubeTime = microtime(true);
                         ?>
                     </div>
                     <div class="col-sm-4 col-md-4 bgWhite list-group-item rightBar">
@@ -409,11 +460,20 @@ if(empty($video)){
                                     </div>
                                 </a>
                             </div>
-                        <?php } ?>
+                        <?php } 
+                        
+                        
+                        $modeYouTubeTimeLog['After autoplay and playlist '] = microtime(true)-$modeYouTubeTime;
+                        $modeYouTubeTime = microtime(true);
+                        ?>
                         <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
                         <!-- videos List -->
                         <div id="videosList">
-                            <?php include $global['systemRootPath'] . 'view/videosList.php'; ?>
+                            <?php 
+                            if (empty($playlist_id)) {
+                                include $global['systemRootPath'] . 'view/videosList.php'; 
+                            }
+                            ?>
                         </div>
                         <!-- End of videos List -->
 
@@ -488,6 +548,8 @@ if(empty($video)){
                         $.widget.bridge('uitooltip', $.ui.tooltip);
         </script>
         <?php
+        $modeYouTubeTimeLog['before add js '] = microtime(true)-$modeYouTubeTime;
+        $modeYouTubeTime = microtime(true);
         $videoJSArray = array("view/js/video.js/video.js");
         if ($advancedCustom != false) {
             $disableYoutubeIntegration = $advancedCustom->disableYoutubePlayerIntegration;
@@ -511,6 +573,17 @@ if(empty($video)){
             "view/js/videojs-persistvolume/videojs.persistvolume.js",
             "view/js/BootstrapMenu.min.js");
         $jsURL = combineFiles($videoJSArray, "js");
+        
+        $modeYouTubeTimeLog['after add js and footer '] = microtime(true)-$modeYouTubeTime;
+        $modeYouTubeTime = microtime(true);
+        echo "<!-- \n";
+        foreach ($modeYouTubeTimeLog as $key => $value) {
+            if($value>0.5){
+                echo "*** ";
+            }
+            echo "{$key} = {$value} seconds \n";
+        }
+        echo "\n -->";
         ?>
         <script src="<?php echo $jsURL; ?>" type="text/javascript"></script>
         <script>

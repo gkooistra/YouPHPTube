@@ -238,7 +238,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                     <div class="tab-pane active" id="tabShare">
                         <?php
                         $catLink = @$catLink;
-                        $url = urlencode($global['webSiteRootURL'] . "{$catLink}video/" . $video['clean_title']);
+                        $url = urlencode(Video::getLink($video['id'], $video['clean_title']));
                         $title = urlencode($video['title']);
                         include $global['systemRootPath'] . 'view/include/social.php';
                         ?>
@@ -343,18 +343,6 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                     ?>
                     <div class="tab-pane" id="tabPermaLink">
                         <div class="form-group">
-                            <label class="control-label"><?php echo __("Permanent Link with Channel") ?></label>
-                            <div class="">
-                                <input value="<?php echo Video::getPermaLink($video['id']); ?>?channelName=<?php echo User::_getUserChannelName($video['users_id']); ?>" class="form-control" readonly="readonly"  id="linkPermanent"/>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="control-label"><?php echo __("URL Friendly with Channel") ?> (SEO)</label>
-                            <div class="">
-                                <input value="<?php echo Video::getURLFriendly($video['id']); ?>?channelName=<?php echo User::_getUserChannelName($video['users_id']); ?>" class="form-control" readonly="readonly" id="linkFriendly"/>
-                            </div>
-                        </div>
-                        <div class="form-group">
                             <label class="control-label"><?php echo __("Permanent Link") ?></label>
                             <div class="">
                                 <input value="<?php echo Video::getPermaLink($video['id']); ?>" class="form-control" readonly="readonly"  id="linkPermanent"/>
@@ -397,7 +385,15 @@ if (empty($video) && !empty($_GET['videos_id'])) {
             if ($video['type'] !== 'article') {
                 ?>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
-                <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description"><?php echo empty($advancedCustom->disableHTMLDescription) ? $video['description'] : nl2br(textToLink(htmlentities($video['description']))); ?></div>
+                <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description">
+                    <?php 
+                    if (strpos($video['description'], '<br') !== false || strpos($video['description'], '<p') !== false) {
+                        echo $video['description'];
+                    }else{
+                        echo nl2br(textToLink(htmlentities($video['description'])));
+                    }
+                    ?>
+                </div>
                 <?php
             }
             ?>

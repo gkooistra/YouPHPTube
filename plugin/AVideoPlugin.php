@@ -21,8 +21,8 @@ class AVideoPlugin {
         $finish = $time;
         $total_time = round(($finish - $global['AVideoPluginStart']), 4);
         if($total_time > 0.05){
-            error_log("Warning: The plugin [{$pluginName}] takes {$total_time} seconds to complete. ");
-            error_log($_SERVER["SCRIPT_FILENAME"]);
+            _error_log("Warning: The plugin [{$pluginName}] takes {$total_time} seconds to complete. ");
+            _error_log($_SERVER["SCRIPT_FILENAME"]);
             
         }
     }
@@ -299,17 +299,17 @@ class AVideoPlugin {
                 $code = "\$p = new {$name}();";
                 $codeResult = @eval($code . " return \$p;");
                 if ($codeResult == false) {
-                    error_log("[loadPlugin] eval failed for plugin " . $name);
+                    _error_log("[loadPlugin] eval failed for plugin " . $name);
                 }
                 $pluginIsLoaded[$crc] = $codeResult;
                 return $codeResult;
             } else {
-                // error_log("Plugin File Not found ".$file );
+                // _error_log("Plugin File Not found ".$file );
                 $pluginIsLoaded[$crc] = "false"; // only for pass empty-function
             }
         } else {
             if (!empty($global['debug'])) {
-                error_log("Plugin was already executed " . $file);
+                _error_log("Plugin was already executed " . $file);
             }
         }
         if ($pluginIsLoaded[$crc] == "false") {
@@ -580,6 +580,19 @@ class AVideoPlugin {
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
     }
+    
+    
+    public static function getEmbed($videos_id) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->getEmbed($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::".__FUNCTION__);
+        }
+    }
 
     public static function getChannel($user_id, $user) {
         $plugins = Plugin::getAllEnabled();
@@ -756,15 +769,15 @@ class AVideoPlugin {
         $p = static::loadPlugin($name);
         $currentVersion = $p->getPluginVersion();
         $uuid = $p->getUUID();
-        error_log("AVideoPlugin::updatePlugin name=($name) uuid=($uuid) ");
+        _error_log("AVideoPlugin::updatePlugin name=($name) uuid=($uuid) ");
         if (method_exists($p, 'updateScript')) {
-            error_log("AVideoPlugin::updatePlugin method_exists ");
+            _error_log("AVideoPlugin::updatePlugin method_exists ");
             if ($p->updateScript())
                 Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
             else
                 return false;
         }else {
-            error_log("AVideoPlugin::updatePlugin method NOT exists ");
+            _error_log("AVideoPlugin::updatePlugin method NOT exists ");
             Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
         }
         return true;
@@ -833,13 +846,15 @@ class AVideoPlugin {
     
     public static function userCanWatchVideo($users_id, $videos_id){
         $plugins = Plugin::getAllEnabled();
-        $resp = true;
+        $resp = Video::userGroupAndVideoGroupMatch($users_id, $videos_id);;
         $video = new Video("", "", $videos_id);
         if(empty($video)){
+            _error_log("userCanWatchVideo: the usergroup and the video group does not match, User = $users_id, video = $videos_id)");
             return false;
         }
         // check if the video is for paid plans only
         if($video->getOnly_for_paid()){
+            _error_log("userCanWatchVideo: the video ({$videos_id}) is set Only_for_paid = true)");
             $resp = false;
         }
         foreach ($plugins as $value) {
@@ -848,20 +863,27 @@ class AVideoPlugin {
             if (is_object($p)) {
                 $can = $p->userCanWatchVideo($users_id, $videos_id);
                 if(!empty($can)){
-                    $resp = $can>0?true:false;
-                    if($resp){
+                    if($can < 0){
+                        _error_log("userCanWatchVideo: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT watch the video ({$videos_id})");
+                        
+                        $resp = false;
+                    }
+                    if($can>0){
+                        _error_log("userCanWatchVideo: SUCCESS The plugin {$value['dirName']} said the user ({$users_id}) can watch the video ({$videos_id})");
                         return true;
                     }
                 }
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
+        //_error_log("userCanWatchVideo: No plugins approve you to watch the video ({$videos_id}) ");
+            
         return $resp;
     }
     
     public static function userCanWatchVideoWithAds($users_id, $videos_id){
         $plugins = Plugin::getAllEnabled();
-        $resp = true;
+        $resp = Video::userGroupAndVideoGroupMatch($users_id, $videos_id);
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -872,7 +894,7 @@ class AVideoPlugin {
                     if($resp){
                         return true;
                     }else{
-                        //error_log("userCanWatchVideoWithAds: users_id = $users_id, videos_id = $videos_id {$value['dirName']} said no");
+                        //_error_log("userCanWatchVideoWithAds: users_id = $users_id, videos_id = $videos_id {$value['dirName']} said no");
                     }
                 }
             }
@@ -1000,7 +1022,7 @@ class AVideoPlugin {
         if(empty($videos_id)){
             return array();
         }
-        if(empty($_SESSION['getVideoTags'][$videos_id])){
+        if(true || empty($_SESSION['getVideoTags'][$videos_id])){
             $plugins = Plugin::getAllEnabled();
             $array = array();
             foreach ($plugins as $value) {

@@ -1,4 +1,5 @@
 <?php
+
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class Cache extends PluginAbstract {
@@ -32,26 +33,24 @@ class Cache extends PluginAbstract {
         $obj->stopBotsFromNonCachedPages = false;
         return $obj;
     }
-    
-    public function getCacheDir(){
+
+    public function getCacheDir($ignoreFirstPage=true) {
         global $global;
         $obj = $this->getDataObject();
         $firstPage = "";
-        if($this->isFirstPage()){
+        if (!$ignoreFirstPage && $this->isFirstPage()) {
             $firstPage = "firstPage/";
         }
-        
+
         $obj->cacheDir = rtrim($obj->cacheDir, '/') . '/';
         if (!file_exists($obj->cacheDir)) {
             $obj->cacheDir = $global['systemRootPath'] . 'videos/cache/';
             $this->setDataObject($obj);
             if (!file_exists($obj->cacheDir)) {
-                mkdir($this->getCacheDir(), 0777, true);
+                mkdir($obj->cacheDir, 0777, true);
             }
         }
-        
-        
-        return $obj->cacheDir.$firstPage;
+        return $obj->cacheDir . $firstPage;
     }
 
     public function getTags() {
@@ -68,18 +67,27 @@ class Cache extends PluginAbstract {
             $session_id = session_id();
         }
         $compl = "";
-        if(get_browser_name($_SERVER['HTTP_USER_AGENT']) === 'Safari'){
+        if (!empty($_SERVER['HTTP_USER_AGENT']) && get_browser_name($_SERVER['HTTP_USER_AGENT']) === 'Safari') {
             $compl .= "safari_";
         }
-        
-        return User::getId() . "_{$compl}" . md5(@$_SESSION['channelName'].$_SERVER['REQUEST_URI'] . $_SERVER['HTTP_HOST']) . "_" . $session_id . "_" . (!empty($_SERVER['HTTPS']) ? 'a' : ''). (@$_SESSION['language']) . '.cache';
+
+        $dir = "";
+        $plugin = AVideoPlugin::loadPluginIfEnabled('User_Location');
+        if (!empty($plugin)) {
+            $location = User_Location::getThisUserLocation();
+            if (!empty($location['country_code'])) {
+                $dir = $location['country_code'] . "/";
+            }
+        }
+
+        return $dir . User::getId() . "_{$compl}" . md5(@$_SESSION['channelName'] . $_SERVER['REQUEST_URI'] . $_SERVER['HTTP_HOST']) . "_" . $session_id . "_" . (!empty($_SERVER['HTTPS']) ? 'a' : '') . (@$_SESSION['language']) . '.cache';
     }
 
     private function isFirstPage() {
         // can not process
         if (empty($_SERVER['HTTP_HOST'])) {
             //$str = "isFirstPage: Empty HTTP_HOST, IP: ". getRealIpAddr()." SERVER: ".  json_encode($_SERVER);
-            //error_log($str);
+            //_error_log($str);
             die();
         }
         global $global;
@@ -88,9 +96,9 @@ class Cache extends PluginAbstract {
         if ($global['webSiteRootURL'] === $actual_link) {
             return true;
         }
-        $regExp = "/". str_replace("/", '\/', $global['webSiteRootURL'])."\?showOnly=/";
+        $regExp = "/" . str_replace("/", '\/', $global['webSiteRootURL']) . "\?showOnly=/";
         //echo $regExp;
-        if(preg_match($regExp, $actual_link)){
+        if (preg_match($regExp, $actual_link)) {
             return true;
         }
         return false;
@@ -104,7 +112,7 @@ class Cache extends PluginAbstract {
         if ($obj->logPageLoadTime) {
             $this->start();
         }
-        
+
         if (isCommandLineInterface()) {
             return true;
         }
@@ -112,24 +120,24 @@ class Cache extends PluginAbstract {
         $whitelistedFiles = array('user.php', 'status.php', 'canWatchVideo.json.php', '/login', '/status');
         $blacklistedFiles = array('videosAndroid.json.php');
         $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
-        if (!empty($_GET["videoName"]) || in_array($baseName, $whitelistedFiles) || in_array($_SERVER['REQUEST_URI'], $whitelistedFiles) ) {
+        if (!empty($_GET["videoName"]) || in_array($baseName, $whitelistedFiles) || in_array($_SERVER['REQUEST_URI'], $whitelistedFiles)) {
             return true;
         }
-        
+
         $isBot = isBot();
         if ($this->isBlacklisted() || $this->isFirstPage() || !class_exists('User') || !User::isLogged() || !empty($obj->enableCacheForLoggedUsers)) {
-            $cachefile = $this->getCacheDir() . $this->getFileName(); // e.g. cache/index.php.
+            $cachefile = $this->getCacheDir(false) . $this->getFileName(); // e.g. cache/index.php.
             $lifetime = $obj->cacheTimeInSeconds;
             if (!empty($_GET['lifetime'])) {
                 $lifetime = intval($_GET['lifetime']);
             }
             // if is a bot always show a cache
             if (file_exists($cachefile) && (((time() - $lifetime) <= filemtime($cachefile)) || $isBot)) {
-                if($isBot && $_SERVER['REQUEST_URI'] !== '/login'){
-                    error_log("Bot Detected, showing the cache ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
+                if ($isBot && $_SERVER['REQUEST_URI'] !== '/login') {
+                    _error_log("Bot Detected, showing the cache ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
                 }
                 $c = @local_get_contents($cachefile);
-                if(preg_match("/\.json\.?/", $baseName)){
+                if (preg_match("/\.json\.?/", $baseName)) {
                     header('Content-Type: application/json');
                 }
                 echo $c;
@@ -141,22 +149,22 @@ class Cache extends PluginAbstract {
                 unlink($cachefile);
             }
         }
-        
-        if($isBot && strpos($_SERVER['REQUEST_URI'], 'aVideoEncoder') === false){
-            if(empty($_SERVER['HTTP_USER_AGENT'])){
+
+        if ($isBot && strpos($_SERVER['REQUEST_URI'], 'aVideoEncoder') === false && strpos($_SERVER['REQUEST_URI'], 'plugin/Live/on_') && strpos($_SERVER['REQUEST_URI'], 'plugin/YPTStorage') === false && $_SERVER['REMOTE_ADDR'] !='127.0.0.1') {
+            if (empty($_SERVER['HTTP_USER_AGENT'])) {
                 $_SERVER['HTTP_USER_AGENT'] = "";
             }
-            error_log("Bot Detected, NOT showing the cache ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
-            if($obj->stopBotsFromNonCachedPages){
-                error_log("Bot stopped");
+            _error_log("Bot Detected, NOT showing the cache ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
+            if ($obj->stopBotsFromNonCachedPages) {
+                _error_log("Bot stopped");
                 exit;
             }
         }
         //ob_start('sanitize_output');
         ob_start();
     }
-    
-    private function isBlacklisted(){
+
+    private function isBlacklisted() {
         $blacklistedFiles = array('videosAndroid.json.php');
         $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
         return in_array($baseName, $blacklistedFiles);
@@ -165,13 +173,18 @@ class Cache extends PluginAbstract {
     public function getEnd() {
         global $global;
         $obj = $this->getDataObject();
-        $cachefile = $this->getCacheDir() . $this->getFileName();
+        $cachefile = $this->getCacheDir(false) . $this->getFileName();
         $c = ob_get_contents();
         header_remove('Set-Cookie');
+        /*
         if (!file_exists($this->getCacheDir())) {
             mkdir($this->getCacheDir(), 0777, true);
         }
+         * 
+         */
         
+        make_path($cachefile);
+
         if ($this->isBlacklisted() || $this->isFirstPage() || !class_exists('User') || !User::isLogged() || !empty($obj->enableCacheForLoggedUsers)) {
             file_put_contents($cachefile, $c);
         }
@@ -190,7 +203,7 @@ class Cache extends PluginAbstract {
 
     private function end($type = "No Cache") {
         global $global;
-        if(empty($global['start'])){
+        if (empty($global['start'])) {
             return false;
         }
         require_once $global['systemRootPath'] . 'objects/user.php';
@@ -204,8 +217,9 @@ class Cache extends PluginAbstract {
         } else {
             $type = "User: Not Logged - " . $type;
         }
-        $total_time = round(($finish - $global['start']), 4);
-        error_log("Page generated in {$total_time} seconds. {$type} ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
+        $t = (floatval($finish) - floatval($global['start']));
+        $total_time = round($t, 4);
+        _error_log("Page generated in {$total_time} seconds. {$type} ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
     }
 
 }
@@ -228,10 +242,10 @@ function sanitize_output($buffer) {
 
     $len = strlen($buffer);
     if ($len) {
-        error_log("Before Sanitize: " . strlen($buffer));
+        _error_log("Before Sanitize: " . strlen($buffer));
         $buffer = preg_replace($search, $replace, $buffer);
         $lenAfter = strlen($buffer);
-        error_log("After Sanitize: {$lenAfter} = " . (($len / $lenAfter) * 100) . "%");
+        _error_log("After Sanitize: {$lenAfter} = " . (($len / $lenAfter) * 100) . "%");
     }
     return $buffer;
 }

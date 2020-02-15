@@ -7,7 +7,7 @@ require_once $global['systemRootPath'] . 'objects/user.php';
 
 class Plugin extends ObjectYPT {
 
-    protected $id, $status, $object_data, $name, $uuid, $dirName;
+    protected $id, $status, $object_data, $name, $uuid, $dirName, $pluginversion;
 
     static function getSearchFieldsNames() {
         return array('name');
@@ -64,6 +64,7 @@ class Plugin extends ObjectYPT {
 
     function setUuid($uuid) {
         $this->uuid = $uuid;
+        $this->loadFromUUID($uuid);
     }
 
     function setDirName($dirName) {
@@ -71,11 +72,15 @@ class Plugin extends ObjectYPT {
         $this->dirName = $dirName;
     }
     
+    function setPluginversion($pluginversion) {
+        $this->pluginversion = $pluginversion;
+    }
+        
     static function setCurrentVersionByUuid($uuid, $currentVersion){
-        error_log("plugin::setCurrentVersionByUuid $uuid, $currentVersion");
+        _error_log("plugin::setCurrentVersionByUuid $uuid, $currentVersion");
         $p=static::getPluginByUUID($uuid);
         if(!$p){
-            error_log("plugin::setCurrentVersionByUuid error on get plugin");
+            _error_log("plugin::setCurrentVersionByUuid error on get plugin");
             return false;
         }
         //pluginversion isn't an object property so we must explicity update it using this function
@@ -176,7 +181,7 @@ class Plugin extends ObjectYPT {
                     if (is_dir($dir . DIRECTORY_SEPARATOR . $value)) {
                         $p = AVideoPlugin::loadPlugin($value);
                         if (!is_object($p) || $p->hidePlugin()) {
-                            error_log("Plugin Not Found: {$value}");
+                            _error_log("Plugin Not Found: {$value}");
                             continue;
                         }
                         $obj = new stdClass();
@@ -280,11 +285,12 @@ class Plugin extends ObjectYPT {
                 $code = "\$p = new {$name}();";
                 eval($code);
                 $plugin = new Plugin(0);
+                $plugin->setUuid($p->getUUID());
                 $plugin->setDirName($name);
                 $plugin->setName($name);
                 $plugin->setObject_data(json_encode($p->getDataObject()));
                 $plugin->setStatus($statusIfCreate);
-                $plugin->setUuid($p->getUUID());
+                $plugin->setPluginversion($p->getPluginVersion());
                 $plugin->save();
             }
         }

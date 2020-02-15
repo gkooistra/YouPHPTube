@@ -6,7 +6,7 @@
                 <p class="btn btn-outline btn-xs move">
                     <i class="fas fa-expand-arrows-alt"></i>
                 </p>
-                <button type="button" class="btn btn-outline btn-xs" onclick="closeFloatVideo();floatClosed = 1;">
+                <button type="button" class="btn btn-outline btn-xs" onclick="closeFloatVideo(); floatClosed = 1;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -15,23 +15,23 @@
             /* $autoPlayVideo = Video::getVideo($video['next_videos_id']);
               if($video==$autoPlayVideo){
               unset($autoPlayVideo);
-              } 
-            if ($video['rotation'] === "90" || $video['rotation'] === "270") {
-                $aspectRatio = "9:16";
-                $vjsClass = "vjs-9-16";
-                $embedResponsiveClass = "embed-responsive-9by16";
-            } else {
-                $aspectRatio = "16:9";
-                $vjsClass = "vjs-16-9";
-                $embedResponsiveClass = "embed-responsive-16by9";
-            }*/
+              }
+              if ($video['rotation'] === "90" || $video['rotation'] === "270") {
+              $aspectRatio = "9:16";
+              $vjsClass = "vjs-9-16";
+              $embedResponsiveClass = "embed-responsive-9by16";
+              } else {
+              $aspectRatio = "16:9";
+              $vjsClass = "vjs-16-9";
+              $embedResponsiveClass = "embed-responsive-16by9";
+              } */
             $vjsClass = "";
             $playNowVideo = $video;
             $disableYoutubeIntegration = false;
             if (!empty($advancedCustom->disableYoutubePlayerIntegration)) {
                 $disableYoutubeIntegration = true;
             }
-            $_GET['isEmbedded'] = ""; 
+            $_GET['isEmbedded'] = "";
             if (((strpos($video['videoLink'], "youtu.be") == false) && (strpos($video['videoLink'], "youtube.com") == false) && (strpos($video['videoLink'], "vimeo.com") == false)) || ($disableYoutubeIntegration)) {
                 $_GET['isEmbedded'] = "e";
                 ?>
@@ -65,19 +65,7 @@
                     if ($config->getAutoplay()) {
                         echo " autoplay ";
                     }
-                    ?> data-setup='{"aspectRatio": "16:9", "techOrder": ["<?php
-                           if ($_GET['isEmbedded'] == "y") {
-                               echo "youtube";
-                           } else {
-                               echo "vimeo";
-                           }
-                           ?>"], "sources": [{ "type": "video/<?php
-                           if ($_GET['isEmbedded'] == "y") {
-                               echo "youtube";
-                           } else {
-                               echo "vimeo";
-                           }
-                           ?>", "src": "<?php echo $video['videoLink']; ?>"}] }' ></video>
+                    ?> ></video>
                     <script>
                         var player;
                         var mediaId = <?php echo $video['id']; ?>;
@@ -93,26 +81,26 @@
                             //$(".vjs-big-play-button").hide();
                             $(".vjs-control-bar").css("opacity: 1; visibility: visible;");
                             if (typeof player === 'undefined') {
-                                player = videojs('mainVideo');
+                            player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                             }
                             player.ready(function () {
     <?php
     if ($config->getAutoplay()) {
-        echo "setTimeout(function () { if(typeof player === 'undefined'){ player = videojs('mainVideo');} player.play(); }, 150);";
+        echo "setTimeout(function () { if(typeof player === 'undefined'){ player = videojs('mainVideo'" . PlayerSkins::getDataSetup() . ");} playerPlay(0);}, 150);";
     } else {
         ?>
                                     if (Cookies.get('autoplay') && Cookies.get('autoplay') !== 'false') {
                                         setTimeout(function () {
                                             if (typeof player === 'undefined') {
-                                                player = videojs('mainVideo');
+                                                player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                                             }
-                                            player.play();
+                                            playerPlay(0);
+
                                         }, 150);
                                     }
     <?php } ?>
                                 num = $('#videosList').find('.pagination').find('li.active').attr('data-lp');
                                 loadPage(num);
-
                             });
                             player.persistvolume({
                                 namespace: "AVideo"
@@ -129,19 +117,16 @@
     <?php } ?>
 
                             });
-
                             player.on('timeupdate', function () {
                                 var time = Math.round(this.currentTime());
                                 if (time >= 5 && time % 5 === 0) {
                                     addView(<?php echo $video['id']; ?>, time);
                                 }
                             });
-                            
                             player.on('ended', function () {
                                 var time = Math.round(this.currentTime());
                                 addView(<?php echo $video['id']; ?>, time);
                             });
-
                         });
                     </script>
 
@@ -164,7 +149,7 @@
                 <?php
             }
             ?>
-                
+
             <a href="<?php echo $global["HTTP_REFERER"]; ?>" class="btn btn-outline btn-xs" style="position: absolute; top: 5px; right: 5px; display: none;" id="youtubeModeOnFullscreenCloseButton">
                 <i class="fas fa-times"></i>
             </a>

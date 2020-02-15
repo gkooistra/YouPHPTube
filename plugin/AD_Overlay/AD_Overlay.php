@@ -85,10 +85,11 @@ class AD_Overlay extends PluginAbstract {
         $css = '<link href="' . $global['webSiteRootURL'] . 'plugin/AD_Overlay/videojs-overlay/videojs-overlay.css" rel="stylesheet" type="text/css"/>';
 
         $css .= '<style>.video-js .vjs-overlay-background, .video-js .vjs-overlay-no-background {
-
+    max-height: 50%;
     max-width: 100%;
     ' . $style . '
     margin-left:-5px;
+    overflow: hidden;
 
 }</style>';
         return $css;
@@ -142,8 +143,14 @@ class AD_Overlay extends PluginAbstract {
                     setTimeout(function(){
                         \$('#cbb').click(function() {
                             \$('.vjs-overlay').fadeOut();
+                            $('#mainVideo .vjs-control-bar').removeClass('vjs-hidden');
+                            $('#mainVideo .vjs-control-bar').addClass('vjs-fade-out');
                         });
                     },1000);
+                    setTimeout(function(){
+                        $('#mainVideo .vjs-control-bar').removeClass('vjs-hidden');
+                        $('#mainVideo .vjs-control-bar').addClass('vjs-fade-out');
+                    },3000);
                 };
                 player.overlay({
         content: $('#adOverlay').html(),
@@ -155,7 +162,8 @@ class AD_Overlay extends PluginAbstract {
           end: 3600,
           align: '{$obj->align}'
         }]
-      });});"
+      });
+      });"
                 . '</script>';
         return $js;
     }
@@ -177,7 +185,7 @@ class AD_Overlay extends PluginAbstract {
     }
 
     public function getUsersManagerListButton() {
-
+        $btn = "";
         $obj = $this->getDataObject();
         if (!empty($obj->allowUserAds)) {
             $btn = '<button type="button" class="btn btn-warning btn-light btn-sm btn-xs" onclick="adsUser(\' + row.id + \');" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="Ad Code">Ad Code</button>';

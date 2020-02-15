@@ -12,7 +12,7 @@
                 </button>
             </div>
             <div id="main-video" class="embed-responsive embed-responsive-16by9">
-                <video poster="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/OnAir.jpg" controls 
+                <video poster="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/OnAir.jpg" controls playsinline webkit-playsinline="webkit-playsinline" 
                        class="embed-responsive-item video-js vjs-default-skin vjs-big-play-centered liveVideo vjs-16-9" 
                        id="mainVideo">
                     <source src="<?php echo $p->getM3U8File($uuid); ?>" type='application/x-mpegURL'>
@@ -71,16 +71,10 @@ if (!empty($html)) {
 }
 ?>
             }
-<?php
-if ($config->getAutoplay()) {
-    echo "this.play();";
-}
-?>
-
         });
 <?php
 if ($config->getAutoplay()) {
-    echo "setTimeout(function(){player.play();},1000);";
+    echo "setTimeout(function(){playerPlay(0);},500);";
 }
 ?>
         player.persistvolume({

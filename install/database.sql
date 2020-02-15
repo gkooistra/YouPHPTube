@@ -74,8 +74,11 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `users_id` INT(11) NOT NULL DEFAULT 1,
   `private` TINYINT(1) NULL DEFAULT 0,
   `allow_download` TINYINT(1) NULL DEFAULT 1,
+  `order` INT(11) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_categories_users1_idx` (`users_id` ASC),
+  INDEX `clean_name_INDEX2` (`clean_name` ASC),
+  INDEX `sortcategoryOrderIndex` (`order` ASC),
   UNIQUE INDEX `clean_name_UNIQUE` (`clean_name` ASC), 
   CONSTRAINT `fk_categories_users1`
     FOREIGN KEY (`users_id`)
@@ -135,6 +138,10 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `only_for_paid` TINYINT(1) NULL DEFAULT NULL,
   `serie_playlists_id` INT(11) NULL DEFAULT NULL,
   `sites_id` INT(11) NULL,
+  `video_password` VARCHAR(45) NULL DEFAULT NULL,
+  `encoderURL` VARCHAR(255) NULL DEFAULT NULL,
+  `filepath` VARCHAR(255) NULL DEFAULT NULL,
+  `filesize` BIGINT(19) UNSIGNED NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   INDEX `fk_videos_users_idx` (`users_id` ASC),
   INDEX `fk_videos_categories1_idx` (`categories_id` ASC),
@@ -142,6 +149,8 @@ CREATE TABLE IF NOT EXISTS `videos` (
   INDEX `index5` (`order` ASC),
   INDEX `fk_videos_videos1_idx` (`next_videos_id` ASC),
   INDEX `fk_videos_sites1_idx` (`sites_id` ASC),
+  INDEX `clean_title_INDEX` (`clean_title` ASC),
+  INDEX `video_filename_INDEX` (`filename` ASC),
   CONSTRAINT `fk_videos_sites1`
     FOREIGN KEY (`sites_id`)
     REFERENCES `sites` (`id`)

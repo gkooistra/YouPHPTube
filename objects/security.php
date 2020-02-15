@@ -4,20 +4,20 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 // filter some security here
 $securityFilter = array('error', 'catName', 'type', 'channelName', 'captcha', 'showOnly', 'key', 'link', 'email', 'country', 'region');
 $securityFilterInt = array('videos_id', 'video_id', 'categories_id', 'user_id', 'users_id', 'comments_id', 'isAdmin', 'priority', 'totalClips');
-$securityRemoveSingleQuotes = array('search', 'searchPhrase', 'videoName', 'databaseName', 'sort', 'user', 'pass', 'encodedPass', 'isAdmin');
+$securityRemoveSingleQuotes = array('search', 'searchPhrase', 'videoName', 'databaseName', 'sort', 'user', 'pass', 'encodedPass', 'isAdmin', 'videoLink', 'video_password');
 $securityRemoveNonChars = array('resolution', 'format', 'videoDirectory');
 $filterURL = array('videoURL', 'siteURL');
 
 if (!empty($_GET['base64Url'])) {
     if (!filter_var(base64_decode($_GET['base64Url']), FILTER_VALIDATE_URL)) {
-        error_log('base64Url attack ' . json_encode($_SERVER));
+        _error_log('base64Url attack ' . json_encode($_SERVER));
         exit;
     }
 }
 
 if (!empty($_POST['base64Url'])) {
     if (!filter_var(base64_decode($_POST['base64Url']), FILTER_VALIDATE_URL)) {
-        error_log('base64Url attack ' . json_encode($_SERVER));
+        _error_log('base64Url attack ' . json_encode($_SERVER));
         exit;
     }
 }
@@ -25,13 +25,13 @@ if (!empty($_POST['base64Url'])) {
 foreach ($filterURL as $key => $value) {
     if (!empty($_GET[$value])) {
         if (!filter_var($_GET[$value], FILTER_VALIDATE_URL)) {
-            error_log($value.' attack ' . json_encode($_SERVER));
+            _error_log($value.' attack ' . json_encode($_SERVER));
             exit;
         }
     }
     if (!empty($_POST[$value])) {
         if (!filter_var($_POST[$value], FILTER_VALIDATE_URL)) {
-            error_log($value.' attack ' . json_encode($_SERVER));
+            _error_log($value.' attack ' . json_encode($_SERVER));
             exit;
         }
     }

@@ -29,8 +29,8 @@ if ($video['type'] != "audio") {
 }
 ?>
 <div class="row main-video" style="padding: 10px;" id="mvideo">
-    <div class="col-xs-12 col-sm-12 col-lg-2 firstC"></div>
-    <div class="col-xs-12 col-sm-12 col-lg-8 secC">
+    <div class="col-sm-2 col-md-2 firstC"></div>
+    <div class="col-sm-8 col-md-8 secC">
         <div id="videoContainer">
             <?php
             $poster = $global['webSiteRootURL'] . "view/img/recorder.gif";
@@ -45,7 +45,7 @@ if ($video['type'] != "audio") {
                 }
                 ?>
             </audio>
-            
+
             <a href="<?php echo $global["HTTP_REFERER"]; ?>" class="btn btn-outline btn-xs" style="position: absolute; top: 5px; right: 5px; display: none;" id="youtubeModeOnFullscreenCloseButton">
                 <i class="fas fa-times"></i>
             </a>
@@ -106,7 +106,17 @@ if ($config->getAutoplay()) {
                             if (typeof player === 'undefined') {
                                 player = videojs('mainAudio');
                             }
-                            player.play();
+                            var promise = player.play();
+
+                            if (promise !== undefined) {
+                                promise.then(_ => {
+                                    // Autoplay started!
+                                }).catch(error => {
+                                    // Show something in the UI that the video is muted
+                                    player.muted(true);
+                                    player.play();
+                                });
+                            }
                         }, 150);
                     }
 <?php } ?>
@@ -124,7 +134,13 @@ if (!empty($autoPlayVideo)) {
 
                 this.on('timeupdate', function () {
                     var time = Math.round(this.currentTime());
-                    $('#linkCurrentTime').val('<?php echo Video::getURLFriendly($video['id']); ?>?t=' + time);
+                    var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
+                    if (url.indexOf('?') > -1) {
+                        url += '&t=' + time;
+                    } else {
+                        url += '?t=' + time;
+                    }
+                    $('#linkCurrentTime').val(url);
                     if (time >= 5 && time % 5 === 0) {
                         addView(<?php echo $video['id']; ?>, time);
                     }

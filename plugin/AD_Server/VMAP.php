@@ -21,6 +21,7 @@ if(!empty($_GET['vmap_id']) && !empty($_SESSION['vmap'][$_GET['vmap_id']])){
     $vmaps = $ad_server->getVMAPs($_GET['video_length']);
     $_SESSION['vmap'][$_GET['vmap_id']] = serialize($vmaps);
 }
+unset($_SESSION['vmap'][$_GET['vmap_id']]);
 //var_dump($vmaps);exit;
 ?>
 <?xml version="1.0" encoding="UTF-8"?>

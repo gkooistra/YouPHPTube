@@ -191,6 +191,9 @@ class API extends PluginAbstract {
 
             if ($SubtitleSwitcher) {
                 $rows[$key]['subtitles'] = getVTTTracks($value['filename'], true);
+                foreach ($rows[$key]['subtitles'] as $key2=>$value) {
+                    $rows[$key]['subtitlesSRT'][] = convertSRTTrack($value);
+                }
             }
 
             if (!empty($_REQUEST['complete'])) {
@@ -210,6 +213,21 @@ class API extends PluginAbstract {
                 }
                 $rows[$key]['subscribers'] = Subscribe::getTotalSubscribes($rows[$key]['users_id']);
             }
+            //wwbn elements
+            $rows[$key]['wwbnURL'] = $rows[$key]['pageUrl'];
+            $rows[$key]['wwbnEmbedURL'] = $rows[$key]['embedUrl'];
+            $rows[$key]['wwbnImgThumbnail'] = $rows[$key]['Thumbnail'];
+            $rows[$key]['wwbnImgPoster'] = $rows[$key]['Poster'];
+            //$rows[$key]['wwbnImgGif'] = $rows[$key]['pageUrl'];
+            //$rows[$key]['wwbnTags'] = $rows[$key]['pageUrl'];
+            $rows[$key]['wwbnTitle'] = $rows[$key]['title'];
+            $rows[$key]['wwbnDescription'] = $rows[$key]['description'];
+            //$rows[$key]['wwbnChannel'] = User::getChannelLink($rows[$key]['users_id']);
+            $rows[$key]['wwbnChannelURL'] = User::getChannelLink($rows[$key]['users_id']);
+            $rows[$key]['wwbnImgChannel'] = $rows[$key]['UserPhoto'];
+            //$rows[$key]['wwbnProgram'] = $rows[$key]['pageUrl'];
+            //$rows[$key]['wwbnProgramURL'] = $rows[$key]['pageUrl'];
+            $rows[$key]['wwbnType'] = $rows[$key]['type'];
         }
         $obj->totalRows = $totalRows;
         $obj->rows = $rows;
@@ -236,10 +254,60 @@ class API extends PluginAbstract {
         } else {
             $totalRows = Video::getTotalVideos();
         }
-        $objMob = AVideoPlugin::getObjectData("MobileManager");
-        $SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
+        //$objMob = AVideoPlugin::getObjectData("MobileManager");
+        //$SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
         $obj->totalRows = $totalRows;
         return new ApiObject("", false, $obj);
+    }
+    
+    /**
+     * Return a user information
+     * @param type $parameters 
+     * 'APISecret' to list all videos
+     * ['users_id' the user ID]
+     * ['user' the user name]
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}
+     * @return \ApiObject
+     */
+    public function get_api_user($parameters) {
+        global $global;
+        require_once $global['systemRootPath'] . 'objects/video.php';
+        $obj = $this->startResponseObject($parameters);
+        $dataObj = $this->getDataObject();
+        if ($dataObj->APISecret === @$_GET['APISecret']) {
+            if(!empty($_GET['users_id'])){
+                $user = new User($_GET['users_id']);
+            }else if(!empty($_GET['user'])){
+                $user = new User(0, $_GET['user'], false);
+            }else{
+                return new ApiObject("User Not defined");
+            }
+            
+            if(empty($user) || empty($user->getId())){
+                return new ApiObject("User Not found");
+            }
+            $p = AVideoPlugin::loadPlugin("Live");
+            
+            $obj->user = User::getUserFromID($user->getBdId());
+            $obj->livestream = LiveTransmition::getFromDbByUser($user->getBdId());
+            $obj->livestream["server"] = $p->getServer()."?p=".$user->getPassword();
+            
+            return new ApiObject("", false, $obj);
+        } else {
+            return new ApiObject("API Secret is not valid");
+        }
+    }
+    
+    
+    /**
+     * @param type $parameters 
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}
+     * @return \ApiObject
+     */
+    public function get_api_livestreams($parameters) {
+        global $global;
+        require_once $global['systemRootPath'] . 'plugin/Live/stats.json.php';
+        exit;
     }
     
     /**

@@ -61,7 +61,7 @@ AVideoPlugin::loadPlugin('PlayerSkins');
                         echo getSources($playNowVideo['filename']);
                     } else {
                         ?>
-                        <source src="<?php echo $playNowVideo['videoLink']; ?>" type="video/mp4" >
+                        <source src="<?php echo $playNowVideo['videoLink']; ?>" type="<?php echo (strpos($playNowVideo['videoLink'], 'm3u8') !== false)?"application/x-mpegURL":"video/mp4" ?>" >
                     <?php } ?>
                     <p><?php echo __("If you can't view this video, your browser does not support HTML5 videos"); ?></p>
                     <p class="vjs-no-js"><?php echo __("To view this video please enable JavaScript, and consider upgrading to a web browser that"); ?>
@@ -171,15 +171,7 @@ var menu = new BootstrapMenu('#mainVideo', {
                                                 if (typeof player === 'undefined') {
                                                     player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                                                 }
-                                                try {
-                                                    player.currentTime(<?php echo $currentTime; ?>);
-                                                    player.play();
-                                                } catch (e) {
-                                                    setTimeout(function () {
-                                                        player.currentTime(<?php echo $currentTime; ?>);
-                                                        player.play();
-                                                    }, 1000);
-                                                }
+                                                playerPlay(<?php echo $currentTime; ?>);
                                             }, 150);
 <?php } else { ?>
 
@@ -195,16 +187,24 @@ var menu = new BootstrapMenu('#mainVideo', {
                                                     if (typeof player === 'undefined') {
                                                         player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                                                     }
-                                                    try {
-                                                        player.play();
-                                                    } catch (e) {
-                                                        setTimeout(function () {
-                                                            player.currentTime(<?php echo $currentTime; ?>);
-                                                            player.play();
-                                                        }, 1000);
-                                                    }
+                                                    playerPlay(<?php echo $currentTime; ?>);
                                                 }, 150);
                                             }
+                                            
+                                            var initdone = false;
+                                            // wait for video metadata to load, then set time 
+                                            player.on("loadedmetadata", function(){
+                                                player.currentTime(<?php echo $currentTime; ?>);
+                                            });
+
+                                            // iPhone/iPad need to play first, then set the time
+                                            // events: https://www.w3.org/TR/html5/embedded-content-0.html#mediaevents
+                                            player.on("canplaythrough", function(){
+                                                if(!initdone){
+                                                    player.currentTime(<?php echo $currentTime; ?>);
+                                                    initdone = true;
+                                                }
+                                            });
 <?php }
 ?>
                                         this.on('ended', function () {
@@ -245,7 +245,13 @@ if (!empty($autoPlayVideo)) {
 
                                         this.on('timeupdate', function () {
                                             var time = Math.round(this.currentTime());
-                                            $('#linkCurrentTime').val('<?php echo Video::getURLFriendly($video['id']); ?>?t=' + time);
+                                            var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
+                                            if (url.indexOf('?') > -1){
+                                                url+='&t=' + time;
+                                            }else{
+                                                url+='?t=' + time;
+                                            }
+                                            $('#linkCurrentTime').val(url);
                                             if (time >= 5 && time % 5 === 0) {
                                                 addView(<?php echo $video['id']; ?>, time);
                                             }
@@ -265,20 +271,7 @@ if (!empty($autoPlayVideo)) {
                                     if (typeof player === 'undefined') {
                                     player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                                     }
-                                    if (player.muted()) {
-                                    swal({
-                                    title: "<?php echo __("Your Media is Muted"); ?>",
-                                            text: "<?php echo __("Would you like to unmute it?"); ?>",
-                                            type: "warning",
-                                            showCancelButton: true,
-                                            confirmButtonColor: "#DD6B55",
-                                            confirmButtonText: "<?php echo __("Yes, unmute it!"); ?>",
-                                            closeOnConfirm: true
-                                    },
-                                            function () {
-                                            player.muted(false);
-                                            });
-                                    }
+                                    
                                     }, 1500);
                                     }
                                     );

@@ -1,8 +1,6 @@
 <?php
 if (isset($_GET['noNavbar'])) {
-    if (session_status() == PHP_SESSION_NONE) {
-        session_start();
-    }
+    _session_start();
     if (!empty($_GET['noNavbar'])) {    
         $_SESSION['noNavbar'] = 1;
     }else{
@@ -21,6 +19,17 @@ if(!empty($_SESSION['noNavbar'])){
     <?php
     return '';
 }
+if(!empty($advancedCustomUser->keepViewerOnChannel)){
+    if (!empty($_GET['channelName'])) {
+        _session_start();
+        $_SESSION['channelName'] = $_GET['channelName'];
+    }
+    if (!empty($_GET['leaveChannel'])) {
+        _session_start();
+        unset($_SESSION['channelName']);
+    }
+}
+session_write_close();
 global $includeDefaultNavBar, $global, $config, $advancedCustom, $advancedCustomUser;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
@@ -204,9 +213,18 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                         </script>
                     </li>
                     <li>
-                        <a class="navbar-brand" href="<?php echo empty($advancedCustom->logoMenuBarURL) ? $global['webSiteRootURL'] : $advancedCustom->logoMenuBarURL; ?>" >
+                        <a class="navbar-brand" id="mainNavbarLogo" href="<?php echo empty($advancedCustom->logoMenuBarURL) ? $global['webSiteRootURL'] : $advancedCustom->logoMenuBarURL; ?>" >
                             <img src="<?php echo $global['webSiteRootURL'], $config->getLogo(true); ?>" alt="<?php echo $config->getWebSiteTitle(); ?>" class="img-responsive ">
                         </a>
+                        <?php
+                        if (!empty($advancedCustomUser->keepViewerOnChannel) && !empty($_SESSION['channelName'])) {
+                            $user = User::getChannelOwner($_SESSION['channelName']);
+                        ?>
+                        <a class="navbar-brand" href="<?php echo User::getChannelLinkFromChannelName($_SESSION['channelName']); ?>" >
+                            <img src="<?php echo User::getPhoto($user['id']); ?>" alt="<?php echo User::getNameIdentificationById($user['id']); ?>" 
+                                 class="img img-responsive img-circle " style="height: 33px; width: 33px; "> 
+                        </a>
+                        <?php } ?>
                     </li>
 
                 </ul>
@@ -530,7 +548,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                                 <li>
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>subscribes">
                                                         <span class="fa fa-check"></span>
-                                                        <?php echo __("Subscriptions"); ?>
+                                                        <?php echo __("My Subscribers"); ?>
                                                     </a>
                                                 </li>
                                                 <?php
@@ -719,7 +737,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                                     <div>
                                         <a href="<?php echo $global['webSiteRootURL']; ?>subscribes" class="btn btn-warning btn-block" style="border-radius: 0">
                                             <span class="fa fa-check"></span>
-                                            <?php echo __("Subscriptions"); ?>
+                                            <?php echo __("My Subscribers"); ?>
                                         </a>
                                     </div>
                                 </li>
@@ -930,8 +948,10 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
 
                     }
                     if (empty($advancedCustom->doNotDisplayCategoryLeftMenu)) {
-                        $currentP = @$_POST['current'];
-                        $currentG = @$_GET['current'];
+                        $post = $_POST;
+                        $get = $_GET;
+                        unset($_GET); 
+                        unset($_POST);
                         $_GET['current'] = $_POST['current'] = 1;
                         $categories = Category::getAllCategories();
                         foreach ($categories as $value) {
@@ -952,8 +972,8 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
                             mkSub($value['id']);
                             echo '</a></li>';
                         }
-                        $_POST['current'] = $currentP;
-                        $_GET['current'] = $currentG;
+                        $_POST = $post;
+                        $_GET = $get;
                     }
                     ?>
 
@@ -1009,7 +1029,7 @@ if (((empty($advancedCustomUser->userMustBeLoggedIn) && empty($advancedCustom->d
         echo $advancedCustom->underMenuBarHTMLCode->value;
     }
 } else if ($thisScriptFile["basename"] !== 'user.php' && empty($advancedCustom->disableNavbar)) {
-    header("Location: {$global['webSiteRootURL']}user");
+    
 }
 unset($_GET['parentsOnly']);
 ?>

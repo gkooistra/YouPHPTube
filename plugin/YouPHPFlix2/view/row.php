@@ -5,15 +5,22 @@ $landscape = "rowPortrait";
 $css = "";
 if (!empty($obj->landscapePosters)) {
     $landscape = "landscapeTile";
-    if (!empty($obj->titleLabel)) { $css = "height: 185px;"; }
+    if (!empty($obj->titleLabel)) {
+        $css = "height: 185px;";
+    }
 }
 $get = $_GET;
 $post = $_POST;
+$timeLog3 = __FILE__ . " - modeFlix Row";
+TimeLogStart($timeLog3);
 ?>
 <div class="carousel <?php echo $landscape; ?>" data-flickity='<?php echo json_encode($dataFlickirty) ?>' style="<?php echo $css; ?>">
     <?php
+    TimeLogEnd($timeLog3, __LINE__);
     foreach ($videos as $value) {
+        TimeLogStart($timeLog3 . " Video {$value['clean_title']}");
         $images = Video::getImageFromFilename($value['filename'], $value['type']);
+        TimeLogEnd($timeLog3 . " Video {$value['clean_title']}", __LINE__);
         $imgGif = $images->thumbsGif;
         $img = $images->thumbsJpg;
         $poster = $images->poster;
@@ -41,9 +48,9 @@ $post = $_POST;
                             }
                         }
                         if (!empty($obj->titleLabel)) {
-                        ?>  
-                        <h4 style="<?php if (!empty($obj->titleLabelOverPoster)) { ?>margin-top: -27px;<?php } echo $obj->titleLabelCSS; ?> "><?php echo $value['title']; ?></h4>
-                        <?php
+                            ?>  
+                            <h4 style="<?php if (!empty($obj->titleLabelOverPoster)) { ?>margin-top: -27px;<?php } echo $obj->titleLabelCSS; ?> "><?php echo $value['title']; ?></h4>
+                            <?php
                         }
                         ?>
                         <div class="progress" style="height: 3px; margin-bottom: 2px;">
@@ -63,16 +70,22 @@ $post = $_POST;
                 <div class="arrow-down" style="display: none;"></div>
             </div>
             <?php
+            TimeLogEnd($timeLog3 . " Video {$value['clean_title']}", __LINE__);
             getLdJson($value['id']);
+            TimeLogEnd($timeLog3 . " Video {$value['clean_title']}", __LINE__);
             getItemprop($value['id']);
+            TimeLogEnd($timeLog3 . " Video {$value['clean_title']}", __LINE__);
             ?>
         </div>        
         <?php
+        TimeLogEnd($timeLog3 . " Video {$value['clean_title']}", __LINE__);
     }
+    TimeLogEnd($timeLog3, __LINE__);
     ?>
 </div>
 
 <?php
+TimeLogEnd($timeLog3, __LINE__);
 foreach ($videos as $value) {
     $images = Video::getImageFromFilename($value['filename'], $value['type']);
     $imgGif = $images->thumbsGif;
@@ -215,5 +228,6 @@ foreach ($videos as $value) {
     <?php
 }
 
+TimeLogEnd($timeLog3, __LINE__);
 $_GET = $get;
 $_POST = $post;

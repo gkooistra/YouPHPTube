@@ -1,10 +1,10 @@
 <?php
 if (file_exists("../videos/configuration.php")) {
-    error_log("Can not create configuration again: ".  json_encode($_SERVER));
+    _error_log("Can not create configuration again: ".  json_encode($_SERVER));
     exit;
 }
 
-$installationVersion = "8.0";
+$installationVersion = "8.5";
 
 
 header('Content-Type: application/json');
@@ -143,6 +143,7 @@ if(!empty(\$_SERVER['SERVER_NAME']) && \$_SERVER['SERVER_NAME']!=='localhost' &&
 \$global['ddosMaxConnections'] = 40;
 \$global['ddosSecondTimeout'] = 5;
 \$global['strictDDOSprotection'] = 0;
+\$global['noDebug'] = 0;
 
 \$mysqlHost = '{$_POST['databaseHost']}';
 \$mysqlPort = '{$_POST['databasePort']}';

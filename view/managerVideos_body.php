@@ -63,7 +63,7 @@
                     }
                     ?>
                     <?php
-                    $categories = Category::getAllCategories(User::isAdmin()?false:true);
+                    $categories = Category::getAllCategories(User::isAdmin() ? false : true);
                     array_multisort(array_column($categories, 'hierarchyAndName'), SORT_ASC, $categories);
                     if ((isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && User::isVerified()) || (isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && !$advancedCustomUser->onlyVerifiedEmailCanUpload) || !isset($advancedCustomUser->onlyVerifiedEmailCanUpload)) {
                         if (empty($advancedCustom->doNotShowEncoderButton)) {
@@ -117,7 +117,9 @@
             $secondsTotal = getSecondsTotalVideosLength();
             $seconds = $secondsTotal % 60;
             $minutes = ($secondsTotal - $seconds) / 60;
-            printf(__("You are hosting %d minutes and %d seconds of video"), $minutes, $seconds);
+            $totalVideos = humanFileSize(Video::getTotalVideosFromUser(User::getId()));
+            $totalVideosSize = humanFileSize(Video::getTotalVideosSizeFromUser(User::getId()));
+            printf(__("You are hosting %d videos total, %d minutes and %d seconds and consuming %s of disk"), $totalVideos, $minutes, $seconds, $totalVideosSize);
             ?>
         </small>
         <?php
@@ -178,44 +180,50 @@
                         -->
                     </ul>
                 </div>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
-                        <?php echo __('Add User Group'); ?> <span class="caret"></span></button>                        
-                    <ul class="dropdown-menu" role="menu">
-                        <?php
-                        foreach ($userGroups as $value) {
-                            ?>
-                            <li>
-                                <a href="#"  onclick="userGroupSave(<?php echo $value['id']; ?>, 1);return false;">
-                                    <span class="fa fa-lock"></span>
-                                    <span class="label label-info"><?php echo $value['total_users'] . " "; ?><?php echo __("Users linked"); ?></span>
-                                    <?php echo $value['group_name']; ?>
-                                </a>  
-                            </li>
+                <?php
+                if (empty($advancedCustomUser->userCanNotChangeUserGroup) || User::isAdmin()) {
+                    ?>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                            <?php echo __('Add User Group'); ?> <span class="caret"></span></button>                        
+                        <ul class="dropdown-menu" role="menu">
                             <?php
-                        }
-                        ?>
-                    </ul>
-                </div>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
-                        <?php echo __('Remove User Group'); ?> <span class="caret"></span></button>                        
-                    <ul class="dropdown-menu" role="menu">
-                        <?php
-                        foreach ($userGroups as $value) {
+                            foreach ($userGroups as $value) {
+                                ?>
+                                <li>
+                                    <a href="#"  onclick="userGroupSave(<?php echo $value['id']; ?>, 1);return false;">
+                                        <span class="fa fa-lock"></span>
+                                        <span class="label label-info"><?php echo $value['total_users'] . " "; ?><?php echo __("Users linked"); ?></span>
+                                        <?php echo $value['group_name']; ?>
+                                    </a>  
+                                </li>
+                                <?php
+                            }
                             ?>
-                            <li>
-                                <a href="#"  onclick="userGroupSave(<?php echo $value['id']; ?>, 0);return false;">
-                                    <span class="fa fa-lock"></span>
-                                    <span class="label label-info"><?php echo $value['total_users'] . " " . __("Users linked"); ?></span>
-                                    <?php echo $value['group_name']; ?>
-                                </a>  
-                            </li>
+                        </ul>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                            <?php echo __('Remove User Group'); ?> <span class="caret"></span></button>                        
+                        <ul class="dropdown-menu" role="menu">
                             <?php
-                        }
-                        ?>
-                    </ul>
-                </div>
+                            foreach ($userGroups as $value) {
+                                ?>
+                                <li>
+                                    <a href="#"  onclick="userGroupSave(<?php echo $value['id']; ?>, 0);return false;">
+                                        <span class="fa fa-lock"></span>
+                                        <span class="label label-info"><?php echo $value['total_users'] . " " . __("Users linked"); ?></span>
+                                        <?php echo $value['group_name']; ?>
+                                    </a>  
+                                </li>
+                                <?php
+                            }
+                            ?>
+                        </ul>
+                    </div>
+                    <?php
+                }
+                ?>
                 <button class="btn btn-danger" id="deleteBtn">
                     <i class="fa fa-trash" aria-hidden="true"></i> <?php echo __('Delete'); ?>
                 </button>
@@ -225,9 +233,10 @@
                     <tr>
                         <th data-formatter="checkbox" data-width="25px" ></th>
                         <th data-column-id="title" data-formatter="titleTag" ><?php echo __("Title"); ?></th>
-                        <th data-column-id="tags" data-formatter="tags" data-sortable="false" data-width="210px"><?php echo __("Tags"); ?></th>
-                        <th data-column-id="duration" data-width="100px"><?php echo __("Duration"); ?></th>
-                        <th data-column-id="created" data-order="desc" data-width="100px"><?php echo __("Created"); ?></th>
+                        <th data-column-id="tags" data-formatter="tags" data-sortable="false" data-width="210px" data-header-css-class='hidden-xs' data-css-class='hidden-xs'><?php echo __("Tags"); ?></th>
+                        <th data-column-id="duration" data-width="100px"  data-header-css-class='hidden-md hidden-sm hidden-xs' data-css-class='hidden-md hidden-sm hidden-xs'><?php echo __("Duration"); ?></th>
+                        <th data-column-id="filesize" data-formatter="filesize" data-width="70px"  data-header-css-class='hidden-sm hidden-xs'  data-css-class='hidden-sm hidden-xs'><?php echo __("Size"); ?></th>
+                        <th data-column-id="created" data-order="desc" data-width="100px"  data-header-css-class='hidden-sm hidden-xs'  data-css-class='hidden-sm hidden-xs'><?php echo __("Created"); ?></th>
                         <th data-column-id="commands" data-formatter="commands" data-sortable="false"  data-width="200px"></th>
                     </tr>
                 </thead>
@@ -300,6 +309,7 @@
 
                                 <form class="form-compact"  id="updateCategoryForm" onsubmit="">
                                     <input type="hidden" id="inputVideoId"  >
+                                    <input type="hidden" id="videoLinkType"  >
                                     <div class="titles">
                                         <label for="inputTitle"><?php echo __("Title"); ?></label>
                                         <input type="text" id="inputTitle" class="form-control" placeholder="<?php echo __("Title"); ?>" required>
@@ -360,7 +370,7 @@
                                                     <li class="list-group-item">
                                                         <span class="fa fa-download"></span> <?php echo __("Allow Download This media"); ?>
                                                         <div class="material-switch pull-right">
-                                                            <input id="can_download" type="checkbox" value="0" class="userGroups"/>
+                                                            <input id="can_download" type="checkbox" value="0"/>
                                                             <label for="can_download" class="label-success"></label>
                                                         </div>
                                                     </li>
@@ -373,50 +383,58 @@
                                                     <li class="list-group-item">
                                                         <span class="fa fa-share"></span> <?php echo __("Allow Share This media"); ?>
                                                         <div class="material-switch pull-right">
-                                                            <input id="can_share" type="checkbox" value="0" class="userGroups"/>
+                                                            <input id="can_share" type="checkbox" value="0" />
                                                             <label for="can_share" class="label-success"></label>
                                                         </div>
                                                     </li>
                                                     <?php
                                                 }
-                                                ?>
-                                                <?php
-                                                if ($advancedCustom->paidOnlyUsersTellWhatVideoIs || User::isAdmin()) {
+                                                if (!empty($advancedCustomUser->userCanProtectVideosWithPassword) || User::isAdmin()) {
                                                     ?>
                                                     <li class="list-group-item">
-                                                        <i class="fas fa-money-check-alt"></i> <?php echo __("Only Paid Users Can see"); ?>
-                                                        <div class="material-switch pull-right">
-                                                            <input id="only_for_paid" type="checkbox" value="0" class="userGroups"/>
-                                                            <label for="only_for_paid" class="label-success"></label>
-                                                        </div>
+                                                        <label for="inputVideoPassword"><?php echo __("Password Protected"); ?></label>
+                                                        <input type="text" id="inputVideoPassword" class="form-control" placeholder="<?php echo __("Password"); ?>" >
                                                     </li>
                                                     <?php
                                                 }
-                                                ?>
-                                                <li class="list-group-item">
-                                                    <span class="fa fa-globe"></span> <?php echo __("Public Media"); ?>
-                                                    <div class="material-switch pull-right">
-                                                        <input id="public" type="checkbox" value="0" class="userGroups"/>
-                                                        <label for="public" class="label-success"></label>
-                                                    </div>
-                                                </li>
-                                                <li class="list-group-item active non-public">
-                                                    <?php echo __("Groups that can see this video"); ?>
-                                                    <a href="#" class="btn btn-info btn-xs pull-right" data-toggle="popover" title="<?php echo __("What is User Groups"); ?>" data-placement="bottom"  data-content="<?php echo __("By linking groups to this video, it will no longer be public and only users in the same group will be able to watch this video"); ?>"><span class="fa fa-question-circle" aria-hidden="true"></span> <?php echo __("Help"); ?></a>
-                                                </li>
-                                                <?php
-                                                foreach ($userGroups as $value) {
+                                                if (empty($advancedCustomUser->userCanNotChangeUserGroup) || User::isAdmin()) {
+                                                    if ($advancedCustom->paidOnlyUsersTellWhatVideoIs || User::isAdmin()) {
+                                                        ?>
+                                                        <li class="list-group-item">
+                                                            <i class="fas fa-money-check-alt"></i> <?php echo __("Only Paid Users Can see"); ?>
+                                                            <div class="material-switch pull-right">
+                                                                <input id="only_for_paid" type="checkbox" value="0"/>
+                                                                <label for="only_for_paid" class="label-success"></label>
+                                                            </div>
+                                                        </li>
+                                                        <?php
+                                                    }
                                                     ?>
-                                                    <li class="list-group-item non-public">
-                                                        <span class="fa fa-lock"></span>
-                                                        <?php echo $value['group_name']; ?>
-                                                        <span class="label label-info"><?php echo $value['total_users'] . " " . __("Users linked"); ?></span>
+                                                    <li class="list-group-item">
+                                                        <span class="fa fa-globe"></span> <?php echo __("Public Media"); ?>
                                                         <div class="material-switch pull-right">
-                                                            <input id="videoGroup<?php echo $value['id']; ?>" type="checkbox" value="<?php echo $value['id']; ?>" class="videoGroups"/>
-                                                            <label for="videoGroup<?php echo $value['id']; ?>" class="label-warning"></label>
+                                                            <input id="public" type="checkbox" value="0" class="userGroups"/>
+                                                            <label for="public" class="label-success"></label>
                                                         </div>
                                                     </li>
+                                                    <li class="list-group-item active non-public">
+                                                        <?php echo __("Groups that can see this video"); ?>
+                                                        <a href="#" class="btn btn-info btn-xs pull-right" data-toggle="popover" title="<?php echo __("What is User Groups"); ?>" data-placement="bottom"  data-content="<?php echo __("By linking groups to this video, it will no longer be public and only users in the same group will be able to watch this video"); ?>"><span class="fa fa-question-circle" aria-hidden="true"></span> <?php echo __("Help"); ?></a>
+                                                    </li>
                                                     <?php
+                                                    foreach ($userGroups as $value) {
+                                                        ?>
+                                                        <li class="list-group-item non-public">
+                                                            <span class="fa fa-lock"></span>
+                                                            <?php echo $value['group_name']; ?>
+                                                            <span class="label label-info"><?php echo $value['total_users'] . " " . __("Users linked"); ?></span>
+                                                            <div class="material-switch pull-right">
+                                                                <input id="videoGroup<?php echo $value['id']; ?>" type="checkbox" value="<?php echo $value['id']; ?>" class="videoGroups"/>
+                                                                <label for="videoGroup<?php echo $value['id']; ?>" class="label-warning"></label>
+                                                            </div>
+                                                        </li>
+                                                        <?php
+                                                    }
                                                 }
                                                 ?>
                                             </ul>
@@ -653,7 +671,12 @@ if (empty($advancedCustom->disableHTMLDescription)) {
                                                         if (json.error === false && json.url) {
                                                             success(json.url);
                                                         } else if (json.msg) {
-                                                            swal("<?php echo __("Error!"); ?>", json.msg, "error");
+                                                            swal({
+                                                                title: "<?php echo __("Sorry!"); ?>",
+                                                                text: json.msg,
+                                                                type: "error",
+                                                                html: true
+                                                            });
                                                         } else {
                                                             swal("<?php echo __("Error!"); ?>", "<?php echo __("Unknown Error!"); ?>", "error");
                                                         }
@@ -752,36 +775,40 @@ if (empty($advancedCustom->disableHTMLDescription)) {
         });
     }
 
-
-    function userGroupSave(users_groups_id, add) {
-        modal.showPleaseWait();
-        var vals = [];
-        $(".checkboxVideo").each(function (index) {
-            if ($(this).is(":checked")) {
-                vals.push($(this).val());
-            }
-        });
-        $.ajax({
-            url: '<?php echo $global['webSiteRootURL']; ?>objects/userGroupSave.json.php',
-            data: {"id": vals, "users_groups_id": users_groups_id, "add": add},
-            type: 'post',
-            success: function (response) {
-                console.log(response);
-                modal.hidePleaseWait();
-                if (!response.status) {
-                    swal({
-                        title: "<?php echo __("Sorry!"); ?>",
-                        text: response.msg,
-                        type: "error",
-                        html: true
-                    });
-                } else {
-                    $("#grid").bootgrid('reload');
+<?php
+if (empty($advancedCustomUser->userCanNotChangeUserGroup) || User::isAdmin()) {
+    ?>
+        function userGroupSave(users_groups_id, add) {
+            modal.showPleaseWait();
+            var vals = [];
+            $(".checkboxVideo").each(function (index) {
+                if ($(this).is(":checked")) {
+                    vals.push($(this).val());
                 }
-            }
-        });
-    }
-
+            });
+            $.ajax({
+                url: '<?php echo $global['webSiteRootURL']; ?>objects/userGroupSave.json.php',
+                data: {"id": vals, "users_groups_id": users_groups_id, "add": add},
+                type: 'post',
+                success: function (response) {
+                    console.log(response);
+                    modal.hidePleaseWait();
+                    if (!response.status) {
+                        swal({
+                            title: "<?php echo __("Sorry!"); ?>",
+                            text: response.msg,
+                            type: "error",
+                            html: true
+                        });
+                    } else {
+                        $("#grid").bootgrid('reload');
+                    }
+                }
+            });
+        }
+    <?php
+}
+?>
     function checkProgress() {
         $.ajax({
             url: '<?php echo $config->getEncoderURL(); ?>status',
@@ -907,6 +934,7 @@ if (empty($advancedCustom->disableHTMLDescription)) {
 
         $('#inputVideoId').val(row.id);
         $('#inputTitle').val(row.title);
+        $('#inputVideoPassword').val(row.video_password);
         $('#inputTrailer').val(row.trailer1);
         $('#inputCleanTitle').val(row.clean_title);
         $('#inputDescription').val(row.description);
@@ -1130,6 +1158,7 @@ echo AVideoPlugin::getManagerVideosAddNew();
                 "id": $('#inputVideoId').val(),
                         "title": $('#inputTitle').val(),
                         "trailer1": $('#inputTrailer').val(),
+                        "video_password": $('#inputVideoPassword').val(),
                         "videoLink": $('#videoLink').val(),
                         "videoLinkType": $('#videoLinkType').val(),
                         "clean_title": $('#inputCleanTitle').val(),
@@ -1153,34 +1182,39 @@ if (empty($advancedCustom->disableHTMLDescription)) {
                 },
                 type: 'post',
                 success: function (response) {
-                    if (response.status === "1" || response.status === true) {
-                        if (response.video.id) {
-                            videos_id = response.video.id;
-                        }
-                        if (response.video.type === 'embed' || response.video.type === 'linkVideo' || response.video.type === 'article') {
-                            videoUploaded = true;
-                        }
-                        if (closeModal && videoUploaded) {
-                            $('#videoFormModal').modal('hide');
-                        }
-                        $("#grid").bootgrid("reload");
+                if (response.status === "1" || response.status === true) {
+                if (response.video.id) {
+                videos_id = response.video.id;
+                }
+                if (response.video.type === 'embed' || response.video.type === 'linkVideo' || response.video.type === 'article') {
+                videoUploaded = true;
+                }
+                if (closeModal && videoUploaded) {
+                $('#videoFormModal').modal('hide');
+                }
+                $("#grid").bootgrid("reload");
                         $('#fileUploadVideos_id').val(response.videos_id);
                         $('#inputVideoId').val(response.videos_id);
                         videos_id = response.videos_id;
-                    } else {
-                        if (response.error) {
-                            swal("<?php echo __("Sorry!"); ?>", response.error, "error");
-                        } else {
-                            swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your video has NOT been saved!"); ?>", "error");
-                        }
-                    }
-                    modal.hidePleaseWait();
-                    setTimeout(function () {
+                } else {
+                if (response.error) {
+                    swal({
+                        title: "<?php echo __("Sorry!"); ?>",
+                        text: response.error,
+                        type: "error",
+                        html: true
+                    });
+                } else {
+                    swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your video has NOT been saved!"); ?>", "error");
+                }
+                }
+                modal.hidePleaseWait();
+                        setTimeout(function () {
                         waitToSubmit = false;
-                    }, 3000);
-                    }
+                        }, 3000);
+                }
         });
-                return false;
+        return false;
     }
 
     function resetVideoForm() {
@@ -1194,8 +1228,10 @@ if (empty($advancedCustom->disableHTMLDescription)) {
         $('#inputVideoId').val(0);
         $('#inputTitle').val("");
         $('#inputTrailer').val("");
+        $('#inputVideoPassword').val("");
         $('#inputCleanTitle').val("");
         $('#inputDescription').val("");
+        $('#videoLinkType').val("");
 <?php
 if (empty($advancedCustom->disableHTMLDescription)) {
     ?>
@@ -1249,6 +1285,7 @@ echo AVideoPlugin::getManagerVideosReset();
         $('#inputVideoId').val("");
         $('#inputTitle').val("");
         $('#inputTrailer').val("");
+        $('#inputVideoPassword').val("");
         $('#inputCleanTitle').val("");
         $('#inputDescription').val("");
 <?php
@@ -1273,6 +1310,7 @@ if (empty($advancedCustom->disableHTMLDescription)) {
         $('#postersImage').slideDown();
         $('#videoLink').val('');
         $('#videoStartSecond').val('00:00:00');
+        $('#videoLinkType').val("article");
 <?php
 echo AVideoPlugin::getManagerVideosReset();
 ?>
@@ -1296,6 +1334,7 @@ echo AVideoPlugin::getManagerVideosReset();
             waitToSubmit = false;
         }, 3000);
         reloadFileInput({});
+        $('#videoLinkType').val("article");
         $('#videoFormModal').modal();
     }
 
@@ -1520,9 +1559,12 @@ if (!empty($row)) {
 
         $('#linkExternalVideo').click(function () {
             isArticle = 0;
+            videos_id = 0;
+            $('#fileUploadVideos_id').val("");
             $('#inputVideoId').val("");
             $('#inputTitle').val("");
             $('#inputTrailer').val("");
+            $('#inputVideoPassword').val("");
             $('#inputCleanTitle').val("");
             $('#inputDescription').val("");
 <?php
@@ -1545,6 +1587,7 @@ if (empty($advancedCustom->disableHTMLDescription)) {
             $('#videoLinkContent').slideDown();
             $('#videoLink').val('');
             $('#videoStartSecond').val('00:00:00');
+            $('#videoLinkType').val("linkVideo");
 <?php
 echo AVideoPlugin::getManagerVideosReset();
 ?>
@@ -1749,6 +1792,9 @@ if (User::isAdmin()) {
                     tags += "<span class='label label-primary fix-width'><?php echo __("Views") . ":"; ?> </span><span class=\"label label-default fix-width\">" + row.views_count + " <a href='#' class='viewsDetails' onclick='viewsDetails(" + row.views_count + ", " + row.views_count_25 + "," + row.views_count_50 + "," + row.views_count_75 + "," + row.views_count_100 + ");'>[<i class='fas fa-info-circle'></i> Details]</a></span><br>";
                     tags += "<span class='label label-primary fix-width'><?php echo __("Format") . ":"; ?> </span>" + row.typeLabels;
                     return tags;
+                },
+                "filesize": function (column, row) {
+                    return formatFileSize(row.filesize);
                 },
                 "checkbox": function (column, row) {
                     var tags = "<input type='checkbox' name='checkboxVideo' class='checkboxVideo' value='" + row.id + "'>";
@@ -1961,7 +2007,12 @@ if (AVideoPlugin::isEnabledByName('PlayLists')) {
                     success: function (response) {
                         modal.hidePleaseWait();
                         if (response.error) {
-                            swal("<?php echo __("Sorry!"); ?>", response.error, "error");
+                            swal({
+                                title: "<?php echo __("Sorry!"); ?>",
+                                text: response.error,
+                                type: "error",
+                                html: true
+                            });
                         } else {
                             $("#grid").bootgrid("reload");
                         }

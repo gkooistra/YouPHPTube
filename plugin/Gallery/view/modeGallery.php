@@ -75,6 +75,7 @@ $contentSearchFound = false;
             echo $config->getWebSiteTitle();
             ?></title>
         <?php include $global['systemRootPath'] . 'view/include/head.php'; ?>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/infinite-scroll.pkgd.min.js" type="text/javascript"></script>
     </head>
 
     <body class="<?php echo $global['bodyClass']; ?>">
@@ -131,20 +132,23 @@ $contentSearchFound = false;
                         ?>
                         <!-- For Live Videos End -->
                         <?php
+                        if ($obj->Suggested) {
+                            createGallery(!empty($obj->SuggestedCustomTitle) ? $obj->SuggestedCustomTitle : __("Suggested"), 'suggested', $obj->SuggestedRowCount, 'SuggestedOrder', "", "", $orderString, "ASC", !$obj->hidePrivateVideos, "fas fa-star");
+                        }
                         if ($obj->Trending) {
-                            createGallery(!empty($obj->TrendingCustomTitle) ? $obj->TrendingCustomTitle : __("Trending"), 'trending', $obj->TrendingRowCount, 'TrendingOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos);
+                            createGallery(!empty($obj->TrendingCustomTitle) ? $obj->TrendingCustomTitle : __("Trending"), 'trending', $obj->TrendingRowCount, 'TrendingOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos, "fas fa-chart-line");
                         }
                         if ($obj->SortByName) {
-                            createGallery(!empty($obj->SortByNameCustomTitle) ? $obj->SortByNameCustomTitle : __("Sort by name"), 'title', $obj->SortByNameRowCount, 'sortByNameOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos);
+                            createGallery(!empty($obj->SortByNameCustomTitle) ? $obj->SortByNameCustomTitle : __("Sort by name"), 'title', $obj->SortByNameRowCount, 'sortByNameOrder', "zyx", "abc", $orderString, "ASC", !$obj->hidePrivateVideos, "fas fa-font");
                         }
                         if ($obj->DateAdded) {
-                            createGallery(!empty($obj->DateAddedCustomTitle) ? $obj->DateAddedCustomTitle : __("Date added"), 'created', $obj->DateAddedRowCount, 'dateAddedOrder', __("newest"), __("oldest"), $orderString, "DESC", !$obj->hidePrivateVideos);
+                            createGallery(!empty($obj->DateAddedCustomTitle) ? $obj->DateAddedCustomTitle : __("Date added"), 'created', $obj->DateAddedRowCount, 'dateAddedOrder', __("newest"), __("oldest"), $orderString, "DESC", !$obj->hidePrivateVideos, "far fa-calendar-alt");
                         }
                         if ($obj->MostWatched) {
-                            createGallery(!empty($obj->MostWatchedCustomTitle) ? $obj->MostWatchedCustomTitle : __("Most watched"), 'views_count', $obj->MostWatchedRowCount, 'mostWatchedOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos);
+                            createGallery(!empty($obj->MostWatchedCustomTitle) ? $obj->MostWatchedCustomTitle : __("Most watched"), 'views_count', $obj->MostWatchedRowCount, 'mostWatchedOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos, "far fa-eye");
                         }
                         if ($obj->MostPopular) {
-                            createGallery(!empty($obj->MostPopularCustomTitle) ? $obj->MostPopularCustomTitle : __("Most popular"), 'likes', $obj->MostPopularRowCount, 'mostPopularOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos);
+                            createGallery(!empty($obj->MostPopularCustomTitle) ? $obj->MostPopularCustomTitle : __("Most popular"), 'likes', $obj->MostPopularRowCount, 'mostPopularOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos, "fas fa-fire");
                         }
                         if ($obj->SubscribedChannels && User::isLogged() && empty($_GET['showOnly'])) {
                             $channels = Subscribe::getSubscribedChannels(User::getId());
@@ -154,34 +158,51 @@ $contentSearchFound = false;
                             }
                         }
                         if ($obj->Categories && empty($_GET['catName']) && empty($_GET['showOnly'])) {
-                            unset($_POST['sort']);
-                            $_POST['sort']['name'] = "ASC";
-                            $_POST['rowCount'] = 1000;
-                            $categories = Category::getAllCategories();
-                            $_POST['rowCount'] = $obj->CategoriesRowCount;
-                            foreach ($categories as $value) {
-                                $_GET['catName'] = $value['clean_name'];
-                                unset($_POST['sort']);
-                                $_POST['sort']['v.created'] = "DESC";
-                                $_POST['sort']['likes'] = "DESC";
-                                $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
-                                if (empty($videos)) {
-                                    continue;
-                                }
-                                ?>
-                                <div class="clear clearfix">
-                                    <h3 class="galleryTitle">
-                                        <a class="btn-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_name']; ?>">
-                                            <i class="<?php echo $value['iconClass']; ?>"></i> <?php echo $value['name']; ?>
-                                        </a>
-                                    </h3>
-                                    <?php
-                                    createGallerySection($videos);
-                                    ?>
+                            ?>
+                            <div id="categoriesContainer"></div>
+                                <p class="pagination">
+                                    <a class="pagination__next" href="<?php echo $global['webSiteRootURL']; ?>plugin/Gallery/view/modeGalleryCategory.php?current=1"></a>
+                                </p>
+                            <div class="scroller-status">
+                                <div class="infinite-scroll-request loader-ellips text-center">
+                                    <i class="fas fa-spinner fa-pulse text-muted"></i>
                                 </div>
+                            </div>
+                            <script>
+                                $(document).ready(function () {
+                                    $container = $('#categoriesContainer').infiniteScroll({
+                                        path: '.pagination__next',
+                                        append: '.categoriesContainerItem',
+                                        status: '.scroller-status',
+                                        hideNav: '.pagination',
+                                        prefill: true,
+                                        history: false
+                                    });
+                                    $container.on('request.infiniteScroll', function (event, path) {
+                                        console.log('Loading page: ' + path);
+                                    });
+                                    $container.on('append.infiniteScroll', function (event, response, path, items) {
+                                        console.log('Append page: ' + path);
+                                        lazyImage();
+                                    });
+                                });
 
-                                <?php
-                            }
+                                function lazyImage() {
+                                    $('.thumbsJPG').lazy({
+                                        effect: 'fadeIn',
+                                        visibleOnly: true,
+                                        // called after an element was successfully handled
+                                        afterLoad: function (element) {
+                                            element.removeClass('blur');
+                                            element.parent().find('.thumbsGIF').lazy({
+                                                effect: 'fadeIn'
+                                            });
+                                        }
+                                    });
+                                    mouseEffect();
+                                }
+                            </script>
+                            <?php
                         }
                         ?>
 

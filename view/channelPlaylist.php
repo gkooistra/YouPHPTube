@@ -24,7 +24,7 @@ if (empty($_GET['channelName'])) {
 }
 $user_id = $_GET['user_id'];
 
-$timeLog2 = __FILE__." - channelPlayList: {$_GET['channelName']}";
+$timeLog2 = __FILE__ . " - channelPlayList: {$_GET['channelName']}";
 TimeLogStart($timeLog2);
 
 $publicOnly = true;
@@ -49,6 +49,7 @@ foreach ($playlists as $playlist) {
     $startC = microtime(true);
     $rowCount = $_POST['rowCount'];
     $_POST['rowCount'] = 6;
+
     //getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true)
     if (empty($videosArrayId) && ($playlist['status'] == "favorite" || $playlist['status'] == "watch_later")) {
         continue;
@@ -62,12 +63,12 @@ foreach ($playlists as $playlist) {
     $_POST['rowCount'] = $rowCount;
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
-    //error_log("channelPlaylist videosP: ".json_encode($videosP));
+    //_error_log("channelPlaylist videosP: ".json_encode($videosP));
     $videosP = PlayList::sortVideos($videosP, $videosArrayId);
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
-    //error_log("channelPlaylist videosP2: ".json_encode($videosP));
-    //error_log("channelPlaylist videosArrayId: ".json_encode($videosArrayId));
+    //_error_log("channelPlaylist videosP2: ".json_encode($videosP));
+    //_error_log("channelPlaylist videosArrayId: ".json_encode($videosArrayId));
     $playListButtons = AVideoPlugin::getPlayListButtons($playlist['id']);
     @$timesC[__LINE__] += microtime(true) - $startC;
     $startC = microtime(true);
@@ -132,28 +133,28 @@ foreach ($playlists as $playlist) {
                         <button class="btn btn-xs btn-primary renamePlaylist" playlist_id="<?php echo $playlist['id']; ?>" ><i class="fas fa-edit"></i> <?php echo __("Rename"); ?></button>
                         <button class="btn btn-xs btn-default statusPlaylist statusPlaylist<?php echo $playlist['id']; ?>" playlist_id="<?php echo $playlist['id']; ?>" style="" >
                             <span class="fa fa-lock" id="statusPrivate<?php echo $playlist['id']; ?>" style="color: red; <?php
-            if ($playlist['status'] !== 'private') {
-                echo ' display: none;';
-            }
-                        ?> " ></span> 
+                            if ($playlist['status'] !== 'private') {
+                                echo ' display: none;';
+                            }
+                            ?> " ></span> 
                             <span class="fa fa-globe" id="statusPublic<?php echo $playlist['id']; ?>" style="color: green; <?php
-                      if ($playlist['status'] !== 'public') {
-                          echo ' display: none;';
-                      }
-                        ?>"></span> 
+                            if ($playlist['status'] !== 'public') {
+                                echo ' display: none;';
+                            }
+                            ?>"></span> 
                             <span class="fa fa-eye-slash" id="statusUnlisted<?php echo $playlist['id']; ?>" style="color: gray;   <?php
-                      if ($playlist['status'] !== 'unlisted') {
-                          echo ' display: none;';
-                      }
-                        ?>"></span>
+                            if ($playlist['status'] !== 'unlisted') {
+                                echo ' display: none;';
+                            }
+                            ?>"></span>
                         </button>
                         <?php
                     }
                 }
                 ?>
-            <a class="btn btn-xs btn-default" href="<?php echo $global['webSiteRootURL']; ?>viewProgram/<?php echo $playlist['id']; ?>/<?php echo urlencode($playlist['name']); ?>/">
-                <?php echo __('More'); ?> <i class="fas fa-ellipsis-h"></i> 
-            </a>
+                <a class="btn btn-xs btn-default" href="<?php echo $global['webSiteRootURL']; ?>viewProgram/<?php echo $playlist['id']; ?>/<?php echo urlencode($playlist['name']); ?>/">
+                    <?php echo __('More'); ?> <i class="fas fa-ellipsis-h"></i> 
+                </a>
             </div>
         </div>
 
@@ -162,11 +163,80 @@ foreach ($playlists as $playlist) {
             ?>
 
             <div class="panel-body">
+                <?php
+                $serie = PlayLists::isPlayListASerie($playlist['id']);
+                if (!empty($serie)) {
+                    $images = Video::getImageFromFilename($serie['filename'], $serie['type'], true);
+                    $imgGif = $images->thumbsGif;
+                    $poster = $images->thumbsJpg;
+                    $category = new Category($serie['categories_id']);
+                    ?>
+                <div style="height: 200px; overflow: hidden;">
+                        <div class="col-sm-4" id="serie<?php echo $serie['id']; ?>" style="padding: 1px;">
+                            <img src="<?php echo $poster; ?>" alt="<?php echo $serie['title']; ?>" class="img img-responsive" />
+                        </div>
+                        <div class="col-sm-8"  style="padding: 1px 5px;">
+                            <a class="hrefLink" href="<?php echo Video::getLink($serie['id'], $serie['clean_title']); ?>" title="<?php echo $serie['title']; ?>">
+                                <h2><?php echo $serie['title']; ?></h2>
+                            </a>
+                            <small class="text-muted galeryDetails">
+                                <a class="label label-default" href="<?php echo Video::getLink($videoRow['id'], $category->getClean_name(), false, $get); ?>/">
+                                    <?php
+                                    if (!empty($category->getIconClass())) {
+                                        ?>
+                                        <i class="<?php echo $category->getIconClass(); ?>"></i>
+                                        <?php
+                                    }
+                                    ?>
+                                    <?php echo $category->getName(); ?>
+                                </a>
+                                <?php
+                                $serie['tags'] = Video::getTags($serie['id']);
+                                foreach ($serie['tags'] as $value2) {
+                                    if ($value2->label === __("Group")) {
+                                        ?>
+                                        <span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span>
+                                        <?php
+                                    }
+                                }
+                                ?>
+                                <i class="far fa-clock"></i>
+                                <?php
+                                echo humanTiming(strtotime($serie['created'])), " ", __('ago');
+                                ?>
 
+                                <?php
+                                if (!empty($serie['trailer1'])) {
+                                    ?>
+                                    <a href="#" class="btn btn-xs btn-warning" onclick="$(this).removeAttr('href');$('#serie<?php echo $serie['id']; ?> img').fadeOut();$('<iframe>', {
+                                                                src: '<?php echo parseVideos($serie['trailer1'], 1, 0, 0, 0, 1, 0, 'fill'); ?>',
+                                                                id: 'myFrame<?php echo $serie['id']; ?>',
+                                                                allow: 'autoplay',
+                                                                frameborder: 0,
+                                                                height: 200,
+                                                                width: '100%',
+                                                                scrolling: 'no'
+                                                            }).appendTo('#serie<?php echo $serie['id']; ?>');$(this).removeAttr('onclick');$(this).fadeOut();return false;">
+                                        <span class="fa fa-film"></span> 
+                                        <span class="hidden-xs"><?php echo __("Trailer"); ?></span>
+                                    </a>
+                                    <?php
+                                }
+                                ?>
+                            </small>
+                            <p>
+                                <?php echo $serie['description']; ?>
+                            </p>
+                        </div>
+                    </div>
+                    <?php
+                }
+                ?>
+                <div class="clearfix"></div>
                 <?php
                 $count = 0;
                 foreach ($videosP as $value) {
-                    $episodeLink = "{$global['webSiteRootURL']}program/{$playlist['id']}/{$count}/{$channelName}/".urlencode($playlist['name'])."/{$value['clean_title']}";
+                    $episodeLink = "{$global['webSiteRootURL']}program/{$playlist['id']}/{$count}/{$channelName}/" . urlencode($playlist['name']) . "/{$value['clean_title']}";
                     $count++;
                     $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
                     $name = User::getNameIdentificationById($value['users_id']);
@@ -220,7 +290,7 @@ foreach ($playlists as $playlist) {
                             ?>
 
                             <div>
-                                <i class="fa fa-clock-o"></i>
+                                <i class="far fa-clock"></i>
                                 <?php
                                 echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago');
                                 ?>

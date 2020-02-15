@@ -155,7 +155,7 @@ class VideoStatistic extends ObjectYPT {
     static function getTotalLastDaysAsync($video_id, $numberOfDays) {
         global $global, $advancedCustom;
         $md5 = ("{$video_id}_{$numberOfDays}");
-        $path = $global['systemRootPath'] . "videos/cache/getTotalLastDaysAsync/";
+        $path = getCacheDir()."getTotalLastDaysAsync/";
         make_path($path);
         $cacheFileName = "{$path}{$md5}";
         if (empty($advancedCustom->AsyncJobs) || !file_exists($cacheFileName)) {
@@ -170,7 +170,7 @@ class VideoStatistic extends ObjectYPT {
         if (time() - filemtime($cacheFileName) > 60) {
             // file older than 1 min
             $command = ("php '{$global['systemRootPath']}objects/getTotalLastDaysAsync.php' '$video_id' '$numberOfDays' '$cacheFileName'");
-            error_log("getTotalLastDaysAsync: {$command}");
+            _error_log("getTotalLastDaysAsync: {$command}");
             exec($command . " > /dev/null 2>/dev/null &");
         }
         return $return;
@@ -199,7 +199,7 @@ class VideoStatistic extends ObjectYPT {
 
     static function getTotalTodayAsync($video_id) {
         global $global, $advancedCustom;
-        $cacheFileName = $global['systemRootPath'] . "videos/cache/getTotalTodayAsync_{$video_id}";
+        $cacheFileName = getCacheDir()."getTotalTodayAsync_{$video_id}";
         if (empty($advancedCustom->AsyncJobs) || !file_exists($cacheFileName)) {
             if (file_exists($cacheFileName . ".lock")) {
                 return array();
@@ -212,7 +212,7 @@ class VideoStatistic extends ObjectYPT {
         if (time() - filemtime($cacheFileName) > 60) {
             // file older than 1 min
             $command = ("php '{$global['systemRootPath']}objects/getTotalTodayAsync.php' '$video_id' '$cacheFileName'");
-            error_log("getTotalTodayAsync: {$command}");
+            _error_log("getTotalTodayAsync: {$command}");
             exec($command . " > /dev/null 2>/dev/null &");
         }
         return $return;

@@ -2,7 +2,8 @@
 
 $global['webSiteRootURL'] .= (substr($global['webSiteRootURL'], -1) == '/' ? '' : '/');
 $global['systemRootPath'] .= (substr($global['systemRootPath'], -1) == '/' ? '' : '/');
-
+$global['session_name'] = preg_replace( '/[\W]/', '', $global['webSiteRootURL']);
+session_name($global['session_name']);
 ini_set('error_log', $global['systemRootPath'] . 'videos/avideo.log');
 global $global, $config, $advancedCustom, $advancedCustomUser;
 
@@ -99,7 +100,7 @@ $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
 if ($baseName !== 'xsendfile.php' && class_exists("Plugin")) {
     AVideoPlugin::getStart();
 } else if($baseName !== 'xsendfile.php') {
-    error_log("Class Plugin Not found: {$_SERVER['REQUEST_URI']}");
+    _error_log("Class Plugin Not found: {$_SERVER['REQUEST_URI']}");
 }
 if (empty($global['bodyClass'])) {
     $global['bodyClass'] = "";

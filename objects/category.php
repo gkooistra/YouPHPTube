@@ -22,7 +22,16 @@ class Category {
     private $users_id;
     private $private;
     private $allow_download;
+    private $order;
 
+    function getOrder() {
+        return intval($this->order);
+    }
+
+    function setOrder($order) {
+        $this->order = intval($order);
+    }
+        
     function getUsers_id() {
         if (empty($this->users_id)) {
             $this->users_id == User::getId();
@@ -158,9 +167,9 @@ class Category {
                     . "parentId = ?,"
                     . "iconClass = ?,"
                     . "users_id = ?,"
-                    . "`private` = ?, allow_download = ?, modified = now() WHERE id = ?";
-            $format = "sssiisiiii";
-            $values = array(xss_esc($this->name), xss_esc($this->clean_name), xss_esc($this->description), $this->nextVideoOrder, $this->parentId, $this->getIconClass(), $this->getUsers_id(), $this->getPrivate(), $this->getAllow_download(), $this->id);
+                    . "`private` = ?, allow_download = ?, `order` = ?, modified = now() WHERE id = ?";
+            $format = "sssiisiiiii";
+            $values = array(xss_esc($this->name), xss_esc($this->clean_name), xss_esc($this->description), $this->nextVideoOrder, $this->parentId, $this->getIconClass(), $this->getUsers_id(), $this->getPrivate(), $this->getAllow_download(), $this->getOrder(), $this->id);
         } else {
             $sql = "INSERT INTO categories ( "
                     . "name,"
@@ -170,9 +179,9 @@ class Category {
                     . "parentId,"
                     . "iconClass, "
                     . "users_id, "
-                    . "`private`, allow_download, created, modified) VALUES (?, ?,?,?,?,?,?,?,?,now(), now())";
-            $format = "sssiisiii";
-            $values = array(xss_esc($this->name), xss_esc($this->clean_name), xss_esc($this->description), $this->nextVideoOrder, $this->parentId, $this->getIconClass(), $this->getUsers_id(), $this->getPrivate(), $this->getAllow_download());
+                    . "`private`, allow_download, `order`, created, modified) VALUES (?, ?,?,?,?,?,?,?,?,?,now(), now())";
+            $format = "sssiisiiii";
+            $values = array(xss_esc($this->name), xss_esc($this->clean_name), xss_esc($this->description), $this->nextVideoOrder, $this->parentId, $this->getIconClass(), $this->getUsers_id(), $this->getPrivate(), $this->getAllow_download(), $this->getOrder());
         }
 
         $insert_row = sqlDAL::writeSql($sql, $format, $values);
@@ -204,7 +213,7 @@ class Category {
             $cleanTitleExists = sqlDAL::fetchAssoc($res);
             sqlDAL::close($res);
             if ($cleanTitleExists != false) {
-                return self::fixCleanTitle($original_title . "-" . $count, $count + 1, $videoId, $original_title);
+                return self::fixCleanTitle($original_title . "-" . $count, $count + 1, $id, $original_title);
             }
             return $clean_title;
         }
@@ -225,10 +234,16 @@ class Category {
 
         global $global;
         if (!empty($this->id)) {
+            $categories_id = self::getSiteCategoryDefaultID();
+            if($categories_id){
+                $sql = "UPDATE videos SET categories_id = ? WHERE categories_id = ?";
+                sqlDAL::writeSql($sql, "ii", array($categories_id, $this->id));
+            }
             $sql = "DELETE FROM categories WHERE id = ?";
         } else {
             return false;
         }
+        self::clearCacheCount();
         return sqlDAL::writeSql($sql, "i", array($this->id));
     }
 
@@ -302,13 +317,30 @@ class Category {
         }
         return ($res) ? $result : false;
     }
+    
+    static function getSiteCategoryDefaultID() {
+        $obj = AVideoPlugin::getObjectDataIfEnabled("PredefinedCategory");
+        $id = false;
+        if($obj){
+            $id = $obj->defaultCategory;
+        }else{
+            $row = self::getCategoryDefault();
+            if($row){
+                $id = $row['id'];
+            }
+        }
+        return $id;
+    }
 
-    static function getAllCategories($filterCanAddVideoOnly = false) {
+    static function getAllCategories($filterCanAddVideoOnly = false, $onlyWithVideos = false) {
         global $global, $config;
-        if ($config->currentVersionLowerThen('5.01')) {
+        if ($config->currentVersionLowerThen('8.4')) {
             return false;
         }
-        $sql = "SELECT * FROM categories WHERE 1=1 ";
+        $sql = "SELECT * FROM categories c WHERE 1=1 ";
+        if (!empty($_GET['parentsOnly'])) {
+            $sql .= "AND parentId = 0 ";
+        }
         if ($filterCanAddVideoOnly && !User::isAdmin()) {
             if (is_int($filterCanAddVideoOnly)) {
                 $users_id = $filterCanAddVideoOnly;
@@ -320,13 +352,13 @@ class Category {
                 $sql .= " AND (private=0 OR users_id = '{$users_id}') ";
             }
         }
-        if (!empty($_GET['parentsOnly'])) {
-            $sql .= "AND parentId = 0 ";
+        if ($onlyWithVideos) {
+            $sql .= " AND (SELECT count(*) FROM videos where categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id)) > 0  ";
         }
         if (isset($_POST['sort']['title'])) {
             unset($_POST['sort']['title']);
         }
-        $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY name ASC ");
+        $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY `order`, name ASC ");
         $res = sqlDAL::readSql($sql);
         $fullResult = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
@@ -435,7 +467,7 @@ class Category {
 
     static function getChildCategories($parentId, $filterCanAddVideoOnly = false) {
         global $global, $config;
-        if ($config->currentVersionLowerThen('5.01')) {
+        if ($config->currentVersionLowerThen('8.4')) {
             return false;
         }
         $sql = "SELECT * FROM categories WHERE parentId=? AND id!=? ";
@@ -450,7 +482,7 @@ class Category {
                 $sql .= " AND (private=0 OR users_id = '{$users_id}') ";
             }
         }
-        $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY name ASC ");
+        $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY `order`, name ASC ");
         $res = sqlDAL::readSql($sql, "ii", array($parentId, $parentId));
         $fullResult = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);

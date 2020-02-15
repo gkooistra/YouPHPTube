@@ -1,7 +1,12 @@
 <img src="https://platform.avideo.com/website/assets/151/images/avideo_platform.png"/>
 
-## A Video Platform
-AVideo is a generic term that means absolutely nothing, or anything video. Since it doesn't mean anything the brand simply is identifiable with a Platform that does Audio and Video or simply "A Video Platform". 
+## Audio Video Platform
+AVideo is a term that means absolutely nothing, or anything video. Since it doesn't mean anything the brand simply is identifiable with audio video. AVideo Platform is an Audio and Video Platform or simply "A Video Platform".
+
+* AVideo - Audio Video
+* AVideo Platform - Audio Video Platform
+* OAVP - Online Audio Video Platform 
+* OVP - Online Video Platform
 
 AVideo Platform is distributed as SaaS at <a href="https://avideo.com">AVideo.com</a>, as an <a href="https://platform.avideo.com/AVideo_Enterprise">Enterprise Version</a>, and as an <a href="https://platform.avideo.com/AVideo_OpenSource">Open-Source Project</a>.  
 
@@ -13,6 +18,7 @@ When we say a clone or copy of AVideo we mean an instance of AVideo Platform Ent
 AVideo is a registered trademark owned by WWBN (World Wide Broadcast Network, Inc.) and is freely distributable with any Enterprise or Open-Source AVideo Platform products provided by WWBN, and its permitted use is granted with GNU-GPL, CDDL open source licenses. <a href="https://platform.avideo.com/AVideo_OpenSource#OSAV">Open-Source License can be viewed in this link.</a>
 * Word Mark:	AVIDEO
 * Translations:	"AVideo" has no meaning in any foreign language.
+* Description:	"AVideo" constitutes Audio Video.
 * Goods and Services:	IC 009. US 021 023 026 036 038. G & S: Computer search engine software for searching online video content. FIRST USE: 20030602. FIRST USE IN COMMERCE: 20040112
 * Standard Characters: Claimed	
 * Mark Drawing Code:	(4) STANDARD CHARACTER MARK
@@ -20,8 +26,8 @@ AVideo is a registered trademark owned by WWBN (World Wide Broadcast Network, In
 * Serial Number:	77450549
 * Registration Number:	3625659
 
-#### About the re-brand.
-In some plugins, forks, versions, modules, APIs, documentation, file names, there may be or have been reference to <a href="https://youphp.tube/" target="_blank">youphptube</a>, <a href="https://youphp.tube/plugins/" target="_blank">youphp.tube</a>, searchtube, adtube, showtube, searchmercials.  WWBN owns <a href="//searchmercials.com">Searchmercials</a>, <a href="//searchtube.com">SearchTube</a>, AdTube, ShowTube, <a href="//avideo.com">AVideo</a>, <a href="//wwbn.com">WWBN</a> among other trademarks. All other trademarks and similarity to any referred to in any files, documents, wikis, plugins, code, modules, apis, integrations, technologies, links belong to their respective owners. Follow us on <a href="https://www.facebook.com/avideo/">Facebook</a> 
+#### About the project re-brand.
+ Originally the open-source version was offered as YouPHPTube, and marketed as a YouTube Clone (after the popular video sharing site), we decided to rebrand our open-source audio video platform project from YouPHPTube to <strong>AVideo Platform</strong> which contsitutes <strong>Audio Video Platform</strong>. In some plugins, forks, versions, modules, APIs, documentation, file names, there may be or have been reference to <a href="https://youphp.tube/" target="_blank">youphptube</a>, <a href="https://youphp.tube/plugins/" target="_blank">youphp.tube</a>, youtube clone, clone script, searchtube, adtube, showtube, searchmercials.  WWBN owns <a href="//searchmercials.com">Searchmercials</a>, <a href="//searchtube.com">SearchTube</a>, AdTube, ShowTube, <a href="//avideo.com">AVideo</a>, <a href="//wwbn.com">WWBN</a> among other trademarks. All other trademarks and similarity to any referred to in any files, documents, wikis, plugins, code, modules, apis, integrations, technologies, links belong to their respective owners. Follow us on <a href="https://www.facebook.com/avideo/">Facebook</a> 
 #
 # AVideo Platform Open-Source Project
 ## AVideo Platform Open-Source Consist of THREE main Areas: 
@@ -59,7 +65,8 @@ WWBN offers relevant and practical solutions, as well as valuable innovative tec
 ### WHERE WE DELIVER
 PROFITABLE STRATEGIES - We provide companies with new business models that evolve around the delivery of video and other digital assets complementing their existing business offerings and adding to their revenues. These new ways of doing business include Turnkey application-integration with capabilities for managing, auditing, and disseminating digital content.
 
-### To learn more about AVideo Platform visit the <a href="https://platform.avideo.com/" target="_blank">AVideo Platform Official Site</a>. 
+### To learn more about AVideo Platform visit the <a href="https://platform.avideo.com/" target="_blank">AVideo Platform Official Site</a>.
+### To learn more about the history of the AVideo Paroject <a href="https://wwbn.com/AVideo_Platform" target="_blank">WWBN Project Page</a>
 
 ### To see a demo select one below.
 * <a href="https://flix.avideo.com/" target="_blank">AVideo Platform Flix Demo</a>

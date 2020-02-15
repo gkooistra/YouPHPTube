@@ -60,6 +60,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->EnableMinifyJS = false;
         $obj->disableShareAndPlaylist = false;
         $obj->disableEmailSharing = false;
+        $obj->splitBulkEmailSend = 50;
         $obj->disableComments = false;
         $obj->commentsMaxLength = 200;
         $obj->commentsNoIndex = false;
@@ -115,6 +116,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->askRRatingConfirmationBeforePlay_R = false;
         $obj->askRRatingConfirmationBeforePlay_NC17 = true;
         $obj->askRRatingConfirmationBeforePlay_MA = true;
+        $obj->filterRRating = false;
         $obj->AsyncJobs = false;
         
         
@@ -138,9 +140,15 @@ class CustomizeAdvanced extends PluginAbstract {
         $o->value = "";        
         $obj->videoNotFoundText = $o;
         $obj->siteMapRowsLimit = 100;
+        $obj->showPrivateVideosOnSitemap= false;
         $obj->enableOldPassHashCheck = true;
         $obj->disableHTMLDescription = false;
         $obj->disableTopMenusInsideIframe = true;
+        
+        $o = new stdClass();
+        $o->type = "textarea";
+        $o->value = "";        
+        $obj->verificationLinkText = $o;
         
         return $obj;
     }
@@ -179,6 +187,74 @@ class CustomizeAdvanced extends PluginAbstract {
         $content .= '<script>$(function () {if(inIframe()){$("#mainNavBar").fadeOut();}});</script>';
         }
         return $content;
+    }
+    
+    public function getHTMLMenuRight() {
+        global $global;
+        $obj = $this->getDataObject();
+        if($obj->filterRRating){
+            include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/menuRight.php';
+        }
+    }
+    
+    public function getHTMLMenuLeft() {
+        global $global;
+        $obj = $this->getDataObject();
+        if($obj->filterRRating){
+            include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/menuLeft.php';
+        }
+    }
+    
+    public static function getVideoWhereClause() {
+        $sql = "";
+        $obj = AVideoPlugin::getObjectData("CustomizeAdvanced");
+        if($obj->filterRRating && isset($_GET['rrating'])){
+            if($_GET['rrating']==="0"){
+                $sql .= " AND v.rrating = ''";
+            }else if(in_array($_GET['rrating'],Video::$rratingOptions)){
+                $sql .= " AND v.rrating = '{$_GET['rrating']}'";                
+            }
+        }
+        return $sql;
+    }
+    
+    public function getVideosManagerListButton(){
+        $btn = "";
+        if(User::isAdmin()){
+            $btn = '<br><button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="updateDiskUsage(\' + row.id + \');" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="Update Disk usage"><i class="fas fa-chart-line"></i> Update Disk Usage</button>';
+        }
+        return $btn;
+    }
+    
+    
+    public function getHeadCode(){
+        global $global;
+        $baseName = basename($_SERVER['REQUEST_URI']);
+        $js = "";
+        if($baseName === 'mvideos'){
+            $js .= "<script>function updateDiskUsage(videos_id){
+                                    modal.showPleaseWait();
+                                    \$.ajax({
+                                        url: '{$global['webSiteRootURL']}plugin/CustomizeAdvanced/updateDiskUsage.php',
+                                        data: {\"videos_id\": videos_id},
+                                        type: 'post',
+                                        success: function (response) {
+                                        if(response.error){
+                                            swal({
+                                                title: \"".__("Sorry!")."\",
+                                                text: response.msg,
+                                                type: \"error\",
+                                                html: true
+                                            });
+                                        }else{
+                                            $(\"#grid\").bootgrid('reload');
+                                        }
+                                            console.log(response);
+                                            modal.hidePleaseWait();
+                                        }
+                                    });}</script>";
+        }
+        return $js;
     }
 
     
