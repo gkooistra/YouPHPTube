@@ -194,8 +194,8 @@ if (!class_exists('Video')) {
             global $advancedCustom;
             global $global;
             if (!User::isLogged() && !$allowOfflineUser) {
-                header('Content-Type: application/json');
-                die('{"error":"' . __("Permission denied") . '"}');
+                _error_log('Video::save permission denied to save');
+                return false;
             }
             if (empty($this->title)) {
                 $this->title = uniqid();
@@ -758,7 +758,7 @@ if (!class_exists('Video')) {
                     $video['title'] = UTF8encode($video['title']);
                     $video['description'] = UTF8encode($video['description']);
                     $video['progress'] = self::getVideoPogressPercent($video['id']);
-                    if(empty($video['filesize'])){
+                    if(empty($video['filesize']) && ($video['type']=="video" || $video['type']=="audio")){
                         $video['filesize'] = Video::updateFilesize($video['id']);
                     }
                     if (!$ignoreTags) {
@@ -1091,13 +1091,13 @@ if (!class_exists('Video')) {
             set_time_limit(300);
             $video = new Video("", "", $videos_id);
             $filename = $video->getFilename();
-            if(empty($filename)){
+            if(empty($filename) || !($video->getType()=="video" || $video->getType()=="audio")){
                 return false;
             }
             $filesize = getUsageFromFilename($filename);
             if(empty($filesize)){
                 $obj = AVideoPlugin::getObjectDataIfEnabled("DiskUploadQuota");
-                if($obj->deleteVideosWith0Bytes){
+                if(!empty($obj->deleteVideosWith0Bytes)){
                     try {
                         _error_log("updateFilesize: DELETE videos_id=$videos_id filename=$filename filesize=$filesize");
                         return $video->delete();
@@ -1108,7 +1108,7 @@ if (!class_exists('Video')) {
                 }
             }
             $video->setFilesize($filesize);
-            if($video->save()){
+            if($video->save(false, true)){
                 _error_log("updateFilesize: videos_id=$videos_id filename=$filename filesize=$filesize");
                 return $filesize;
             }else{
@@ -2564,7 +2564,7 @@ if (!class_exists('Video')) {
         }
 
         static function getImageFromFilename_($filename, $type = "video") {
-            $cacheFileName = $filename . $type . (get_browser_name() !== 'Safari' ? "s" : "");
+            $cacheFileName = "getImageFromFilename_".$filename . $type . (get_browser_name() == 'Safari' ? "s" : "");
             $cache = ObjectYPT::getCache($cacheFileName, 0);
             if (!empty($cache)) {
                 return $cache;
