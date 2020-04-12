@@ -596,7 +596,7 @@ if (typeof gtag !== \"function\") {
         }
 
         if (!User::isLogged()) {
-            _error_log("User::canWatchVideo You are not logged so can not see ({$videos_id})");
+            _error_log("User::canWatchVideo You are not logged so can not see ({$videos_id}) session_id=". session_id()." SCRIPT_NAME=".$_SERVER["SCRIPT_NAME"]." IP = ".  getRealIpAddr());
             return false;
         }
         // if is not public check if the user is on one of its groups
@@ -1112,6 +1112,18 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
+    
+    static function getUserFromEmail($email) {
+        $sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
+        $res = sqlDAL::readSql($sql, "s", array($email));
+        $user = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($user != false) {
+            return $user;
+        }
+        return false;
+    }
+    
     function setUser($user) {
         global $advancedCustomUser;
         if (empty($advancedCustomUser->userCanChangeUsername)) {
@@ -1127,7 +1139,19 @@ if (typeof gtag !== \"function\") {
     }
 
     function setEmail($email) {
-        $this->email = strip_tags($email);
+        global $advancedCustomUser;
+        $email = strip_tags($email);
+        if (!empty($advancedCustomUser->emailMustBeUnique)) {
+            if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)){        
+                return false;
+            }
+            $userFromEmail = User::getUserFromEmail($email);
+            if(!empty($userFromEmail)){     
+                return false;
+            }
+        }
+        $this->email = $email;
+        return true;
     }
 
     function setPassword($password, $doNotEncrypt = false) {
@@ -1301,11 +1325,19 @@ if (typeof gtag !== \"function\") {
         return $this->recoverPass;
     }
 
-    static function canUpload() {
-        global $global, $config;
+    static function canUpload($doNotCheckPlugins=false) {
+        global $global, $config, $advancedCustomUser;
         if (User::isAdmin()) {
             return true;
         }
+        if(empty($doNotCheckPlugins) && !AVideoPlugin::userCanUpload(User::getId())){
+            return false;
+        }
+        
+        if(isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && !User::isVerified()){
+            return false;
+        }
+        
         if ($config->getAuthCanUploadVideos()) {
             return self::isLogged();
         }
@@ -1324,11 +1356,19 @@ if (typeof gtag !== \"function\") {
     }
 
     static function canComment() {
-        global $global, $config;
-        if ($config->getAuthCanComment()) {
-            return self::isLogged();
+        global $global, $config, $advancedCustomUser;
+        if(self::isAdmin()){
+            return true;
         }
-        return self::isAdmin();
+        if ($config->getAuthCanComment()) {
+            if(empty($advancedCustomUser->unverifiedEmailsCanNOTComment)){
+                return self::isLogged();
+            }else{
+                return self::isVerified();
+            }
+            
+        }
+        return false;
     }
 
     static function canSeeCommentTextarea() {

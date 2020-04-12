@@ -1092,6 +1092,7 @@ if (!class_exists('Video')) {
             $video = new Video("", "", $videos_id);
             $filename = $video->getFilename();
             if(empty($filename) || !($video->getType()=="video" || $video->getType()=="audio")){
+                _error_log("updateFilesize: Not updated, this filetype is ".$video->getType());
                 return false;
             }
             $filesize = getUsageFromFilename($filename);
@@ -1106,6 +1107,10 @@ if (!class_exists('Video')) {
                         return false;
                     }
                 }
+            }
+            if($video->getFilesize()==$filesize){
+                _error_log("updateFilesize: No need to update videos_id=$videos_id filename=$filename filesize=$filesize");
+                return $filesize;
             }
             $video->setFilesize($filesize);
             if($video->save(false, true)){
@@ -2303,8 +2308,8 @@ if (!class_exists('Video')) {
                 $this->title = substr($this->title, 0, 187) . '...';
         }
 
-        function setFilename($filename) {
-            if (empty($this->filename)) {
+        function setFilename($filename, $force=false) {
+            if ($force || empty($this->filename)) {
                 $this->filename = $filename;
             }
             return $this->filename;
@@ -2431,8 +2436,14 @@ if (!class_exists('Video')) {
                 }
                 $token = "";
                 $secure = AVideoPlugin::loadPluginIfEnabled('SecureVideosDirectory');
-                if (!empty($secure) && ($type == ".mp3" || $type == ".mp4" || $type == ".webm" || $type == ".m3u8" || $type == ".pdf")) {
-                    $token = "?" . $secure->getToken($filename);
+                if (($type == ".mp3" || $type == ".mp4" || $type == ".webm" || $type == ".m3u8" || $type == ".pdf")) {
+                    $vars = array();
+                    if (!empty($secure)) {
+                        $vars[] = $secure->getToken($filename);
+                    }
+                    if(!empty($vars)){
+                        $token = "?".implode("&", $vars);
+                    }
                 }
                 $source = array();
                 $source['path'] = "{$global['systemRootPath']}videos/{$filename}{$type}";
@@ -2487,7 +2498,7 @@ if (!class_exists('Video')) {
             if (substr($type, -4) === ".jpg" || substr($type, -4) === ".png" || substr($type, -4) === ".gif" || substr($type, -4) === ".webp") {
                 $source['url'] .= "?" . @filectime($source['path']);
             }
-//ObjectYPT::setCache($name, $source);
+            //ObjectYPT::setCache($name, $source);
             return $source;
         }
 
@@ -2563,6 +2574,11 @@ if (!class_exists('Video')) {
             return false;
         }
 
+        static function clearImageCache($filename, $type = "video") {
+            $cacheFileName = "getImageFromFilename_".$filename . $type . (get_browser_name() == 'Safari' ? "s" : "");
+            return ObjectYPT::deleteCache($cacheFileName);
+        }
+        
         static function getImageFromFilename_($filename, $type = "video") {
             $cacheFileName = "getImageFromFilename_".$filename . $type . (get_browser_name() == 'Safari' ? "s" : "");
             $cache = ObjectYPT::getCache($cacheFileName, 0);
@@ -2933,6 +2949,10 @@ if (!class_exists('Video')) {
             ObjectYPT::deleteCache($filename . "article");
             ObjectYPT::deleteCache($filename . "pdf");
             ObjectYPT::deleteCache($filename . "video");
+            Video::clearImageCache($filename);
+            Video::clearImageCache($filename, "article");
+            Video::clearImageCache($filename, "pdf");
+            Video::clearImageCache($filename, "audio");
             clearVideosURL($filename);
         }
 

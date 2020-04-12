@@ -65,26 +65,27 @@
                     <?php
                     $categories = Category::getAllCategories(User::isAdmin() ? false : true);
                     array_multisort(array_column($categories, 'hierarchyAndName'), SORT_ASC, $categories);
-                    if ((isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && User::isVerified()) || (isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && !$advancedCustomUser->onlyVerifiedEmailCanUpload) || !isset($advancedCustomUser->onlyVerifiedEmailCanUpload)) {
+                    if (User::canUpload()) {
                         if (empty($advancedCustom->doNotShowEncoderButton)) {
-                            if (!empty($config->getEncoderURL())) {}
-                                ?>
-                                <form id="formEncoder" method="post" action="<?php echo $config->getEncoderURL(); ?>" target="encoder">
-                                    <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>" />
-                                    <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>" />
-                                    <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>" />
-                                </form>
-                                <a href="#" onclick="$('#formEncoder').submit();return false;" class="btn btn-sm btn-xs btn-default">
-                                    <span class="fa fa-cog"></span> <?php echo __("Encode video and audio"); ?>
-                                </a>
-                                <?php
-                            
+                            if (!empty($config->getEncoderURL())) {
+                                
+                            }
+                            ?>
+                            <form id="formEncoder" method="post" action="<?php echo $config->getEncoderURL(); ?>" target="encoder">
+                                <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>" />
+                                <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>" />
+                                <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>" />
+                            </form>
+                            <a href="#" onclick="$('#formEncoder').submit();return false;" class="btn btn-sm btn-xs btn-default">
+                                <span class="fa fa-cog"></span> <?php echo empty($advancedCustom->encoderButtonLabel) ? __("Encode video and audio") : $advancedCustom->encoderButtonLabel; ?>
+                            </a>
+                            <?php
                         }
                         if (empty($advancedCustom->doNotShowUploadMP4Button)) {
                             ?>
                             <button class="btn btn-sm btn-xs btn-default" onclick="newVideo();" id="uploadMp4">
                                 <span class="fa fa-upload"></span>
-                                <?php echo __("Upload a File"); ?>
+                                <?php echo empty($advancedCustom->uploadMP4ButtonLabel) ? __("Direct upload") : $advancedCustom->uploadMP4ButtonLabel; ?>
                             </button>
                             <?php
                         }
@@ -223,6 +224,19 @@
                     </div>
                     <?php
                 }
+                if (empty($advancedCustom->disableVideoSwap)) {
+                    ?>
+                    <button class="btn btn-primary" id="swapBtn">
+                        <i class="fas fa-random"></i> <?php echo __('Swap Video File'); ?>
+                    </button>
+                    <?php
+                }
+                if (User::isAdmin()){ ?>
+                    <button class="btn btn-primary" id="updateAllUsage">
+                        <i class="fas fa-chart-line"></i> <?php echo __('Update all videos disk usage'); ?>
+                    </button>
+                    <?php
+                }
                 ?>
                 <button class="btn btn-danger" id="deleteBtn">
                     <i class="fa fa-trash" aria-hidden="true"></i> <?php echo __('Delete'); ?>
@@ -249,12 +263,12 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title"><?php echo __("Video Form"); ?></h4>
+                    <h4 class="modal-title"><?php echo __("Upload Form"); ?></h4>
                 </div>
                 <div class="modal-body" style="max-height: 70vh; overflow-y: scroll;">
                     <div id="postersImage">
                         <ul class="nav nav-tabs">
-                            <li class="active uploadFile"><a data-toggle="tab" href="#pmedia">Upload File</a></li>
+                            <li class="active uploadFile"><a data-toggle="tab" href="#pmedia"><?php echo empty($advancedCustom->uploadMP4ButtonLabel) ? __("Direct upload") : $advancedCustom->uploadMP4ButtonLabel; ?></a></li>
                             <li><a data-toggle="tab" href="#pimages">Images</a></li>
                             <li><a data-toggle="tab" href="#pmetadata">Meta Data</a></li>
                             <?php
@@ -718,14 +732,19 @@ if (empty($advancedCustom->disableHTMLDescription)) {
         });
     }
 
-    function changeStatus(status) {
-        modal.showPleaseWait();
+    function getSelectedVideos() {
         var vals = [];
         $(".checkboxVideo").each(function (index) {
             if ($(this).is(":checked")) {
                 vals.push($(this).val());
             }
         });
+        return vals;
+    }
+
+    function changeStatus(status) {
+        modal.showPleaseWait();
+        var vals = getSelectedVideos();
         $.ajax({
             url: '<?php echo $global['webSiteRootURL']; ?>objects/videoStatus.json.php',
             data: {"id": vals, "status": status},
@@ -748,12 +767,7 @@ if (empty($advancedCustom->disableHTMLDescription)) {
     }
     function changeCategory(category_id) {
         modal.showPleaseWait();
-        var vals = [];
-        $(".checkboxVideo").each(function (index) {
-            if ($(this).is(":checked")) {
-                vals.push($(this).val());
-            }
-        });
+        var vals = getSelectedVideos();
         $.ajax({
             url: '<?php echo $global['webSiteRootURL']; ?>objects/videoCategory.json.php',
             data: {"id": vals, "category_id": category_id},
@@ -780,12 +794,7 @@ if (empty($advancedCustomUser->userCanNotChangeUserGroup) || User::isAdmin()) {
     ?>
         function userGroupSave(users_groups_id, add) {
             modal.showPleaseWait();
-            var vals = [];
-            $(".checkboxVideo").each(function (index) {
-                if ($(this).is(":checked")) {
-                    vals.push($(this).val());
-                }
-            });
+            var vals = getSelectedVideos();
             $.ajax({
                 url: '<?php echo $global['webSiteRootURL']; ?>objects/userGroupSave.json.php',
                 data: {"id": vals, "users_groups_id": users_groups_id, "add": add},
@@ -1182,39 +1191,39 @@ if (empty($advancedCustom->disableHTMLDescription)) {
                 },
                 type: 'post',
                 success: function (response) {
-                if (response.status === "1" || response.status === true) {
-                if (response.video.id) {
-                videos_id = response.video.id;
-                }
-                if (response.video.type === 'embed' || response.video.type === 'linkVideo' || response.video.type === 'article') {
-                videoUploaded = true;
-                }
-                if (closeModal && videoUploaded) {
-                $('#videoFormModal').modal('hide');
-                }
-                $("#grid").bootgrid("reload");
+                    if (response.status === "1" || response.status === true) {
+                        if (response.video.id) {
+                            videos_id = response.video.id;
+                        }
+                        if (response.video.type === 'embed' || response.video.type === 'linkVideo' || response.video.type === 'article') {
+                            videoUploaded = true;
+                        }
+                        if (closeModal && videoUploaded) {
+                            $('#videoFormModal').modal('hide');
+                        }
+                        $("#grid").bootgrid("reload");
                         $('#fileUploadVideos_id').val(response.videos_id);
                         $('#inputVideoId').val(response.videos_id);
                         videos_id = response.videos_id;
-                } else {
-                if (response.error) {
-                    swal({
-                        title: "<?php echo __("Sorry!"); ?>",
-                        text: response.error,
-                        type: "error",
-                        html: true
-                    });
-                } else {
-                    swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your video has NOT been saved!"); ?>", "error");
-                }
-                }
-                modal.hidePleaseWait();
-                        setTimeout(function () {
+                    } else {
+                        if (response.error) {
+                            swal({
+                                title: "<?php echo __("Sorry!"); ?>",
+                                text: response.error,
+                                type: "error",
+                                html: true
+                            });
+                        } else {
+                            swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your video has NOT been saved!"); ?>", "error");
+                        }
+                    }
+                    modal.hidePleaseWait();
+                    setTimeout(function () {
                         waitToSubmit = false;
-                        }, 3000);
-                }
+                    }, 3000);
+                    }
         });
-        return false;
+                return false;
     }
 
     function resetVideoForm() {
@@ -1499,7 +1508,17 @@ echo AVideoPlugin::getManagerVideosReset();
                 data.context.addClass('error');
             },
             done: function (e, data) {
-                if (data.result.status === "error") {
+                console.log(data);
+                if(data.result.error && data.result.msg){
+                    swal({
+                        title: "Sorry!",
+                        text: data.result.msg,
+                        html: true,
+                        type: "error"
+                    });
+                    data.context.addClass('error');
+                    data.context.find('p.action').text("Error");
+                }else if (data.result.status === "error") {
                     if (typeof data.result.msg === 'string') {
                         msg = data.result.msg;
                     } else {
@@ -1614,12 +1633,7 @@ echo AVideoPlugin::getManagerVideosReset();
 <?php if (!$config->getDisable_youtubeupload()) { ?>
             $("#uploadYouTubeBtn").click(function () {
                 modal.showPleaseWait();
-                var vals = [];
-                $(".checkboxVideo").each(function (index) {
-                    if ($(this).is(":checked")) {
-                        vals.push($(this).val());
-                    }
-                });
+                var vals = getSelectedVideos();
                 $.ajax({
                     url: '<?php echo $global['webSiteRootURL']; ?>objects/youtubeUpload.json.php',
                     data: {"id": vals},
@@ -1659,15 +1673,87 @@ echo AVideoPlugin::getManagerVideosReset();
                     function () {
                         swal.close();
                         modal.showPleaseWait();
-                        var vals = [];
-                        $(".checkboxVideo").each(function (index) {
-                            if ($(this).is(":checked")) {
-                                vals.push($(this).val());
-                            }
-                        });
+                        var vals = getSelectedVideos();
                         deleteVideo(vals);
                     });
         });
+<?php
+if (empty($advancedCustom->disableVideoSwap)) {
+    ?>
+
+            $("#swapBtn").click(function () {
+                var vals = getSelectedVideos();
+                if (vals.length !== 2) {
+                    swal({
+                        title: "<?php echo __("Sorry!"); ?>",
+                        text: "<?php echo __("Mou MUST select 2 videos to swap"); ?>",
+                        type: "error",
+                        html: true
+                    });
+                    return false;
+                }
+                modal.showPleaseWait();
+
+                $.ajax({
+                    url: '<?php echo $global['webSiteRootURL']; ?>objects/videoSwap.json.php',
+                    data: {"users_id": <?php echo User::getId(); ?>, "videos_id_1": vals[0], "videos_id_2": vals[1]},
+                    type: 'post',
+                    success: function (response) {
+                        modal.hidePleaseWait();
+                        if (response.error) {
+                            swal({
+                                title: "<?php echo __("Sorry!"); ?>",
+                                text: response.error,
+                                type: "error",
+                                html: true
+                            });
+                        } else {
+                            swal({
+                                title: "<?php echo __("Success!"); ?>",
+                                text: "<?php echo __("Video Swaped!"); ?>",
+                                type: "success",
+                                html: true
+                            });
+                            $("#grid").bootgrid("reload");
+                        }
+                    }
+                });
+            });
+    <?php
+}
+if (User::isAdmin()) {
+    ?>
+
+            $("#updateAllUsage").click(function () {
+                modal.showPleaseWait();
+
+                $.ajax({
+                    url: '<?php echo $global['webSiteRootURL']; ?>objects/videoUpdateUsage.json.php',
+                    success: function (response) {
+                        modal.hidePleaseWait();
+                        if (response.error) {
+                            swal({
+                                title: "<?php echo __("Sorry!"); ?>",
+                                text: response.error,
+                                type: "error",
+                                html: true
+                            });
+                        } else {
+                            swal({
+                                title: "<?php echo __("Success!"); ?>",
+                                text: "<?php echo __("Videos Updated!"); ?>",
+                                type: "success",
+                                html: true
+                            });
+                            $("#grid").bootgrid("reload");
+                        }
+                    }
+                });
+            });
+    <?php
+}
+?>
+        
         $('.datepicker').datetimepicker({
             format: 'yyyy-mm-dd hh:ii',
             autoclose: true
@@ -1832,9 +1918,9 @@ if (User::isAdmin()) {
                     if (row.type === "audio") {
                         type = "<span class='fa fa-headphones' style='font-size:14px;'></span> ";
                         img = "<img class='img img-responsive img-thumbnail pull-left rotate" + row.rotation + "' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + ".jpg?" + Math.random() + "' style='max-height:80px; margin-right: 5px;'> ";
-                        if (typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.url) {
+                        if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.url) {
                             img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.pjpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
-                        } else if (typeof row.videosURL.jpg !== 'undefined' && row.videosURL.jpg.url) {
+                        } else if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.jpg !== 'undefined' && row.videosURL.jpg.url) {
                             img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.jpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
                         } else {
                             is_portrait = (row.rotation === "90" || row.rotation === "270") ? "img-portrait" : "";
@@ -1842,11 +1928,11 @@ if (User::isAdmin()) {
                         }
                     } else {
                         type = "<span class='fa fa-film' style='font-size:14px;'></span> ";
-                        if (typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.filename == 'notfound_portrait.jpg' && row.videosURL.jpg.filename == 'notfound.jpg') {
+                        if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.filename == 'notfound_portrait.jpg' && row.videosURL.jpg.filename == 'notfound.jpg') {
                             img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.pjpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
-                        } else if (typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.url && row.videosURL.pjpg.filename !== 'notfound_portrait.jpg' && row.videosURL.pjpg.filename !== 'notfound_portrait.jpg') {
+                        } else if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.url && row.videosURL.pjpg.filename !== 'notfound_portrait.jpg' && row.videosURL.pjpg.filename !== 'notfound_portrait.jpg') {
                             img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.pjpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
-                        } else if (typeof row.videosURL.jpg !== 'undefined' && row.videosURL.jpg.url && row.videosURL.jpg.filename !== 'notfound.jpg') {
+                        } else if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.jpg !== 'undefined' && row.videosURL.jpg.url && row.videosURL.jpg.filename !== 'notfound.jpg') {
                             img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.jpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
                         } else {
                             is_portrait = (row.rotation === "90" || row.rotation === "270") ? "img-portrait" : "";

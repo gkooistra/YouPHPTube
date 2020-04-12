@@ -313,10 +313,26 @@ function cleanString($text) {
         '/Ç/' => 'C',
         '/ñ/' => 'n',
         '/Ñ/' => 'N',
-        '/–/' => '-', // UTF-8 hyphen to "normal" hyphen
+        '/–/' => '-', // UTF-8 hyphen to 'normal' hyphen
         '/[’‘‹›‚]/u' => ' ', // Literally a single quote
         '/[“”«»„]/u' => ' ', // Double quote
         '/ /' => ' ', // nonbreaking space (equiv. to 0x160)
+        '/Є/' => 'YE', '/І/' => 'I', '/Ѓ/' => 'G', '/і/' => 'i', '/№/' => '#', '/є/' => 'ye', '/ѓ/' => 'g',
+        '/А/' => 'A', '/Б/' => 'B', '/В/' => 'V', '/Г/' => 'G', '/Д/' => 'D',
+        '/Е/' => 'E', '/Ё/' => 'YO', '/Ж/' => 'ZH',
+        '/З/' => 'Z', '/И/' => 'I', '/Й/' => 'J', '/К/' => 'K', '/Л/' => 'L',
+        '/М/' => 'M', '/Н/' => 'N', '/О/' => 'O', '/П/' => 'P', '/Р/' => 'R',
+        '/С/' => 'S', '/Т/' => 'T', '/У/' => 'U', '/Ф/' => 'F', '/Х/' => 'H',
+        '/Ц/' => 'C', '/Ч/' => 'CH', '/Ш/' => 'SH', '/Щ/' => 'SHH', '/Ъ/' => '',
+        '/Ы/' => 'Y', '/Ь/' => '', '/Э/' => 'E', '/Ю/' => 'YU', '/Я/' => 'YA',
+        '/а/' => 'a', '/б/' => 'b', '/в/' => 'v', '/г/' => 'g', '/д/' => 'd',
+        '/е/' => 'e', '/ё/' => 'yo', '/ж/' => 'zh',
+        '/з/' => 'z', '/и/' => 'i', '/й/' => 'j', '/к/' => 'k', '/л/' => 'l',
+        '/м/' => 'm', '/н/' => 'n', '/о/' => 'o', '/п/' => 'p', '/р/' => 'r',
+        '/с/' => 's', '/т/' => 't', '/у/' => 'u', '/ф/' => 'f', '/х/' => 'h',
+        '/ц/' => 'c', '/ч/' => 'ch', '/ш/' => 'sh', '/щ/' => 'shh', '/ъ/' => '',
+        '/ы/' => 'y', '/ь/' => '', '/э/' => 'e', '/ю/' => 'yu', '/я/' => 'ya',
+        '/—/' => '-', '/«/' => '', '/»/' => '', '/…/' => ''
     );
     return preg_replace(array_keys($utf8), array_values($utf8), $text);
 }
@@ -434,9 +450,10 @@ function setSiteSendMessage(&$mail) {
     global $global;
     require_once $global['systemRootPath'] . 'objects/configuration.php';
     $config = new Configuration();
-
+    $mail->CharSet = 'UTF-8';
     if ($config->getSmtp()) {
         _error_log("Sending SMTP Email");
+        $mail->CharSet = 'UTF-8';
         $mail->IsSMTP(); // enable SMTP
         $mail->SMTPAuth = $config->getSmtpAuth(); // authentication enabled
         $mail->SMTPSecure = $config->getSmtpSecure(); // secure transfer enabled REQUIRED for Gmail
@@ -478,6 +495,9 @@ function sendSiteEmail($to, $subject, $message) {
     if (empty($to)) {
         return false;
     }
+
+    $subject = UTF8encode($subject);
+    $message = UTF8encode($message);
 
     _error_log("sendSiteEmail [" . count($to) . "] {$subject}");
     global $config, $global;
@@ -1430,6 +1450,8 @@ function decideMoveUploadedToVideos($tmp_name, $filename) {
 
 function unzipDirectory($filename, $destination) {
     global $global;
+    // wait a couple of seconds to make sure the file is completed transfer
+    sleep(2);
     ini_set('memory_limit', '-1');
     ini_set('max_execution_time', 7200); // 2 hours
     $cmd = "unzip {$filename} -d {$destination}" . "  2>&1";
@@ -1996,7 +2018,7 @@ function siteMap() {
             ';
     }
     $xml .= '</urlset> ';
-    return $xml;
+    return preg_replace ('/[^\x{0009}\x{000a}\x{000d}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]+/u', '', $xml);
 }
 
 function object_to_array($obj) {
@@ -2183,7 +2205,7 @@ function isToHidePrivateVideos() {
 }
 
 function getOpenGraph($videos_id) {
-    global $global, $config;
+    global $global, $config, $advancedCustom;
     echo "<!-- OpenGraph -->";
     if (empty($videos_id)) {
         echo "<!-- OpenGraph no video id -->";
@@ -2227,6 +2249,7 @@ function getOpenGraph($videos_id) {
     } else {
         $img = $images->poster;
     }
+    $twitter_site = $advancedCustom->twitter_site;
     ?>
     <link rel="image_src" href="<?php echo $img; ?>" />
     <meta property="og:image" content="<?php echo $img; ?>" />
@@ -2260,6 +2283,33 @@ function getOpenGraph($videos_id) {
     ?>
     <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
     <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
+
+    <!-- Twitter cards -->
+    <?php
+    if (!empty($advancedCustom->twitter_player)) {
+        ?>
+        <meta name="twitter:card" content="player" />
+        <meta name="twitter:player" content="<?php echo Video::getLinkToVideo($videos_id, $video['clean_title'], true); ?>" />
+        <meta name="twitter:player:width" content="480" />
+        <meta name="twitter:player:height" content="480" />    
+        <?php
+    } else {
+        if (!empty($advancedCustom->twitter_summary_large_image)) {
+            ?>
+            <meta name="twitter:card" content="summary_large_image" />   
+            <?php
+        } else {
+            ?>
+            <meta name="twitter:card" content="summary" />   
+            <?php
+        }
+    }
+    ?>
+    <meta name="twitter:site" content="<?php echo $twitter_site; ?>" />
+    <meta name="twitter:url" content="<?php echo Video::getLinkToVideo($videos_id); ?>"/>
+    <meta name="twitter:title" content="<?php echo str_replace('"', '', $video['title']); ?>"/>
+    <meta name="twitter:description" content="<?php echo str_replace('"', '', $video['description']); ?>"/>
+    <meta name="twitter:image" content="<?php echo $img; ?>"/>
     <?php
 }
 
@@ -2497,7 +2547,7 @@ function get_browser_name($user_agent = "") {
             strpos($t, 'bot') || strpos($t, 'archive') ||
             strpos($t, 'info') || strpos($t, 'data'))
         return '[Bot] Other';
-    _error_log($t);
+    _error_log("Unknow user agent ($t)");
     return 'Other (Unknown)';
 }
 
@@ -2570,7 +2620,7 @@ function _session_start(Array $options = array()) {
             return session_start($options);
         }
     } catch (Exception $exc) {
-        _error_log("_session_start: ".$exc->getTraceAsString());
+        _error_log("_session_start: " . $exc->getTraceAsString());
         return false;
     }
 }
@@ -2617,12 +2667,108 @@ function getUsageFromFilename($filename, $dir = "") {
     $files = glob("{$dir}{$filename}*");
     foreach ($files as $f) {
         if (is_dir($f)) {
+            _error_log("getUsageFromFilename: {$f} is Dir");
             $totalSize += getDirSize($f);
         } else if (is_file($f)) {
-            $totalSize += filesize($f);
+            $filesize = filesize($f);
+            if ($filesize < 20) { // that means it is a dummy file
+                _error_log("getUsageFromFilename: {$f} is Dummy file ({$filesize})");
+                $aws_s3 = AVideoPlugin::loadPluginIfEnabled('AWS_S3');
+                //$bb_b2 = AVideoPlugin::loadPluginIfEnabled('Blackblaze_B2');
+                if (!empty($aws_s3)) {
+                    _error_log("getUsageFromFilename: Get from S3");
+                    $filesize += $aws_s3->getFilesize($filename);
+                } else if (!empty($bb_b2)) {
+                    // TODO
+                }else{
+                    $urls = Video::getVideosPaths($filename, true);
+                    _error_log("getUsageFromFilename: Paths " . json_encode($urls));
+                    if (!empty($urls["m3u8"]['url'])) {
+                        $filesize+=getUsageFromURL($urls["m3u8"]['url']);
+                    }
+                    if (!empty($urls['mp4'])) {
+                        foreach ($urls['mp4'] as $mp4) {
+                            $filesize+=getUsageFromURL($mp4);
+                        }
+                    }
+                    if (!empty($urls['webm'])) {
+                        foreach ($urls['webm'] as $mp4) {
+                            $filesize+=getUsageFromURL($mp4);
+                        }
+                    }
+                    if (!empty($urls["pdf"]['url'])) {
+                        $filesize+=getUsageFromURL($urls["pdf"]['url']);
+                    }
+                    if (!empty($urls["mp3"]['url'])) {
+                        $filesize+=getUsageFromURL($urls["mp3"]['url']);
+                    }
+                }
+            } else {
+                _error_log("getUsageFromFilename: {$f} is File ({$filesize})");
+            }
+            $totalSize += $filesize;
         }
     }
     return $totalSize;
+}
+
+/**
+ * Returns the size of a file without downloading it, or -1 if the file
+ * size could not be determined.
+ *
+ * @param $url - The location of the remote file to download. Cannot
+ * be null or empty.
+ *
+ * @return The size of the file referenced by $url, or false if the size
+ * could not be determined.
+ */
+function getUsageFromURL($url) {
+    _error_log("getUsageFromURL: start ({$url})");
+    // Assume failure.
+    $result = false;
+
+    $curl = curl_init($url);
+
+    _error_log("getUsageFromURL: curl_init ");
+    
+    try {
+        // Issue a HEAD request and follow any redirects.
+        curl_setopt($curl, CURLOPT_NOBODY, true);
+        curl_setopt($curl, CURLOPT_HEADER, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        //curl_setopt($curl, CURLOPT_USERAGENT, get_user_agent_string());
+        $data = curl_exec($curl);
+    } catch (Exception $exc) {
+        echo $exc->getTraceAsString();
+        _error_log("getUsageFromURL: ERROR " . $exc->getMessage());
+        _error_log("getUsageFromURL: ERROR " . curl_errno($curl));
+        _error_log("getUsageFromURL: ERROR " . curl_error($curl));
+    }
+    
+    if ($data) {
+        _error_log("getUsageFromURL: response header " . $data);
+        $content_length = "unknown";
+        $status = "unknown";
+
+        if (preg_match("/^HTTP\/1\.[01] (\d\d\d)/", $data, $matches)) {
+            $status = (int) $matches[1];
+        }
+
+        if (preg_match("/Content-Length: (\d+)/", $data, $matches)) {
+            $content_length = (int) $matches[1];
+        }
+
+        // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+        if ($status == 200 || ($status > 300 && $status <= 308)) {
+            $result = $content_length;
+        }
+    } else {
+        _error_log("getUsageFromURL: ERROR no response data " . curl_error($curl));
+    }
+
+    curl_close($curl);
+    return $result;
 }
 
 function getDirSize($dir) {
@@ -2660,7 +2806,7 @@ function encrypt_decrypt($string, $action) {
     $encrypt_method = "AES-256-CBC";
     $secret_key = 'This is my secret key';
     $secret_iv = $global['systemRootPath'];
-    while(strlen($secret_iv)<16){
+    while (strlen($secret_iv) < 16) {
         $secret_iv .= $global['systemRootPath'];
     }
 
@@ -2683,12 +2829,15 @@ function encrypt_decrypt($string, $action) {
 function encryptString($string) {
     return encrypt_decrypt($string, 'encrypt');
 }
+
 function decryptString($string) {
     return encrypt_decrypt($string, 'decrypt');
 }
 
-class YPTvideoObject{
+class YPTvideoObject {
+
     public $id, $title, $description, $thumbnails, $channelTitle, $videoLink;
+
     function __construct($id, $title, $description, $thumbnails, $channelTitle, $videoLink) {
         $this->id = $id;
         $this->title = $title;
@@ -2697,5 +2846,5 @@ class YPTvideoObject{
         $this->channelTitle = $channelTitle;
         $this->videoLink = $videoLink;
     }
-    
+
 }

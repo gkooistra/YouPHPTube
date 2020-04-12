@@ -48,6 +48,7 @@ class CustomizeUser extends PluginAbstract {
         $obj->verificationMailTextLine4 = "All you need to do is to verify your e-mail by clicking the link below";
         
         $obj->unverifiedEmailsCanNOTLogin = !isset($advancedCustom->unverifiedEmailsCanNOTLogin) ? false : $advancedCustom->unverifiedEmailsCanNOTLogin;
+        $obj->unverifiedEmailsCanNOTComment = false;
         $obj->newUsersCanStream = !isset($advancedCustom->newUsersCanStream) ? false : $advancedCustom->newUsersCanStream;
         $obj->doNotIndentifyByEmail = !isset($advancedCustom->doNotIndentifyByEmail) ? false : $advancedCustom->doNotIndentifyByEmail;
         $obj->doNotIndentifyByName = !isset($advancedCustom->doNotIndentifyByName) ? false : $advancedCustom->doNotIndentifyByName;
@@ -67,6 +68,7 @@ class CustomizeUser extends PluginAbstract {
         $obj->doNotShowLeftProfile = false;
 
         $obj->forceLoginToBeTheEmail = false;
+        $obj->emailMustBeUnique = false;
 
         // added on 2019-02-11
         $o = new stdClass();
@@ -291,6 +293,9 @@ class CustomizeUser extends PluginAbstract {
 
     public function getModeYouTube($videos_id) {
         global $global, $config;
+        if(empty($videos_id)){
+            return false;
+        }
         $cansee = User::canWatchVideoWithAds($videos_id);
         $obj = $this->getDataObject();
         if (!$cansee) {
