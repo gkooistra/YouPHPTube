@@ -109,6 +109,12 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                             ?>
                             <a href="<?php echo $link; ?>" class="btn btn-xs btn-default playAll hrefLink" ><span class="fa fa-play"></span> <?php echo __("Play All"); ?></a><?php echo $playListButtons; ?>
                             <?php
+                            $liveLink = PlayLists::getLiveLink($program['id']);
+                            if(false && !empty($liveLink)){
+                                ?>
+                                <a href="<?php echo $liveLink; ?>" class="btn btn-xs btn-default playAll hrefLink" ><i class="fas fa-broadcast-tower"></i> <?php echo __("Play Live"); ?></a>
+                                <?php
+                            }
                         }
                         if ($isMyChannel) {
                             ?>
@@ -417,16 +423,17 @@ if (count($programs) <= 1 || !empty($palyListsObj->expandPlayListOnChannels)) {
 ?>
                     $('.removeVideo').click(function () {
                         currentObject = this;
-                        swal({
-                            title: "<?php echo __("Are you sure?"); ?>",
-                            text: "<?php echo __("You will not be able to recover this action!"); ?>",
-                            type: "warning",
-                            showCancelButton: true,
-                            confirmButtonColor: "#DD6B55",
-                            confirmButtonText: "<?php echo __("Yes, delete it!"); ?>",
-                            closeOnConfirm: true
-                        },
-                                function () {
+                                
+                               swal({
+                title: "<?php echo __("Are you sure?"); ?>",
+                text: "<?php echo __("You will not be able to recover this action!"); ?>", 
+                icon: "warning",
+                buttons: true,
+                dangerMode: true,
+            })
+            .then((willDelete) => {
+              if (willDelete) {
+
                                     modal.showPleaseWait();
                                     var playlist_id = $(currentObject).attr('playlist_id');
                                     var video_id = $(currentObject).attr('video_id');
@@ -444,21 +451,24 @@ if (count($programs) <= 1 || !empty($palyListsObj->expandPlayListOnChannels)) {
                                             modal.hidePleaseWait();
                                         }
                                     });
-                                });
+              } 
+            }); 
+                                
                     });
 
                     $('.deletePlaylist').click(function () {
                         currentObject = this;
-                        swal({
-                            title: "<?php echo __("Are you sure?"); ?>",
-                            text: "<?php echo __("You will not be able to recover this action!"); ?>",
-                            type: "warning",
-                            showCancelButton: true,
-                            confirmButtonColor: "#DD6B55",
-                            confirmButtonText: "<?php echo __("Yes, delete it!"); ?>",
-                            closeOnConfirm: true
-                        },
-                                function () {
+                                
+                                swal({
+                title: "<?php echo __("Are you sure?"); ?>",
+                text: "<?php echo __("You will not be able to recover this action!"); ?>", 
+                icon: "warning",
+                buttons: true,
+                dangerMode: true,
+            })
+            .then((willDelete) => {
+              if (willDelete) {
+
                                     modal.showPleaseWait();
                                     var playlist_id = $(currentObject).attr('playlist_id');
                                     console.log(playlist_id);
@@ -473,7 +483,8 @@ if (count($programs) <= 1 || !empty($palyListsObj->expandPlayListOnChannels)) {
                                             modal.hidePleaseWait();
                                         }
                                     });
-                                });
+              } 
+            });
 
                     });
 

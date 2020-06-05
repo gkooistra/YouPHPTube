@@ -1,4 +1,6 @@
 <?php
+global $isLive;
+$isLive = 1;
 $customizedAdvanced = AVideoPlugin::getObjectDataIfEnabled('CustomizeAdvanced');
 
 $objSecure = AVideoPlugin::loadPluginIfEnabled('SecureVideosDirectory');
@@ -19,7 +21,7 @@ if(!empty($objSecure)){
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/player.css" rel="stylesheet" type="text/css"/>
-        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.3.1.min.js" type="text/javascript"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.5.1.min.js" type="text/javascript"></script>
         <?php
         echo AVideoPlugin::getHeadCode();
         ?>
@@ -46,7 +48,7 @@ if(!empty($objSecure)){
             </video>
         </div>
 
-        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.js" type="text/javascript"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.min.js" type="text/javascript"></script>
         <?php
         echo AVideoPlugin::afterVideoJS();
         ?>
@@ -57,7 +59,7 @@ if(!empty($objSecure)){
 
             $(document).ready(function () {
                 if (typeof player === 'undefined') {
-                    player = videojs('mainVideo');
+                    player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                 }
                 player.ready(function () {
                     var err = this.error();

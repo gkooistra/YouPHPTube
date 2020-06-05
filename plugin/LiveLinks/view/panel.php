@@ -1,7 +1,10 @@
 <link rel="stylesheet" type="text/css" href="<?php echo $global['webSiteRootURL']; ?>view/css/DataTables/datatables.min.css"/> 
 <link href="<?php echo $global['webSiteRootURL']; ?>js/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css" rel="stylesheet" type="text/css"/>
 <div class="panel panel-default">
-    <div class="panel-heading"><i class="fas fa-link"></i> <?php echo __("Add an external Live Link"); ?></div>
+    <div class="panel-heading">
+        <i class="fas fa-link"></i> <?php echo __("Add an external Live Link"); ?>
+        <span id="serverTime" class="pull-right"></span>
+    </div>
     <div class="panel-body"> 
         <div class="row">
             <div class="col-sm-4">
@@ -96,10 +99,16 @@
 </div>
 <script type="text/javascript" src="<?php echo $global['webSiteRootURL']; ?>view/css/DataTables/datatables.min.js"></script>
 <script src="<?php echo $global['webSiteRootURL']; ?>js/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js" type="text/javascript"></script>
-
+<?php $today = getdate(); ?>
 <script type="text/javascript">
     $(document).ready(function () {
 
+        var d = new Date(Date.UTC(<?php echo $today['year'].",".$today['mon'].",".$today['mday'].",".$today['hours'].",".$today['minutes'].",".$today['seconds']; ?>));
+        setInterval(function() {
+            d.setSeconds(d.getSeconds() + 1);
+            $('#serverTime').text((d.getHours() +':' + d.getMinutes() + ':' + d.getSeconds() ));
+        }, 1000);
+        
         var tableLinks = $('#exampleLinks').DataTable({
             "ajax": "<?php echo $global['webSiteRootURL']; ?>plugin/LiveLinks/view/liveLinks.json.php",
             "columns": [
@@ -151,16 +160,17 @@
             e.preventDefault();
             var tr = $(this).closest('tr')[0];
             var data = tableLinks.row(tr).data();
-            swal({
+            
+                    swal({
                 title: "<?php echo __("Are you sure?"); ?>",
-                text: "<?php echo __("You will not be able to recover this action!"); ?>",
-                type: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#DD6B55",
-                confirmButtonText: "<?php echo __("Yes, delete it!"); ?>",
-                closeOnConfirm: true
-            },
-                    function () {
+                text: "<?php echo __("You will not be able to recover this action!"); ?>", 
+                icon: "warning",
+                buttons: true,
+                dangerMode: true,
+            })
+            .then((willDelete) => {
+              if (willDelete) {
+
                         modal.showPleaseWait();
                         $.ajax({
                             type: "POST",
@@ -174,7 +184,9 @@
                             tableLinks.ajax.reload();
                             modal.hidePleaseWait();
                         });
-                    });
+              } 
+            });
+                    
         });
 
         $('#exampleLinks').on('click', 'button.editor_edit_link', function (e) {

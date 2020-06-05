@@ -1,4 +1,6 @@
 <?php
+global $isLive;
+$isLive = 1;
 require_once '../../videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
@@ -29,6 +31,7 @@ $imgw = 640;
 $imgh = 360;
 
 $liveDO = AVideoPlugin::getObjectData("Live");
+$video['type'] = 'video';
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -38,7 +41,6 @@ $liveDO = AVideoPlugin::getObjectData("Live");
         <link href="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo $global['webSiteRootURL']; ?>js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
@@ -51,6 +53,9 @@ $liveDO = AVideoPlugin::getObjectData("Live");
         <meta property="og:image"              content="<?php echo $img; ?>" />
         <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
         <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
+        <?php 
+        echo AVideoPlugin::getHeadCode();
+        ?>
     </head>
 
     <body class="<?php echo $global['bodyClass']; ?>">
@@ -60,39 +65,69 @@ $liveDO = AVideoPlugin::getObjectData("Live");
         if ($lt->userCanSeeTransmition()) {
             ?>
 
-            <div class="container-fluid principalContainer ">
-                <div class="col-md-12">
-                    <?php
-                    require "{$global['systemRootPath']}plugin/Live/view/liveVideo.php";
-                    ?>
-                </div>  
-            </div>
-            <div class="container-fluid ">
+            <div class="container-fluid principalContainer">
                 <div class="row">
-                    <div class="col-md-5 col-md-offset-2 list-group-item">
-                        <h1 itemprop="name">
-                            <i class="fas fa-video"></i> <?php echo $livet['title']; ?>
-                        </h1>
-                        <div class="col-xs-12 col-sm-12 col-lg-12"><?php echo $video['creator']; ?></div>
-                        <p><?php echo nl2br(textToLink($livet['description'])); ?></p>
-                        <div class="row">
-                            <div class="col-md-12 watch8-action-buttons text-muted">
+                    <div class="col-md-12">
+                        <center style="margin:5px;">
+                            <?php echo getAdsLeaderBoardTop(); ?>
+                        </center>
+                    </div>  
+                    <div class="col-md-12">
+                        <?php
+                        require "{$global['systemRootPath']}plugin/Live/view/liveVideo.php";
+                        ?>
+                    </div>  
+                    <div class="col-md-12">
+                        <center style="margin:5px;">
+                            <?php echo getAdsLeaderBoardTop2(); ?>
+                        </center>
+                    </div>  
+                </div>
+                <div class="row" id="modeYoutubeBottom" style="margin: 0;">
 
-                                <?php echo AVideoPlugin::getWatchActionButton(0); ?>
+                    <div class="col-sm-1 col-md-1"></div>
+                    <div class="col-sm-6 col-md-6" id="modeYoutubeBottomContent">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <h1 itemprop="name">
+                                    <i class="fas fa-video"></i> <?php echo $livet['title']; ?>
+                                </h1>
+                                <div class="col-xs-12 col-sm-12 col-lg-12"><?php echo $video['creator']; ?></div>
+                                <p><?php echo nl2br(textToLink($livet['description'])); ?></p>
+                                <div class="row">
+                                    <div class="col-md-12 watch8-action-buttons text-muted">
+
+                                        <?php echo AVideoPlugin::getWatchActionButton(0); ?>
+                                    </div>
+                                </div>
+                                <div class="row">
+
+                                    <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="row">
+                    </div>
+                    <div class="col-sm-4 col-md-4 bgWhite list-group-item rightBar" id="yptRightBar" style="">
 
-                            <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
-                        </div>
-                    </div> 
-                    <div class="col-md-3">
                         <?php
                         echo getAdsSideRectangle();
                         ?>
+
                     </div>
-                </div>
+                    <div class="col-sm-1 col-md-1"></div>
+                </div>    
+
             </div>
+
+
+
+
+
+
+
+
+
+
             <?php
         } else {
             ?>
@@ -101,36 +136,12 @@ $liveDO = AVideoPlugin::getObjectData("Live");
         }
         ?>
 
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
-        <script>
-            /*** Handle jQuery plugin naming conflict between jQuery UI and Bootstrap ***/
-            $.widget.bridge('uibutton', $.ui.button);
-            $.widget.bridge('uitooltip', $.ui.tooltip);
-        </script>  
-
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.js" type="text/javascript"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/videojs-contrib-hls.min.js" type="text/javascript"></script>
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
-        ?>
-
-        <?php
-        if (empty($liveDO->disableDVR)) {
-            ?>
-            <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/videojs-dvr/videojs-dvrseekbar.min.js" type="text/javascript"></script>          
-            <script>
-            $(document).ready(function () {
-                if (typeof player === 'undefined') {
-                    player = videojs('mainVideo');
-                }
-
-                player.dvrseekbar();
-            });
-            </script>      
-            <?php
-        }
-        ?>    
+        ?>  
         <?php
         if (!empty($p)) {
             $p->getChat($uuid);

@@ -56,32 +56,60 @@ if (User::isAdmin()) {
                                             <span class="fa fa-info-circle"></span>
                                             <?php echo __("We would like to thanks http://bootswatch.com/"); ?>
                                         </div>
-                                        <?php
-                                        foreach (glob("{$global['systemRootPath']}view/css/custom/*.css") as $filename) {
-                                            //echo "$filename size " . filesize($filename) . "\n";
-                                            $file = basename($filename);         // $file is set to "index.php"
-                                            $fileEx = basename($filename, ".css"); // $file is set to "index"
-                                            $savedTheme = $config->getTheme();
-                                            if ($fileEx == $savedTheme) {
+                                        <div class="row">
+                                            <div class="col-xs-4">
+                                                <div class="panel panel-success">
+                                                    <div class="panel-heading">Customize Your site colors <div class="pull-right"><?php echo getPluginSwitch('Customize'); ?></div></div>
+                                                    <div class="panel-body">
+                                                        <img src="<?php echo $global['webSiteRootURL'], "view/css/custom/customize.png"; ?>" class="img-responsive">
+                                                        <?php
+                                                        if (!AVideoPlugin::exists('Customize')) {
+                                                            ?>
+                                                            <a href="https://youphp.tube/plugins/" class="btn btn-success btn-radio btn-block btn-xs" id=""> <i class="fas fa-palette"></i>  Purchase the Customize Plugin</a>
+                                                            <?php
+                                                        } else {
+                                                            ?>
+                                                            <a href="<?php echo $global['webSiteRootURL']; ?>admin/?page=design_colors" class="btn btn-success btn-radio btn-block btn-xs" id=""> <i class="fas fa-palette"></i>  Customize Colors</a>
+                                                            <?php
+                                                        }
+                                                        ?>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                            <?php
+                                            foreach (glob("{$global['systemRootPath']}view/css/custom/*.css") as $filename) {
+                                                //echo "$filename size " . filesize($filename) . "\n";
+                                                $file = basename($filename);         // $file is set to "index.php"
+                                                $fileEx = basename($filename, ".css"); // $file is set to "index"
+                                                $savedTheme = $config->getTheme();
+                                                if ($fileEx == $savedTheme) {
+                                                    ?>
+                                                    <script>
+                                                        $(document).ready(function () {
+                                                            setTimeout(function () {
+                                                                $("#btn<?php echo ($fileEx); ?>").trigger("click");
+                                                            }, 1000);
+                                                        });
+                                                    </script>
+                                                    <?php
+                                                }
                                                 ?>
-                                                <script>
-                                                    $(document).ready(function () {
-                                                        setTimeout(function () {
-                                                            $("#btn<?php echo ($fileEx); ?>").trigger("click");
-                                                        }, 1000);
-                                                    });
-                                                </script>
+                                                <div class="col-xs-4">
+                                                    <div class="panel panel-default">
+                                                        <div class="panel-heading"><?php echo ucfirst($fileEx); ?></div>
+                                                        <div class="panel-body">
+
+                                                            <img src="<?php echo $global['webSiteRootURL'], "view/css/custom/", $fileEx, ".png"; ?>" class="img-responsive img-radio">
+                                                            <button type="button" class="btn btn-default btn-radio btn-block btn-xs" id="btn<?php echo ($fileEx); ?>"><?php echo ucfirst($fileEx); ?></button>
+                                                            <input type="checkbox" value="<?php echo ($fileEx); ?>"  class="hidden left-item">
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 <?php
                                             }
                                             ?>
-                                            <div class="col-xs-4" style="padding: 10px;">
-                                                <img src="<?php echo $global['webSiteRootURL'], "view/css/custom/", $fileEx, ".png"; ?>" class="img-responsive img-radio">
-                                                <button type="button" class="btn btn-default btn-radio btn-block btn-xs" id="btn<?php echo ($fileEx); ?>"><?php echo ucfirst($fileEx); ?></button>
-                                                <input type="checkbox" value="<?php echo ($fileEx); ?>"  class="hidden left-item">
-                                            </div>
-                                            <?php
-                                        }
-                                        ?>
+                                        </div>
 
                                     </div>
                                 </div>
@@ -250,15 +278,23 @@ if (User::isAdmin()) {
                                             <div class="panel-heading"><h2><?php echo __("Basic"); ?></h2></div>
                                             <div class="panel-body">
                                                 <div class="form-group">
-                                                    <label class="col-md-4 control-label"><?php echo __("Language"); ?></label>
+                                                  <label class="col-md-4 control-label"><?php echo __("Language"); ?></label>
                                                     <div class="col-md-8 inputGroupContainer">
                                                         <div class="input-group">
                                                             <span class="input-group-addon"><i class="glyphicon glyphicon-flag"></i></span>
-                                                            <input  id="inputLanguage" placeholder="<?php echo __("Language"); ?>" class="form-control"  type="text"  value="<?php echo $config->getLanguage(); ?>" >
+                                                            <select class="form-control" id="inputLanguage" >
+                                                            <?php
+                                                                foreach (glob("{$global['systemRootPath']}locale/??.php") as $filename) {
+                                                                    $filename = basename($filename);
+                                                                    $fileEx = basename($filename, ".php");
+                                                                    echo "<option value=\"" . $fileEx . "\"" . (($config->getLanguage() == $fileEx) ? " selected" : "") . ">". $fileEx ."</option>";
+                                                                           }
+                                                            ?>
+                                                            </select>
                                                         </div>
-                                                        <small class="form-text text-muted"><?php echo __("This value must match with the language files on"); ?><code><?php echo $global['systemRootPath']; ?>locale</code></small>
                                                     </div>
                                                 </div>
+
                                                 <div class="form-group">
                                                     <label class="col-md-4 control-label"><?php echo __("E-mail"); ?></label>
                                                     <div class="col-md-8 inputGroupContainer">
@@ -407,8 +443,8 @@ if (User::isAdmin()) {
                                                             <input id="encoder_url" aria-describedby="encoder_urlHelp" class="form-control"  type="url" value="<?php echo $config->_getEncoderURL(); ?>" >
                                                             <small id="encoder_urlHelp" class="form-text text-muted">
                                                                 <?php echo __("You need to set up an encoder server"); ?><br>
-                                                                <?php echo __("You can use our public encoder on"); ?>: https://encoder2.avideo.com/ or
-                                                                <a href="https://github.com/WWBN/AVideo-Encoder" class="btn btn-default btn-xs" target="_blank"><?php echo __("For faster encode, download your own encoder"); ?></a>
+                                                                <?php echo __("You can use our public encoder on"); ?>: https://encoder1.avideo.com/ or
+                                                                <a href="https://github.com/WWBN/AVideo-Encoder" class="btn btn-default btn-xs" target="_blank" rel="noopener noreferrer"><?php echo __("For faster encode, download your own encoder"); ?></a>
                                                             </small>
                                                         </div>
                                                     </div>
@@ -479,7 +515,7 @@ if (User::isAdmin()) {
                                                         <h3>
                                                             <i class="fas fa-info-circle"></i>
                                                             If you are not sure how to configure your email, 
-                                                            please try <a href="https://github.com/WWBN/AVideo/wiki/Setting-up-AVideo-Platform-to-send-emails" target="_blank">this help</a>
+                                                            please try <a href="https://github.com/WWBN/AVideo/wiki/Setting-up-AVideo-Platform-to-send-emails" target="_blank" rel="noopener noreferrer" >this help</a>
                                                         </h3>
                                                     </div>
 
@@ -573,7 +609,7 @@ if (User::isAdmin()) {
                                     <label class="col-md-2 control-label"><?php echo __("Head Code"); ?></label>
                                     <div class="col-md-10">
                                         <textarea id="head" class="form-control" type="text" rows="20" ><?php echo $config->getHead(); ?></textarea>
-                                        <small>For Google Analytics code: <a href='https://analytics.google.com'  target="_blank">https://analytics.google.com</a></small><br>
+                                        <small>For Google Analytics code: <a href='https://analytics.google.com'  target="_blank" rel="noopener noreferrer">https://analytics.google.com</a></small><br>
                                         <small>Leave blank for native code</small>
                                     </div>
                                 </div>

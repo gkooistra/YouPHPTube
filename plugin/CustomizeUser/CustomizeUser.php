@@ -29,12 +29,20 @@ class CustomizeUser extends PluginAbstract {
         $obj->userCanAllowFilesShare = false;
         $obj->userCanAllowFilesDownloadSelectPerVideo = false;
         $obj->userCanAllowFilesShareSelectPerVideo = false;
+        $obj->blockEmbedFromSharedVideos = true;
         $obj->userCanProtectVideosWithPassword = true;
+        $obj->userCanChangeVideoOwner = false;
 
         $obj->usersCanCreateNewCategories = !isset($advancedCustom->usersCanCreateNewCategories) ? false : $advancedCustom->usersCanCreateNewCategories;
         $obj->userCanNotChangeCategory = !isset($advancedCustom->userCanNotChangeCategory) ? false : $advancedCustom->userCanNotChangeCategory;
         $obj->userCanNotChangeUserGroup = false;
+        
+        $o = new stdClass();
+        $o->type = array(0=>_("Default"))+UserGroups::getAllUsersGroupsArray();
+        $o->value = 0;
+        $obj->userDefaultUserGroup = $o;
         $obj->userMustBeLoggedIn = !isset($advancedCustom->userMustBeLoggedIn) ? false : $advancedCustom->userMustBeLoggedIn;
+        $obj->userMustBeLoggedInCloseButtonURL = "";
         $obj->onlyVerifiedEmailCanUpload = !isset($advancedCustom->onlyVerifiedEmailCanUpload) ? false : $advancedCustom->onlyVerifiedEmailCanUpload;
         $obj->sendVerificationMailAutomaic = !isset($advancedCustom->sendVerificationMailAutomaic) ? false : $advancedCustom->sendVerificationMailAutomaic;
         
@@ -55,6 +63,9 @@ class CustomizeUser extends PluginAbstract {
         $obj->doNotIndentifyByUserName = !isset($advancedCustom->doNotIndentifyByUserName) ? false : $advancedCustom->doNotIndentifyByUserName;
         $obj->hideRemoveChannelFromModeYoutube = !isset($advancedCustom->hideRemoveChannelFromModeYoutube) ? false : $advancedCustom->hideRemoveChannelFromModeYoutube;
         $obj->showChannelBannerOnModeYoutube = !isset($advancedCustom->showChannelBannerOnModeYoutube) ? false : $advancedCustom->showChannelBannerOnModeYoutube;
+        $obj->showChannelHomeTab = true;
+        $obj->showChannelVideosTab = true;
+        $obj->showChannelProgramsTab = true;
         $obj->encryptPasswordsWithSalt = !isset($advancedCustom->encryptPasswordsWithSalt) ? false : $advancedCustom->encryptPasswordsWithSalt;
         $obj->requestCaptchaAfterLoginsAttempts = !isset($advancedCustom->requestCaptchaAfterLoginsAttempts) ? 0 : $advancedCustom->requestCaptchaAfterLoginsAttempts;
         $obj->disableSignOutButton = false;
@@ -75,6 +86,11 @@ class CustomizeUser extends PluginAbstract {
         $o->type = "textarea";
         $o->value = "";
         $obj->messageToAppearBelowLoginBox = $o;
+        
+        $o = new stdClass();
+        $o->type = "textarea";
+        $o->value = "";
+        $obj->messageToAppearAboveSignUpBox = $o;
 
         $obj->keepViewerOnChannel = false;
         $obj->showLeaveChannelButton = false;
@@ -144,6 +160,7 @@ class CustomizeUser extends PluginAbstract {
         global $advancedCustom;
 
         if (!empty($advancedCustom->disableShareAndPlaylist)) {
+            _error_log("CustomizeUser::canShareVideosFromUser disableShareAndPlaylist");
             return false;
         }
 
@@ -253,15 +270,18 @@ class CustomizeUser extends PluginAbstract {
     static function canShareVideosFromVideo($videos_id) {
         $video = new Video("", "", $videos_id);
         if (empty($video)) {
+            _error_log("CustomizeUser::canShareVideosFromVideo video not found");
             return false;
         }
         $users_id = $video->getUsers_id();
         if (!self::canShareVideosFromUser($users_id)) {
+            _error_log("CustomizeUser::canShareVideosFromVideo canShareVideosFromUser($users_id) = false");
             return false;
         }
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
-        if (!empty($obj->userCanAllowFilesShareSelectPerVideo)) {
+        if (!empty($obj->userCanAllowFilesShareSelectPerVideo) && !empty($obj->blockEmbedFromSharedVideos)) {
             if (empty($video->getCan_share())) {
+                _error_log("CustomizeUser::canShareVideosFromVideo video->getCan_share() = false");
                 return false;
             }
         }

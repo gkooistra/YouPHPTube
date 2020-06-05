@@ -4,6 +4,7 @@ global $global, $config;
 if(!isset($global['systemRootPath'])){
     require_once '../videos/configuration.php';
 }
+session_write_close();
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 header('Content-Type: application/json');
@@ -31,6 +32,7 @@ foreach ($videos as $key => $value) {
     $videos[$key]['next_video'] = array();
     $videos[$key]['description'] = preg_replace('/[\x00-\x1F\x7F]/u', '', $videos[$key]['description']);
     $videos[$key]['title'] = preg_replace('/[\x00-\x1F\x7F]/u', '', $videos[$key]['title']);
+    $videos[$key]['clean_title'] = preg_replace('/[\x00-\x1F\x7F]/u', '', $videos[$key]['clean_title']);
     $videos[$key]['typeLabels'] = Video::getVideoTypeLabels($videos[$key]['filename']);
     if(!empty($videos[$key]['next_videos_id'])){
         unset($_POST['searchPhrase']);
@@ -38,6 +40,10 @@ foreach ($videos as $key => $value) {
     }
     if($videos[$key]['type']=='article'){
         $videos[$key]['videosURL'] = getVideosURLArticle($videos[$key]['filename']);
+    }else if($videos[$key]['type']=='image'){
+        $videos[$key]['videosURL'] = getVideosURLIMAGE($videos[$key]['filename']);
+    }else if($videos[$key]['type']=='zip'){
+        $videos[$key]['videosURL'] = getVideosURLZIP($videos[$key]['filename']);
     }else 
     if($videos[$key]['type']=='pdf'){
         $videos[$key]['videosURL'] = getVideosURLPDF($videos[$key]['filename']);

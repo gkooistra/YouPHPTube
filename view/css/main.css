@@ -6,13 +6,14 @@ html {
     scroll-behavior: smooth;
 }
 body {
-    padding-top: 60px;
+    padding-top: 50px;
 }
 .nopadding {
     padding: 0 !important;
     margin: 0 !important;
 }
-.videoLink .duration {
+.videoLink > .duration, 
+time.duration{
     position: absolute;
     background: rgba(0, 0, 0, 0.6)!important;
     padding: 2px;
@@ -155,10 +156,10 @@ footer ul.list-inline li {
     }
 }
 @media (max-width: 450px) {
-    #captchaText, .input-group{
+    #captchaText, .captcha .input-group{
         display: block;
     }
-    .input-group-addon:first-child {
+    .captcha .input-group-addon:first-child {
         border-right: 1px solid rgb(204, 204, 204);
     }
 }
@@ -460,7 +461,9 @@ img.rotate-90 {
 }
 .profileBg {
     padding: 20px;
-    min-height: 200px;
+    height: 27vw;
+    min-height: 90px;
+    max-height: 300px;
     margin: 10px 0;
     -webkit-background-size: cover;
     -moz-background-size: cover;
@@ -488,8 +491,8 @@ img.rotate-90 {
     margin-bottom: 150px;
 }
 .navbar-brand {
-    padding: 0px !important; /* firefox bug fix */
-    margin-left: 10px !important;
+    padding: 0px ; /* firefox bug fix */
+    margin-left: 10px;
     height: auto;
 }
 .navbar-brand>img {
@@ -597,7 +600,7 @@ nav ul.items-container li ul.right-menus li li {
     z-index: 100;
     overflow: visible;
 }
-.floatVideo #main-video {
+.floatVideo > #main-video {
     -webkit-box-shadow: 2px 0px 19px 2px rgba(0, 0, 0, 1);
     -moz-box-shadow: 2px 0px 19px 2px rgba(0, 0, 0, 1);
     box-shadow: 2px 0px 19px 2px rgba(0, 0, 0, 1);
@@ -746,10 +749,14 @@ img.blur{
 }
 #mainNavBar ul.items-container li:last-child {
     margin-right: 0 !important;
-}
+}  
 
 .ima-controls-div{
     pointer-events: none !important;
+}
+
+.ima-controls-div div{
+    pointer-events: auto !important;
 }
 
 .btn-circle {
@@ -773,6 +780,7 @@ img.blur{
 ::-webkit-scrollbar
 {
     width: 8px;
+    height: 8px;
     background-color: rgba(100,100,100,0.01);
     overflow: hidden;
 }
@@ -786,4 +794,36 @@ img.blur{
 
 .videoAdUiSkipContainer {
     z-index: 99 !important;
+}
+
+
+@media (min-width: 1200px) and (max-width: 1600px) {
+  .hidden-mdx {
+    display: none !important;
+  }
+}
+
+.swal-noform .form-group{
+    display: none;
+}
+
+#modeYoutubeBottomContentDetails{
+    overflow: hidden;
+}
+
+.cursorPointer:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.btn-dark {
+  color: #CCC;
+  background-color: #111;
+  border-color: #000;
+}
+
+.btn-dark:hover {
+  color: #FFF;
+  background-color: #000;
+  border-color: #000;
 }

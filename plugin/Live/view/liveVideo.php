@@ -1,7 +1,7 @@
 <link href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/live.css" rel="stylesheet" type="text/css"/>
-<div class="row main-video">
-    <div class="col-xs-12 col-sm-12 col-lg-2"></div>
-    <div class="col-xs-12 col-sm-12 col-lg-8">
+<div class="row main-video" id="mvideo">
+    <div class="firstC col-sm-2 col-md-2"></div>
+    <div class="secC col-sm-8 col-md-8">
         <div id="videoContainer">
             <div id="floatButtons" style="display: none;">
                 <p class="btn btn-outline btn-xs move">
@@ -50,15 +50,17 @@
             };
             ?>
         </div>
-    </div> 
+    </div>
+    <div class="col-sm-2 col-md-2"></div>
+</div>
 
-    <div class="col-xs-12 col-sm-12 col-lg-2"></div>
-</div><!--/row-->
+
+
 <script>
 
     $(document).ready(function () {
         if (typeof player === 'undefined') {
-            player = videojs('mainVideo');
+            player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
         }
         player.ready(function () {
             var err = this.error();

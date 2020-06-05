@@ -39,10 +39,11 @@ class YouPHPFlix2 extends PluginAbstract {
         $obj->MostPopularAutoPlay = true;
         $obj->MostWatched = true;
         $obj->MostWatchedAutoPlay = true;
+        $obj->SortByName = false;
+        $obj->SortByNameAutoPlay = true;
         $obj->Categories = true;
         $obj->CategoriesAutoPlay = true;
         $obj->maxVideos = 20;
-        $obj->SortByName = false;
         $obj->BigVideo = true;
         $obj->RemoveBigVideoDescription = false;
         $obj->BigVideoPlayIcon = true;
@@ -75,6 +76,10 @@ class YouPHPFlix2 extends PluginAbstract {
     public function getHeadCode() {
         global $global;
         $obj = $this->getDataObject();
+        $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
+        if($baseName == 'channel.php'){
+            return "";
+        }
         $css = "";
         //$css .= "<link href=\"{$global['webSiteRootURL']}view/css/custom/".$obj->theme.".css\" rel=\"stylesheet\" type=\"text/css\"/>";
         $css .= "<link href=\"{$global['webSiteRootURL']}plugin/YouPHPFlix2/view/css/style.css?".  filectime("{$global['systemRootPath']}plugin/YouPHPFlix2/view/css/style.css")."\" rel=\"stylesheet\" type=\"text/css\"/>";

@@ -46,18 +46,39 @@ $theme = $config->getTheme();
 <meta name="msapplication-TileImage" content="<?php echo $config->getFavicon(true); ?>">
 
 <!-- <link rel="stylesheet" type="text/css" media="only screen and (max-device-width: 768px)" href="view/css/mobile.css" /> -->
+<link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo $global['webSiteRootURL']; ?>view/js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo $global['webSiteRootURL']; ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo $global['webSiteRootURL']; ?>view/css/flagstrap/css/flags.css" rel="stylesheet" type="text/css"/>
 <?php
 $cssFiles = array();
-$cssFiles[] = "view/js/seetalert/sweetalert.css";
+//$cssFiles[] = "view/js/seetalert/sweetalert.css";
 $cssFiles[] = "view/bootstrap/bootstrapSelectPicker/css/bootstrap-select.min.css";
 $cssFiles[] = "view/js/bootgrid/jquery.bootgrid.css";
 $cssFiles[] = "view/css/custom/{$theme}.css";
+$cssFiles = array_merge($cssFiles);
+$cssURL = combineFiles($cssFiles, "css");
+?>
+<link href="<?php echo $cssURL; ?>" rel="stylesheet" type="text/css"/>
+<?php
+$filename = "{$global['systemRootPath']}videos/cache/custom.css";
+if($theme === "default" && !empty($customizePlugin->showCustomCSS) && file_exists($filename)){
+    echo '<link href="'.$global['webSiteRootURL'].'videos/cache/custom.css?'.  filectime($filename) .'" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
+}else{
+    if($theme !== "default"){
+        echo "<!-- theme is not default -->";
+    }
+    if(empty($customizePlugin->showCustomCSS)){
+        echo "<!-- showCustomCSS is empty -->";
+    }
+    if(!file_exists($filename)){
+        echo "<!-- css file does not exist -->";
+    }
+    echo '<link href="" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
+}
+$cssFiles = array();
 $cssFiles[] = "view/css/main.css";
-//$cssFiles[] = "view/js/bootstrap-toggle/bootstrap-toggle.min.css";
 $cssFiles = array_merge($cssFiles, AVideoPlugin::getCSSFiles());
 $cssURL = combineFiles($cssFiles, "css");
 ?>
@@ -90,7 +111,7 @@ if (isRTL()) {
     <?php
 }
 ?>
-<script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.3.1.min.js"></script>
+<script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.5.1.min.js"></script>
 <script>
     var webSiteRootURL = '<?php echo $global['webSiteRootURL']; ?>';
     var player;

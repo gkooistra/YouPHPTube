@@ -24,7 +24,7 @@ class VideoTags extends PluginAbstract {
 
     public function getEmptyDataObject() {
         $obj = new stdClass();
-        $obj->onlyAdminCanCreateTags = true;
+        $obj->onlyAdminCanCreateTags = false;
         $obj->maxTags = 100;
         $obj->maxChars = 100;
         return $obj;
@@ -131,7 +131,7 @@ var citynames' . $tagTypesId . ' = new Bloodhound({
   datumTokenizer: Bloodhound.tokenizers.obj.whitespace(\'name\'),
   queryTokenizer: Bloodhound.tokenizers.whitespace,
   prefetch: {
-    url: \'' . $global['webSiteRootURL'] . 'plugin/VideoTags/tags.json.php?tags_types_id=' . $tagTypesId . '\',
+    url: \'' . $global['webSiteRootURL'] . 'plugin/VideoTags/tags.json.php?tags_types_id=' . $tagTypesId . '?\'+Math.random(),
     filter: function(list) {
       return $.map(list, function(cityname) {
         return { name: cityname }; });

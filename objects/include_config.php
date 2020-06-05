@@ -4,7 +4,12 @@ $global['webSiteRootURL'] .= (substr($global['webSiteRootURL'], -1) == '/' ? '' 
 $global['systemRootPath'] .= (substr($global['systemRootPath'], -1) == '/' ? '' : '/');
 $global['session_name'] = preg_replace( '/[\W]/', '', $global['webSiteRootURL']);
 session_name($global['session_name']);
-ini_set('error_log', $global['systemRootPath'] . 'videos/avideo.log');
+
+if(empty($global['logfile'])){
+    $global['logfile'] = $global['systemRootPath'] . 'videos/avideo.log';
+}
+
+ini_set('error_log', $global['logfile']);
 global $global, $config, $advancedCustom, $advancedCustomUser;
 
 $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
@@ -19,22 +24,24 @@ if(!empty($global['mysqli_charset'])){
     $global['mysqli']->set_charset($global['mysqli_charset']);
 }
 
-$now = new DateTime();
-$mins = $now->getOffset() / 60;
-$sgn = ($mins < 0 ? -1 : 1);
-$mins = abs($mins);
-$hrs = floor($mins / 60);
-$mins -= $hrs * 60;
-$offset = sprintf('%+d:%02d', $hrs * $sgn, $mins);
-$global['mysqli']->query("SET time_zone='$offset';");
+if(empty($global['disableTimeFix'])){
+    $now = new DateTime();
+    $mins = $now->getOffset() / 60;
+    $sgn = ($mins < 0 ? -1 : 1);
+    $mins = abs($mins);
+    $hrs = floor($mins / 60);
+    $mins -= $hrs * 60;
+    $offset = sprintf('%+d:%02d', $hrs * $sgn, $mins);
+    $global['mysqli']->query("SET time_zone='$offset';");
+}
 
 require_once $global['systemRootPath'] . 'objects/mysql_dal.php';
 require_once $global['systemRootPath'] . 'objects/configuration.php';
 require_once $global['systemRootPath'] . 'objects/security.php';
 $config = new Configuration();
 
-// for update config from old versions
-if (empty($global['configurationVersion']) || $global['configurationVersion'] < 2) {
+// for update config from old versions 2020-05-11
+if (empty($global['webSiteRootPath']) || $global['configurationVersion'] < 3.1) {
     Configuration::rewriteConfigFile();
 }
 
@@ -105,8 +112,9 @@ if ($baseName !== 'xsendfile.php' && class_exists("Plugin")) {
 if (empty($global['bodyClass'])) {
     $global['bodyClass'] = "";
 }
-$global['allowedExtension'] = array('gif', 'jpg', 'mp4', 'webm', 'mp3', 'ogg', 'zip');
+$global['allowedExtension'] = array('gif', 'jpg', 'mp4', 'webm', 'mp3','m4a', 'ogg', 'zip');
 $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
 $advancedCustomUser = AVideoPlugin::getObjectData("CustomizeUser");
+$customizePlugin = AVideoPlugin::getObjectData("Customize");
 AVideoPlugin::loadPlugin("PlayerSkins");
 $sitemapFile = "{$global['systemRootPath']}sitemap.xml";

@@ -184,7 +184,7 @@ class Configuration {
     }
 
     function setAuthCanUploadVideos($authCanUploadVideos) {
-        $this->authCanUploadVideos = $authCanUploadVideos;
+        $this->authCanUploadVideos = intval($authCanUploadVideos);
     }
 
     function setAuthCanViewChart($authCanViewChart) {
@@ -319,24 +319,43 @@ class Configuration {
         if (empty($global['salt'])) {
             $global['salt'] = uniqid();
         }
+        if (empty($global['disableTimeFix'])) {
+            $global['disableTimeFix'] = 0;
+        }
+        if(empty($global['logfile'])){
+            $global['logfile'] = $global['systemRootPath'] . 'videos/avideo.log';
+        }
         $content = "<?php
-\$global['configurationVersion'] = 2;
-\$global['disableAdvancedConfigurations'] = 0;
-\$global['videoStorageLimitMinutes'] = 0;
+\$global['configurationVersion'] = 3.1;
+\$global['disableAdvancedConfigurations'] = {$global['disableAdvancedConfigurations']};
+\$global['videoStorageLimitMinutes'] = {$global['videoStorageLimitMinutes']};
+\$global['disableTimeFix'] = {$global['disableTimeFix']};
+\$global['logfile'] = '{$global['logfile']}';
 if(!empty(\$_SERVER['SERVER_NAME']) && \$_SERVER['SERVER_NAME']!=='localhost' && !filter_var(\$_SERVER['SERVER_NAME'], FILTER_VALIDATE_IP)) { 
     // get the subdirectory, if exists
-    \$subDir = str_replace(array(\$_SERVER[\"DOCUMENT_ROOT\"], 'videos/configuration.php'), array('',''), __FILE__);
+    \$file = str_replace(\"\\\\\", \"/\", __FILE__);
+    \$subDir = str_replace(array(\$_SERVER[\"DOCUMENT_ROOT\"], 'videos/configuration.php'), array('',''), \$file);
     \$global['webSiteRootURL'] = \"http\".(!empty(\$_SERVER['HTTPS'])?\"s\":\"\").\"://\".\$_SERVER['SERVER_NAME'].\$subDir;
 }else{
     \$global['webSiteRootURL'] = '{$global['webSiteRootURL']}';
 }
 \$global['systemRootPath'] = '{$global['systemRootPath']}';
 \$global['salt'] = '{$global['salt']}';
-\$global['enableDDOSprotection'] = 1;
-\$global['ddosMaxConnections'] = 40;
-\$global['ddosSecondTimeout'] = 5;
-\$global['strictDDOSprotection'] = 0;
+\$global['enableDDOSprotection'] = {$global['enableDDOSprotection']};
+\$global['ddosMaxConnections'] = {$global['ddosMaxConnections']};
+\$global['ddosSecondTimeout'] = {$global['ddosSecondTimeout']};
+\$global['strictDDOSprotection'] = {$global['strictDDOSprotection']};
 \$global['noDebug'] = 0;
+\$global['webSiteRootPath'] = '';
+if(empty(\$global['webSiteRootPath'])){
+    preg_match('/https?:\/\/[^\/]+(.*)/i', \$global['webSiteRootURL'], \$matches);
+    if(!empty(\$matches[1])){
+        \$global['webSiteRootPath'] = \$matches[1];
+    }
+}
+if(empty(\$global['webSiteRootPath'])){
+    die('Please configure your webSiteRootPath');
+}
 
 \$mysqlHost = '{$mysqlHost}';
 \$mysqlUser = '{$mysqlUser}';
@@ -441,7 +460,7 @@ require_once \$global['systemRootPath'].'objects/include_config.php';
         }
 
         if (empty($this->encoderURL)) {
-            return "https://encoder2.avideo.com/";
+            return "https://encoder1.avideo.com/";
         }
         if (substr($this->encoderURL, -1) !== '/') {
             $this->encoderURL .= "/";

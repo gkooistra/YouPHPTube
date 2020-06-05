@@ -62,6 +62,9 @@ if ($status !== 'u' && $status !== 'a') {
     if (empty($advancedCustom->makeVideosInactiveAfterEncode)) {
         // set active
         $video->setStatus('a');
+    } else if (empty($advancedCustom->makeVideosUnlistedAfterEncode)) {
+        // set active
+        $video->setStatus('u');
     } else {
         $video->setStatus('i');
     }
@@ -149,6 +152,10 @@ if (!empty($_FILES['gifimage']['tmp_name']) && !file_exists("{$destination_local
         _error_log("aVideoEncoder.json: " . $obj->msg);
         die(json_encode($obj));
     }
+}
+
+if (!empty($_POST['encoderURL'])) {
+    $video->setEncoderURL($_POST['encoderURL']);
 }
 
 if (!empty($_POST['categories_id'])) {

@@ -21,40 +21,25 @@
     ?>
 </footer>
 <script>
-    window.onerror = function myErrorHandler(errorMsg, url, lineNumber) {
-        if (url == "") {
-            url = "embed in html";
-        }
-        $.ajax({
-            url: webSiteRootURL + "objects/ajaxErrorCatcher.php?error=" + encodeURI("JS-Err: " + errorMsg + " @ line " + lineNumber + " in file " + url + " at visit on <?php echo $_SERVER['REQUEST_URI']; ?>"),
-            context: document.body
-        }).done(function () {
-            console.log("<?php echo 'A Javascript-error happend. Please tell your admin to clear the folder videos/cache. \r\n If this doesn\'t help, attach these infos to a github-pull-request:'; ?> \r\n Msg:" + errorMsg + " \r\n Url: " + url + ", line: " + lineNumber + ", Address: <?php echo $_SERVER['REQUEST_URI'] ?>");
-        });
-        return false;
-    }
-
-    // Just for testing
-    // throw "A Bug";
     $(function () {
 <?php
 if (!empty($_GET['error'])) {
     ?>
-            swal({title: "Sorry!", text: "<?php echo $_GET['error']; ?>", type: "error", html: true});
+            swal({title: "Sorry!", text: "<?php echo $_GET['error']; ?>", icon: "error", html: true});
     <?php
 }
 ?>
 <?php
 if (!empty($_GET['msg'])) {
     ?>
-            swal({title: "Ops!", text: "<?php echo $_GET['msg']; ?>", type: "info", html: true});
+            swal({title: "Ops!", text: "<?php echo $_GET['msg']; ?>", icon: "info", html: true});
     <?php
 }
 ?>
 <?php
 if (!empty($_GET['success']) && strlen($_GET['success']) > 4) {
     ?>
-            swal({title: "<?php echo __("Congratulations"); ?>", text: "<?php echo $_GET['success']; ?>", type: "success", html: true});
+            swal({title: "<?php echo __("Congratulations"); ?>", text: "<?php echo $_GET['success']; ?>", icon: "success", html: true});
     <?php
 }
 ?>
@@ -69,6 +54,7 @@ $jsFiles = array();
 //$jsFiles[] = "view/js/jquery.lazy/jquery.lazy.min.js";
 //$jsFiles[] = "view/js/jquery.lazy/jquery.lazy.plugins.min.js";
 //$jsFiles[] = "view/js/script.js";
+$jsFiles[] = "view/js/jquery-ui/jquery-ui.min.js";
 $jsFiles[] = "view/bootstrap/js/bootstrap.min.js";
 $jsFiles[] = "view/js/seetalert/sweetalert.min.js";
 $jsFiles[] = "view/js/bootpag/jquery.bootpag.min.js";

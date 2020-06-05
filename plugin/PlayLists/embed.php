@@ -71,7 +71,7 @@ foreach ($playList as $value) {
 
         <link href="<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.css" rel="stylesheet">
 
-        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.3.1.min.js" type="text/javascript"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.5.1.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
 
         <style>
@@ -130,7 +130,7 @@ foreach ($playList as $value) {
         </div>
 
         <script src="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.js" type="text/javascript"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.min.js" type="text/javascript"></script>
         <?php
         echo AVideoPlugin::afterVideoJS();
         ?>
@@ -164,6 +164,11 @@ foreach ($playList as $value) {
 
             player.playlist(playerPlaylist);
             player.playlist.autoadvance(0);
+            player.on('play', function () {
+                //console.log(player.playlist.currentIndex());
+                //console.log(playerPlaylist[player.playlist.currentIndex()].videos_id);
+                addView(playerPlaylist[player.playlist.currentIndex()].videos_id, 0);
+            });
             // Initialize the playlist-ui plugin with no option (i.e. the defaults).
             player.playlistUi();
             var timeout;

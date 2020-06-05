@@ -18,7 +18,7 @@ class TheaterButton extends PluginAbstract {
     }
     
     public function getPluginVersion() {
-        return "1.0";   
+        return "1.1";   
     }
 
     public function getEmptyDataObject() {
@@ -30,7 +30,7 @@ class TheaterButton extends PluginAbstract {
     
     public function getHeadCode() {
         global $global;
-        if (empty($_GET['videoName']) || isMobile()) {
+        if (!$this->showButton()) {
             return "";
         }
         $tmp = "mainVideo";
@@ -73,16 +73,27 @@ class TheaterButton extends PluginAbstract {
     }
     
     private function showButton(){
-        global $global, $isEmbed, $advancedCustom;
-        if ((empty($_GET['videoName'])) || isMobile()) {
+        global $global, $isEmbed, $advancedCustom, $video;
+        
+        if (empty($_GET['videoName']) && empty($_GET['u']) && empty($_GET['link'])) {
             return false;
         }
-        $video = Video::getVideoFromCleanTitle($_GET['videoName']);
-        if(($isEmbed==1 || $video['type']=='embed') && $advancedCustom->disableYoutubePlayerIntegration){
+        
+        if(!empty($video) && $video['type']=='notfound'){
             return false;
         }
-        if($video['type']=='article' || $video['type']=='pdf'){
+        
+        if (isMobile()) {
             return false;
+        }
+        if(!empty($_GET['videoName'])){
+            $videoT = Video::getVideoFromCleanTitle($_GET['videoName']);
+            if(($isEmbed==1 || $videoT['type']=='embed') && $advancedCustom->disableYoutubePlayerIntegration){
+                return false;
+            }
+            if($videoT['type']=='article' || $videoT['type']=='pdf' || $videoT['type']=='image' || $videoT['type']=='zip'){
+                return false;
+            }
         }
         return true;
     }
