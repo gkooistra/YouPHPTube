@@ -231,7 +231,7 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
             <div class="text-muted galeryDetails" style="overflow: hidden;">
                 <div>
                     <?php if (empty($_GET['catName'])) { ?>
-                        <a class="label label-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>/">
+                        <a class="label label-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>">
                             <?php
                             if (!empty($value['iconClass'])) {
                                 ?>
@@ -282,7 +282,7 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
                 </div>
                 <div>
                     <i class="fa fa-user"></i>
-                    <a class="text-muted" href="<?php echo User::getChannelLink($value['users_id']); ?>/">
+                    <a class="text-muted" href="<?php echo User::getChannelLink($value['users_id']); ?>">
                         <?php echo $name; ?>
                     </a>
                     <?php
@@ -404,7 +404,7 @@ function createChannelItem($users_id, $photoURL = "", $identification = "", $row
         <h3 class="galleryTitle">
             <img src="<?php
             echo $photoURL;
-            ?>" class="img img-circle img-responsive pull-left" style="max-height: 20px;">
+            ?>" class="img img-circle img-responsive pull-left" style="max-height: 20px;" alt="Channel Owner">
             <span style="margin: 0 5px;">
                 <?php
                 echo $identification;
@@ -417,7 +417,7 @@ function createChannelItem($users_id, $photoURL = "", $identification = "", $row
             echo Subscribe::getButton($users_id);
             ?>
         </h3>
-        <div class="row">
+        <div class="">
             <?php
             $countCols = 0;
             unset($_POST['sort']);

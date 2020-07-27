@@ -20,7 +20,7 @@ class AVideoPlugin {
         $time = $time[1] + $time[0];
         $finish = $time;
         $total_time = round(($finish - $global['AVideoPluginStart']), 4);
-        if($total_time > 0.05){
+        if($total_time > 0.25){
             _error_log("Warning: The plugin [{$pluginName}] takes {$total_time} seconds to complete. ", AVideoLog::$WARNING);
             _error_log($_SERVER["SCRIPT_FILENAME"], AVideoLog::$WARNING);
             
@@ -325,14 +325,30 @@ class AVideoPlugin {
     }
 
     static function getObjectData($name) {
+        return self::getDataObject($name);
+    }
+    
+    static function getDataObject($name) {
+        global $pluginGetDataObject;
+        if(!isset($pluginGetDataObject)){
+            $pluginGetDataObject = array();
+        }
+        if(!empty($pluginGetDataObject[$name])){
+            return $pluginGetDataObject[$name];
+        }
         $p = static::loadPlugin($name);
         if ($p) {
-            return $p->getDataObject();
+            $pluginGetDataObject[$name] = $p->getDataObject();
+            return $pluginGetDataObject[$name];
         }
         return false;
     }
 
     static function getObjectDataIfEnabled($name) {
+        return self::getDataObjectIfEnabled($name);
+    }
+
+    static function getDataObjectIfEnabled($name) {
         $p = static::loadPlugin($name);
         if ($p) {
             $uuid = $p->getUUID();
@@ -367,6 +383,21 @@ class AVideoPlugin {
 
             if (is_object($p)) {
                 $str .= $p->getVideosManagerListButton();
+            }
+            self::YPTend("{$value['dirName']}::".__FUNCTION__);
+        }
+        return $str;
+    }
+
+    static function getVideosManagerListButtonTitle() {
+        $plugins = Plugin::getAllEnabled();
+        $str = "";
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+
+            if (is_object($p)) {
+                $str .= $p->getVideosManagerListButtonTitle();
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
@@ -518,6 +549,18 @@ class AVideoPlugin {
         }
     }
 
+    public static function afterDonation($from_users_id, $how_much, $videos_id, $users_id) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->afterDonation($from_users_id, $how_much, $videos_id, $users_id);
+            }
+            self::YPTend("{$value['dirName']}::".__FUNCTION__);
+        }
+    }
+
     public static function afterNewComment($comments_id) {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
@@ -589,7 +632,18 @@ class AVideoPlugin {
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
     }
-    
+
+    public static function getModeYouTubeLive($users_id) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->getModeYouTubeLive($users_id);
+            }
+            self::YPTend("{$value['dirName']}::".__FUNCTION__);
+        }
+    }
     
     public static function getEmbed($videos_id) {
         $plugins = Plugin::getAllEnabled();
@@ -1021,13 +1075,13 @@ class AVideoPlugin {
         }
     }
     
-    public static function onLiveStream($users_id){
+    public static function onLiveStream($users_id, $live_servers_id){
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $p->onLiveStream($users_id);
+                $p->onLiveStream($users_id, $live_servers_id);
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
@@ -1079,24 +1133,29 @@ class AVideoPlugin {
         if(empty($videos_id)){
             return array();
         }
-        TimeLogStart("AVideoPlugin::getVideoTags($videos_id)");
-        if(true || empty($_SESSION['getVideoTags'][$videos_id])){
-            $plugins = Plugin::getAllEnabled();
-            $array = array();
-            foreach ($plugins as $value) {
-                $TimeLog = "AVideoPlugin::getVideoTags($videos_id) {$value['dirName']} ";
-                TimeLogStart($TimeLog);
-                $p = static::loadPlugin($value['dirName']);
-                if (is_object($p)) {
-                    $array = array_merge($array, $p->getVideoTags($videos_id));
+        $name = "getVideoTags{$videos_id}";
+        $array = ObjectYPT::getCache($name, 0);
+        if(empty($array)){
+            TimeLogStart("AVideoPlugin::getVideoTags($videos_id)");
+            if(empty($_SESSION['getVideoTags'][$videos_id])){
+                $plugins = Plugin::getAllEnabled();
+                $array = array();
+                foreach ($plugins as $value) {
+                    $TimeLog = "AVideoPlugin::getVideoTags($videos_id) {$value['dirName']} ";
+                    TimeLogStart($TimeLog);
+                    $p = static::loadPlugin($value['dirName']);
+                    if (is_object($p)) {
+                        $array = array_merge($array, $p->getVideoTags($videos_id));
+                    }
+                    TimeLogEnd($TimeLog, __LINE__, 0.1);
                 }
-                TimeLogEnd($TimeLog, __LINE__, 0.1);
-            }
-            _session_start();
-            $_SESSION['getVideoTags'][$videos_id] = $array;
-        } 
-        TimeLogEnd("AVideoPlugin::getVideoTags($videos_id)", __LINE__);
-        return $_SESSION['getVideoTags'][$videos_id];
+            } 
+            TimeLogEnd("AVideoPlugin::getVideoTags($videos_id)", __LINE__);
+            ObjectYPT::setCache($name, $array);
+        }else{
+            //$array = object_to_array($array);
+        }
+        return $array;
     }
     
     public static function getVideoWhereClause(){

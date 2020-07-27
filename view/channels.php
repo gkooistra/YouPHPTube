@@ -20,16 +20,20 @@ if (!empty($_GET['page'])) {
 } else {
     $_POST['current'] = 1;
 }
+
+$users_id_array = VideoStatistic::getUsersIDFromChannelsWithMoreViews();
+
 $current = $_POST['current'];
 $_POST['rowCount'] = 10;
-$channels = Channel::getChannels();
+$channels = Channel::getChannels(true, "u.id, '". implode(",", $users_id_array)."'");
 
 $totalPages = ceil($totalChannels / $_POST['rowCount']);
+$metaDescription = __("Channels");
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title><?php echo $config->getWebSiteTitle(); ?> :: <?php echo __("Channels"); ?></title>
+        <title><?php echo $config->getWebSiteTitle(); ?> :: <?php echo __("Channels").getSEOComplement(); ?></title>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
@@ -99,7 +103,7 @@ $totalPages = ceil($totalChannels / $_POST['rowCount']);
                         <div class="  bgWhite clear clearfix" style="margin: 10px 0;">
                             <div class="clear clearfix">
                                 <img src="<?php echo User::getPhoto($value['id']); ?>"
-                                     class="img img-thumbnail img-responsive pull-left" style="max-height: 100px; margin: 0 10px;" />
+                                     class="img img-thumbnail img-responsive pull-left" style="max-height: 100px; margin: 0 10px;" alt="User Photo" />
                                 <a href="<?php echo User::getChannelLink($value['id']); ?>" class="btn btn-default">
                                     <i class="fas fa-play-circle"></i>
                                     <?php
@@ -134,6 +138,9 @@ $totalPages = ceil($totalChannels / $_POST['rowCount']);
                                     <?php
                                 }
                                 ?>
+                            </div>
+                            <div class="text-muted pull-right" style="font-size: 0.8em">
+                                <?php echo VideoStatistic::getChannelsTotalViews($value['id'])," ",__("Views in the last 30 days"); ?>
                             </div>
                         </div>
                         <?php

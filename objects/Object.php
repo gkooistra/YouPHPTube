@@ -35,7 +35,7 @@ abstract class ObjectYPT implements ObjectInterface {
         $id = intval($id);
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  id = ? LIMIT 1";
         // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/AVideo/about
-        $res = sqlDAL::readSql($sql, "i", array($id));
+        $res = sqlDAL::readSql($sql, "i", array($id), true);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {
@@ -115,6 +115,15 @@ abstract class ObjectYPT implements ObjectInterface {
             $sql .= " ORDER BY " . implode(",", $orderBy);
         }
 
+        $sql .= self::getSqlLimit();
+        return $sql;
+    }
+    
+    
+    static function getSqlLimit() {
+        global $global;
+        $sql = "";
+
         if (empty($_POST['rowCount']) && !empty($_GET['length'])) {
             $_POST['rowCount'] = intval($_GET['length']);
         }
@@ -125,8 +134,8 @@ abstract class ObjectYPT implements ObjectInterface {
             $_POST['current'] = 1;
         }
 
-        $_POST['current'] = intval(@$_POST['current']);
-        $_POST['rowCount'] = intval(@$_POST['rowCount']);
+        $_POST['current'] = getCurrentPage();
+        $_POST['rowCount'] = getRowCount();
 
         if (!empty($_POST['rowCount']) && !empty($_POST['current']) && $_POST['rowCount'] > 0) {
             $_POST['rowCount'] = intval($_POST['rowCount']);
@@ -257,12 +266,13 @@ abstract class ObjectYPT implements ObjectInterface {
     }
 
     static function setCache($name, $value) {
-        $tmpDir = sys_get_temp_dir();
+        $tmpDir = self::getCacheDir();
         $uniqueHash = md5(__FILE__);
 
         $cachefile = $tmpDir . DIRECTORY_SEPARATOR . $name . $uniqueHash; // e.g. cache/index.php.
         make_path($cachefile);
         file_put_contents($cachefile, json_encode($value));
+        self::setSessionCache($name, $value);
     }
 
     /**
@@ -272,28 +282,55 @@ abstract class ObjectYPT implements ObjectInterface {
      * @return type
      */
     static function getCache($name, $lifetime = 60) {
-        $tmpDir = sys_get_temp_dir();
+        $tmpDir = self::getCacheDir();
         $uniqueHash = md5(__FILE__);
 
         $cachefile = $tmpDir . DIRECTORY_SEPARATOR . $name . $uniqueHash; // e.g. cache/index.php.
         if (!empty($_GET['lifetime'])) {
             $lifetime = intval($_GET['lifetime']);
         }
+        
+        $session = self::getSessionCache($name, $lifetime);
+        if(!empty($session)){
+            return $session;
+        }
+        
         if (file_exists($cachefile) && (empty($lifetime) || time() - $lifetime <= filemtime($cachefile))) {
             $c = @url_get_contents($cachefile);
             return json_decode($c);
         } else if (file_exists($cachefile)) {
-            unlink($cachefile);
+            self::deleteCache($name);
         }
     }
 
     static function deleteCache($name) {
-        $tmpDir = sys_get_temp_dir();
+        $tmpDir = self::getCacheDir();
         $uniqueHash = md5(__FILE__);
 
         $cachefile = $tmpDir . DIRECTORY_SEPARATOR . $name . $uniqueHash; // e.g. cache/index.php.
         @unlink($cachefile);
+        
+        self::deleteSessionCache($name);
     }
+    
+    
+    static function deleteALLCache() {
+        $tmpDir = self::getCacheDir();
+        rrmdir($tmpDir);
+        self::deleteAllSessionCache();
+    }
+    
+    static function getCacheDir() {
+        $tmpDir = getTmpDir();
+        $tmpDir = rtrim($tmpDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $tmpDir .= "YPTObjectCache". DIRECTORY_SEPARATOR;
+        make_path($tmpDir);
+        if(!file_exists($tmpDir."index.html")){// to avoid search into the directory
+            file_put_contents($tmpDir."index.html", time());
+        }
+        return $tmpDir;
+    }
+    
     /**
      * Make sure you start the session before any output
      * @param type $name
@@ -316,18 +353,26 @@ abstract class ObjectYPT implements ObjectInterface {
         if (!empty($_GET['lifetime'])) {
             $lifetime = intval($_GET['lifetime']);
         }
-        _session_start();
-        if (!empty($_SESSION['sessionCache'][$name]) && (empty($lifetime) || time() - $lifetime <= $_SESSION['sessionCache'][$name]['time'])) {
-            $c = $_SESSION['sessionCache'][$name]['value'];
-            return json_decode($c);
-        } else if (!empty($_SESSION['sessionCache'][$name])) {
-            unset($_SESSION['sessionCache'][$name]);
+        if(!empty($_SESSION['sessionCache'][$name])){
+            if ((empty($lifetime) || time() - $lifetime <= $_SESSION['sessionCache'][$name]['time'])) {
+                $c = $_SESSION['sessionCache'][$name]['value'];
+                return json_decode($c);
+            } else {
+                _session_start();
+                unset($_SESSION['sessionCache'][$name]);
+            }
         }
     }
 
     static function deleteSessionCache($name) {
         _session_start();
         unset($_SESSION['sessionCache'][$name]);
+    }
+    
+    
+    static function deleteAllSessionCache() {
+        _session_start();
+        unset($_SESSION['sessionCache']);
     }
 
     function tableExists() {

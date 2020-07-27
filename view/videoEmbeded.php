@@ -15,7 +15,21 @@ if (!empty($_GET['user']) && !empty($_GET['pass'])) {
     $userObj->login(false, true);
 }
 
-if (!empty($_GET['v'])) {
+if (!empty($_GET['evideo'])) {
+    $v = Video::decodeEvideo();
+    $evideo = $v['evideo'];
+}
+if (!empty($evideo)) {
+    $video = $v['video'];
+    $img = $evideo->thumbnails;
+    $poster = $evideo->thumbnails;
+    $imgw = 1280;
+    $imgh = 720;
+    $autoPlaySources = array();
+    $autoPlayURL = '';
+    $autoPlayPoster = '';
+    $autoPlayThumbsSprit = '';
+} else if (!empty($_GET['v'])) {
     $video = Video::getVideo($_GET['v'], "", true, false, false, true);
     //$video['id'] = $_GET['v'];
 } else if (!empty($_GET['videoName'])) {
@@ -130,6 +144,10 @@ if (!empty($_GET['t'])) {
 }
 
 $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
+
+$url = Video::getLink($video['id'], $video['clean_title'], false);
+$title = str_replace('"', '', $video['title']) . ' - ' . $config->getWebSiteTitle();
+$photo = User::getPhoto($video['users_id']);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -156,9 +174,9 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
 
         <link rel="image_src" href="<?php echo $img; ?>" />
         <meta property="fb:app_id"             content="774958212660408" />
-        <meta property="og:url"                content="<?php echo $global['webSiteRootURL'], "video/", $video['clean_title']; ?>" />
+        <meta property="og:url"                content="<?php echo $url; ?>" />
         <meta property="og:type"               content="video.other" />
-        <meta property="og:title"              content="<?php echo str_replace('"', '', $video['title']); ?> - <?php echo $config->getWebSiteTitle(); ?>" />
+        <meta property="og:title"              content="<?php echo $title; ?>" />
         <meta property="og:description"        content="<?php echo!empty($custom) ? $custom : str_replace('"', '', $video['title']); ?>" />
         <meta property="og:image"              content="<?php echo $img; ?>" />
         <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
@@ -181,7 +199,47 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
                 position: static;
             }
             .opacityBtn{
-             opacity: 0.2;   
+                opacity: 0.2;   
+            }
+
+            #topInfo{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                min-height: 52px;
+                font: 12px Roboto, Arial, sans-serif;
+                color: #FFF;
+                padding: 15px;
+                background-image: linear-gradient(rgba(0,0,0,1), rgba(0,0,0,0));
+                
+            }
+            #topInfo a{
+                color: #EEE;
+                text-shadow: 0 0 5px rgba(0,0,0,1);
+            }
+            #topInfo a:hover{
+                color: #FFF;
+            }
+            #topInfo img{
+                float: left; 
+                max-height: 40px; 
+                max-width: 40px; 
+                margin-right: 10px;
+            }
+            #topInfo div{
+                position: absolute;
+                top: 15px;
+                left: 0;
+                display: flex; 
+                height: 40px; 
+                justify-content: center;
+                align-items: center; 
+                font-size: 1.5em;
+                margin-left: 65px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
         </style>
         <?php
@@ -202,7 +260,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
             ?>"></iframe>
             <script>
                 $(document).ready(function () {
-                    addView(<?php echo $video['id']; ?>, 0);
+                addView(<?php echo $video['id']; ?>, 0);
                 });
             </script>
             <?php
@@ -219,7 +277,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
                 ?>     
                 <script>
                     $(document).ready(function () {
-                        addView(<?php echo $video['id']; ?>, 0);
+                    addView(<?php echo $video['id']; ?>, 0);
                     });
                 </script>
 
@@ -234,7 +292,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
             ?>"></iframe>
             <script>
                 $(document).ready(function () {
-                    addView(<?php echo $video['id']; ?>, 0);
+                addView(<?php echo $video['id']; ?>, 0);
                 });
             </script>
             <?php
@@ -248,7 +306,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
         </center>
         <script>
             $(document).ready(function () {
-                addView(<?php echo $video['id']; ?>, 0);
+            addView(<?php echo $video['id']; ?>, 0);
             });
         </script>
         <?php
@@ -285,7 +343,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
         ?>"></iframe>
         <script>
             $(document).ready(function () {
-                addView(<?php echo $video['id']; ?>, 0);
+            addView(<?php echo $video['id']; ?>, 0);
             });
         </script>
         <?php
@@ -312,7 +370,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
         </audio>
         <script>
             $(document).ready(function () {
-                addView(<?php echo $video['id']; ?>, this.currentTime());
+            addView(<?php echo $video['id']; ?>, this.currentTime());
             });
         </script>
         <?php
@@ -334,7 +392,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
             ?>
             <div style="<?php echo $style; ?>" class="VideoLogoOverlay">
                 <a href="<?php echo $url; ?>"  target="_blank">
-                    <img src="<?php echo $global['webSiteRootURL']; ?>videos/logoOverlay.png"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6">
+                    <img src="<?php echo $global['webSiteRootURL']; ?>videos/logoOverlay.png" alt="Logo"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6">
                 </a>
             </div>
             <?php
@@ -342,57 +400,57 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
         ?>
         <script>
             $(document).ready(function () {
-                //Prevent HTML5 video from being downloaded (right-click saved)?
-                $('#mainVideo').bind('contextmenu', function () {
-                    return false;
-                });
-                if (typeof player === 'undefined') {
-                    player = videojs('mainVideo');
-                }
-                player.on('play', function () {
-                    addView(<?php echo $video['id']; ?>, this.currentTime());
-                });
-                player.on('timeupdate', function () {
-                    var time = Math.round(this.currentTime());
-                    var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
-                    if (url.indexOf('?') > -1){
-                        url+='&t=' + time;
-                    }else{
-                        url+='?t=' + time;
-                    }
-                    $('#linkCurrentTime').val(url);
-                    if (time >= 5 && time % 5 === 0) {
-                        addView(<?php echo $video['id']; ?>, time);
-                    }
-                });
-                player.on('ended', function () {
-                    var time = Math.round(this.currentTime());
-                    addView(<?php echo $video['id']; ?>, time);
-                });
+            //Prevent HTML5 video from being downloaded (right-click saved)?
+            $('#mainVideo').bind('contextmenu', function () {
+            return false;
+            });
+            if (typeof player === 'undefined') {
+            player = videojs('mainVideo');
+            }
+            player.on('play', function () {
+            addView(<?php echo $video['id']; ?>, this.currentTime());
+            });
+            player.on('timeupdate', function () {
+            var time = Math.round(this.currentTime());
+            var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
+            if (url.indexOf('?') > - 1){
+            url += '&t=' + time;
+            } else{
+            url += '?t=' + time;
+            }
+            $('#linkCurrentTime').val(url);
+            if (time >= 5 && time % 5 === 0) {
+            addView(<?php echo $video['id']; ?>, time);
+            }
+            });
+            player.on('ended', function () {
+            var time = Math.round(this.currentTime());
+            addView(<?php echo $video['id']; ?>, time);
+            });
     <?php
     if ($autoplay) {
         ?>
-                    setTimeout(function () {
-                        if (typeof player === 'undefined') {
-                            player = videojs('mainVideo');
-                        }
-                        playerPlay(<?php echo $t; ?>);
-                    }, 150);
+                setTimeout(function () {
+                if (typeof player === 'undefined') {
+                player = videojs('mainVideo');
+                }
+                playerPlay(<?php echo $t; ?>);
+                }, 150);
         <?php
     } else {
         ?>
-                    setTimeout(function () {
-                        if (typeof player === 'undefined') {
-                            player = videojs('mainVideo');
-                        }
-                        try {
-                            player.currentTime(<?php echo $t; ?>);
-                        } catch (e) {
-                            setTimeout(function () {
-                                player.currentTime(<?php echo $t; ?>);
-                            }, 1000);
-                        }
-                    }, 150);
+                setTimeout(function () {
+                if (typeof player === 'undefined') {
+                player = videojs('mainVideo');
+                }
+                try {
+                player.currentTime(<?php echo $t; ?>);
+                } catch (e) {
+                setTimeout(function () {
+                player.currentTime(<?php echo $t; ?>);
+                }, 1000);
+                }
+                }, 150);
         <?php
     }
     ?>
@@ -419,7 +477,7 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
             ?>
             <div style="<?php echo $style; ?>" class="VideoLogoOverlay">
                 <a href="<?php echo $url; ?>"  target="_blank">
-                    <img src="<?php echo $global['webSiteRootURL']; ?>videos/logoOverlay.png"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6">
+                    <img src="<?php echo $global['webSiteRootURL']; ?>videos/logoOverlay.png" alt="Logo"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6">
                 </a>
             </div>
             <?php
@@ -428,48 +486,46 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
 
         <script>
             function setImageLoop(){
-               if(isPlayerLoop()){
-                   $('.loopButton').removeClass('opacityBtn');
-                   $('.loopButton').addClass('fa-spin');
-               } else{
-                   $('.loopButton').addClass('opacityBtn');
-                   $('.loopButton').removeClass('fa-spin');
-               }
+            if (isPlayerLoop()){
+            $('.loopButton').removeClass('opacityBtn');
+            $('.loopButton').addClass('fa-spin');
+            } else{
+            $('.loopButton').addClass('opacityBtn');
+            $('.loopButton').removeClass('fa-spin');
             }
-            
+            }
+
             function toogleImageLoop(t){
-                tooglePlayerLoop();
-                setImageLoop();
-                
+            tooglePlayerLoop();
+            setImageLoop();
             }
-            
+
             $(document).ready(function () {
-                
+
             if (typeof player === 'undefined') {
-                        player = videojs('mainVideo');
-                    }
-                        player.on('play', function () {
-                            addView(<?php echo $video['id']; ?>, this.currentTime());
-                        });
-                        player.on('timeupdate', function () {
-                            var time = Math.round(this.currentTime());
-                            var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
-                            if (url.indexOf('?') > -1){
-                                url+='&t=' + time;
-                            }else{
-                                url+='?t=' + time;
-                            }
-                            $('#linkCurrentTime').val(url);
-                            if (time >= 5 && time % 5 === 0) {
-                                addView(<?php echo $video['id']; ?>, time);
-                            }
-                        });
-                        player.on('ended', function () {
-                            var time = Math.round(this.currentTime());
-                            addView(<?php echo $video['id']; ?>, time);
-                        });
-                
-                <?php
+            player = videojs('mainVideo');
+            }
+            player.on('play', function () {
+            addView(<?php echo $video['id']; ?>, this.currentTime());
+            });
+            player.on('timeupdate', function () {
+            var time = Math.round(this.currentTime());
+            var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
+            if (url.indexOf('?') > - 1){
+            url += '&t=' + time;
+            } else{
+            url += '?t=' + time;
+            }
+            $('#linkCurrentTime').val(url);
+            if (time >= 5 && time % 5 === 0) {
+            addView(<?php echo $video['id']; ?>, time);
+            }
+            });
+            player.on('ended', function () {
+            var time = Math.round(this.currentTime());
+            addView(<?php echo $video['id']; ?>, time);
+            });
+    <?php
     if ($autoplay) {
         ?>
                 setTimeout(function () {
@@ -520,57 +576,64 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
                     }, iconClass: 'fas fa-code'
             }
     <?php
-        if (CustomizeUser::canDownloadVideosFromVideo($video['id'])) {
-            if ($video['type'] == "video") {
-                $files = getVideosURL($video['filename']);
-                foreach ($files as $key => $theLink) {
-                    if (empty($advancedCustom->showImageDownloadOption)) {
-                        if ($key == "jpg" || $key == "gif" || $key == "webp" || $key == "pjpg" || $key == "m3u8") {
-                            continue;
-                        }
+    if (CustomizeUser::canDownloadVideosFromVideo($video['id'])) {
+        if ($video['type'] == "video") {
+            $files = getVideosURL($video['filename']);
+            foreach ($files as $key => $theLink) {
+                if (empty($advancedCustom->showImageDownloadOption)) {
+                    if ($key == "jpg" || $key == "gif" || $key == "webp" || $key == "pjpg" || $key == "m3u8") {
+                        continue;
                     }
-                    ?>
-                            , {
-                            name: '<?php echo __("Download video") . " (" . $key . ")"; ?>',
-                                    onClick: function () {
-                                    document.location = '<?php echo $theLink['url']; ?>?download=1&title=<?php echo urlencode($video['title'] . "_{$key}_.mp4"); ?>';
-                                                }, iconClass: 'fas fa-download'
-                                        }
-                    <?php
                 }
-            } else {
                 ?>
-                                    , {
-                                    name: '<?php echo __("Download video"); ?>',
-                                            onClick: function () {
-                                            document.location = '<?php echo $video['videoLink']; ?>?download=1&title=<?php echo urlencode($video['title'] . ".mp4"); ?>';
-                                                        }, iconClass: 'fas fa-download'
-                                                }
-
+                        , {
+                        name: '<?php echo __("Download video") . " (" . $key . ")"; ?>',
+                                onClick: function () {
+                                document.location = '<?php echo $theLink['url']; ?>?download=1&title=<?php echo urlencode($video['title'] . "_{$key}_.mp4"); ?>';
+                                            }, iconClass: 'fas fa-download'
+                                    }
                 <?php
             }
-        }
-        if($playerSkinsObj->showSocialShareOnEmbed) {
+        } else {
             ?>
-                , {
-            name: '<?php echo __("Share"); ?>',
-                    onClick: function () {
-                    showSharing();
-                    }, iconClass: 'fas fa-share'
-            }
+                                , {
+                                name: '<?php echo __("Download video"); ?>',
+                                        onClick: function () {
+                                        document.location = '<?php echo $video['videoLink']; ?>?download=1&title=<?php echo urlencode($video['title'] . ".mp4"); ?>';
+                                                    }, iconClass: 'fas fa-download'
+                                            }
+
             <?php
         }
+    }
+    if ($playerSkinsObj->showSocialShareOnEmbed) {
         ?>
-
-                                        ]
-                                        });
-                                        setImageLoop();
-
-                });
-            </script>
-            <?php
-        }
+                                        , {
+                                        name: '<?php echo __("Share"); ?>',
+                                                onClick: function () {
+                                                showSharing();
+                                                }, iconClass: 'fas fa-share'
+                                        }
+        <?php
+    }
     ?>
+
+                                    ]
+                                    });
+                                    setImageLoop();
+                                    });
+        </script>
+        <?php
+    }
+    ?>
+    <div id="topInfo" style="display: none;">
+        <a href="<?php echo $url; ?>" target="_blank">
+            <img src="<?php echo $photo; ?>" class="img img-responsive img-circle" style="" alt="User Photo"> 
+            <div style="">    
+                <?php echo $title; ?>
+            </div>
+        </a>
+    </div>
     <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.min.js" type="text/javascript"></script>
     <?php
     echo AVideoPlugin::afterVideoJS();
@@ -598,31 +661,31 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
     <input type="hidden" value="<?php echo Video::getURLFriendly($video['id']); ?>" class="form-control" readonly="readonly" id="linkFriendly"/>
     <input type="hidden" value="<?php echo Video::getURLFriendly($video['id']); ?>?t=0" class="form-control" readonly="readonly" id="linkCurrentTime"/>
     <textarea class="form-control" style="display: none;" rows="5" id="textAreaEmbed" readonly="readonly"><?php
-    $code = str_replace("{embedURL}", Video::getLink($video['id'], $video['clean_title'], true), $advancedCustom->embedCodeTemplate);
-    echo htmlentities($code);
-    ?></textarea>
+        $code = str_replace("{embedURL}", Video::getLink($video['id'], $video['clean_title'], true), $advancedCustom->embedCodeTemplate);
+        echo htmlentities($code);
+        ?></textarea>
     <textarea id="elementToCopy" style="
-          filter: alpha(opacity=0);
-          -moz-opacity: 0;
-          -khtml-opacity: 0;
-          opacity: 0;
-          position: absolute;
-          z-index: -9999;
-          top: 0;
-          left: 0;
-          pointer-events: none;"></textarea>
-    <?php
-    if($playerSkinsObj->showSocialShareOnEmbed) {
-        ?>
+              filter: alpha(opacity=0);
+              -moz-opacity: 0;
+              -khtml-opacity: 0;
+              opacity: 0;
+              position: absolute;
+              z-index: -9999;
+              top: 0;
+              left: 0;
+              pointer-events: none;"></textarea>
+              <?php
+              if ($playerSkinsObj->showSocialShareOnEmbed) {
+                  ?>
         <div id="SharingModal" class="modal fade" role="dialog">
             <div class="modal-dialog">
                 <!-- Modal content-->
                 <div class="modal-content">
                     <div class="modal-body">
                         <center>
-                        <?php
-                        include $global['systemRootPath'] . 'view/include/social.php';
-                        ?>
+                            <?php
+                            include $global['systemRootPath'] . 'view/include/social.php';
+                            ?>
                         </center>
                     </div>
                 </div>
@@ -632,18 +695,36 @@ $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
         <script>
             function showSharing() {
                 $('#SharingModal').modal("show");
-                return false;
+                    return false;
             }
+            var topInfoTimeout;
             $(document).ready(function () {
-                    
+                setInterval(function(){
+                    if (!$('.vjs-control-bar').is(":visible") || $('.vjs-control-bar').css('opacity') == "0"){
+                        $('#topInfo').fadeOut();
+                    } else{
+                        $('#topInfo').fadeIn();
+                    }
+
+                }, 1000);
+
+                $("iframe, #topInfo").mouseover(function(e){
+                    clearTimeout(topInfoTimeout);
+                    $('#mainVideo').addClass("vjs-user-active");
+                });
+
+                $("iframe").mouseout(function(e){
+                    topInfoTimeout = setTimeout(function(){
+                        $('#mainVideo').removeClass("vjs-user-active");
+                    },500);
+                });
                 $('#SharingModal').modal({show: false});
-                    
             });
         </script>
         <?php
     }
     ?>
-        
+
 </body>
 </html>
 

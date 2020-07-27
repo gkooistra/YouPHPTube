@@ -58,7 +58,7 @@ class LiveTransmition extends ObjectYPT {
     }
 
     function setPublic($public) {
-        $this->public = $public;
+        $this->public = intval($public);
     }
 
     function setSaveTransmition($saveTransmition) {
@@ -88,6 +88,16 @@ class LiveTransmition extends ObjectYPT {
         if (empty($user))
             return false;
         foreach ($user as $key => $value) {
+            $this->$key = $value;
+        }
+        return true;
+    }
+
+    function loadByKey($uuid) {
+        $row = self::getFromKey($uuid);
+        if (empty($row))
+            return false;
+        foreach ($row as $key => $value) {
             $this->$key = $value;
         }
         return true;
@@ -240,6 +250,20 @@ class LiveTransmition extends ObjectYPT {
         } else {
             return true;
         }
+    }
+
+    static function getFromKey($key) {
+        global $global;
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE  `key` = ? LIMIT 1";
+        $res = sqlDAL::readSql($sql, "s", array($key), true);
+        $data = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($res != false) {
+            $user = $data;
+        } else {
+            $user = false;
+        }
+        return $user;
     }
 
 }

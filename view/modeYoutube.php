@@ -3,27 +3,18 @@ $modeYouTubeTime = microtime(true);
 $modeYouTubeTimeLog = array();
 global $global, $config;
 $isChannel = 1; // still workaround, for gallery-functions, please let it there.
+$isModeYouTube = 1;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 //_error_log("modeYoutube: session_id = " . session_id() . " IP = " . getRealIpAddr());
+
 if (!empty($_GET['evideo'])) {
-    $evideo = json_decode(decryptString($_GET['evideo']));
+    $v = Video::decodeEvideo();
+    $evideo = $v['evideo'];
 }
 if (!empty($evideo)) {
-    $video['id'] = 0;
-    $video['type'] = 'embed';
-    $video['rotation'] = 0;
-    $video['videoLink'] = $evideo->videoLink;
-    $video['title'] = $evideo->title;
-    $video['clean_title'] = preg_replace('/[!#$&\'()*+,\\/:;=?@[\\] ]+/', '-', trim(strtolower(cleanString($evideo->title))));
-    $video['description'] = $evideo->description;
-    $video['duration'] = "";
-    $video['creator'] = "";
-    $video['likes'] = "";
-    $video['dislikes'] = "";
-    $video['category'] = "embed";
-    $video['views_count'] = 0;
+    $video = $v['video'];
     $img = $evideo->thumbnails;
     $poster = $evideo->thumbnails;
     $imgw = 1280;
@@ -205,7 +196,7 @@ if (!empty($evideo)) {
         if (!empty($autoPlayVideo)) {
 
             $name2 = User::getNameIdentificationById($autoPlayVideo['users_id']) . ' ' . User::getEmailVerifiedIcon($autoPlayVideo['users_id']);
-            $autoPlayVideo['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($autoPlayVideo['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName"><strong>' . $name2 . '</strong> <small>' . humanTiming(strtotime($autoPlayVideo['videoCreation'])) . '</small></div></div>';
+            $autoPlayVideo['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($autoPlayVideo['users_id']) . '" alt="User Photo" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName"><strong>' . $name2 . '</strong> <small>' . humanTiming(strtotime($autoPlayVideo['videoCreation'])) . '</small></div></div>';
             $autoPlayVideo['tags'] = Video::getTags($autoPlayVideo['id']);
 //$autoPlayVideo['url'] = $global['webSiteRootURL'] . $catLink . "video/" . $autoPlayVideo['clean_title'];
             $autoPlayVideo['url'] = Video::getLink($autoPlayVideo['id'], $autoPlayVideo['clean_title'], false, $get);
@@ -217,7 +208,7 @@ if (!empty($evideo)) {
         $name = User::getNameIdentificationById($video['users_id']);
         $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id']) . "</a>";
         $subscribe = Subscribe::getButton($video['users_id']);
-        $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
+        $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="User Photo" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
         $obj = new Video("", "", $video['id']);
 
 // dont need because have one embeded video on this page
@@ -249,14 +240,14 @@ if (!empty($evideo)) {
             $type = 'article';
         }
         $images = Video::getImageFromFilename($video['filename'], $type);
-        $poster = $images->poster;
+        $poster = isMobile()?$images->thumbsJpg:$images->poster;
         if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
             $img = $images->posterPortrait;
             $data = getimgsize($source['path']);
             $imgw = $data[0];
             $imgh = $data[1];
         } else {
-            $img = $images->poster;
+            $img = isMobile()?$images->thumbsJpg:$images->poster;
         }
     } else {
         $poster = "{$global['webSiteRootURL']}view/img/notfound.jpg";
@@ -320,11 +311,23 @@ if (empty($video)) {
     
     header('HTTP/1.0 404 Not Found', true, 404);
 }
+$metaDescription = " {$video['id']}";
+
+// make sure the title tag does not have more then 70 chars
+$titleTag = "{$video['title']}";
+if(strlen($titleTag)>50){
+    $titleTag = substr($titleTag, 0, 50);
+}else{
+    $titleTag .= " - ".$config->getWebSiteTitle();
+}
+$titleTag = substr($titleTag, 0, 60);
+$titleTag .= " - ".getSEOComplement();
+$titleTag = substr($titleTag, 0, 70);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title><?php echo $video['title']; ?> - <?php echo $config->getWebSiteTitle(); ?></title>
+        <title><?php echo $titleTag; ?></title>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/css/social.css" rel="stylesheet" type="text/css"/>
@@ -512,6 +515,9 @@ $modeYouTubeTime = microtime(true);
         <?php
         if (!empty($autoPlayVideo['tags'])) {
             foreach ($autoPlayVideo['tags'] as $autoPlayVideo2) {
+                if(is_array($autoPlayVideo2)){
+                    $autoPlayVideo2 = (object)$autoPlayVideo2;
+                }
                 if ($autoPlayVideo2->label === __("Group")) {
                     ?>
                                                         <span class="label label-<?php echo $autoPlayVideo2->type; ?>"><?php echo $autoPlayVideo2->text; ?></span>

@@ -245,13 +245,16 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    static function _recommendChannelName($name = "", $try = 0) {
+    static function _recommendChannelName($name = "", $try = 0, $unknown="") {
         if ($try > 10) {
-            _error_log("User:_recommendChannelName too many tries ", AVideoLog::$ERROR);
-            die("Too many tries");
+            _error_log("User:_recommendChannelName too many tries ({$name}) (".User::getId().") ", AVideoLog::$ERROR);
+            return uniqid();
         }
         if (empty($name)) {
             $name = self::getNameIdentification();
+            if($name == __("Unknown User") && !empty($unknown)){
+                $name = $unknown;
+            }
             $name = cleanString($name);
         }
         // in case is a email get only the username
@@ -347,6 +350,32 @@ if (typeof gtag !== \"function\") {
     function _getName() {
         return $this->name;
     }
+    
+    static function _getPhoto($id = "") {
+        global $global;
+        if (!empty($id)) {
+            $user = self::findById($id);
+            if (!empty($user)) {
+                $photo = $user['photoURL'];
+            }
+        } elseif (self::isLogged()) {
+            $photo = $_SESSION['user']['photoURL'];
+        }
+        if (!empty($photo)) {
+            if (preg_match("/videos\/userPhoto\/.*/", $photo) && file_exists($global['systemRootPath'] . $photo)) {
+                return $photo;
+            } else {
+                $photoPath = "/videos/userPhoto/photo{$id}.png";
+                $content = url_get_contents($photo);
+                file_put_contents($global['systemRootPath'] . $photoPath, $content);
+                $photo = $photoPath;
+            }
+        }
+        if (empty($photo)) {
+            $photo = "view/img/userSilhouette.jpg";
+        }
+        return $photo;
+    }
 
     static function getPhoto($id = "") {
         global $global;
@@ -370,6 +399,34 @@ if (typeof gtag !== \"function\") {
         }
         return $photo;
     }
+    
+    static function _getOGImage($users_id){
+        return "/videos/userPhoto/photo{$users_id}_og_200X200.jpg";
+    }
+    
+    static function deleteOGImage($users_id){
+        global $global;
+        $photo = $global['systemRootPath'].self::_getOGImage($users_id);
+        unlink($photo);        
+    }
+    
+    static function getOGImage($users_id = ""){
+        global $global;
+        $photo = self::_getPhoto($users_id);
+        if($photo == "view/img/userSilhouette.jpg"){
+            return "{$global['webSiteRootURL']}view/img/userSilhouette.jpg";
+        }
+        if(empty($photo)){
+            return false;
+        }
+        $source = $global['systemRootPath'].$photo;
+        $destination = $global['systemRootPath'].self::_getOGImage($users_id);
+        
+        convertImageToOG($source, $destination);
+        
+        return $global['webSiteRootURL'].self::_getOGImage($users_id);;
+    }
+
 
     static function getEmailVerifiedIcon($id = "") {
         global $advancedCustomUser;
@@ -483,7 +540,7 @@ if (typeof gtag !== \"function\") {
         $this->status = $global['mysqli']->real_escape_string($this->status);
         $this->about = $global['mysqli']->real_escape_string($this->about);
         $this->about = preg_replace("/(\\\)+n/", "\n", $this->about);
-        $this->channelName = self::_recommendChannelName($this->channelName);
+        $this->channelName = self::_recommendChannelName($this->channelName, 0, $this->user);
         $this->channelName = $global['mysqli']->real_escape_string($this->channelName);
         if (filter_var($this->donationLink, FILTER_VALIDATE_URL) === FALSE) {
             $this->donationLink = "";
@@ -1094,7 +1151,9 @@ if (typeof gtag !== \"function\") {
 
     static function getUserFromID($users_id) {
         global $global;
-
+        if(empty($users_id)){
+            return false;
+        }
         $sql = "SELECT * FROM users WHERE id = ? LIMIT 1";
         $res = sqlDAL::readSql($sql, "s", array($users_id));
         $user = sqlDAL::fetchAssoc($res);
@@ -1264,6 +1323,30 @@ if (typeof gtag !== \"function\") {
                     unset($row['region']);
                     unset($row['city']);
                 }
+                $user[] = $row;
+            }
+        } else {
+            $user = false;
+            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+
+        return $user;
+    }
+    
+    static function getAllUsersThatHasVideos($ignoreAdmin = false) {
+        if (!self::isAdmin() && !$ignoreAdmin) {
+            return false;
+        }
+        global $global;
+        $sql = "SELECT * FROM users u WHERE status = 'a' AND (canUpload = 1 || isAdmin = 1) AND "
+                . " (SELECT count(id) FROM videos where users_id = u.id )>0 ";
+
+        $user = array();
+        $res = sqlDAL::readSql($sql . ";");
+        $downloadedArray = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        if ($res != false) {
+            foreach ($downloadedArray as $row) {
                 $user[] = $row;
             }
         } else {
@@ -1833,6 +1916,14 @@ if (typeof gtag !== \"function\") {
 
     function setDonationLink($donationLink) {
         $this->donationLink = $donationLink;
+    }
+    
+    static function donationLink(){
+        if (self::isLogged()) {
+            return $_SESSION['user']['donationLink'];
+        } else {
+            return false;
+        }
     }
 
 }

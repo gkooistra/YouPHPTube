@@ -52,13 +52,13 @@ TimeLogEnd($timeLog, __LINE__);
     }
     ?>
     <div class="row"><div class="col-6 col-md-12">
-            <h1 class="pull-left">
+            <h2 class="pull-left">
                 <?php
                 echo $user->getNameIdentificationBd();
                 ?>
                 <?php
                 echo User::getEmailVerifiedIcon($user_id)
-                ?></h1>
+                ?></h2>
             <span class="pull-right">
                 <?php
                 echo Subscribe::getButton($user_id);
@@ -77,6 +77,9 @@ TimeLogEnd($timeLog, __LINE__);
                 <?php
                 $active = "active";
                 if ($advancedCustomUser->showChannelHomeTab) {
+                    if(!empty($_GET['current'])){ // means you are paging the Videos tab
+                        $active = "";
+                    }
                     ?>
                     <li class="nav-item <?php echo $active; ?>">
                         <a class="nav-link " href="#channelHome" data-toggle="tab" aria-expanded="false">
@@ -87,6 +90,9 @@ TimeLogEnd($timeLog, __LINE__);
                     $active = "";
                 }
                 if ($advancedCustomUser->showChannelVideosTab) {
+                    if(!empty($_GET['current'])){ // means you are paging the Videos tab
+                        $active = "active";
+                    }
                     ?>
                     <li class="nav-item <?php echo $active; ?>">
                         <a class="nav-link " href="#channelVideos" data-toggle="tab" aria-expanded="false">
@@ -98,7 +104,7 @@ TimeLogEnd($timeLog, __LINE__);
                 }
                 if ($advancedCustomUser->showChannelProgramsTab && !empty($palyListsObj)) {
                     ?>
-                    <li class="nav-item <?php echo $active; ?>">
+                    <li class="nav-item <?php echo $active; ?>" id="channelPlayListsLi">
                         <a class="nav-link " href="#channelPlayLists" data-toggle="tab" aria-expanded="true">
                             <?php echo strtoupper(__("Playlists")); ?>
                         </a>
@@ -112,9 +118,12 @@ TimeLogEnd($timeLog, __LINE__);
                 <?php
                 $active = "active fade in";
                 if ($advancedCustomUser->showChannelHomeTab) {
+                    if(!empty($_GET['current'])){ // means you are paging the Videos tab
+                        $active = "";
+                    }
                     ?>
                     <div class="tab-pane  <?php echo $active; ?>" id="channelHome" style="min-height: 800px;">
-                        <div class="container-fluid modeFlixContainer"> 
+                        <div class="container-fluid modeFlixContainer" style="padding: 15px;"> 
                             <?php
                             $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                             $obj->BigVideo = true;
@@ -131,6 +140,7 @@ TimeLogEnd($timeLog, __LINE__);
                             $obj->Categories = false;
                             $obj->playVideoOnFullscreen = false;
                             $obj->titleLabel = true;
+                            $obj->RemoveBigVideoDescription = true;
 
                             include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/modeFlixBody.php';
                             ?>
@@ -140,6 +150,9 @@ TimeLogEnd($timeLog, __LINE__);
                     $active = "fade";
                 }
                 if ($advancedCustomUser->showChannelVideosTab) {
+                    if(!empty($_GET['current'])){ // means you are paging the Videos tab
+                        $active = "active fade in";
+                    }
                     ?>
 
                     <div class="tab-pane <?php echo $active; ?>" id="channelVideos">
@@ -163,7 +176,7 @@ TimeLogEnd($timeLog, __LINE__);
                             </div>
                             <div class="panel-body">
                                 <?php
-                                if (!empty($uploadedVideos[0])) {
+                                if ($advancedCustomUser->showBigVideoOnChannelVideosTab && !empty($uploadedVideos[0])) {
                                     $video = $uploadedVideos[0];
                                     $obj = new stdClass();
                                     $obj->BigVideo = true;

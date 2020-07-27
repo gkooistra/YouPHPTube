@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS `categories` (
   INDEX `fk_categories_users1_idx` (`users_id` ASC),
   INDEX `clean_name_INDEX2` (`clean_name` ASC),
   INDEX `sortcategoryOrderIndex` (`order` ASC),
+  INDEX `category_name_idx` (`name` ASC),
   UNIQUE INDEX `clean_name_UNIQUE` (`clean_name` ASC), 
   CONSTRAINT `fk_categories_users1`
     FOREIGN KEY (`users_id`)
@@ -151,6 +152,8 @@ CREATE TABLE IF NOT EXISTS `videos` (
   INDEX `fk_videos_sites1_idx` (`sites_id` ASC),
   INDEX `clean_title_INDEX` (`clean_title` ASC),
   INDEX `video_filename_INDEX` (`filename` ASC),
+  INDEX `video_status_idx` (`status` ASC),
+  INDEX `video_type_idx` (`type` ASC) ,
   CONSTRAINT `fk_videos_sites1`
     FOREIGN KEY (`sites_id`)
     REFERENCES `sites` (`id`)
@@ -308,6 +311,7 @@ CREATE TABLE IF NOT EXISTS `likes` (
   PRIMARY KEY (`id`),
   INDEX `fk_likes_videos1_idx` (`videos_id` ASC),
   INDEX `fk_likes_users1_idx` (`users_id` ASC),
+  INDEX `likes_likes_idx` (`like` ASC),
   CONSTRAINT `fk_likes_videos1`
     FOREIGN KEY (`videos_id`)
     REFERENCES `videos` (`id`)

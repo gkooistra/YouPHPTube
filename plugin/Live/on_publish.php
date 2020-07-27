@@ -8,6 +8,7 @@ $obj->error = true;
 
 _error_log("NGINX ON Publish POST: ".json_encode($_POST));
 _error_log("NGINX ON Publish GET: ".json_encode($_GET));
+_error_log("NGINX ON Publish php://input" .file_get_contents("php://input"));
 
 // get GET parameters
 $url = $_POST['tcurl'];
@@ -19,6 +20,16 @@ parse_str($parts["query"], $_GET);
 _error_log("NGINX ON Publish parse_url: ".json_encode($parts));
 _error_log("NGINX ON Publish parse_str: ".json_encode($_GET));
 
+if($_POST['name']=='live'){
+    _error_log("NGINX ON Publish wrong name {$_POST['p']}");
+    // fix name for streamlab
+    $pParts = explode("/", $_POST['p']);
+    if(!empty($pParts[1])){
+        _error_log("NGINX ON Publish like key fixed");
+        $_POST['name']=$pParts[1];
+    }
+    
+}
 
 if(empty($_POST['name']) && !empty($_GET['name'])){
     $_POST['name'] = $_GET['name'];
@@ -30,7 +41,7 @@ if(empty($_POST['name']) && !empty($_GET['key'])){
 
 if (!empty($_GET['p'])) {
     $_GET['p'] = str_replace("/", "", $_GET['p']);
-    _error_log("NGINX ON Publish check if key exists");
+    _error_log("NGINX ON Publish check if key exists ({$_POST['name']})");
     $obj->row = LiveTransmition::keyExists($_POST['name']);
     _error_log("NGINX ON Publish key exists return ". json_encode($obj->row));
     if (!empty($obj->row)) {
@@ -45,6 +56,7 @@ if (!empty($_GET['p'])) {
             $lth->setDescription($obj->row['description']);
             $lth->setKey($_POST['name']);
             $lth->setUsers_id($user->getBdId());
+            $lth->setLive_servers_id(Live_servers::getServerIdFromRTMPHost($url));
             _error_log("NGINX ON Publish saving LiveTransmitionHistory");
             $lth->save();
             _error_log("NGINX ON Publish saved LiveTransmitionHistory");

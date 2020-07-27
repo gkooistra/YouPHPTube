@@ -214,14 +214,19 @@ $(document).ready(function () {
             },
         };
     })();
-    $('[data-toggle="popover"]').popover();
-    $('[data-toggle="tooltip"]').tooltip({container: 'body'});
-    $('[data-toggle="tooltip"]').on('click', function () {
-        var t = this;
-        setTimeout(function () {
-            $(t).tooltip('hide');
-        }, 2000);
-    });
+    try {
+        $('[data-toggle="popover"]').popover();
+        $('[data-toggle="tooltip"]').tooltip({container: 'body'});
+        $('[data-toggle="tooltip"]').on('click', function () {
+            var t = this;
+            setTimeout(function () {
+                $(t).tooltip('hide');
+            }, 2000);
+        });
+    } catch (e) {
+
+    }
+
     $(".thumbsImage").on("mouseenter", function () {
         gifId = $(this).find(".thumbsGIF").attr('id');
         $(".thumbsGIF").fadeOut();
@@ -321,7 +326,11 @@ $(document).ready(function () {
                 if (!response.error) {
                     swal("Congratulations!", "File created!", "success");
                 } else {
-                    swal("Sorry!", "File NOT created!", "error");
+                    if (response.msg) {
+                        swal("Sorry!", response.msg, "error");
+                    } else {
+                        swal("Sorry!", "File NOT created!", "error");
+                    }
                 }
                 modal.hidePleaseWait();
             }
@@ -511,14 +520,6 @@ function isMobile() {
     return check;
 }
 
-function copyToClipboard(text) {
-    var $temp = $("<input>");
-    $("body").append($temp);
-    $temp.val(text).select();
-    document.execCommand("copy");
-    $temp.remove();
-}
-
 var last_videos_id = 0;
 var last_currentTime = -1;
 function addView(videos_id, currentTime) {
@@ -550,14 +551,13 @@ function getPlayerButtonIndex(name) {
     return children.length;
 }
 
-
 function copyToClipboard(text) {
-
     $('#elementToCopy').css({'top': mouseY, 'left': mouseX}).fadeIn('slow');
     $('#elementToCopy').val(text);
     $('#elementToCopy').focus();
     $('#elementToCopy').select();
     document.execCommand('copy');
+    $.toast("Copied to Clipboard");
 }
 
 function nl2br(str, is_xhtml) {
@@ -691,36 +691,45 @@ function alertHTMLText(title, text) {
     });
 }
 
-function tooglePlayerLoop(){
+function tooglePlayerLoop() {
     setPlayerLoop(!isPlayerLoop());
 }
 
-function setPlayerLoop(loop){
-    if(loop){
+function setPlayerLoop(loop) {
+    if (loop) {
         console.log("Loop ON");
         player.loop(1);
         $(".loop-button").removeClass('loop-disabled-button');
         $(".loop-button, .loopButton").addClass('fa-spin');
-    }else{
+    } else {
         $(".loop-button").addClass('loop-disabled-button');
         $(".loop-button, .loopButton").removeClass('fa-spin');
         console.log("Loop OFF");
         player.loop(0);
     }
     Cookies.set('playerLoop', loop, {
-                    path: '/',
-                    expires: 365
-                });                                                   
-    if(typeof setImageLoop === 'function'){
+        path: '/',
+        expires: 365
+    });
+    if (typeof setImageLoop === 'function') {
         setImageLoop();
     }
 }
 
-function isPlayerLoop(){
+function isPlayerLoop() {
     var loop = Cookies.get('playerLoop');
-    if(loop === "false"){
+    if (loop === "false") {
         return false;
-    }else{
+    } else {
         return true;
     }
+}
+
+function isArray(what) {
+    return Object.prototype.toString.call(what) === '[object Array]';
+}
+
+function reloadVideoJS() {
+    var src = player.currentSources();
+    player.src(src);
 }

@@ -75,6 +75,10 @@ abstract class PluginAbstract {
         return array();
     }
 
+    public function getVideosManagerListButtonTitle() {
+        return "";
+    }
+
     public function getVideosManagerListButton() {
         return "";
     }
@@ -92,8 +96,9 @@ abstract class PluginAbstract {
     }
 
     public function getDataObject() {
-        if (empty(PluginAbstract::$dataObject[$this->getUUID()])) {
-            $obj = Plugin::getPluginByUUID($this->getUUID());
+        $uuid = $this->getUUID();
+        if (empty(PluginAbstract::$dataObject[$uuid])) {
+            $obj = Plugin::getPluginByUUID($uuid);
             //echo $obj['object_data'];
             $o = array();
             if (!empty($obj['object_data'])) {
@@ -174,6 +179,10 @@ abstract class PluginAbstract {
     }
 
     public function afterNewVideo($videos_id) {
+        return false;
+    }
+    
+    public function afterDonation($from_users_id, $how_much, $videos_id, $users_id) {
         return false;
     }
 
@@ -277,6 +286,10 @@ abstract class PluginAbstract {
     }
 
     public function getModeYouTube($videos_id) {
+        return false;
+    }
+
+    public function getModeYouTubeLive($users_id) {
         return false;
     }
     
@@ -399,7 +412,7 @@ abstract class PluginAbstract {
         return null;
     }
 
-    public function onLiveStream($users_id) {
+    public function onLiveStream($users_id, $live_servers_id) {
         return null;
     }
 

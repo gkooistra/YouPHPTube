@@ -1,8 +1,6 @@
 <?php
-
 header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Headers: Content-Type");
-header('Content-Type: application/json');
 global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
@@ -119,18 +117,34 @@ if (!empty($_GET['type'])) {
             if (session_status() == PHP_SESSION_NONE) {
                 session_start();
             }
-            header("Location: {$_SESSION['redirectUri']}");
+            $location = $_SESSION['redirectUri'];
+            //header("Location: {$_SESSION['redirectUri']}");
             $_SESSION['redirectUri'] = "";
             unset($_SESSION['redirectUri']);
         } else {
-            header("Location: {$global['webSiteRootURL']}");
+            $location = $global['webSiteRootURL'];
+            //header("Location: {$global['webSiteRootURL']}");
         }
     } catch (\Exception $e) {
-        header("Location: {$global['webSiteRootURL']}user?error=" . urlencode($e->getMessage()));
+        $location = "{$global['webSiteRootURL']}user?error=" . urlencode($e->getMessage());
+        //header("Location: {$global['webSiteRootURL']}user?error=" . urlencode($e->getMessage()));
         //echo $e->getMessage();
     }
+    header('Content-Type: text/html');
+    ?>
+<script>
+    window.opener = self;
+    if(window.name == 'loginYPT'){
+        window.close();
+    }else{
+        document.location = "<?php echo $location; ?>";
+    }
+</script>    
+    <?php
     return;
 }
+
+header('Content-Type: application/json');
 TimeLogEnd($timeLog, __LINE__);
 $object = new stdClass();
 if (!empty($_GET['user'])) {
@@ -165,8 +179,12 @@ if ($resp === User::CAPTCHA_ERROR) {
 $object->siteLogo = $global['webSiteRootURL'] . $config->getLogo();
 $object->id = User::getId();
 $object->user = User::getUserName();
+$object->donationLink = User::donationLink();
+$object->name = User::getName();
+$object->nameIdentification = User::getNameIdentification();
 $object->pass = User::getUserPass();
 $object->email = User::getMail();
+$object->channelName = User::_getChannelName($object->id);
 $object->photo = User::getPhoto();
 $object->backgroundURL = User::getBackground($object->id);
 $object->isLogged = User::isLogged();
@@ -231,6 +249,6 @@ if ($object->isLogged) {
     TimeLogEnd($timeLog2, __LINE__);
 }
 TimeLogEnd($timeLog, __LINE__);
-$json = json_encode($object, JSON_UNESCAPED_UNICODE);
+$json = _json_encode($object);
 header("Content-length: " . strlen($json));
 echo $json;

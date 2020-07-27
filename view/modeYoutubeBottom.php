@@ -6,7 +6,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
     $name = User::getNameIdentificationById($video['users_id']);
     $name = "<a href='" . User::getChannelLink($video['users_id']) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($video['users_id']) . "</a>";
     $subscribe = Subscribe::getButton($video['users_id']);
-    $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
+    $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="User Photo" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
     $source = Video::getSourceFile($video['filename']);
     if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
         $img = $source['url'];
@@ -58,7 +58,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
             <h1 itemprop="name">
                 <?php
                 echo $video['title'];
-                if (Video::showYoutubeModeOptions() && Video::canEdit($video['id'])) {
+                if (!empty($video['id']) && Video::showYoutubeModeOptions() && Video::canEdit($video['id'])) {
                     ?>
                     <a href="<?php echo $global['webSiteRootURL']; ?>mvideos?video_id=<?php echo $video['id']; ?>" class="btn btn-primary btn-xs" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>"><i class="fa fa-edit"></i> <?php echo __("Edit Video"); ?></a>
                 <?php } ?>
@@ -70,6 +70,9 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                         $video['tags'] = array();
                     }
                     foreach ($video['tags'] as $value) {
+                        if(is_array($value)){
+                            $value = (object)$value;
+                        }
                         if ($value->label === __("Group")) {
                             ?>
                             <span class="label label-<?php echo $value->type; ?>"><?php echo $value->text; ?></span>
@@ -138,7 +141,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                     ?>
                 <?php } echo AVideoPlugin::getWatchActionButton($video['id']); ?>
                 <?php
-                if (empty($advancedCustom->removeThumbsUpAndDown)) {
+                if (!empty($video['id']) && empty($advancedCustom->removeThumbsUpAndDown)) {
                     ?>
                     <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == - 1) ? "myVote" : "" ?>" id="dislikeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("DonÂ´t like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
                         <span class="fa fa-thumbs-down"></span> <small><?php echo $video['dislikes']; ?></small>
@@ -268,13 +271,13 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                         ?>
                     </div>
                     <div class="tab-pane" id="tabEmbed">
-                        <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?> (Iframe):</h4>
+                        <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?> (Iframe): <?php echo getButtontCopyToClipboard('textAreaEmbed'); ?></h4> 
                         <textarea class="form-control" style="min-width: 100%" rows="5" id="textAreaEmbed" readonly="readonly"><?php
                             $code = str_replace("{embedURL}", Video::getLink($video['id'], $video['clean_title'], true), $advancedCustom->embedCodeTemplate);
                             echo htmlentities($code);
                             ?>
                         </textarea>
-                        <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?> (Object):</h4>
+                        <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?> (Object): <?php echo getButtontCopyToClipboard('textAreaEmbedObject'); ?></h4>
                         <textarea class="form-control" style="min-width: 100%" rows="5" id="textAreaEmbedObject" readonly="readonly"><?php
                             $code = str_replace("{embedURL}", Video::getLink($video['id'], $video['clean_title'], true), $advancedCustom->embedCodeTemplateObject);
                             echo htmlentities($code);
@@ -370,21 +373,21 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                     <div class="tab-pane" id="tabPermaLink">
                         <div class="form-group">
                             <label class="control-label"><?php echo __("Permanent Link") ?></label>
-                            <div class="">
-                                <input value="<?php echo Video::getPermaLink($video['id']); ?>" class="form-control" readonly="readonly"  id="linkPermanent"/>
-                            </div>
+                            <?php
+                            getInputCopyToClipboard('linkPermanent', Video::getPermaLink($video['id']));
+                            ?>
                         </div>
                         <div class="form-group">
                             <label class="control-label"><?php echo __("URL Friendly") ?> (SEO)</label>
-                            <div class="">
-                                <input value="<?php echo Video::getURLFriendly($video['id']); ?>" class="form-control" readonly="readonly" id="linkFriendly"/>
-                            </div>
+                            <?php
+                            getInputCopyToClipboard('linkFriendly', Video::getURLFriendly($video['id']));
+                            ?>
                         </div>
                         <div class="form-group">
                             <label class="control-label"><?php echo __("Current Time") ?> (SEO)</label>
-                            <div class="">
-                                <input value="<?php echo Video::getURLFriendly($video['id']); ?>?t=0" class="form-control" readonly="readonly" id="linkCurrentTime"/>
-                            </div>
+                            <?php
+                            getInputCopyToClipboard('linkCurrentTime', Video::getURLFriendly($video['id']));
+                            ?>
                         </div>
                     </div>
                 </div>
@@ -412,11 +415,11 @@ if (empty($video) && !empty($_GET['videos_id'])) {
                 ?>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description">
-                    <?php
+                    <?php echo $video['description'];
                     if (strpos($video['description'], '<br') !== false || strpos($video['description'], '<p') !== false) {
-                        echo $video['description'];
+                        //echo $video['description'];
                     } else {
-                        echo nl2br(textToLink(htmlentities($video['description'])));
+                        //echo nl2br(textToLink(htmlentities($video['description'])));
                     }
                     ?>
                 </div>
@@ -444,7 +447,7 @@ if (empty($advancedCustom->showShareMenuOpenByDefault)) {
     });
 </script>
 <?php
-if (empty($advancedCustom->disableComments) && Video::showYoutubeModeOptions()) {
+if (!empty($video['id']) && empty($advancedCustom->disableComments) && Video::showYoutubeModeOptions()) {
     ?>
     <div class="row bgWhite list-group-item">
         <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>

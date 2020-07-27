@@ -359,26 +359,37 @@ class Category {
             unset($_POST['sort']['title']);
         }
         $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY `order`, name ASC ");
-        $res = sqlDAL::readSql($sql);
-        $fullResult = sqlDAL::fetchAllAssoc($res);
-        sqlDAL::close($res);
-        $category = array();
-        if ($res) {
-            foreach ($fullResult as $row) {
-                $row['name'] = xss_esc_back($row['name']);
-                $row['total'] = self::getTotalVideosFromCategory($row['id']);
-                $row['fullTotal'] = self::getTotalVideosFromCategory($row['id'], false, true, true);
-                $row['owner'] = User::getNameIdentificationById(@$row['users_id']);
-                $row['canEdit'] = self::userCanEditCategory($row['id']);
-                $row['canAddVideo'] = self::userCanAddInCategory($row['id']);
-                $row['hierarchy'] = self::getHierarchyString($row['parentId']);
-                $row['hierarchyAndName'] = $row['hierarchy'].$row['name'];
-                $category[] = $row;
+        
+        $cacheName = md5($sql);
+        if(empty($_SESSION['getAllCategoriesClearCache'])){
+            $category = object_to_array(ObjectYPT::getCache($cacheName, 36000));
+        }else{
+            _session_start();
+            unset($_SESSION['getAllCategoriesClearCache']);
+        }
+        if(empty($category)){
+            $res = sqlDAL::readSql($sql);
+            $fullResult = sqlDAL::fetchAllAssoc($res);
+            sqlDAL::close($res);
+            $category = array();
+            if ($res) {
+                foreach ($fullResult as $row) {
+                    $row['name'] = xss_esc_back($row['name']);
+                    $row['total'] = self::getTotalVideosFromCategory($row['id']);
+                    $row['fullTotal'] = self::getTotalVideosFromCategory($row['id'], false, true, true);
+                    $row['owner'] = User::getNameIdentificationById(@$row['users_id']);
+                    $row['canEdit'] = self::userCanEditCategory($row['id']);
+                    $row['canAddVideo'] = self::userCanAddInCategory($row['id']);
+                    $row['hierarchy'] = self::getHierarchyString($row['parentId']);
+                    $row['hierarchyAndName'] = $row['hierarchy'].$row['name'];
+                    $category[] = $row;
+                }
+                //$category = $res->fetch_all(MYSQLI_ASSOC);
+                ObjectYPT::setCache($cacheName, $category);
+            } else {
+                $category = false;
+                die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
             }
-            //$category = $res->fetch_all(MYSQLI_ASSOC);
-        } else {
-            $category = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $category;
     }
@@ -537,6 +548,7 @@ class Category {
         // clear category count cache
         _session_start();
         unset($_SESSION['categoryTotal']);
+        $_SESSION['getAllCategoriesClearCache'] = 1;
         //session_write_close();
     }
 

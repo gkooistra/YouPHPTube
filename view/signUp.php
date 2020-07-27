@@ -13,6 +13,11 @@ if (!empty($advancedCustomUser->disableNativeSignUp)) {
 }
 
 $agreement = AVideoPlugin::loadPluginIfEnabled("SignUpAgreement");
+
+$signInLink = "{$global['webSiteRootURL']}user?redirectUri=".urlencode(isset($_GET['redirectUri']) ? $_GET['redirectUri'] : "");
+if(!empty($_GET['siteRedirectUri'])){
+    $signInLink = $_GET['siteRedirectUri'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -78,20 +83,18 @@ $agreement = AVideoPlugin::loadPluginIfEnabled("SignUpAgreement");
                             <div class="form-group">
                                 <label class="col-sm-4 control-label hidden-xs"><?php echo __("New Password"); ?></label>
                                 <div class="col-sm-8 inputGroupContainer">
-                                    <div class="input-group">
-                                        <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-                                        <input  id="inputPassword" placeholder="<?php echo __("New Password"); ?>" class="form-control"  type="password" value=""  autocomplete="off" >
-                                    </div>
+                                    <?php
+                                    getInputPassword("inputPassword", 'class="form-control" autocomplete="off" ', __("New Password"));
+                                    ?>
                                 </div>
                             </div>
 
                             <div class="form-group">
                                 <label class="col-sm-4 control-label hidden-xs"><?php echo __("Confirm New Password"); ?></label>
                                 <div class="col-sm-8 inputGroupContainer">
-                                    <div class="input-group">
-                                        <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-                                        <input  id="inputPasswordConfirm" placeholder="<?php echo __("Confirm New Password"); ?>" class="form-control"  type="password" value="" >
-                                    </div>
+                                    <?php
+                                    getInputPassword("inputPasswordConfirm", 'class="form-control" autocomplete="off" ', __("Confirm New Password"));
+                                    ?>
                                 </div>
                             </div>
 
@@ -105,7 +108,7 @@ $agreement = AVideoPlugin::loadPluginIfEnabled("SignUpAgreement");
                                 <label class="col-sm-4 control-label hidden-xs"><?php echo __("Type the code"); ?></label>
                                 <div class="col-sm-8 inputGroupContainer captcha">
                                     <div class="input-group">
-                                        <span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha?<?php echo time(); ?>" id="captcha"></span>
+                                        <span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha?PHPSESSID=<?php echo session_id(); ?>&<?php echo time(); ?>" id="captcha"></span>
                                         <span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha"><span class="glyphicon glyphicon-refresh"></span></span></span>
                                         <input name="captcha" placeholder="<?php echo __("Type the code"); ?>" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText">
                                     </div>
@@ -121,7 +124,7 @@ $agreement = AVideoPlugin::loadPluginIfEnabled("SignUpAgreement");
                             </div>
                             <div class="form-group">
                                 <div class="col-md-12">
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>user?redirectUri=<?php echo urlencode(isset($_GET['redirectUri']) ? $_GET['redirectUri'] : ""); ?>" class="btn btn-success btn-block" ><i class="fas fa-sign-in-alt"></i> <?php echo __("Sign In"); ?></a>
+                                    <a href="<?php echo $signInLink; ?>" class="btn btn-success btn-block" ><i class="fas fa-sign-in-alt"></i> <?php echo __("Sign In"); ?></a>
                                 </div>
                             </div>
                         </fieldset>
@@ -133,7 +136,7 @@ $agreement = AVideoPlugin::loadPluginIfEnabled("SignUpAgreement");
                 $(document).ready(function () {
 
                     $('#btnReloadCapcha').click(function () {
-                        $('#captcha').attr('src', '<?php echo $global['webSiteRootURL']; ?>captcha?' + Math.random());
+                        $('#captcha').attr('src', '<?php echo $global['webSiteRootURL']; ?>captcha?PHPSESSID=<?php echo session_id(); ?>&' + Math.random());
                         $('#captchaText').val('');
                     });
                     $('#updateUserForm').submit(function (evt) {
@@ -148,7 +151,7 @@ $agreement = AVideoPlugin::loadPluginIfEnabled("SignUpAgreement");
                             return false;
                         } else {
                             $.ajax({
-                                url: '<?php echo $global['webSiteRootURL']; ?>objects/userCreate.json.php',
+                                url: '<?php echo $global['webSiteRootURL']; ?>objects/userCreate.json.php?PHPSESSID=<?php echo session_id(); ?>',
                                 data: {
                                     "user": $('#inputUser').val(),
                                     "pass": $('#inputPassword').val(),
