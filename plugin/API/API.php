@@ -112,16 +112,21 @@ class API extends PluginAbstract {
      */
     public function get_api_plugin_parameters($parameters) {
         global $global;
-        $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if (!empty($parameters['plugin_name'])) {
-            if ($dataObj->APISecret === @$_GET['APISecret']) {
-                $obj->response = AVideoPlugin::getDataObject($parameters['plugin_name']);
+        $name = "get_api_plugin_parameters" . json_encode($parameters);
+        $obj = ObjectYPT::getCache($name, 3600);
+        if (empty($obj)) {
+            $obj = $this->startResponseObject($parameters);
+            $dataObj = $this->getDataObject();
+            if (!empty($parameters['plugin_name'])) {
+                if ($dataObj->APISecret === @$_GET['APISecret']) {
+                    $obj->response = AVideoPlugin::getDataObject($parameters['plugin_name']);
+                } else {
+                    return new ApiObject("APISecret is required");
+                }
             } else {
-                return new ApiObject("APISecret is required");
+                return new ApiObject("Plugin name Not found");
             }
-        } else {
-            return new ApiObject("Plugin name Not found");
+            ObjectYPT::setCache($name, $obj);
         }
         return new ApiObject("", false, $obj);
     }
@@ -283,7 +288,7 @@ class API extends PluginAbstract {
                 unset($_POST['sort']);
                 unset($_POST['current']);
                 unset($_POST['searchPhrase']);
-                $_POST['rowCount'] = 10;
+                $_REQUEST['rowCount'] = 10;
                 $_POST['sort']['created'] = "desc";
                 $rows[$key]['comments'] = Comment::getAllComments($rows[$key]['id']);
                 $rows[$key]['commentsTotal'] = Comment::getTotalComments($rows[$key]['id']);
@@ -664,16 +669,21 @@ class API extends PluginAbstract {
     public function get_api_subscribers($parameters) {
         global $global;
 
-        $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret !== @$_GET['APISecret']) {
-            return new ApiObject("Invalid APISecret");
+        $name = "get_api_subscribers" . json_encode($parameters);
+        $subscribers = ObjectYPT::getCache($name, 3600);
+        if (empty($subscribers)) {
+            $obj = $this->startResponseObject($parameters);
+            $dataObj = $this->getDataObject();
+            if ($dataObj->APISecret !== @$_GET['APISecret']) {
+                return new ApiObject("Invalid APISecret");
+            }
+            if (empty($parameters['users_id'])) {
+                return new ApiObject("User ID can not be empty");
+            }
+            require_once $global['systemRootPath'] . 'objects/subscribe.php';
+            $subscribers = Subscribe::getAllSubscribes($parameters['users_id']);
+            ObjectYPT::setCache($name, $subscribers);
         }
-        if (empty($parameters['users_id'])) {
-            return new ApiObject("User ID can not be empty");
-        }
-        require_once $global['systemRootPath'] . 'objects/subscribe.php';
-        $subscribers = Subscribe::getAllSubscribes($parameters['users_id']);
         return new ApiObject("", false, $subscribers);
     }
 
@@ -819,6 +829,25 @@ class API extends PluginAbstract {
     public function get_api_vmap($parameters) {
         global $global;
         $this->getToPost();
+        require_once $global['systemRootPath'] . 'plugin/GoogleAds_IMA/VMAP.php';
+        exit;
+    }
+
+    /**
+     * If you do not pass the user and password, it will always show ads, if you pass it the script will check if will display ads or not
+     * @param type $parameters
+     * 'videos_id' the video id to calculate the ads length
+     * ['optionalAdTagUrl' a tag number 1 or 2 or 3 or 4 to use another tag, if do not pass it will use the default tag]
+     * ['user' usename of the user]
+     * ['pass' password  of the user]
+     * ['encodedPass' tell the script id the password submited is raw or encrypted]
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2
+     * @return type
+     */
+    public function get_api_vast($parameters) {
+        global $global;
+        $this->getToPost();
+        $vastOnly = 1;
         require_once $global['systemRootPath'] . 'plugin/GoogleAds_IMA/VMAP.php';
         exit;
     }
@@ -1078,10 +1107,10 @@ class API extends PluginAbstract {
             return new ApiObject("This language does not exists");
         }
         include $file;
-        if(empty($t)){
+        if (empty($t)) {
             return new ApiObject("This language is empty");
         }
-        
+
         return new ApiObject("", false, $t);
     }
 

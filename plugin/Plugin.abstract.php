@@ -88,7 +88,7 @@ abstract class PluginAbstract {
     }
 
     public function getTags() {
-        
+        return array();
     }
 
     public function getGallerySection() {
@@ -167,6 +167,12 @@ abstract class PluginAbstract {
         $obj = new Plugin($pluginRow['id']);
         $obj->setObject_data(addcslashes(json_encode($object), '\\'));
         return $obj->save();
+    }
+    
+    public function setDataObjectParameter($parameterName, $value) {
+        $object = $this->getDataObject();
+        eval("\$object->$parameterName = \$value;");
+        return $this->setDataObject($object);
     }
 
     public function getEmptyDataObject() {

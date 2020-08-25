@@ -103,7 +103,21 @@ function humanTiming($time, $precision = 0) {
     return secondsToHumanTiming($time, $precision);
 }
 
+function humanTimingAgo($time, $precision = 0) {
+    if (!is_int($time)) {
+        $time = strtotime($time);
+    }
+    $time = time() - $time; // to get the time since that moment
+    if(empty($time)){
+        return __("Now");
+    }
+    return secondsToHumanTiming($time, $precision)." ".__("ago");
+}
+
 function secondsToHumanTiming($time, $precision = 0) {
+    if(empty($time)){
+        return __("Now");
+    }
     $time = ($time < 0) ? $time * -1 : $time;
     $time = ($time < 1) ? 1 : $time;
     $tokens = array(
@@ -337,6 +351,11 @@ function cleanString($text) {
     return preg_replace(array_keys($utf8), array_values($utf8), $text);
 }
 
+function cleanURLName($name){
+    $name = preg_replace('/[!#$&\'()*+,\\/:;=?@[\\]% ]+/', '-', trim(strtolower(cleanString($name))));
+    return preg_replace('/[\x00-\x1F\x7F]/u', '', $name);
+}
+
 /**
  * @brief return true if running in CLI, false otherwise
  * if is set $_GET['ignoreCommandLineInterface'] will return false
@@ -448,7 +467,7 @@ function parseDurationToSeconds($str) {
  */
 function setSiteSendMessage(&$mail) {
     global $global;
-    if(empty($_POST["comment"])){
+    if (empty($_POST["comment"])) {
         $_POST["comment"] = "";
     }
     require_once $global['systemRootPath'] . 'objects/configuration.php';
@@ -511,7 +530,7 @@ function sendSiteEmail($to, $subject, $message) {
     if (empty($to)) {
         return false;
     }
-    if(!is_array($to)){
+    if (!is_array($to)) {
         $to = array($to);
     }
 
@@ -572,6 +591,38 @@ function sendSiteEmail($to, $subject, $message) {
             }
         }
 //Set the subject line
+        return $resp;
+    } catch (phpmailerException $e) {
+        _error_log($e->errorMessage()); //Pretty error messages from PHPMailer
+    } catch (Exception $e) {
+        _error_log($e->getMessage()); //Boring error messages from anything else!
+    }
+}
+
+function sendEmailToSiteOwner($subject, $message) {
+    global $advancedCustom;
+    $subject = UTF8encode($subject);
+    $message = UTF8encode($message);
+    _error_log("sendEmailToSiteOwner {$subject}");
+    global $config, $global;
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/PHPMailer.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/SMTP.php';
+    require_once $global['systemRootPath'] . 'objects/PHPMailer/src/Exception.php';
+    $contactEmail = $config->getContactEmail();
+    $webSiteTitle = $config->getWebSiteTitle();
+    try {
+        $mail = new PHPMailer\PHPMailer\PHPMailer;
+        setSiteSendMessage($mail);
+        $mail->setFrom($contactEmail, $webSiteTitle);
+        $mail->Subject = $subject . " - " . $webSiteTitle;
+        $mail->msgHTML($message);
+        $mail->addAddress($contactEmail);
+        $resp = $mail->send();
+        if (!$resp) {
+            _error_log("sendEmailToSiteOwner Error Info: {$mail->ErrorInfo}");
+        } else {
+            _error_log("sendEmailToSiteOwner Success Info: $subject " . json_encode($to));
+        }
         return $resp;
     } catch (phpmailerException $e) {
         _error_log($e->errorMessage()); //Pretty error messages from PHPMailer
@@ -988,7 +1039,8 @@ function getVideosURLArticle($fileName) {
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
     $start = $time;
-    $files = array_merge($files, _getImagesURL($fileName, 'article'));
+    //$files = array_merge($files, _getImagesURL($fileName, 'article'));
+    $files = _getImagesURL($fileName, 'article');
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
@@ -1427,6 +1479,41 @@ function im_resizeV3($file_src, $file_dest, $wd, $hd) {
 
 function im_resize_max_size($file_src, $file_dest, $max_width, $max_height) {
     $fn = $file_src;
+    $tmpFile = getTmpFile() . ".jpg";
+    if (empty($fn)) {
+        _error_log("im_resize_max_size: file name is empty, Destination: {$file_dest}", AVideoLog::$ERROR);
+        return false;
+    }
+    if (function_exists("exif_read_data")) {
+        error_log($fn);
+        convertImage($fn, $tmpFile, 100);
+        $exif = exif_read_data($tmpFile);
+        if ($exif && isset($exif['Orientation'])) {
+            $orientation = $exif['Orientation'];
+            if ($orientation != 1) {
+                $img = imagecreatefromjpeg($tmpFile);
+                $deg = 0;
+                switch ($orientation) {
+                    case 3:
+                        $deg = 180;
+                        break;
+                    case 6:
+                        $deg = 270;
+                        break;
+                    case 8:
+                        $deg = 90;
+                        break;
+                }
+                if ($deg) {
+                    $img = imagerotate($img, $deg, 0);
+                }
+                imagejpeg($img, $fn, 100);
+            }
+        }
+    } else {
+        _error_log("Make sure you install the php_mbstring and php_exif to be able to rotate images");
+    }
+
     $size = getimagesize($fn);
     $ratio = $size[0] / $size[1]; // width/height
     if ($size[0] <= $max_width && $size[1] <= $max_height) {
@@ -1440,32 +1527,41 @@ function im_resize_max_size($file_src, $file_dest, $max_width, $max_height) {
         $width = $max_width * $ratio;
         $height = $max_height;
     }
+
     $src = imagecreatefromstring(file_get_contents($fn));
     $dst = imagecreatetruecolor($width, $height);
     imagecopyresampled($dst, $src, 0, 0, 0, 0, $width, $height, $size[0], $size[1]);
     imagedestroy($src);
     imagejpeg($dst, $file_dest); // adjust format as needed
     imagedestroy($dst);
+    @unlink($file_src);
+    @unlink($tmpFile);
 }
 
 function convertImage($originalImage, $outputImage, $quality) {
+    $imagetype = 0;
+    if (function_exists('exif_imagetype')) {
+        $imagetype = exif_imagetype($originalImage);
+    }
+
     // jpg, png, gif or bmp?
     $exploded = explode('.', $originalImage);
     $ext = $exploded[count($exploded) - 1];
 
-    if (preg_match('/jpg|jpeg/i', $ext))
+    if ($imagetype == IMAGETYPE_JPEG || preg_match('/jpg|jpeg/i', $ext))
         $imageTmp = imagecreatefromjpeg($originalImage);
-    else if (preg_match('/png/i', $ext))
+    else if ($imagetype == IMAGETYPE_PNG || preg_match('/png/i', $ext))
         $imageTmp = imagecreatefrompng($originalImage);
-    else if (preg_match('/gif/i', $ext))
+    else if ($imagetype == IMAGETYPE_GIF || preg_match('/gif/i', $ext))
         $imageTmp = imagecreatefromgif($originalImage);
-    else if (preg_match('/bmp/i', $ext))
+    else if ($imagetype == IMAGETYPE_BMP || preg_match('/bmp/i', $ext))
         $imageTmp = imagecreatefrombmp($originalImage);
-    else if (preg_match('/webp/i', $ext))
+    else if ($imagetype == IMAGETYPE_WEBP || preg_match('/webp/i', $ext))
         $imageTmp = imagecreatefromwebp($originalImage);
-    else
+    else {
+        _error_log("convertImage: File Extension not found ($originalImage, $outputImage, $quality) " . exif_imagetype($originalImage));
         return 0;
-
+    }
     // quality is a value from 0 (worst) to 100 (best)
     imagejpeg($imageTmp, $outputImage, $quality);
     imagedestroy($imageTmp);
@@ -2139,7 +2235,7 @@ function siteMap() {
         </url>
         ';
 
-    $_POST['rowCount'] = $advancedCustom->siteMapRowsLimit;
+    $_REQUEST['rowCount'] = $advancedCustom->siteMapRowsLimit;
     _error_log("siteMap: rowCount {$_POST['rowCount']} ");
     $_POST['sort']['modified'] = "DESC";
     $users = User::getAllUsersThatHasVideos(true);
@@ -2157,7 +2253,7 @@ function siteMap() {
     $xml .= ' 
         <!-- Categories -->
         ';
-    $_POST['rowCount'] = $advancedCustom->siteMapRowsLimit;
+    $_REQUEST['rowCount'] = $advancedCustom->siteMapRowsLimit;
     $_POST['sort']['modified'] = "DESC";
     $rows = Category::getAllCategories();
     _error_log("siteMap: getAllCategories " . count($rows));
@@ -2172,7 +2268,7 @@ function siteMap() {
             ';
     }
     $xml .= '<!-- Videos -->';
-    $_POST['rowCount'] = $advancedCustom->siteMapRowsLimit * 10;
+    $_REQUEST['rowCount'] = $advancedCustom->siteMapRowsLimit * 10;
     $_POST['sort']['created'] = "DESC";
     $rows = Video::getAllVideos(!empty($advancedCustom->showPrivateVideosOnSitemap) ? "viewableNotUnlisted" : "publicOnly");
     _error_log("siteMap: getAllVideos " . count($rows));
@@ -2286,8 +2382,8 @@ function allowOrigin() {
         header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
     }
     header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
-    header("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
+    header("Access-Control-Allow-Methods: GET,HEAD,OPTIONS,POST,PUT");
+    header("Access-Control-Allow-Headers: Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
 }
 
 function rrmdir($dir) {
@@ -2878,7 +2974,7 @@ function ogSite() {
                 strpos($t, 'bot') || strpos($t, 'archive') ||
                 strpos($t, 'info') || strpos($t, 'data'))
             return '[Bot] Other';
-        _error_log("Unknow user agent ($t) IP=" . getRealIpAddr() . " URI=" . getRequestURI());
+        //_error_log("Unknow user agent ($t) IP=" . getRealIpAddr() . " URI=" . getRequestURI());
         return 'Other (Unknown)';
     }
 
@@ -2921,27 +3017,34 @@ function ogSite() {
 
     }
 
-    function _error_log($message, $type = 0) {
+    function _error_log($message, $type = 0, $doNotRepeat = false) {
+        if (empty($doNotRepeat)) {
+            // do not log it too many times when you are using HLS format, other wise it will fill the log file with the same error
+            $doNotRepeat = preg_match("/hls.php$/", $_SERVER['SCRIPT_NAME']);
+        }
+        if ($doNotRepeat) {
+            return false;
+        }
         global $global;
         if (!empty($global['noDebug']) && $type == 0) {
             return false;
         }
         $prefix = "AVideoLog::";
         switch ($type) {
-            case 0:
+            case AVideoLog::$DEBUG:
                 $prefix .= "DEBUG: ";
                 break;
-            case 1:
+            case AVideoLog::$WARNING:
                 $prefix .= "WARNING: ";
                 break;
-            case 2:
+            case AVideoLog::$ERROR:
                 $prefix .= "ERROR: ";
                 break;
-            case 3:
+            case AVideoLog::$SECURITY:
                 $prefix .= "SECURITY: ";
                 break;
         }
-        error_log($prefix . $message);
+        error_log($prefix . $message . " SCRIPT_NAME: {$_SERVER['SCRIPT_NAME']}");
     }
 
     function postVariables($url, $array) {
@@ -3398,12 +3501,12 @@ function ogSite() {
         }
         return false;
     }
-    
+
     function getRedirectUri() {
         if (!empty($_GET['redirectUri'])) {
             return $_GET['redirectUri'];
         }
-        if(!empty($_SERVER["HTTP_REFERER"])){
+        if (!empty($_SERVER["HTTP_REFERER"])) {
             return $_GET['redirectUri'];
         }
         return getRequestURI();
@@ -3482,20 +3585,23 @@ function ogSite() {
     }
 
     function getRowCount($default = 1000) {
+        global $global;
         if (!empty($_REQUEST['rowCount'])) {
-            return intval($_REQUEST['rowCount']);
+            $defaultN = intval($_REQUEST['rowCount']);
         } else if (!empty($_POST['rowCount'])) {
-            return intval($_POST['rowCount']);
+            $defaultN = intval($_POST['rowCount']);
         } else if (!empty($_GET['rowCount'])) {
-            return intval($_GET['rowCount']);
+            $defaultN = intval($_GET['rowCount']);
         } else if (!empty($_REQUEST['length'])) {
-            return intval($_REQUEST['length']);
+            $defaultN = intval($_REQUEST['length']);
         } else if (!empty($_POST['length'])) {
-            return intval($_POST['length']);
+            $defaultN = intval($_POST['length']);
         } else if (!empty($_GET['length'])) {
-            return intval($_GET['length']);
+            $defaultN = intval($_GET['length']);
+        } else if (!empty($global['rowCount'])) {
+            $defaultN = intval($global['rowCount']);
         }
-        return $default;
+        return !empty($defaultN)?$defaultN:$default;
     }
 
     function getSearchVar() {
@@ -3539,6 +3645,9 @@ function ogSite() {
     }
 
     function wget($url, $filename, $debug = false) {
+        if(empty($url) || $url == "php://input" || !preg_match("/^http/", $url)){
+            return false;
+        }
         if (wgetIsLocked($url)) {
             if ($debug) {
                 _error_log("wget: ERROR the url is already downloading $url, $filename");
@@ -3584,6 +3693,33 @@ function ogSite() {
 
     function wgetRemoveLock($url) {
         $filename = wgetLockFile($url);
+        if (!file_exists($filename)) {
+            return false;
+        }
+        return unlink($filename);
+    }
+    
+    function getLockFile($name) {
+        return getTmpDir("YPTLockFile") . md5($name) . ".lock";
+    }
+
+    function setLock($name) {
+        $file = getLockFile($name);
+        return file_put_contents($file, time());
+    }
+    
+    function isLock($name, $timeout = 60){
+        $file = getLockFile($name);
+        if(file_exists($file)){
+            $time = intval(file_get_contents($file));
+            if($time+$timeout<time()){
+                return false;
+            }
+        }
+    }
+
+    function removeLock($name) {
+        $filename = getLockFile($name);
         if (!file_exists($filename)) {
             return false;
         }
@@ -3654,6 +3790,10 @@ function ogSite() {
         return $tmpDir;
     }
 
+    function getTmpFile() {
+        return getTmpDir("tmpFiles") . uniqid();
+    }
+
     function getMySQLDate() {
         global $global;
         $sql = "SELECT now() as time FROM configurations LIMIT 1";
@@ -3687,7 +3827,7 @@ function ogSite() {
         ?>
         <div class="input-group">
             <span class="input-group-addon"><i class="fas fa-lock"></i></span>
-            <input id="<?php echo $id; ?>" type="password"  placeholder="<?php echo $paceholder; ?>" <?php echo $attributes; ?> >
+            <input id="<?php echo $id; ?>" name="<?php echo $id; ?>" type="password"  placeholder="<?php echo $paceholder; ?>" <?php echo $attributes; ?> >
                 <span class="input-group-addon" style="cursor: pointer;" id="toggle_<?php echo $id; ?>"  data-toggle="tooltip" data-placement="left" title="<?php echo __('Show/Hide Password'); ?>"><i class="fas fa-eye-slash"></i></span>
         </div>    
         <script>
@@ -3897,5 +4037,70 @@ function ogSite() {
             }
         }
         return $json;
+    }
+
+    // this will make sure the strring will fits in the database field
+    function _substr($string, $start, $length = NULL) {
+        // make sure the name is not chunked in case of multibyte string
+        if (function_exists("mb_strcut")) {
+            return mb_strcut($string, $start, $length, "UTF-8");
+        } else {
+            return substr($string, $start, $length);
+        }
+    }
+
+    function getPagination($total, $page=0, $link="", $maxVisible = 10) {
+        if($total < 2){
+            return "";
+        }
+        if ($total < $maxVisible) {
+            $maxVisible = $total;
+        }
+        if(empty($link)){
+            $link = getSelfURI();
+            if(preg_match("/(current=[0-9]+)/i", $link, $match)){
+                $link = str_replace($match[1], "current={page}", $link);
+            }else{
+                $link .= (parse_url($link, PHP_URL_QUERY) ? '&' : '?') . 'current={page}';
+            }
+        }
+        if(empty($page)){
+            $page= getCurrentPage();
+        }
+        $pag = '<nav aria-label="Page navigation" class="text-center"><ul class="pagination">';
+        $start = 1;
+        $end = $maxVisible;
+
+        if ($page > $maxVisible - 2) {
+            $start = $page - ($maxVisible - 2);
+            $end = $page + 2;
+            if ($end > $total) {
+                $rest = $end - $total;
+                $start -= $rest;
+                $end -= $rest;
+            }
+        }
+        if ($page > 1) {
+            $pageLink = str_replace("{page}", 1, $link);
+            $pageBackLink = str_replace("{page}", $page-1, $link);
+            $pag .= '<li class="page-item"><a class="page-link" href="'.$pageLink.'" tabindex="-1" onclick="modal.showPleaseWait();"><i class="fas fa-angle-double-left"></i></a></li>';
+            $pag .= '<li class="page-item"><a class="page-link" href="'.$pageBackLink.'" tabindex="-1" onclick="modal.showPleaseWait();"><i class="fas fa-angle-left"></i></a></li>';
+        }
+        for ($i = $start; $i <= $end; $i++) {
+            if ($i == $page) {
+                $pag .= ' <li class="page-item active"><span class="page-link"> ' . $i . ' <span class="sr-only">(current)</span></span></li>';
+            } else {
+                $pageLink = str_replace("{page}", $i, $link);
+                $pag .= ' <li class="page-item"><a class="page-link" href="'.$pageLink.'" onclick="modal.showPleaseWait();"> ' . $i . ' </a></li>';
+            }
+        }
+        if ($page < $total) {
+            $pageLink = str_replace("{page}", $total, $link);
+            $pageForwardLink = str_replace("{page}", $page+1, $link);
+            $pag .= '<li class="page-item"><a class="page-link" href="'.$pageForwardLink.'" tabindex="-1" onclick="modal.showPleaseWait();"><i class="fas fa-angle-right"></i></a></li>';
+            $pag .= '<li class="page-item"><a class="page-link" href="'.$pageLink.'" tabindex="-1" onclick="modal.showPleaseWait();"><i class="fas fa-angle-double-right"></i></a></li>';
+        }
+        $pag .= '</ul></nav> ';
+        return $pag;
     }
     

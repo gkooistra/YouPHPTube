@@ -16,6 +16,7 @@ class User {
     private $isAdmin;
     private $canStream;
     private $canUpload;
+    private $canCreateMeet;
     private $canViewChart;
     private $status;
     private $photoURL;
@@ -89,6 +90,14 @@ class User {
         $this->canViewChart = (empty($canViewChart) || strtolower($canViewChart) === 'false') ? 0 : 1;
     }
 
+    function getCanCreateMeet() {
+        return $this->canCreateMeet;
+    }
+
+    function setCanCreateMeet($canCreateMeet) {
+        $this->canCreateMeet = (empty($canCreateMeet) || strtolower($canCreateMeet) === 'false') ? 0 : 1;;
+    }
+        
     function getCanUpload() {
         return $this->canUpload;
     }
@@ -163,6 +172,10 @@ if (typeof gtag !== \"function\") {
     }
 
     private function load($id) {
+        $id = intval($id);
+        if(empty($id)){
+            return false;
+        }
         $user = self::getUserDb($id);
         if (empty($user))
             return false;
@@ -466,7 +479,9 @@ if (typeof gtag !== \"function\") {
     }
 
     function getPhotoDB() {
-        return self::getPhoto($this->id);
+        global $global;
+        $photo = self::getPhoto($this->id);
+        return $photo;
     }
 
     static function getBackground($id = "") {
@@ -546,11 +561,11 @@ if (typeof gtag !== \"function\") {
             $this->donationLink = "";
         }
         if (!empty($this->id)) {
-            $formats = "ssssiii";
-            $values = array($this->user, $this->password, $this->email, $this->name, $this->isAdmin, $this->canStream, $this->canUpload);
+            $formats = "ssssiiii";
+            $values = array($this->user, $this->password, $this->email, $this->name, $this->isAdmin, $this->canStream, $this->canUpload, $this->canCreateMeet);
             $sql = "UPDATE users SET user = ?, password = ?, "
                     . "email = ?, name = ?, isAdmin = ?,"
-                    . "canStream = ?,canUpload = ?,";
+                    . "canStream = ?,canUpload = ?,canCreateMeet = ?,";
             if (isset($this->canViewChart)) {
                 $formats .= "i";
                 $values[] = $this->canViewChart;
@@ -583,11 +598,11 @@ if (typeof gtag !== \"function\") {
                     . " first_name = ? , last_name = ? , address = ? , zip_code = ? , country = ? , region = ? , city = ? , donationLink = ? , "
                     . " modified = now() WHERE id = ?";
         } else {
-            $formats = "ssssiiissssss";
-            $values = array($this->user, $this->password, $this->email, $this->name, $this->isAdmin, $this->canStream, $this->canUpload,
+            $formats = "ssssiiiissssss";
+            $values = array($this->user, $this->password, $this->email, $this->name, $this->isAdmin, $this->canStream, $this->canUpload,$this->canCreateMeet,
                 $this->status, $this->photoURL, $this->recoverPass, $this->channelName, $this->analyticsCode, $this->externalOptions);
-            $sql = "INSERT INTO users (user, password, email, name, isAdmin, canStream, canUpload, canViewChart, status,photoURL,recoverPass, created, modified, channelName, analyticsCode, externalOptions) "
-                    . " VALUES (?,?,?,?,?,?,?, false, "
+            $sql = "INSERT INTO users (user, password, email, name, isAdmin, canStream, canUpload, canCreateMeet, canViewChart, status,photoURL,recoverPass, created, modified, channelName, analyticsCode, externalOptions) "
+                    . " VALUES (?,?,?,?,?,?,?,?, false, "
                     . "?,?,?, now(), now(),?,?,?)";
         }
         $insert_row = sqlDAL::writeSql($sql, $formats, $values);
@@ -774,29 +789,35 @@ if (typeof gtag !== \"function\") {
             $this->setLastLogin($_SESSION['user']['id']);
             $rememberme = 0;
             if ((!empty($_POST['rememberme']) && $_POST['rememberme'] == "true") || !empty($_COOKIE['rememberme'])) {
-                _error_log("user::login: Do login with cookie (log in for next 10 years)!");
+                //_error_log("user::login: Do login with cookie (log in for next 10 years)!");
                 //$url = parse_url($global['webSiteRootURL']);
                 //setcookie("user", $this->user, time()+3600*24*30*12*10,$url['path'],$url['host']);
                 //setcookie("pass", $encodedPass, time()+3600*24*30*12*10,$url['path'],$url['host']);
                 $cookie = 2147483647;
                 $rememberme = 1;
             } else {
-                _error_log("user::login: Do login without cookie");
+                //_error_log("user::login: Do login without cookie");
                 if (empty($config) || !is_object($config)) {
                     $config = new Configuration();
                 }
                 $cookie = $config->getSession_timeout();
+                //_error_log("user::login: getSession_timeout {$cookie}");
             }
             if (empty($_COOKIE['user']) || empty(empty($_COOKIE['pass']))) {
                 if (empty($cookie)) {
                     $cookie = 86400; // 24 hours
                 }
+                //_error_log("user::login: set cookies {$cookie}");
                 setcookie("rememberme", $rememberme, $cookie, "/", $_SERVER['HTTP_HOST']);
                 setcookie("user", $user['user'], $cookie, "/", $_SERVER['HTTP_HOST']);
                 setcookie("pass", $user['password'], $cookie, "/", $_SERVER['HTTP_HOST']);
+                //_error_log("user::login: set cookies done");
             }
+            //_error_log("user::login: onUserSignIn {$_SESSION['user']['id']}");
             AVideoPlugin::onUserSignIn($_SESSION['user']['id']);
+            _error_log("user::login: onUserSignIn Done");
             $_SESSION['loginAttempts'] = 0;
+            session_write_close();
             return self::USER_LOGGED;
         } else {
             unset($_SESSION['user']);
@@ -1489,6 +1510,14 @@ if (typeof gtag !== \"function\") {
         return self::isAdmin();
     }
 
+    static function canCreateMeet() {
+        global $global, $config;
+        if (self::isLogged() && !empty($_SESSION['user']['canCreateMeet'])) {
+            return true;
+        }
+        return self::isAdmin();
+    }
+
     static function canComment() {
         global $global, $config, $advancedCustomUser;
         if (self::isAdmin()) {
@@ -1642,13 +1671,17 @@ if (typeof gtag !== \"function\") {
         return intval($this->emailVerified);
     }
 
+    static function validateChannelName($channelName){
+        return trim(preg_replace("/[^0-9A-Z_]/i", "", ucwords($channelName)));
+    }
+    
     /**
      *
      * @param type $channelName
      * @return boolean return true is is unique
      */
     function setChannelName($channelName) {
-        $channelName = trim(preg_replace("/[^0-9A-Z_ -]/i", "", $channelName));
+        $channelName = self::validateChannelName($channelName);
         $user = static::getChannelOwner($channelName);
         if (!empty($user)) { // if the channel name exists and it is not from this user, rename the channel name
             if (empty($this->id) || $user['id'] != $this->id) {

@@ -137,6 +137,9 @@ class Plugin extends ObjectYPT {
                 if (empty($data['pluginversion'])) {
                     $data['pluginversion'] = "1.0";
                 }
+                if(AVideoPlugin::isPluginOnByDefault($uuid)){
+                    $data['status'] = 'active';
+                }
                 $getPluginByUUID[$uuid] = $data;
             } else {
                 $getPluginByUUID[$uuid] = false;
@@ -170,8 +173,16 @@ class Plugin extends ObjectYPT {
         return false;
     }
 
-    static function getAvailablePlugins() {
+    static function getAvailablePlugins($comparePluginVersion=false) {
         global $global, $getAvailablePlugins;
+        $pluginsMarketplace = array();
+        if($comparePluginVersion){
+            $pluginsMarketplace = ObjectYPT::getSessionCache('getAvailablePlugins', 600); // 10 min cache
+            if(empty($pluginsMarketplace)){
+                $pluginsMarketplace = json_decode(url_get_contents("https://tutorials.avideo.com/info?version=1", "", 2));
+                ObjectYPT::setSessionCache('getAvailablePlugins', $pluginsMarketplace);
+            }
+        }
         if (empty($getAvailablePlugins)) {
             $dir = $global['systemRootPath'] . "plugin";
             $getAvailablePlugins = array();
@@ -198,8 +209,40 @@ class Plugin extends ObjectYPT {
                         $obj->databaseScript = !empty(static::getDatabaseFile($value));
                         $obj->pluginMenu = $p->getPluginMenu();
                         $obj->tags = $p->getTags();
-                        $obj->pluginversion = $p->getPluginVersion();
+                        $obj->pluginversion = $p->getPluginVersion();          
+                        $obj->pluginversionMarketPlace = (!empty($pluginsMarketplace->plugins->{$obj->uuid})?$pluginsMarketplace->plugins->{$obj->uuid}->pluginversion:0);
+                        $obj->pluginversionCompare = (!empty($obj->pluginversionMarketPlace)?version_compare($obj->pluginversion, $obj->pluginversionMarketPlace):0);
+                        if($obj->pluginversionCompare<0){
+                            $obj->tags[] = "update";
+                        }
                         $getAvailablePlugins[] = $obj;
+                    }
+                }
+            }
+        }
+        return $getAvailablePlugins;
+    }
+    
+    static function getAvailablePluginsBasic() {
+        global $global, $getAvailablePlugins;
+        if (empty($getAvailablePlugins)) {
+            $dir = $global['systemRootPath'] . "plugin";
+            $getAvailablePlugins = array();
+            $cdir = scandir($dir);
+            foreach ($cdir as $key => $value) {
+                if (!in_array($value, array(".", ".."))) {
+                    if (is_dir($dir . DIRECTORY_SEPARATOR . $value)) {
+                        $p = AVideoPlugin::loadPlugin($value);
+                        if (!is_object($p) || $p->hidePlugin()) {
+                            if($value!=="Statistics"){ // avoid error while this plugin is not ready
+                                _error_log("Plugin Not Found: {$value}");
+                            }
+                            continue;
+                        }
+                        $obj = new stdClass();
+                        $obj->name = $p->getName();
+                        $obj->pluginversion = $p->getPluginVersion();
+                        $getAvailablePlugins[$p->getUUID()] = $obj;
                     }
                 }
             }
@@ -226,7 +269,9 @@ class Plugin extends ObjectYPT {
     }
 
     static function getAllEnabled() {
-        global $global, $getAllEnabledRows;
+        global $global;
+        $getAllEnabledRows = ObjectYPT::getSessionCache("plugin::getAllEnabled", 3600);
+        $getAllEnabledRows = object_to_array($getAllEnabledRows);
         if (empty($getAllEnabledRows)) {
             $sql = "SELECT * FROM  " . static::getTableName() . " WHERE status='active' ";
             $res = sqlDAL::readSql($sql);
@@ -237,6 +282,7 @@ class Plugin extends ObjectYPT {
                 $getAllEnabledRows[] = $row;
             }
             uasort($getAllEnabledRows, 'cmpPlugin');
+            ObjectYPT::setSessionCache("plugin::getAllEnabled", $getAllEnabledRows);
         }
         return $getAllEnabledRows;
     }
@@ -261,7 +307,13 @@ class Plugin extends ObjectYPT {
         global $global, $getEnabled;
         if (empty($getEnabled)) {
             $getEnabled = array();
+        }        
+        
+        if(in_array($uuid, AVideoPlugin::getPluginsOnByDefault())){
+            // make sure the OnByDefault plugins are enabled
+            return self::getOrCreatePluginByName(AVideoPlugin::getPluginsNameOnByDefaultFromUUID($uuid));
         }
+        
         if (empty($getEnabled[$uuid])) {
             $getEnabled[$uuid] = array();
             $sql = "SELECT * FROM  " . static::getTableName() . " WHERE status='active' AND uuid = '" . $uuid . "' ;";
@@ -274,6 +326,7 @@ class Plugin extends ObjectYPT {
                 }
             }
         }
+        
         return $getEnabled[$uuid];
     }
 
@@ -299,7 +352,6 @@ class Plugin extends ObjectYPT {
     }
 
     function save() {
-        global $getAllEnabledRows;
         if (empty($this->uuid)) {
             return false;
         }
@@ -308,7 +360,7 @@ class Plugin extends ObjectYPT {
         if (empty($this->object_data)) {
             $this->object_data = 'null';
         }
-        $getAllEnabledRows = array();
+        ObjectYPT::deleteAllSessionCache("plugin::getAllEnabled");
         return parent::save();
     }
 

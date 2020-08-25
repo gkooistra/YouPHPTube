@@ -64,4 +64,6 @@
 /plugin/IPTV/
 /.scannerwork/
 /vendor/
+/plugin/Layout/
+/plugin/Meet/
 /sitemap.xml

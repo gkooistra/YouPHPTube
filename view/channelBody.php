@@ -4,6 +4,12 @@ if (User::isLogged() && $user_id == User::getId()) {
     $isMyChannel = true;
 }
 $user = new User($user_id);
+
+if($user->getBdId() != $user_id){
+   header("Location: {$global['webSiteRootURL']}channels");
+   exit;
+}
+
 $_GET['channelName'] = $user->getChannelName();
 $timeLog = __FILE__ . " - channelName: {$_GET['channelName']}";
 TimeLogStart($timeLog);
@@ -16,7 +22,7 @@ if (empty($_GET['current'])) {
 }
 $current = $_POST['current'];
 $rowCount = 25;
-$_POST['rowCount'] = $rowCount;
+$_REQUEST['rowCount'] = $rowCount;
 
 $uploadedVideos = Video::getAllVideos("a", $user_id, !isToHidePrivateVideos());
 $uploadedTotalVideos = Video::getTotalVideos("a", $user_id, !isToHidePrivateVideos());
@@ -195,18 +201,9 @@ TimeLogEnd($timeLog, __LINE__);
                             </div>
 
                             <div class="panel-footer">
-                                <ul id="channelPagging"></ul>
-                                <script>
-                                    $(document).ready(function () {
-                                        $('#channelPagging').bootpag({
-                                            total: <?php echo $totalPages; ?>,
-                                            page: <?php echo $current; ?>,
-                                            maxVisible: 10
-                                        }).on('page', function (event, num) {
-                                            document.location = ("<?php echo $global['webSiteRootURL']; ?>channel/<?php echo $_GET['channelName']; ?>?current=" + num);
-                                        });
-                                    });
-                                </script>
+                                <?php 
+                                echo getPagination($totalPages, $current, "{$global['webSiteRootURL']}channel/{$_GET['channelName']}?current={page}");
+                                ?>
                             </div>
                         </div>
                     </div>

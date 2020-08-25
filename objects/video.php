@@ -517,9 +517,7 @@ if (!class_exists('Video')) {
         }
 
         function setClean_title($clean_title) {
-            $clean_title = preg_replace('/[!#$&\'()*+,\\/:;=?@[\\]% ]+/', '-', trim(strtolower(cleanString($clean_title))));
-            $clean_title = preg_replace('/[\x00-\x1F\x7F]/u', '', $clean_title);
-            $this->clean_title = $clean_title;
+            $this->clean_title = cleanURLName($clean_title);
         }
 
         function setDuration($duration) {
@@ -738,11 +736,14 @@ if (!class_exists('Video')) {
                     $rand = ($rand-2)<0?0:$rand-2;
                     $firstClauseLimit = "$rand, ";
                     //$sql .= " ORDER BY RAND() ";
-                } else {
+                } else if(!empty($_GET['v']) && is_numeric($_GET['v'])){
+                    $vid = intval($_GET['v']);
+                    $sql .= " AND v.id = {$vid} ";
+                }else {
                     $sql .= " ORDER BY v.Created DESC ";
                 }
             }
-            if (strpos($sql, 'v.id IN') === false) {
+            if (strpos($sql, 'v.id IN') === false && strpos(strtolower($sql), 'limit') === false) {
                 $sql .= " LIMIT {$firstClauseLimit}1";
             }
 //echo $sql, "<br>";//exit;
@@ -1018,25 +1019,19 @@ if (!class_exists('Video')) {
                 $sort = @$_POST['sort'];
                 unset($_POST['sort']);
                 $sql .= BootGrid::getSqlFromPost(array(), empty($_POST['sort']['likes']) ? "v." : "", "", true);
+                if (strpos(strtolower($sql), 'limit') === false) {
+                    $sql .= " LIMIT 60 ";
+                }
                 $_POST['sort'] = $sort;
             } else if (!isset($_POST['sort']['trending']) && !isset($_GET['sort']['trending'])) {
                 $sql .= BootGrid::getSqlFromPost(array(), empty($_POST['sort']['likes']) ? "v." : "", "", true);
             } else {
                 unset($_POST['sort']['trending']);
                 unset($_GET['sort']['trending']);
-                //$_POST['sort']['created'] = 'DESC';
-                //$current = $_POST['current'];
-                $_POST['current'] = getCurrentPage();
-                $_POST['rowCount'] = getRowCount();
-                //$_POST['current'] = 1;
-                //$_POST['rowCount'] *= 10; // quardruple it to make it random
-                //$rows = self::getAllVideosLight($status, $showOnlyLoggedUserVideos, $showUnlisted);
                 $rows = array();
-                if (!empty($_POST['current']) && $_POST['current'] == 1) {
+                if (!empty($_REQUEST['current']) && $_REQUEST['current'] == 1) {
                     $rows = VideoStatistic::getVideosWithMoreViews($status, $showOnlyLoggedUserVideos, $showUnlisted, $suggestedOnly);
                 }
-                //$_POST['rowCount'] = $rowCount;
-                //$_POST['current'] = $current;
                 $ids = array();
                 foreach ($rows as $row) {
                     $ids[] = $row['id'];
@@ -1048,17 +1043,22 @@ if (!class_exists('Video')) {
                 }
                 $sql .= ObjectYPT::getSqlLimit();
             }
-
-            if (!empty($_GET['limitOnceToOne'])) {
-                $sql .= " LIMIT 1";
-                unset($_GET['limitOnceToOne']);
-            }
             if (strpos(strtolower($sql), 'limit') === false) {
-                if (empty($global['limitForUnlimitedVideos'])) {
-                    $global['limitForUnlimitedVideos'] = 1000;
+                if (!empty($_GET['limitOnceToOne'])) {
+                    $sql .= " LIMIT 1";
+                    unset($_GET['limitOnceToOne']);
                 }
-                if ($global['limitForUnlimitedVideos'] > 0) {
-                    $sql .= " LIMIT {$global['limitForUnlimitedVideos']}";
+                $_REQUEST['rowCount'] = getRowCount();
+                if(!empty($_REQUEST['rowCount'])){
+                    $sql .= " LIMIT {$_REQUEST['rowCount']}";
+                }else{
+                    _error_log("getAllVideos without limit ".json_encode(debug_backtrace()));
+                    if (empty($global['limitForUnlimitedVideos'])) {
+                        $global['limitForUnlimitedVideos'] = 100;
+                    }
+                    if ($global['limitForUnlimitedVideos'] > 0) {
+                        $sql .= " LIMIT {$global['limitForUnlimitedVideos']}";
+                    }
                 }
             }
 
@@ -1280,7 +1280,7 @@ if (!class_exists('Video')) {
             }
             if (strpos(strtolower($sql), 'limit') === false) {
                 if (empty($global['limitForUnlimitedVideos'])) {
-                    $global['limitForUnlimitedVideos'] = 1000;
+                    $global['limitForUnlimitedVideos'] = empty($global['rowCount'])?1000:$global['rowCount'];
                 }
                 if ($global['limitForUnlimitedVideos'] > 0) {
                     $sql .= " LIMIT {$global['limitForUnlimitedVideos']}";
@@ -1988,6 +1988,11 @@ if (!class_exists('Video')) {
             if (empty($advancedCustom)) {
                 $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
             }
+            $currentPage = getCurrentPage();
+            $rowCount = getRowCount();
+            $_REQUEST['current'] = 1;
+            $_REQUEST['rowCount'] = 1000;           
+            
             $video = new Video("", "", $video_id);
             $tags = array();
             if (empty($type) || $type === "paid") {
@@ -2167,6 +2172,10 @@ if (!class_exists('Video')) {
                 $tags = array_merge($tags, $array2);
             }
             //var_dump($tags);
+           
+            $_REQUEST['current'] = $currentPage;
+            $_REQUEST['rowCount'] = $rowCount;    
+            
             return $tags;
         }
 
@@ -3156,6 +3165,24 @@ if (!class_exists('Video')) {
                     }
                     @unlink($file);
                 }
+            }
+            ObjectYPT::deleteCache($filename);
+            ObjectYPT::deleteCache($filename . "article");
+            ObjectYPT::deleteCache($filename . "pdf");
+            ObjectYPT::deleteCache($filename . "video");
+            Video::clearImageCache($filename);
+            Video::clearImageCache($filename, "article");
+            Video::clearImageCache($filename, "pdf");
+            Video::clearImageCache($filename, "audio");
+            clearVideosURL($filename);
+            return true;
+        }
+        
+        static function clearCache($videos_id){
+            $video = new Video("", "", $videos_id);
+            $filename = $video->getFilename();
+            if (empty($filename)) {
+                return false;
             }
             ObjectYPT::deleteCache($filename);
             ObjectYPT::deleteCache($filename . "article");

@@ -24,7 +24,7 @@ if (!empty($_GET['page'])) {
 $users_id_array = VideoStatistic::getUsersIDFromChannelsWithMoreViews();
 
 $current = $_POST['current'];
-$_POST['rowCount'] = 10;
+$_REQUEST['rowCount'] = 10;
 $channels = Channel::getChannels(true, "u.id, '". implode(",", $users_id_array)."'");
 
 $totalPages = ceil($totalChannels / $_POST['rowCount']);
@@ -121,7 +121,7 @@ $metaDescription = __("Channels");
                                 <h2><?php echo __("Preview"); ?></h2>
                                 <?php
                                 $_POST['current'] = 1;
-                                $_POST['rowCount'] = 6;
+                                $_REQUEST['rowCount'] = 6;
                                 $_POST['sort']['created'] = "DESC";
                                 $uploadedVideos = Video::getAllVideosAsync("viewable", $value['id']);
                                 foreach ($uploadedVideos as $value2) {
@@ -145,10 +145,10 @@ $metaDescription = __("Channels");
                         </div>
                         <?php
                     }
+                    
+                    echo getPagination($totalPages, $current, "{$global['webSiteRootURL']}channels?page={page}");
+                               
                     ?>
-
-                    <ul class="pages">
-                    </ul>
                 </div>
             </div>
         </div>
@@ -156,16 +156,5 @@ $metaDescription = __("Channels");
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
-        <script>
-            $(function () {
-                $('.pages').bootpag({
-                    total: <?php echo $totalPages; ?>,
-                    page: <?php echo $current; ?>,
-                    maxVisible: 10
-                }).on('page', function (event, num) {
-                    document.location = "<?php echo $global['webSiteRootURL']; ?>channels?page=" + num;
-                });
-            });
-        </script>
     </body>
 </html>

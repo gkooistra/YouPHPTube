@@ -20,10 +20,9 @@ class AVideoPlugin {
         $time = $time[1] + $time[0];
         $finish = $time;
         $total_time = round(($finish - $global['AVideoPluginStart']), 4);
-        if($total_time > 0.25){
-            _error_log("Warning: The plugin [{$pluginName}] takes {$total_time} seconds to complete. ", AVideoLog::$WARNING);
-            _error_log($_SERVER["SCRIPT_FILENAME"], AVideoLog::$WARNING);
-            
+        $timeLimit = empty($global['noDebug'])?0.5:1;
+        if($total_time > $timeLimit){
+            _error_log("The plugin [{$pluginName}] takes {$total_time} seconds to complete. URL: ". getSelfURI(). " IP: ". getRealIpAddr(), AVideoLog::$WARNING);
         }
     }
 
@@ -971,7 +970,6 @@ class AVideoPlugin {
                 if(!empty($can)){
                     if($can < 0){
                         _error_log("userCanWatchVideo: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT watch the video ({$videos_id})");
-                        
                         $resp = false;
                     }
                     if($can>0){
@@ -982,8 +980,7 @@ class AVideoPlugin {
             }
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
-        //_error_log("userCanWatchVideo: No plugins approve you to watch the video ({$videos_id}) ");
-            
+        _error_log("userCanWatchVideo: No plugins approve you to watch the video ({$videos_id}) ");
         return $resp;
     }
     
@@ -1327,6 +1324,37 @@ class AVideoPlugin {
             self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
         return implode(",",$r);
+    }
+    
+    public static function getPluginsOnByDefault($getUUID = true){
+        if(empty($getUUID)){
+            return array(
+                'CustomizeUser',// CustomizeUser
+                'CustomizeAdvanced',// CustomizeAdvanced
+                'Layout',// Layout
+            );
+        }else{
+            return array(
+                '55a4fa56-8a30-48d4-a0fb-8aa6b3fuser3',// CustomizeUser
+                '55a4fa56-8a30-48d4-a0fb-8aa6b3f69033',// CustomizeAdvanced
+                'layout83-8f5a-4d1b-b912-172c608bf9e3',// Layout
+            );
+        }
+    }
+    
+    public static function getPluginsNameOnByDefaultFromUUID($UUID){
+        $UUIDs = self::getPluginsOnByDefault();
+        $key = array_search($UUID, $UUIDs);
+        $names = self::getPluginsOnByDefault(false);
+        if(empty($names[$key])){
+            return false;
+        }
+        return $names[$key];
+    }
+    
+    public static function isPluginOnByDefault($UUID){
+        $UUIDs = self::getPluginsOnByDefault();
+        return in_array($UUID, $UUIDs);
     }
 }
 

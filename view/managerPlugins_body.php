@@ -1,3 +1,11 @@
+<?php
+$uuids = AVideoPlugin::getPluginsOnByDefault();
+$rowId = array();
+foreach ($uuids as $value) {
+    $rowId[] = " row.uuid != '{$value}' ";
+}
+$uuidJSCondition = implode(" && ", $rowId);
+?>
 <style>
     td.wrapText{white-space: normal;}
 </style>
@@ -163,7 +171,7 @@
                         if (val.value == index) {
                             select = "selected";
                         }
-                        $(input).append('<option value="' + index + '" ' + select + '>' + value + '</option>')
+                        $(input).append('<option value="' + index + '" ' + select + '>' + value + '</option>');
                     });
 
                 } else {
@@ -274,7 +282,7 @@
                 "name": function (column, row) {
                     var checked = "";
 
-                    if (row.uuid != '55a4fa56-8a30-48d4-a0fb-8aa6b3fuser3' && row.uuid != '55a4fa56-8a30-48d4-a0fb-8aa6b3f69033') {
+                    if (<?php echo $uuidJSCondition; ?>) {
                         if (row.enabled) {
                             checked = " checked='checked' ";
                         }
@@ -293,16 +301,20 @@
                     var tags = '';
                     if (row.tags) {
                         for (i = 0; i < row.tags.length; i++) {
-                            var cl = "primary";
-                            if (row.tags[i] === 'free') {
-                                cl = 'success';
-                            } else if (row.tags[i] === 'firstPage') {
-                                cl = 'danger';
-                            } else if (row.tags[i] === 'login') {
-                                cl = 'info';
-                            }
+                            if (row.tags[i] === 'update') {
+                                tags += '<a class="label label-warning" href="https://youphp.tube/marketplace/" target="_blank">Update Available: v' + row.pluginversionMarketPlace + '</a> ';
+                            }else{
+                                var cl = "primary";
+                                if (row.tags[i] === 'free') {
+                                    cl = 'success';
+                                } else if (row.tags[i] === 'firstPage') {
+                                    cl = 'danger';
+                                } else if (row.tags[i] === 'login') {
+                                    cl = 'info';
+                                }
 
-                            tags += '<span class="label label-' + cl + '">' + row.tags[i] + '</span> ';
+                                tags += '<span class="label label-' + cl + '">' + row.tags[i] + '</span> ';
+                            }
                         }
                     }
 

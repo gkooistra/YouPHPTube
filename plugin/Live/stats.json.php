@@ -20,13 +20,29 @@ if(empty($json)){
     }
     $appArray = AVideoPlugin::getLiveApplicationArray();
     if(!empty($appArray)){
-        $obj = new stdClass();
-        $obj->error = false;
-        $obj->msg = "OFFLINE";
-        $obj->nclients = count($appArray);
-        $obj->applications = $appArray;
-        $json[] = $obj;
+        if(empty($json)){
+            $json = new stdClass();
+        }
+        $json['error'] = false;
+        if(empty($json['msg'])){
+            $json['msg'] = "OFFLINE";
+        }
+        $json['nclients'] = count($appArray);
+        if(empty($json['applications'])){
+            $json['applications'] = array();
+        }
+        $json['applications'] = array_merge($json['applications'] , $appArray);
     }
+    
+    $count = 0;
+    $json['total'] = 0;
+    if(!empty($json['applications'])){
+        $json['total'] += count($json['applications']);
+    }
+    while (!empty($json[$count])) {
+        $json['total'] += count($json[$count]->applications);
+        $count++;
+    }    
     
     ObjectYPT::setCache($cacheName, $json);
 }

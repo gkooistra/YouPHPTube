@@ -117,7 +117,7 @@ if (!empty($evideo)) {
         if (empty($_GET['clean_title']) && (isset($advancedCustom->forceCategory) && $advancedCustom->forceCategory === false)) {
             $_GET['catName'] = "";
         }
-
+        
         if (empty($video)) {
             $video = Video::getVideo("", "viewable", false, false, true, true);
         }
@@ -128,7 +128,11 @@ if (!empty($evideo)) {
         if (empty($video)) {
             $video = AVideoPlugin::getVideo();
         }
-
+        
+        if(!empty($_GET['v']) && $video['id']!=$_GET['v']){
+            $video = false;
+        }
+        
 // allow users to count a view again in case it is refreshed
         Video::unsetAddView($video['id']);
 
@@ -539,6 +543,7 @@ $modeYouTubeTime = microtime(true);
     ?>
                         <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
                         <!-- videos List -->
+                        <!--googleoff: all-->
                         <div id="videosList">
     <?php
     if (empty($playlist_id)) {
@@ -546,6 +551,7 @@ $modeYouTubeTime = microtime(true);
     }
     ?>
                         </div>
+                        <!--googleon: all-->
                         <!-- End of videos List -->
 
                         <script>

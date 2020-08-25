@@ -132,7 +132,7 @@ class Subscribe {
      */
     static function getAllSubscribes($user_id = "", $status = "a") {
         global $global;
-        $cacheName = "getAllSubscribes_{$user_id}_{$status}";
+        $cacheName = "getAllSubscribes_{$user_id}_{$status}_". getCurrentPage()."_". getRowCount();
         $subscribe = ObjectYPT::getCache($cacheName, 300);// 5 minutes
         if(empty($subscribe)){
             $status = str_replace("'","", $status);
@@ -146,6 +146,7 @@ class Subscribe {
             }
             if (!empty($status)) {
                 $sql .= " AND u.status = '{$status}' ";
+                $sql .= " AND suId.status = '{$status}' ";
                 //$sql .= " AND su.status = '{$status}' ";
             }
 
