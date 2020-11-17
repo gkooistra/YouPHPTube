@@ -11,27 +11,47 @@
     ExpiresByType application/x-javascript "access plus 216000 seconds"
 </ifModule>
 <Files routes.php>
-Order Allow,Deny
-Deny from all
+    <IfModule !authz_core_module>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
 </Files>
 <Files PayPal.log>
-Order Allow,Deny
-Deny from all
+    <IfModule !authz_core_module>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
 </Files>
 <Files avideo.log>
-Order Allow,Deny
-Deny from all
+    <IfModule !authz_core_module>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
 </Files>
 <Files avideo.js.log>
-Order Allow,Deny
-Deny from all
+    <IfModule !authz_core_module>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
 </Files>
 # Disable directory browsing
 Options All -Indexes
 # END Expires
 # BEGIN Caching
 <ifModule mod_headers.c>
-    <FilesMatch "\.(ts|key|ttf|otf|eot|woff|woff2|mp4|webm|m3u8|mp3|ogg)$">
+    <FilesMatch "\.(ts|key|ttf|otf|eot|woff|woff2|mp4|webm|m3u8|mp3|ogg|css)$">
         Header set Access-Control-Allow-Origin: *
     </FilesMatch>
     <filesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|swf)$">
@@ -53,23 +73,25 @@ Options All -Indexes
 # END Caching
 <IfModule mod_rewrite.c>
     RewriteEngine on
-    
     #VideoHLS for DRM
     RewriteRule    ^videos/([^/]+)/(.*).key$ plugin/VideoHLS/downloadProtection.php?filename=$1&key=$2    [QSA]
 
     RewriteRule    glyphicons-halflings-regular(.+)$ view/bootstrap/fonts/glyphicons-halflings-regular$1    [NC,L]
-    
-    RewriteRule    ^meet/([0-9]+)/(.+)$ plugin/Meet/iframe.php?meet_schedule_id=$1&roomName=$2 [NC,L]
-    RewriteRule    ^live/([0-9]+)/(.+)$ plugin/Live/?live_servers_id=$1&c=$2 [NC,L]
+
+    RewriteRule    ^meet/([0-9]+)/(.+)$ plugin/Meet/iframe.php?meet_schedule_id=$1&roomName=$2 [NC,L,QSA]
+    RewriteRule    ^meet/([0-9]+)$ plugin/Meet/iframe.php?meet_schedule_id=$1 [NC,L,QSA]
+    RewriteRule    ^live/([0-9]+)/(.+)$ plugin/Live/?live_servers_id=$1&c=$2 [NC,L,QSA]
 
     #main Files
     RewriteRule    ^index.php$ view/index.php    [NC,L]
     #RewriteRule    ^index.php$ /view/index.php    [NC,L]
     #RewriteRule    ^$ view/    [NC,L]
     RewriteRule    ^bootstrap/(.+)$ view/bootstrap/$1 [NC,L]
+    RewriteRule    ^oembed/?(.+)$ view/oembed.php$1 [NC,L]
     RewriteRule    ^js/(.+)$ view/js/$1 [NC,L]
     RewriteRule    ^css/(.+)$ view/css/$1 [NC,L]
     RewriteRule    ^img/(.+)$ view/img/$1 [NC,L]
+    RewriteRule    ^i/(.+)$ view/iframe.php?type=$1 [NC,L]
     RewriteRule    ^videos/fonts/(.+)$ view/bootstrap/fonts/$1 [NC,L]
     RewriteRule    ^page/([0-9]+)/?$ view/?page=$1    [QSA]
     RewriteRule    ^videoOnly/?$ view/?type=video    [NC,L]
@@ -250,18 +272,16 @@ Options All -Indexes
     RewriteRule    ^videos/(.*)/index.m3u8$ view/hls.php?videoDirectory=$1    [NC,L,QSA]
 
     RewriteRule    ^vast.xml/?([0-9]+)?$ plugin/AD_Server/VAST.php?campaign_has_videos_id=$1    [NC,L]
-    # It must be before image not found
+
     <IfModule mod_xsendfile.c>
-        <FilesMatch "\.(mp4|webm|m3u8|mp3|ogg)$">
-            RewriteRule    ^videos/([^!#$&'()*+,\/:;=?@[\]]+)$ view/xsendfile.php?file=$1    [QSA]
-        </FilesMatch>
+        RewriteRule    ^videos/([^!#$&'()*+,\/:;=?@[\]]+(\.(mp4|webm|m3u8|mp3|ogg)))$ view/xsendfile.php?file=$1    [QSA]
     </IfModule>
 
     # if image do not exists
     RewriteCond %{REQUEST_URI} \.(jpg|jpeg|gif|png|ico)$ [NC]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule .*$ img/image404.php [NC,L]
+    RewriteRule (.*)$ img/image404.php?image=$1 [NC,L]
 
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
@@ -293,7 +313,9 @@ Options All -Indexes
   AddOutputFilterByType DEFLATE text/plain
   AddOutputFilterByType DEFLATE text/xml
 </IfModule>
-
 RewriteEngine On
 RewriteBase /
 RewriteRule ^index\.html?$ / [NC,R,L]
+AddType text/vtt .vtt
+#php_value post_max_size 4G
+#php_value upload_max_filesize 4G

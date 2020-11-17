@@ -39,6 +39,8 @@ if (!empty($_POST['videos_id']) && !Video::canEdit($_POST['videos_id'])) {
     die(json_encode($obj));
 }
 
+_error_log("aVideoEncoder.json: start to receive: " . json_encode($_POST));
+
 // check if there is en video id if yes update if is not create a new one
 $video = new Video("", "", @$_POST['videos_id']);
 $obj->video_id = @$_POST['videos_id'];
@@ -133,7 +135,10 @@ if (!empty($_FILES['video']['tmp_name'])) {
         $resolution = "_{$_POST['resolution']}";
     }
     $filename = "{$videoFileName}{$resolution}.{$_POST['format']}";
-    _error_log("aVideoEncoder.json: receiving video upload to {$filename} " . json_encode($_FILES));
+    
+    $fsize = filesize($_FILES['video']['tmp_name']);
+    
+    _error_log("aVideoEncoder.json: receiving video upload to {$filename} filesize=". ($fsize) . " (". humanFileSize($fsize) . ")" . json_encode($_FILES));
     decideMoveUploadedToVideos($_FILES['video']['tmp_name'], $filename);
 } else {
     // set encoding

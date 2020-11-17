@@ -1,4 +1,29 @@
-<footer>
+<?php
+$footerjs = "";
+if (thereIsAnyUpdate()) {
+    $footerjs .= "$.toast({
+    heading: 'Update required',
+    text: '<a href=\"" . $global['webSiteRootURL'] . "update\">" . __('You have a new version to install') . "</a>',
+    showHideTransition: 'plain',
+    icon: 'error',
+    hideAfter: 20000
+});";
+}
+if ($version = thereIsAnyRemoteUpdate()) {
+    $footerjs .= "$.toast({
+    heading: 'Update available',
+    text: '<a href=\"" . $global['webSiteRootURL'] . "update\">" . __('Our repository is now running at version') . " " . $version->version . "</a>',
+    showHideTransition: 'plain',
+    icon: 'warning',
+    hideAfter: 20000
+});";
+}
+if (empty($advancedCustom)) {
+    $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
+}
+?>
+<div class="clearfix"></div>
+<footer style="<?php echo $advancedCustom->footerStyle; ?> display: none;" id="mainFooter">
     <?php
     $custom = "";
     $extraPluginFile = $global['systemRootPath'] . 'plugin/Customize/Objects/ExtraConfig.php';
@@ -23,25 +48,7 @@
 <script>
     $(function () {
 <?php
-if (!empty($_GET['error'])) {
-    ?>
-            swal({title: "Sorry!", text: "<?php echo $_GET['error']; ?>", icon: "error", html: true});
-    <?php
-}
-?>
-<?php
-if (!empty($_GET['msg'])) {
-    ?>
-            swal({title: "Ops!", text: "<?php echo $_GET['msg']; ?>", icon: "info", html: true});
-    <?php
-}
-?>
-<?php
-if (!empty($_GET['success']) && strlen($_GET['success']) > 4) {
-    ?>
-            swal({title: "<?php echo __("Congratulations"); ?>", text: "<?php echo $_GET['success']; ?>", icon: "success", html: true});
-    <?php
-}
+showAlertMessage();
 ?>
     });
 </script>
@@ -84,12 +91,11 @@ $jsFiles = array_merge($jsFiles, AVideoPlugin::getJSFiles());
 $jsURL = combineFiles($jsFiles, "js");
 ?>
 <script src="<?php echo $jsURL; ?>" type="text/javascript"></script>
-<?php
-require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
-?>
-<div id="pluginFooterCode">
+<div id="pluginFooterCode" >
     <?php
-    echo AVideoPlugin::getFooterCode();
+    if (!isForbidden()) {
+        echo AVideoPlugin::getFooterCode();
+    }
     ?>
 </div>
 <?php
@@ -110,3 +116,60 @@ if (!empty($advancedCustom->footerHTMLCode->value)) {
           top: 0;
           left: 0;
           pointer-events: none;"></textarea>
+<script>
+    var checkFooterTimout;
+    $(function () {
+        checkFooter();
+
+        $(window).scroll(function () {
+            clearTimeout(checkFooterTimout);
+            checkFooterTimout = setTimeout(function () {
+                checkFooter();
+            }, 100);
+        });
+        $(window).resize(function () {
+            clearTimeout(checkFooterTimout);
+            checkFooterTimout = setTimeout(function () {
+                checkFooter();
+            }, 100);
+        });
+
+        $(window).mouseup(function () {
+            clearTimeout(checkFooterTimout);
+            checkFooterTimout = setTimeout(function () {
+                checkFooter();
+            }, 100);
+        });
+
+<?php echo $footerjs; ?>
+
+    });
+    function checkFooter() {
+        $("#mainFooter").fadeIn();
+        if (getPageHeight() <= $(window).height()) {
+            clearTimeout(checkFooterTimout);
+            checkFooterTimout = setTimeout(function () {
+                checkFooter();
+            }, 1000);
+            $("#mainFooter").css("position", "fixed");
+        } else {
+            $("#mainFooter").css("position", "relative");
+        }
+    }
+
+
+    function getPageHeight() {
+        return $('#mainNavBar').height() + $('#mainFooter').height() + $('.container, .container-fluid').first().height();
+    }
+</script>
+<!--
+<?php
+if (User::isAdmin()) {
+    arsort($getCachesProcessed);
+    echo "Total cached methods " . PHP_EOL;
+    foreach ($getCachesProcessed as $key => $value) {
+        echo "$key => $value" . PHP_EOL;
+    }
+}
+?>
+-->

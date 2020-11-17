@@ -8,6 +8,13 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class CustomizeUser extends PluginAbstract {
 
+
+    public function getTags() {
+        return array(
+            PluginTags::$RECOMMENDED,
+            PluginTags::$FREE
+        );
+    }
     public function getDescription() {
         $txt = "Fine Tuning User Profile";
         return $txt;
@@ -216,10 +223,6 @@ class CustomizeUser extends PluginAbstract {
         }
     }
 
-    public function getTags() {
-        return array('free', 'customization', 'users');
-    }
-
     public function getChannelButton() {
         global $global, $isMyChannel;
         if (!$isMyChannel) {
@@ -324,12 +327,16 @@ class CustomizeUser extends PluginAbstract {
         $cansee = User::canWatchVideoWithAds($videos_id);
         $obj = $this->getDataObject();
         if (!$cansee) {
+            forbiddenPage(__("Sorry, this video is private"));
+            /*
             if (!AVideoPlugin::isEnabled('Gallery') && !AVideoPlugin::isEnabled('YouPHPFlix2') && !AVideoPlugin::isEnabled('YouTube')) {
                 header("Location: {$global['webSiteRootURL']}user?msg=" . urlencode(__("Sorry, this video is private")));
             } else {
                 header("Location: {$global['webSiteRootURL']}?msg=" . urlencode(__("Sorry, this video is private")));
             }
             exit;
+             * 
+             */
         } else if($obj->userCanProtectVideosWithPassword){
             if (!$this->videoPasswordIsGood($videos_id)) {
                 $video = Video::getVideoLight($videos_id);

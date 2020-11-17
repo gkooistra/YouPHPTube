@@ -160,6 +160,8 @@ if (empty($_POST['user']) || empty($_POST['pass'])) {
     _error_log("User or pass empty on login POST: " . json_encode($_POST));
     _error_log("User or pass empty on login GET: " . json_encode($_GET));
     _error_log("User or pass empty on login Request: " . json_encode($_REQUEST));
+    $inputJSON = file_get_contents('php://input');
+    _error_log("User or pass empty on login php://input: " . ($inputJSON));
     $object->error = __("User and Password can not be blank");
     die(json_encode($object));
 }
@@ -176,6 +178,12 @@ if ($resp === User::USER_NOT_VERIFIED) {
 if ($resp === User::CAPTCHA_ERROR) {
     _error_log("login.json.php invalid captcha");
     $object->error = __("Invalid Captcha");
+    die(json_encode($object));
+}
+
+if ($resp === User::REQUIRE2FA) {
+    _error_log("login.json.php 2fa login is required");
+    $object->error = __("2FA login is required");
     die(json_encode($object));
 }
 
@@ -198,7 +206,7 @@ $object->isAdmin = User::isAdmin();
 $object->canUpload = User::canUpload();
 $object->canComment = User::canComment();
 $object->redirectUri = @$_POST['redirectUri'];
-_error_log("login.json.php setup object done");
+//_error_log("login.json.php setup object done");
 
 if ((empty($object->redirectUri) || $object->redirectUri === $global['webSiteRootURL'])) {
     if (!empty($advancedCustomUser->afterLoginGoToMyChannel)) {
@@ -232,8 +240,10 @@ if ($object->isLogged) {
     if (!empty($p)) {
         require_once $global['systemRootPath'] . 'plugin/Live/Objects/LiveTransmition.php';
         $trasnmition = LiveTransmition::createTransmitionIfNeed(User::getId());
-        $object->streamServerURL = $p->getServer() . "?p=" . User::getUserPass();
-        $object->streamKey = $trasnmition['key'];
+        if(!empty($trasnmition)){
+            $object->streamServerURL = $p->getServer() . "?p=" . User::getUserPass();
+            $object->streamKey = $trasnmition['key'];
+        }
     }
     TimeLogEnd($timeLog2, __LINE__);
     //_error_log("login.json.php get MobileManager");
@@ -266,6 +276,6 @@ if ($object->isLogged) {
 TimeLogEnd($timeLog, __LINE__);
 //_error_log("login.json.php almost complete");
 $json = _json_encode($object);
-_error_log("login.json.php complete");
+//_error_log("login.json.php complete");
 //header("Content-length: " . strlen($json));
 echo $json;

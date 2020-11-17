@@ -3,8 +3,18 @@
 global $global;
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/LiveLinks/Objects/LiveLinksTable.php';
+require_once $global['systemRootPath'] . 'plugin/Live/Live.php';
+
 
 class LiveLinks extends PluginAbstract {
+
+    public function getTags() {
+        return array(
+            PluginTags::$LIVE,
+            PluginTags::$FREE,
+            PluginTags::$PLAYER,
+        );
+    }
 
     public function getDescription() {
         $desc = "Register Livestreams external Links from any HLS provider, Wowza and others";
@@ -24,6 +34,7 @@ class LiveLinks extends PluginAbstract {
         $obj->onlyAdminCanAddLinks = true;
         $obj->buttonTitle = "Add a Live Link";
         $obj->disableGifThumbs = false;
+        $obj->disableLiveThumbs = false;
         $obj->doNotShowLiveLinksLabel = false;
         return $obj;
     }
@@ -60,7 +71,6 @@ class LiveLinks extends PluginAbstract {
     static function getAllActive() {
         global $global;
         $sql = "SELECT * FROM  LiveLinks WHERE status='a' AND start_date <= now() AND end_date >= now() ORDER BY start_date ";
-
         $res = $global['mysqli']->query($sql);
         $rows = array();
         if ($res) {
@@ -141,8 +151,8 @@ class LiveLinks extends PluginAbstract {
                 "UserPhoto" => $UserPhoto,
                 "title" => $value['title'],
                 "name" => $name,
-                "poster" => "{$global['webSiteRootURL']}plugin/LiveLinks/getImage.php?id={$value['id']}&format=jpg",
-                "link" => "{$global['webSiteRootURL']}plugin/LiveLinks/view/Live.php?link={$value['id']}&embed=1"
+                "poster" => self::getPosterToLiveFromId($value['id']),
+                "link" => self::getLinkToLiveFromId($value['id'], true)
             );
         }
 
@@ -169,5 +179,45 @@ class LiveLinks extends PluginAbstract {
         
         return $js.$css;
     }
+    
+    public function getLinkToLiveFromId($id, $embed=false){
+        global $global;
+        return "{$global['webSiteRootURL']}plugin/LiveLinks/view/Live.php?link={$id}".($embed?"&embed=1":"");
+    }
+
+    public function getPosterToLiveFromId($id){
+        global $global;
+        return "{$global['webSiteRootURL']}plugin/LiveLinks/getImage.php?id={$id}&format=jpg";
+    }
+    
+    public static function isLiveThumbsDisabled(){
+        $obj = AVideoPlugin::getDataObject("LiveLinks");
+        if(!empty($obj->disableLiveThumbs)){
+            return true;
+        }
+        return false;
+    }
+
+    public function getPosterThumbsImage($users_id, $live_servers_id) {
+        global $global;
+        $file = Live::_getPosterThumbsImage($users_id, $live_servers_id);
+
+        if (!file_exists($global['systemRootPath'] . $file)) {
+            $file = "plugin/Live/view/OnAir.jpg";
+        }
+
+        return $file;
+    }
+    
+    public function getUploadMenuButton() {
+        global $global;
+        if (!$this->canAddLinks()) {
+            return '';
+        }
+        $obj = $this->getDataObject();
+        $buttonTitle = $obj->buttonTitle;
+        //include $global['systemRootPath'] . 'plugin/LiveLinks/getUploadMenuButton.php';
+    }
+
 
 }

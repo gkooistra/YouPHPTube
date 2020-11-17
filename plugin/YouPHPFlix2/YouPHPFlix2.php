@@ -4,6 +4,12 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 class YouPHPFlix2 extends PluginAbstract {
 
+    public function getTags() {
+        return array(
+            PluginTags::$NETFLIX,
+            PluginTags::$FREE,
+        );
+    }
     public function getDescription() {
         $txt = "Make the first page looks like a Netflix site";
         $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/Configure-a-Netflix-Clone-Page' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
@@ -84,13 +90,9 @@ class YouPHPFlix2 extends PluginAbstract {
         $css = "";
         //$css .= "<link href=\"{$global['webSiteRootURL']}view/css/custom/".$obj->theme.".css\" rel=\"stylesheet\" type=\"text/css\"/>";
         $css .= "<link href=\"{$global['webSiteRootURL']}plugin/YouPHPFlix2/view/css/style.css?".  filectime("{$global['systemRootPath']}plugin/YouPHPFlix2/view/css/style.css")."\" rel=\"stylesheet\" type=\"text/css\"/>";
-        if(!empty($obj->youtubeModeOnFullscreen) && !empty($_GET['videoName'])){
+        if(!empty($obj->youtubeModeOnFullscreen) && isVideo() && !isSerie()){
             $css .= '<link href="' . $global['webSiteRootURL'] . 'plugin/YouPHPFlix2/view/css/fullscreen.css" rel="stylesheet" type="text/css"/>';
-        
-            $css .= '<style>.container-fluid {overflow: visible;padding: 0;}#mvideo{padding: 0 !important;}</style>';
-            
-        }
-        if(!empty($obj->youtubeModeOnFullscreen)){
+            $css .= '<style>.container-fluid {overflow: visible;padding: 0;}#mvideo{padding: 0 !important; position: absolute; top: 0;}</style>';
             $css .= '<style>body.fullScreen{overflow: hidden;}</style>';
         }
         return $css;
@@ -110,7 +112,7 @@ class YouPHPFlix2 extends PluginAbstract {
         global $global;
         
         $js = '';
-        if(!empty($obj->playVideoOnFullscreen)){
+        if(!empty($obj->playVideoOnFullscreen) && !isSerie()){
             $js = '<script>var playVideoOnFullscreen = true</script>';
         }else{
             $js = '<script>var playVideoOnFullscreen = false</script>';
@@ -118,10 +120,5 @@ class YouPHPFlix2 extends PluginAbstract {
         $js .= '<script src="' . $global['webSiteRootURL'] . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
         return $js;
     }
-    
-    public function getTags() {
-        return array('free', 'firstPage', 'netflix');
-    }
-
     
 }

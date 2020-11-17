@@ -34,6 +34,18 @@ $(function () {
     }, 2000);
 
     isFlickityEnabled('.carousel');
+    if($("body.userChannel").length===0){
+        if ($(window).scrollTop() < 60) {
+            $("#mainNavBar").addClass("bgTransparent");
+        }
+        $(window).scroll(function () {
+            if ($(window).scrollTop() < 60) {
+                $("#mainNavBar").addClass("bgTransparent");
+            } else {
+                $("#mainNavBar").removeClass("bgTransparent");
+            }
+        });
+    }
 });
 
 function startModeFlix(container) {

@@ -36,6 +36,9 @@ if (empty($video) && !empty($_GET['videos_id'])) {
 if(empty($video['created'])){
     return false;
 }
+if(User::hasBlockedUser($video['users_id'])){
+    return false;
+}
 ?>
 
 
@@ -123,15 +126,35 @@ if(empty($video['created'])){
                             $files = getVideosURL($video['filename']);
                         }
                         foreach ($files as $key => $theLink) {
+                            $notAllowedKeys = array('m3u8');
                             if (empty($advancedCustom->showImageDownloadOption)) {
-                                if ($key == "jpg" || $key == "gif" || $key == "webp" || $key == "pjpg" || $key == "m3u8") {
-                                    continue;
+                                $notAllowedKeys = array_merge($notAllowedKeys, array('jpg', 'gif', 'webp', 'pjpg'));
+                            }
+                            $keyFound = false;
+                            foreach ($notAllowedKeys as $notAllowedKey) {
+                                if(preg_match("/{$notAllowedKey}/", $key)){
+                                    $keyFound = true;
+                                    break;
                                 }
+                            }
+                            if($keyFound){
+                                continue;
                             }
                             if (strpos($theLink['url'], '?') === false) {
                                 $theLink['url'] .= "?download=1&title=" . urlencode($video['title'] . "_{$key}_.mp4");
                             }
-                            $filesToDownload[] = array('name' => $key, 'url' => $theLink['url']);
+                            $parts = explode("_", $key);
+                            $name = $key;
+                            if(count($parts)>1){
+                                $name = strtoupper($parts[0]);
+                                if(is_numeric($parts[1])){
+                                    $name .= " <div class='label label-primary'>{$parts[1]}p</div> ".getResolutionLabel($parts[1]);
+                                }else{
+                                    $name .= " <div class='label label-primary'>".strtoupper($parts[1])."</div> ";
+                                }
+                            }
+                            
+                            $filesToDownload[] = array('name' => $name, 'url' => $theLink['url']);
                         }
                         if (!empty($filesToDownload)) {
                             ?>
@@ -196,7 +219,7 @@ if(empty($video['created'])){
 <?php if (!empty($filesToDownload) && CustomizeUser::canDownloadVideosFromVideo($video['id'])) { ?>
     <div class="row bgWhite list-group-item menusDiv" id="downloadDiv">
         <div class="tabbable-panel">
-            <div class="list-group">
+            <div class="list-group list-group-horizontal">
                 <?php
                 foreach ($filesToDownload as $theLink) {
                     ?>
@@ -219,185 +242,12 @@ if(empty($video['created'])){
             });
         });
     </script>
-<?php } ?>
-<?php if ($video['type']!=='notfound' && CustomizeUser::canShareVideosFromVideo($video['id'])) { ?>
-    <div class="row bgWhite list-group-item menusDiv" id="shareDiv">
-        <div class="tabbable-panel">
-            <div class="tabbable-line text-muted">
-                <ul class="nav nav-tabs">
-                    <li class="nav-item">
-                        <a class="nav-link " href="#tabShare" data-toggle="tab">
-                            <span class="fa fa-share"></span>
-                            <?php echo __("Share"); ?>
-                        </a>
-                    </li>
+<?php } 
 
-                    <?php
-                    if (empty($objSecure->disableEmbedMode)) {
-                        ?>
-                        <li class="nav-item">
-                            <a class="nav-link " href="#tabEmbed" data-toggle="tab">
-                                <span class="fa fa-code"></span>
-                                <?php echo __("Embed"); ?>
-                            </a>
-                        </li>
-                        <?php
-                    }
-                    if (empty($advancedCustom->disableEmailSharing)) {
-                        ?>
-
-                        <li class="nav-item">
-                            <a class="nav-link" href="#tabEmail" data-toggle="tab">
-                                <span class="fa fa-envelope"></span>
-                                <?php echo __("E-mail"); ?>
-                            </a>
-                        </li>
-                        <?php
-                    }
-                    ?>
-
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="#tabPermaLink" data-toggle="tab">
-                            <span class="fa fa-link"></span>
-                            <?php echo __("Permanent Link"); ?>
-                        </a>
-                    </li>
-                </ul>
-                <div class="tab-content clearfix">
-                    <div class="tab-pane active" id="tabShare">
-                        <?php
-                        $catLink = @$catLink;
-                        $url = urlencode(Video::getLink($video['id'], $video['clean_title']));
-                        $title = urlencode($video['title']);
-                        include $global['systemRootPath'] . 'view/include/social.php';
-                        ?>
-                    </div>
-                    <div class="tab-pane" id="tabEmbed">
-                        <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?> (Iframe): <?php echo getButtontCopyToClipboard('textAreaEmbed'); ?></h4> 
-                        <textarea class="form-control" style="min-width: 100%" rows="5" id="textAreaEmbed" readonly="readonly"><?php
-                            $code = str_replace("{embedURL}", Video::getLink($video['id'], $video['clean_title'], true), $advancedCustom->embedCodeTemplate);
-                            echo htmlentities($code);
-                            ?>
-                        </textarea>
-                        <h4><span class="glyphicon glyphicon-share"></span> <?php echo __("Share Video"); ?> (Object): <?php echo getButtontCopyToClipboard('textAreaEmbedObject'); ?></h4>
-                        <textarea class="form-control" style="min-width: 100%" rows="5" id="textAreaEmbedObject" readonly="readonly"><?php
-                            $code = str_replace("{embedURL}", Video::getLink($video['id'], $video['clean_title'], true), $advancedCustom->embedCodeTemplateObject);
-                            echo htmlentities($code);
-                            ?>
-                        </textarea>
-                    </div>
-                    <?php
-                    if (empty($advancedCustom->disableEmailSharing)) {
-                        ?>
-                        <div class="tab-pane" id="tabEmail">
-                            <?php if (!User::isLogged()) { ?>
-                                <strong>
-                                    <a href="<?php echo $global['webSiteRootURL']; ?>user"><?php echo __("Sign in now!"); ?></a>
-                                </strong>
-                            <?php } else { ?>
-                                <form class="well form-horizontal" action="<?php echo $global['webSiteRootURL']; ?>sendEmail" method="post"  id="contact_form">
-                                    <fieldset>
-                                        <!-- Text input-->
-                                        <div class="form-group">
-                                            <label class="col-md-4 control-label"><?php echo __("E-mail"); ?></label>
-                                            <div class="col-md-8 inputGroupContainer">
-                                                <div class="input-group">
-                                                    <span class="input-group-addon"><i class="glyphicon glyphicon-envelope"></i></span>
-                                                    <input name="email" placeholder="<?php echo __("E-mail Address"); ?>" class="form-control"  type="text">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Text area -->
-
-                                        <div class="form-group">
-                                            <label class="col-md-4 control-label"><?php echo __("Message"); ?></label>
-                                            <div class="col-md-8 inputGroupContainer">
-                                                <div class="input-group">
-                                                    <span class="input-group-addon"><i class="glyphicon glyphicon-pencil"></i></span>
-                                                    <textarea class="form-control" name="comment" placeholder="<?php echo __("Message"); ?>"><?php echo __("I would like to share this video with you:"); ?> <?php echo Video::getLink($video['id'], $video['clean_title']); ?></textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="col-md-4 control-label"><?php echo __("Type the code"); ?></label>
-                                            <div class="col-md-8 inputGroupContainer">
-                                                <div class="input-group">
-                                                    <span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha?<?php echo time(); ?>" id="captcha"></span>
-                                                    <span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha"><span class="glyphicon glyphicon-refresh"></span></span></span>
-                                                    <input name="captcha" placeholder="<?php echo __("Type the code"); ?>" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Button -->
-                                        <div class="form-group">
-                                            <label class="col-md-4 control-label"></label>
-                                            <div class="col-md-8">
-                                                <button type="submit" class="btn btn-primary" ><?php echo __("Send"); ?> <span class="glyphicon glyphicon-send"></span></button>
-                                            </div>
-                                        </div>
-
-                                    </fieldset>
-                                </form>
-                                <script>
-                                    $(document).ready(function () {
-                                        $('#btnReloadCapcha').click(function () {
-                                            $('#captcha').attr('src', '<?php echo $global['webSiteRootURL']; ?>captcha?' + Math.random());
-                                            $('#captchaText').val('');
-                                        });
-                                        $('#contact_form').submit(function (evt) {
-                                            evt.preventDefault();
-                                            modal.showPleaseWait();
-                                            $.ajax({
-                                                url: '<?php echo $global['webSiteRootURL']; ?>objects/sendEmail.json.php',
-                                                data: $('#contact_form').serializeArray(),
-                                                type: 'post',
-                                                success: function (response) {
-                                                    modal.hidePleaseWait();
-                                                    if (!response.error) {
-                                                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your message has been sent!"); ?>", "success");
-                                                    } else {
-                                                        swal("<?php echo __("Your message could not be sent!"); ?>", response.error, "error");
-                                                    }
-                                                    $('#btnReloadCapcha').trigger('click');
-                                                }
-                                            });
-                                            return false;
-                                        });
-                                    });
-                                </script>
-                            <?php } ?>
-                        </div>
-
-                        <?php
-                    }
-                    ?>
-                    <div class="tab-pane" id="tabPermaLink">
-                        <div class="form-group">
-                            <label class="control-label"><?php echo __("Permanent Link") ?></label>
-                            <?php
-                            getInputCopyToClipboard('linkPermanent', Video::getPermaLink($video['id']));
-                            ?>
-                        </div>
-                        <div class="form-group">
-                            <label class="control-label"><?php echo __("URL Friendly") ?> (SEO)</label>
-                            <?php
-                            getInputCopyToClipboard('linkFriendly', Video::getURLFriendly($video['id']));
-                            ?>
-                        </div>
-                        <div class="form-group">
-                            <label class="control-label"><?php echo __("Current Time") ?> (SEO)</label>
-                            <?php
-                            getInputCopyToClipboard('linkCurrentTime', Video::getURLFriendly($video['id']));
-                            ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php } ?>
+if ($video['type']!=='notfound' && CustomizeUser::canShareVideosFromVideo($video['id'])) {
+    getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true));
+} 
+?>
     <div class="row bgWhite list-group-item" id="modeYoutubeBottomContentDetails">
     <div class="row">
         <div class="col-xs-12 col-sm-12 col-lg-12">

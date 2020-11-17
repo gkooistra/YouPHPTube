@@ -46,12 +46,19 @@ $theme = $config->getTheme();
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="<?php echo $metaDescription; ?>">
+<meta name="device_id" content="<?php echo getDeviceID(); ?>">
 
 <link rel="apple-touch-icon" sizes="180x180" href="<?php echo $config->getFavicon(true); ?>">
 <link rel="icon" type="image/png" href="<?php echo $config->getFavicon(true); ?>">
 <link rel="shortcut icon" href="<?php echo $config->getFavicon(); ?>" sizes="16x16,24x24,32x32,48x48,144x144">
 <meta name="msapplication-TileImage" content="<?php echo $config->getFavicon(true); ?>">
-
+<!--
+<meta name="newCache" content="<?php echo ObjectYPT::checkSessionCacheBasedOnLastDeleteALLCacheTime()?"yes":"No" ?>">
+<meta name="sessionCache" content="<?php echo humanTimingAgo(@$_SESSION['user']['sessionCache']['time']), " " ,@$_SESSION['user']['sessionCache']['time']; ?>">
+<meta name="systemCache" content="<?php echo humanTimingAgo(ObjectYPT::getLastDeleteALLCacheTime()), " " ,ObjectYPT::getLastDeleteALLCacheTime(); ?>">
+<meta name="sessionCache-systemCache" content="<?php $dif = @$_SESSION['user']['sessionCache']['time']-ObjectYPT::getLastDeleteALLCacheTime();
+echo $dif, " Seconds "; ?>">
+-->
 <!-- <link rel="stylesheet" type="text/css" media="only screen and (max-device-width: 768px)" href="view/css/mobile.css" /> -->
 <link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo $global['webSiteRootURL']; ?>view/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>

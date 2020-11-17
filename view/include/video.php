@@ -32,11 +32,11 @@ if (isset($_GET['t'])) {
 }
 
 $playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
-$dataSetup = PlayerSkins::getDataSetup();
 ?>
+<!-- video -->
 <div class="row main-video" id="mvideo">
-    <div class="col-sm-2 col-md-2 firstC"></div>
-    <div class="col-sm-8 col-md-8 secC">
+    <div class="col-md-2 firstC"></div>
+    <div class="col-md-8 secC">
         <div id="videoContainer">
             <div id="floatButtons" style="display: none;">
                 <p class="btn btn-outline btn-xs move">
@@ -62,7 +62,13 @@ $dataSetup = PlayerSkins::getDataSetup();
                     } else {
                         ?>
                         <source src="<?php echo $playNowVideo['videoLink']; ?>" type="<?php echo (strpos($playNowVideo['videoLink'], 'm3u8') !== false) ? "application/x-mpegURL" : "video/mp4" ?>" >
-                    <?php } ?>
+                        <?php
+                        if (function_exists('getVTTTracks')) {
+                            echo "<!-- getVTTTracks 1 -->";
+                            echo getVTTTracks($playNowVideo['filename']);
+                        }
+                    }
+                    ?>
                     <p><?php echo __("If you can't view this video, your browser does not support HTML5 videos"); ?></p>
                     <p class="vjs-no-js"><?php echo __("To view this video please enable JavaScript, and consider upgrading to a web browser that"); ?>
                         <a href="http://videojs.com/html5-video-support/" target="_blank" rel="noopener noreferrer">supports HTML5 video</a>
@@ -86,12 +92,17 @@ $dataSetup = PlayerSkins::getDataSetup();
             </a>
         </div>
     </div>
-    <div class="col-sm-2 col-md-2"></div>
+    <div class="col-md-2"></div>
 </div>
 <!--/row-->
 <script>
     var mediaId = '<?php echo $playNowVideo['id']; ?>';
     var player;
+
+<?php
+PlayerSkins::playerJSCodeOnLoad($playNowVideo['id'], @$autoPlayURL);
+?>
+
     $(document).ready(function () {
 
 <?php
@@ -100,118 +111,7 @@ if ($playNowVideo['type'] == "linkVideo") {
     echo '$("time.duration").hide();';
 }
 ?>
-    if (typeof player === 'undefined') {
-    player = videojs('mainVideo'<?php echo $dataSetup; ?>);
-    }
-    player.on('play', function () {
-    addView(<?php echo $playNowVideo['id']; ?>, this.currentTime());
     });
-    player.ready(function () {
-
-<?php if ($config->getAutoplay()) {
-    ?>
-        setTimeout(function () {
-        if (typeof player === 'undefined') {
-        player = videojs('mainVideo'<?php echo $dataSetup; ?>);
-        }
-        playerPlay(<?php echo $currentTime; ?>);
-        }, 150);
-<?php } else { ?>
-
-        if (typeof player !== 'undefined') {
-        player.currentTime(<?php echo $currentTime; ?>);
-        } else{
-        setTimeout(function () {
-        player.currentTime(<?php echo $currentTime; ?>);
-        }, 1000);
-        }
-        if (Cookies.get('autoplay') && Cookies.get('autoplay') !== 'false') {
-        setTimeout(function () {
-        if (typeof player === 'undefined') {
-        player = videojs('mainVideo'<?php echo $dataSetup; ?>);
-        }
-        playerPlay(<?php echo $currentTime; ?>);
-        }, 150);
-        }
-
-        var initdone = false;
-        // wait for video metadata to load, then set time 
-        player.on("loadedmetadata", function(){
-        player.currentTime(<?php echo $currentTime; ?>);
-        });
-        // iPhone/iPad need to play first, then set the time
-        // events: https://www.w3.org/TR/html5/embedded-content-0.html#mediaevents
-        player.on("canplaythrough", function(){
-        if (!initdone){
-        player.currentTime(<?php echo $currentTime; ?>);
-        initdone = true;
-        }
-        });
-<?php }
-?>
-    this.on('ended', function () {
-    console.log("Finish Video");
-<?php
-// if autoplay play next video
-if (!empty($autoPlayVideo)) {
-    ?>
-        if (Cookies.get('autoplay') && Cookies.get('autoplay') !== 'false') {
-    <?php
-    if ($autoPlayVideo['type'] !== 'video' || empty($advancedCustom->autoPlayAjax)) {
-        ?>
-
-            document.location = autoPlayURL;
-        <?php
-    } else {
-        ?>
-            $('video, #mainVideo').attr('poster', autoPlayPoster);
-            changeVideoSrc(player, autoPlaySources);
-            history.pushState(null, null, autoPlayURL);
-            $('.vjs-thumbnail-holder, .vjs-thumbnail-holder img').attr('src', autoPlayThumbsSprit);
-            $.ajax({
-            url: autoPlayURL,
-                    success: function (response) {
-                    modeYoutubeBottom = $(response).find('#modeYoutubeBottom').html();
-                    $('#modeYoutubeBottom').html(modeYoutubeBottom);
-                    }
-            });
-        <?php
-    }
-    ?>
-        }
-<?php } ?>
-
-    });
-    this.on('timeupdate', function () {
-    var time = Math.round(this.currentTime());
-    var url = '<?php echo Video::getURLFriendly($video['id']); ?>';
-    if (url.indexOf('?') > - 1){
-    url += '&t=' + time;
-    } else{
-    url += '?t=' + time;
-    }
-    $('#linkCurrentTime').val(url);
-    if (time >= 5 && time % 5 === 0) {
-    addView(<?php echo $video['id']; ?>, time);
-    }
-    });
-    this.on('ended', function () {
-    var time = Math.round(this.currentTime());
-    addView(<?php echo $video['id']; ?>, time);
-    });
-    });
-    player.persistvolume({
-    namespace: "AVideo"
-    });
-    // in case the video is muted
-    setTimeout(function () {
-    if (typeof player === 'undefined') {
-    player = videojs('mainVideo'<?php echo $dataSetup; ?>);
-    }
-
-    }, 1500);
-    }
-    );
 </script>
 <?php
 include $global['systemRootPath'] . 'plugin/PlayerSkins/contextMenu.php';

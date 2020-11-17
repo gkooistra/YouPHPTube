@@ -5,6 +5,12 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class API extends PluginAbstract {
 
+    public function getTags() {
+        return array(
+            PluginTags::$FREE,
+            PluginTags::$MOBILE
+        );
+    }
     public function getDescription() {
         return "Handle APIs for third party Applications";
     }
@@ -188,9 +194,40 @@ class API extends PluginAbstract {
         if (empty($videos[$parameters['nextIndex']])) {
             $parameters['nextIndex'] = 0;
         }
+        
+        $playlist = new PlayList($parameters['playlists_id']);
+        $user = new User($playlist->getUsers_id());
+        
         $videoPath = Video::getHigherVideoPathFromID($video['id']);
+        $parameters['videos'] = $videos;
+        $parameters['playlist_name'] = $playlist->getName();
+        $parameters['modified'] = $playlist->getModified();
+        $parameters['modified_timestamp'] = strtotime($parameters['modified']);
+        $parameters['users_id'] = $playlist->getUsers_id();
+        $parameters['channel_name'] = $user->getChannelName();
+        $parameters['channel_photo'] = $user->getPhotoDB();
+        $parameters['channel_bg'] = $user->getBackground();
+        $parameters['channel_link'] = $user->getChannelLink();
+        $parameters['totalPlaylistDuration'] = 0;
+        $parameters['currentPlaylistTime'] = 0;
+        foreach ($parameters['videos'] as $key => $value) {
+            
+            $parameters['videos'][$key]['path'] = Video::getHigherVideoPathFromID($value['id']);;
+            if($key && $key<=$parameters['index']){
+                $parameters['currentPlaylistTime'] += durationToSeconds($parameters['videos'][$key-1]['duration']);
+            }
+            $parameters['totalPlaylistDuration'] += durationToSeconds($parameters['videos'][$key]['duration']);
+        }
+        if(empty($parameters['totalPlaylistDuration'])){
+            $parameters['percentage_progress'] = 0;
+        }else{
+            $parameters['percentage_progress'] = ($parameters['currentPlaylistTime']/$parameters['totalPlaylistDuration'])*100;
+        }
+        $parameters['title'] = $video['title'];
         $parameters['videos_id'] = $video['id'];
         $parameters['path'] = $videoPath;
+        $parameters['duration'] = $video['duration'];
+        $parameters['duration_seconds'] = durationToSeconds($parameters['duration']);
 
         return new ApiObject("", false, $parameters);
     }
@@ -248,6 +285,7 @@ class API extends PluginAbstract {
             $rows = Video::getAllVideos();
             $totalRows = Video::getTotalVideos();
         }
+        unsetSearch();
         $objMob = AVideoPlugin::getObjectData("MobileManager");
         $SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
         foreach ($rows as $key => $value) {
@@ -274,6 +312,11 @@ class API extends PluginAbstract {
             $rows[$key]['pageUrl'] = Video::getLink($rows[$key]['id'], $rows[$key]['clean_title'], false);
             $rows[$key]['embedUrl'] = Video::getLink($rows[$key]['id'], $rows[$key]['clean_title'], true);
             $rows[$key]['UserPhoto'] = User::getPhoto($rows[$key]['users_id']);
+            $rows[$key]['isSubscribed'] = false;
+            if(User::isLogged()){
+                require_once $global['systemRootPath'] . 'objects/subscribe.php';
+                $rows[$key]['isSubscribed'] = Subscribe::isSubscribed($rows[$key]['users_id']);
+            }
 
             if ($SubtitleSwitcher) {
                 $rows[$key]['subtitles'] = getVTTTracks($value['filename'], true);
@@ -282,23 +325,23 @@ class API extends PluginAbstract {
                 }
             }
 
-            if (!empty($_REQUEST['complete'])) {
-                require_once $global['systemRootPath'] . 'objects/comment.php';
-                require_once $global['systemRootPath'] . 'objects/subscribe.php';
-                unset($_POST['sort']);
-                unset($_POST['current']);
-                unset($_POST['searchPhrase']);
-                $_REQUEST['rowCount'] = 10;
-                $_POST['sort']['created'] = "desc";
-                $rows[$key]['comments'] = Comment::getAllComments($rows[$key]['id']);
-                $rows[$key]['commentsTotal'] = Comment::getTotalComments($rows[$key]['id']);
-                foreach ($rows[$key]['comments'] as $key2 => $value2) {
-                    $user = new User($value2['users_id']);
-                    $rows[$key]['comments'][$key2]['userPhotoURL'] = User::getPhoto($rows[$key]['comments'][$key2]['users_id']);
-                    $rows[$key]['comments'][$key2]['userName'] = $user->getNameIdentificationBd();
-                }
-                $rows[$key]['subscribers'] = Subscribe::getTotalSubscribes($rows[$key]['users_id']);
+            
+            require_once $global['systemRootPath'] . 'objects/comment.php';
+            require_once $global['systemRootPath'] . 'objects/subscribe.php';
+            unset($_POST['sort']);
+            unset($_POST['current']);
+            unset($_POST['searchPhrase']);
+            $_REQUEST['rowCount'] = 10;
+            $_POST['sort']['created'] = "desc";
+            $rows[$key]['comments'] = Comment::getAllComments($rows[$key]['id']);
+            $rows[$key]['commentsTotal'] = Comment::getTotalComments($rows[$key]['id']);
+            foreach ($rows[$key]['comments'] as $key2 => $value2) {
+                $user = new User($value2['users_id']);
+                $rows[$key]['comments'][$key2]['userPhotoURL'] = User::getPhoto($rows[$key]['comments'][$key2]['users_id']);
+                $rows[$key]['comments'][$key2]['userName'] = $user->getNameIdentificationBd();
             }
+            $rows[$key]['subscribers'] = Subscribe::getTotalSubscribes($rows[$key]['users_id']);
+            
             //wwbn elements
             $rows[$key]['wwbnURL'] = $rows[$key]['pageUrl'];
             $rows[$key]['wwbnEmbedURL'] = $rows[$key]['embedUrl'];
@@ -555,6 +598,7 @@ class API extends PluginAbstract {
             $obj->livestream["live_servers_id"] = Live::getCurrentLiveServersId();
             $obj->livestream["server"] = $p->getServer($obj->livestream["live_servers_id"]) . "?p=" . $user->getPassword();
             $obj->livestream["poster"] = $global['webSiteRootURL'] . $p->getPosterImage($user->getBdId(), $obj->livestream["live_servers_id"]);
+            $obj->livestream["joinURL"] = Live::getLinkToLiveFromUsers_idAndLiveServer($user->getBdId(), $obj->livestream["live_servers_id"]);
 
             return new ApiObject("", false, $obj);
         } else {
@@ -823,7 +867,8 @@ class API extends PluginAbstract {
      * ['user' usename of the user]
      * ['pass' password  of the user]
      * ['encodedPass' tell the script id the password submited is raw or encrypted]
-     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2
+     * @example for XML response: {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2
+     * @example for JSON response: {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2&json=1
      * @return type
      */
     public function get_api_vmap($parameters) {
@@ -1112,6 +1157,36 @@ class API extends PluginAbstract {
         }
 
         return new ApiObject("", false, $t);
+    }
+
+    /**
+     * @param type $parameters
+     * ['APISecret' mandatory for security reasons - required]
+     * ['user' usename of the user - required]
+     * ['backgroundImg' URL path of the image - optional]
+     * ['profileImg' URL path of the image - optional]
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}&user=admin
+     * @return \ApiObject
+     */
+    public function set_api_userImages($parameters) {
+        global $global;
+        require_once $global['systemRootPath'] . 'objects/video.php';
+        // $obj = $this->startResponseObject($parameters);
+        $dataObj = $this->getDataObject();
+        if ($dataObj->APISecret === @$_GET['APISecret']) {
+
+            $user = new User("", $parameters['user'], false);
+            if (empty($user->getUser())) {
+                return new ApiObject("User Not defined");
+            }
+
+            // UPDATED USER
+            $updateUser = $user->updateUserImages($parameters);
+
+            return new ApiObject("", false, $updateUser);
+        } else {
+            return new ApiObject("API Secret is not valid");
+        }
     }
 
 }

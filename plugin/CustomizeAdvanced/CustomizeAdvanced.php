@@ -5,6 +5,13 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class CustomizeAdvanced extends PluginAbstract {
 
+
+    public function getTags() {
+        return array(
+            PluginTags::$RECOMMENDED,
+            PluginTags::$FREE
+        );
+    }
     public function getDescription() {
         $txt = "Fine Tuning your AVideo";
         $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/Advanced-Customization-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
@@ -26,7 +33,7 @@ class CustomizeAdvanced extends PluginAbstract {
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
-        $obj->logoMenuBarURL = $global['webSiteRootURL'];
+        $obj->logoMenuBarURL = "";
         $obj->encoderNetwork = "https://network.avideo.com/";
         $obj->useEncoderNetworkRecomendation = false;
         $obj->doNotShowEncoderNetwork = true;
@@ -54,6 +61,12 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotShowEncoderResolutionLow = false;
         $obj->doNotShowEncoderResolutionSD = false;
         $obj->doNotShowEncoderResolutionHD = false;
+        $obj->openEncoderInIFrame = false;
+        $obj->showOnlyEncoderAutomaticResolutions = true;
+        $obj->doNotShowEncoderAutomaticHLS = false;
+        $obj->doNotShowEncoderAutomaticMP4 = false;
+        $obj->doNotShowEncoderAutomaticWebm = false;
+        $obj->doNotShowEncoderAutomaticAudio = false;
         $obj->doNotShowLeftMenuAudioAndVideoButtons = false;
         $obj->doNotShowWebsiteOnContactForm = false;
         $obj->doNotUseXsendFile = false;
@@ -113,8 +126,8 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->useFFMPEGToGenerateThumbs = false;
         $obj->thumbsWidthPortrait = 170;
         $obj->thumbsHeightPortrait = 250;
-        $obj->thumbsWidthLandscape = 250;
-        $obj->thumbsHeightLandscape = 140;
+        $obj->thumbsWidthLandscape = 640;
+        $obj->thumbsHeightLandscape = 360;
         $obj->showImageDownloadOption = false;
         $obj->doNotDisplayViews = false;
         $obj->doNotDisplayLikes = false;
@@ -169,7 +182,14 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->twitter_site = "@{$domain}";
         $obj->twitter_player = true;
         $obj->twitter_summary_large_image = false;
+        $obj->footerStyle = "position: fixed;bottom: 0;width: 100%;";
+        $obj->disableVideoTags = false;
         
+        
+        $o = new stdClass();
+        $o->type = DateTimeZone::listIdentifiers(DateTimeZone::ALL);
+        $o->value = 0;
+        $obj->timeZone = $o;
         
         return $obj;
     }
@@ -180,11 +200,7 @@ class CustomizeAdvanced extends PluginAbstract {
         }
         return "";
     }
-
-    public function getTags() {
-        return array('free', 'customization', 'buttons', 'resolutions');
-    }
-
+    
     public function getModeYouTube($videos_id) {
         global $global, $config;
         $obj = $this->getDataObject();
@@ -209,6 +225,7 @@ class CustomizeAdvanced extends PluginAbstract {
         }
         if ($obj->autoHideNavbar && !isEmbed()) {
             $content .= '<script>$(function () {setTimeout(function(){$("#mainNavBar").autoHidingNavbar();},5000);});</script>';
+            $content .= '<script>'. file_get_contents($global['systemRootPath'] . 'plugin/CustomizeAdvanced/autoHideNavbar.js').'</script>';
         }
         if ($obj->autoHideNavbarInSeconds && !isEmbed()) {
             $content .= '<script>'
@@ -259,8 +276,14 @@ class CustomizeAdvanced extends PluginAbstract {
 
     public function getHeadCode() {
         global $global;
+        $obj = $this->getDataObject();
         $baseName = basename($_SERVER['REQUEST_URI']);
         $js = "";
+        if(empty($obj->autoPlayAjax)){
+            $js .= "<script>var autoPlayAjax=false;</script>";
+        }else{
+            $js .= "<script>var autoPlayAjax=true;</script>";
+        }
         if ($baseName === 'mvideos') {
             $js .= "<script>function updateDiskUsage(videos_id){
                                     modal.showPleaseWait();

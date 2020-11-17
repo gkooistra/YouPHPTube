@@ -27,14 +27,14 @@ require_once $global['systemRootPath'] . 'objects/comment.php';
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
 
-        <div class="container">
+        <div class="container-fluid">
+            <div class="panel panel-default">
+                <div class="panel-body">
                     <?php
-        include $global['systemRootPath'] . 'view/include/updateCheck.php';
-        ?>
-            <?php
-            include $global['systemRootPath'] . 'view/videoComments.php';
-            ?>
-
+                    include $global['systemRootPath'] . 'view/videoComments.php';
+                    ?>
+                </div>
+            </div>
         </div><!--/.container-->
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';

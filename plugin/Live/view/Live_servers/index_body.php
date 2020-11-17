@@ -56,6 +56,14 @@ $obj = AVideoPlugin::getObjectData("Live");
                                     <label for="Live_serversgetRemoteFile"><?php echo __("Get Remote File URL"); ?>:</label>
                                     <input type="url" id="Live_serversgetRemoteFile" name="getRemoteFile" class="form-control input-sm" placeholder="<?php echo __("GetRemoteFile"); ?>" required="true">
                                 </div>
+                                <div class="form-group col-sm-6">
+                                    <label for="Live_serversrestreamerURL"><?php echo __("Restreamer URL"); ?>:</label>
+                                    <input type="url" id="Live_serversrestreamerURL" name="restreamerURL" class="form-control input-sm" placeholder="<?php echo __("Restreamer URL"); ?>" required="true">
+                                </div>
+                                <div class="form-group col-sm-6">
+                                    <label for="Live_serverscontrolURL"><?php echo __("Control URL"); ?>:</label>
+                                    <input type="url" id="Live_serverscontrolURL" name="controlURL" class="form-control input-sm" placeholder="<?php echo __("Control URL"); ?>" required="true">
+                                </div>
 
                                 <div class="form-group col-sm-4">
                                     <label for="status"><?php echo __("Status"); ?>:</label>
@@ -172,6 +180,8 @@ $obj = AVideoPlugin::getObjectData("Live");
         $('#Live_serversuseAadaptiveMode').val('');
         $('#Live_serversprotectLive').val('');
         $('#Live_serversgetRemoteFile').val('');
+        $('#Live_serversrestreamerURL').val('');
+        $('#Live_serverscontrolURL').val('');
     }
     $(document).ready(function () {
         $('#addLiveBtn').click(function () {
@@ -181,9 +191,9 @@ $obj = AVideoPlugin::getObjectData("Live");
                 type: 'post',
                 success: function (response) {
                     if (response.error) {
-                        swal("<?php echo __("Sorry!"); ?>", response.msg, "error");
+                        avideoAlert("<?php echo __("Sorry!"); ?>", response.msg, "error");
                     } else {
-                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your register has been saved!"); ?>", "success");
+                        avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your register has been saved!"); ?>", "success");
                         $("#panelLive_serversForm").trigger("reset");
                     }
                     clearLive_serversForm();
@@ -221,9 +231,9 @@ $obj = AVideoPlugin::getObjectData("Live");
                 type: 'post',
                 success: function (response) {
                     if (response.error) {
-                        swal("<?php echo __("Sorry!"); ?>", response.msg, "error");
+                        avideoAlert("<?php echo __("Sorry!"); ?>", response.msg, "error");
                     } else {
-                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your register has been saved!"); ?>", "success");
+                        avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your register has been saved!"); ?>", "success");
                         $("#panelLive_serversForm").trigger("reset");
                     }
                     Live_serverstableVar.ajax.reload();
@@ -243,7 +253,7 @@ $obj = AVideoPlugin::getObjectData("Live");
                 buttons: true,
                 dangerMode: true,
             })
-                    .then((willDelete) => {
+                    .then(function(willDelete) {
                         if (willDelete) {
                             modal.showPleaseWait();
                             $.ajax({
@@ -253,7 +263,7 @@ $obj = AVideoPlugin::getObjectData("Live");
 
                             }).done(function (resposta) {
                                 if (resposta.error) {
-                                    swal("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
+                                    avideoAlert("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
                                 }
                                 Live_serverstableVar.ajax.reload();
                                 modal.hidePleaseWait();
@@ -279,6 +289,8 @@ $obj = AVideoPlugin::getObjectData("Live");
             $('#Live_serversuseAadaptiveMode').val(data.useAadaptiveMode);
             $('#Live_serversprotectLive').val(data.protectLive);
             $('#Live_serversgetRemoteFile').val(data.getRemoteFile);
+            $('#Live_serversrestreamerURL').val(data.restreamerURL);
+            $('#Live_serverscontrolURL').val(data.controlURL);
         });
         $('#Live_serversTable').on('click', 'button.go_Live_servers', function (e) {
             e.preventDefault();

@@ -33,7 +33,7 @@ foreach ($categories as $value) {
         continue;
     }
     ?>
-    <div class="clear clearfix">
+    <div class="row clear clearfix">
         <h3 class="galleryTitle">
             <a class="btn-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_name']; ?>">
                 <i class="<?php echo $value['iconClass']; ?>"></i> <?php echo $value['name']; ?>
@@ -49,5 +49,5 @@ foreach ($categories as $value) {
 ?>
 </div>
 <p class="pagination">
-    <a class="pagination__next" href="<?php echo $global['webSiteRootURL']; ?>plugin/Gallery/view/modeGalleryCategory.php?tags_id=<?php echo intval(@$_GET['tagsid']); ?>&current=<?php echo count($categories)?$_REQUEST['current'] + 1:$_REQUEST['current']; ?>&search=<?php echo getSearchVar(); ?>"></a>
+    <a class="pagination__next" href="<?php echo $global['webSiteRootURL']; ?>plugin/Gallery/view/modeGalleryCategory.php?tags_id=<?php echo intval(@$_GET['tagsid']); ?>&search=<?php echo getSearchVar(); ?>&current=<?php echo count($categories)?$_REQUEST['current'] + 1:$_REQUEST['current']; ?>"></a>
 </p>

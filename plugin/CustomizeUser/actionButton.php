@@ -10,14 +10,14 @@ if ($obj->allowDonationLink && !empty($video['users_id'])) {
         <?php
     }
 }
-if ($obj->allowWalletDirectTransferDonation && !empty($video['users_id'])) {
+if ($obj->allowWalletDirectTransferDonation && !empty($video['users_id']) && is_object("YPTWallet")) {
     if (!User::isLogged()) {
         ?>
         <a class="btn btn-warning no-outline" href="<?php echo $global['webSiteRootURL']; ?>user">
             <i class="fas fa-donate"></i> <small><?php echo __("Please login to donate"); ?></small>
         </a>    
         <?php
-    } else {
+    } else if(is_object("YPTWallet")){
         $u = new User($video['users_id']);
         $uid = uniqid();
         $captcha = User::getCaptchaForm($uid);
@@ -71,9 +71,9 @@ if ($obj->allowWalletDirectTransferDonation && !empty($video['users_id'])) {
                     success: function (response) {
                         modal.hidePleaseWait();
                         if (response.error) {
-                            swal("<?php echo __("Sorry!"); ?>", response.error, "error");
+                            avideoAlert("<?php echo __("Sorry!"); ?>", response.error, "error");
                         } else {
-                            swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Thank you!"); ?>", "success");
+                            avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Thank you!"); ?>", "success");
                             $('#donationModal<?php echo $uid; ?>').modal('hide');
                             $(".walletBalance").text(response.walletBalance);
                         }

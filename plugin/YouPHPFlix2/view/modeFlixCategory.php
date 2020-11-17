@@ -21,6 +21,14 @@ $uid = uniqid();
 ?>
 <div class="categoriesContainerItem" id="<?php echo $uid; ?>">
 <?php
+$ads2 = getAdsLeaderBoardTop2();
+if (!empty($ads2)) {
+    ?>
+    <div class="row text-center" style="padding: 10px;">
+        <?php echo $ads2; ?>
+    </div>
+    <?php
+}
 TimeLogStart($timeLog);
 if ($obj->Categories) {
     $dataFlickirty = new stdClass();
@@ -30,8 +38,9 @@ if ($obj->Categories) {
     $dataFlickirty->fade = true;
     $dataFlickirty->setGallerySize = false;
     $dataFlickirty->cellAlign = 'left';
+    $dataFlickirty->groupCells = true;
     if ($obj->CategoriesAutoPlay) {
-        $dataFlickirty->autoPlay = true;
+        $dataFlickirty->autoPlay = 10000;
         $dataFlickirty->wrapAround = true;
     } else {
         $dataFlickirty->wrapAround = true;

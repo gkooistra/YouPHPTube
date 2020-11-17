@@ -88,7 +88,7 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
         return $liveLi
     }
 
-    function createLiveItem(href, title, name, photo, offline, online, views, key) {
+    function createLiveItem(href, title, name, photo, offline, online, views, key, isPrivate) {
         var $liveLi = $('.liveModel').clone();
         if (offline) {
             $liveLi.find('.fa-video').removeClass("fa-video").addClass("fa-ban");
@@ -99,6 +99,9 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
             //$('#mainVideo.liveVideo').find('.vjs-poster').css({'background-image': 'url(<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/OnAir.jpg)'});
         }
         $liveLi.removeClass("hidden").removeClass("liveModel");
+        if (isPrivate) {
+            $liveLi.find('.fa-video').removeClass('fa-video').addClass('fa-lock');
+        }
         $liveLi.find('a').attr("href", href);
         $liveLi.find('.liveTitle').text(title);
         $liveLi.find('.liveUser').text(name);
@@ -112,9 +115,21 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
         $('.liveUsersOnline_' + key).text(online);
         $('.liveUsersViews_' + key).text(views);
     }
-
+    var limitLiveOnVideosListCount = 0;
     function createExtraVideos(href, title, name, photo, user, online, views, key, disableGif, live_servers_id) {
-        var id = 'extraVideo' + user + "_" + live_servers_id;
+        limitLiveOnVideosListCount++;
+        if (limitLiveOnVideosListCount ><?php echo intval($obj->limitLiveOnVideosList); ?>) {
+            console.log("Max live videos on first page reached");
+            return false;
+        }
+
+        var matches = key.match(/.*_([0-9]+)/);
+        var playlists_id_live = "";
+        if (matches && matches[1]) {
+            playlists_id_live = "&playlists_id_live=" + matches[1];
+        }
+
+        var id = 'extraVideo' + user + "_" + live_servers_id + "_" + key;
         id = id.replace(/\W/g, '');
         if ($(".extraVideos").length && $("#" + id).length == 0) {
             var $liveLi = $('.extraVideosModel').clone();
@@ -129,9 +144,9 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
             $liveLi.find('.liveUsersViews').text(views);
             $liveLi.find('.liveUsersOnline').addClass("liveUsersOnline_" + key);
             $liveLi.find('.liveUsersViews').addClass("liveUsersViews_" + key);
-            $liveLi.find('.thumbsJPG').attr("src", "<?php echo $global['webSiteRootURL']; ?>plugin/Live/getImage.php?live_servers_id=" + live_servers_id + "&u=" + user + "&format=jpg");
+            $liveLi.find('.thumbsJPG').attr("src", "<?php echo $global['webSiteRootURL']; ?>plugin/Live/getImage.php?live_servers_id=" + live_servers_id + "&u=" + user + "&format=jpg" + playlists_id_live+'&'+Math.random());
             if (!disableGif) {
-                $liveLi.find('.thumbsGIF').attr("src", "<?php echo $global['webSiteRootURL']; ?>plugin/Live/getImage.php?live_servers_id=" + live_servers_id + "&u=" + user + "&format=gif");
+                $liveLi.find('.thumbsGIF').attr("src", "<?php echo $global['webSiteRootURL']; ?>plugin/Live/getImage.php?live_servers_id=" + live_servers_id + "&u=" + user + "&format=gif" + playlists_id_live+'&'+Math.random());
             } else {
                 $liveLi.find('.thumbsGIF').remove();
             }
@@ -146,6 +161,7 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
         $.ajax({
             url: webSiteRootURL + 'plugin/Live/stats.json.php?Menu<?php echo (!empty($_GET['videoName']) ? "&requestComesFromVideoPage=1" : "") ?>',
             success: function (response) {
+                limitLiveOnVideosListCount = 0;
                 if (typeof response !== 'undefined') {
                     $('#availableLiveStream').empty();
                     if (isArray(response)) {
@@ -198,7 +214,7 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
     function availableLiveStreamIsLoading() {
         if ($('#availableLiveStream').hasClass('notfound')) {
             $('#availableLiveStream').empty();
-            createLiveItem("#", "<?php echo __("Please Wait, we are checking the lives"); ?>", "", "", true);
+            createLiveItem("#", "<?php echo __("Please Wait, we are checking the lives"); ?>", "", "", true, false);
             $('#availableLiveStream').find('.fa-ban').removeClass("fa-ban").addClass("fa-sync fa-spin");
             $('#availableLiveStream').find('.liveLink div').attr('style', '');
         }
@@ -207,7 +223,7 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
     function availableLiveStreamNotFound() {
         $('#availableLiveStream').addClass('notfound');
         $('#availableLiveStream').empty();
-        createLiveItem("#", "<?php echo __("There is no streaming now"); ?>", "", "", true);
+        createLiveItem("#", "<?php echo __("There is no streaming now"); ?>", "", "", true, false);
         $('#availableLiveStream').find('.liveLink div').attr('style', '');
     }
 
@@ -235,7 +251,7 @@ if (isLive()) {
             $('#liveVideos').slideDown();
         } else {
             //href = "<?php echo $global['webSiteRootURL']; ?>plugin/Live/?live_servers_id=" + live_servers_id + "&c=" + application.channelName;
-            href = "<?php echo $global['webSiteRootURL']; ?>live/" + live_servers_id + "/" + application.channelName;
+            href = application.href;
             title = application.title;
             name = application.name;
             user = application.user;
@@ -244,7 +260,9 @@ if (isLive()) {
             views = application.users.views;
             key = application.key;
             live_servers_id = live_servers_id;
-            createLiveItem(href, title, name, photo, false, online, views, key);
+            isPrivate = application.isPrivate;
+
+            createLiveItem(href, title, name, photo, false, online, views, key, isPrivate);
 <?php
 if (empty($obj->doNotShowLiveOnVideosList)) {
     ?>

@@ -45,6 +45,17 @@ if (!empty($_GET['embed'])) {
     include $global['systemRootPath'] . 'plugin/LiveLinks/view/videoEmbeded.php';
     return false;
 }
+
+$isCompressed = AVideoPlugin::loadPluginIfEnabled('TheaterButton') && TheaterButton::isCompressed();
+
+$sideAd = getAdsSideRectangle();
+
+$modeYoutubeBottomClass1 = "col-sm-7 col-md-7 col-lg-6";
+$modeYoutubeBottomClass2 = "col-sm-5 col-md-5 col-lg-4 ";
+if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
+    $modeYoutubeBottomClass1 = "col-sm-12 col-md-12 col-lg-10";
+    $modeYoutubeBottomClass2 = "hidden ";
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -59,7 +70,7 @@ if (!empty($_GET['embed'])) {
         ?>
 
         <meta property="fb:app_id"             content="774958212660408" />
-        <meta property="og:url"                content="<?php echo $global['webSiteRootURL']; ?>plugin/LiveLinks/view/Live.php?link=<?php echo $_GET['link']; ?>" />
+        <meta property="og:url"                content="<?php echo LiveLinks::getLinkToLiveFromId($_GET['link']); ?>" />
         <meta property="og:type"               content="video.other" />
         <meta property="og:title"              content="<?php echo str_replace('"', '', $t['title']); ?> - <?php echo $config->getWebSiteTitle(); ?>" />
         <meta property="og:description"        content="<?php echo str_replace('"', '', $t['title']); ?>" />
@@ -72,28 +83,58 @@ if (!empty($_GET['embed'])) {
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
-        <div class="container-fluid principalContainer">
-            <div class="row">
-                <div class="col-md-12">
-                    <center style="margin:5px;">
-                        <?php echo getAdsLeaderBoardTop(); ?>
-                    </center>
-                </div>  
-                <div class="col-md-12">
-                    <?php
-                    require "{$global['systemRootPath']}plugin/LiveLinks/view/liveVideo.php";
-                    ?>
-                </div>  
-                <div class="col-md-12">
-                    <center style="margin:5px;">
-                        <?php echo getAdsLeaderBoardTop2(); ?>
-                    </center>
-                </div>  
-            </div>
-            <div class="row" id="modeYoutubeBottom" style="margin: 0;">
+        <div class="container-fluid principalContainer" id="modeYoutubePrincipal">
+            <?php
+            if (!$isCompressed) {
+                ?>
+                <div class="" id="modeYoutubeTop" >
 
-                <div class="col-sm-1 col-md-1"></div>
-                <div class="col-sm-6 col-md-6" id="modeYoutubeBottomContent">
+                    <div class="col-md-12">
+                        <center style="margin:5px;">
+                            <?php echo getAdsLeaderBoardTop(); ?>
+                        </center>
+                    </div>  
+                    <div class="col-md-12">
+                        <?php
+                        require "{$global['systemRootPath']}plugin/LiveLinks/view/liveVideo.php";
+                        ?>
+                    </div>  
+                    <div class="col-md-12">
+                        <center style="margin:5px;">
+                            <?php echo getAdsLeaderBoardTop2(); ?>
+                        </center>
+                    </div>  
+                </div>
+                <?php
+            }
+            ?>
+            <div class="row" id="modeYoutubeBottom" style="margin: 0;">
+                <div class="col-lg-1"></div>
+                <div class="<?php echo $modeYoutubeBottomClass1; ?>" id="modeYoutubeBottomContent">
+                    <?php
+                    if ($isCompressed) {
+                        ?>
+                        <div class="" id="modeYoutubeTop" >
+
+                            <div class="col-md-12">
+                                <center style="margin:5px;">
+                                    <?php echo getAdsLeaderBoardTop(); ?>
+                                </center>
+                            </div>  
+                            <div class="col-md-12">
+                                <?php
+                                require "{$global['systemRootPath']}plugin/LiveLinks/view/liveVideo.php";
+                                ?>
+                            </div>  
+                            <div class="col-md-12">
+                                <center style="margin:5px;">
+                                    <?php echo getAdsLeaderBoardTop2(); ?>
+                                </center>
+                            </div>   
+                        </div>
+                        <?php
+                    }
+                    ?>
                     <div class="panel">
                         <div class="panel-body">
                             <h1 itemprop="name">
@@ -101,6 +142,11 @@ if (!empty($_GET['embed'])) {
                             </h1>
                             <p><?php echo nl2br(textToLink($t['description'])); ?></p>
                             <div class="col-xs-12 col-sm-12 col-lg-12"><?php echo $video['creator']; ?></div>
+                            <?php
+                            $link = LiveLinks::getLinkToLiveFromId($_GET['link']);
+                            $linkEmbed = LiveLinks::getLinkToLiveFromId($_GET['link'], true);
+                            getShareMenu($t['title'], $link, $link, $linkEmbed, "row");
+                            ?>
                             <div class="col-md-12 watch8-action-buttons text-muted">
 
                                 <?php echo AVideoPlugin::getWatchActionButton(0); ?>
@@ -109,21 +155,18 @@ if (!empty($_GET['embed'])) {
                         </div>
                     </div>
                 </div>
-                <div class="col-sm-4 col-md-4 bgWhite list-group-item rightBar" id="yptRightBar" style="">
-
-                    <?php
-                    echo getAdsSideRectangle();
-                    ?>
-
+                <div class="<?php echo $modeYoutubeBottomClass2; ?> rightBar" id="yptRightBar">
+                    <div class="list-group-item ">
+                        <?php
+                        echo $sideAd;
+                        ?>
+                    </div>
                 </div>
-                <div class="col-sm-1 col-md-1"></div>
-            </div>    
+                <div class="col-lg-1"></div>
+            </div>  
 
         </div>
-
         <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.min.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.min.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/videojs-contrib-hls.min.js" type="text/javascript"></script>
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
@@ -133,7 +176,6 @@ if (!empty($_GET['embed'])) {
             $p->getChat($uuid);
         }
         ?>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-persistvolume/videojs.persistvolume.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/webui-popover/jquery.webui-popover.min.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/bootstrap-list-filter/bootstrap-list-filter.min.js" type="text/javascript"></script>
 

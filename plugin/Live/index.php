@@ -3,7 +3,7 @@ require_once '../../videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 $isLive = 1;
 $p = AVideoPlugin::loadPlugin("Live");
-
+$obj = $p->getDataObject();
 if (!empty($_GET['c'])) {
     $user = User::getChannelOwner($_GET['c']);
     if (!empty($user)) {
@@ -27,7 +27,7 @@ if (!empty($_GET['u']) && !empty($_GET['embedv2'])) {
     exit;
 } else if (!User::canStream()) {
     header('HTTP/1.0 403 Forbidden');
-    header("Location: {$global['webSiteRootURL']}?error=" . __("You can not stream live videos"));
+    header("Location: {$global['webSiteRootURL']}?error=" . __($obj->streamDeniedMsg));
     exit;
 }
 
@@ -53,7 +53,6 @@ $vjsClass = "vjs-16-9";
 
 $trans = new LiveTransmition($trasnmition['id']);
 $groups = $trans->getGroups();
-$obj = $p->getDataObject();
 
 //check if channel name exists
 $channelName = User::getUserChannelName();
@@ -62,6 +61,14 @@ if (empty($channelName)) {
     $user = new User($users_id);
     $user->setChannelName($channelName);
     $user->save();
+}
+
+$col1Class = "col-md-12 col-lg-12";
+$col2Class = "hidden";
+$chat2 = AVideoPlugin::getObjectDataIfEnabled("Chat2");
+if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
+    $col1Class = "col-md-8 col-lg-8";
+    $col2Class = "col-md-4 col-lg-4";
 }
 ?>
 <!DOCTYPE html>
@@ -77,14 +84,20 @@ if (empty($channelName)) {
         <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.min.js" type="text/javascript"></script>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/bootstrap-fileinput/css/fileinput.min.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/bootstrap-fileinput/js/fileinput.min.js" type="text/javascript"></script>
+        <style>
+            .krajee-default.file-preview-frame .kv-file-content {
+                width: auto;
+                height: auto;
+            }
+        </style>
     </head>
     <body class="<?php echo $global['bodyClass']; ?>">
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
-        <div class="container">
+        <div class="container-fluid">
             <div class="panel panel-default">
-                <div class="panel-heading">
+                <div class="panel-heading tabbable-line">
                     <ul class="nav nav-tabs">
                         <?php
                         $activeServerFound = false;
@@ -141,171 +154,25 @@ if (empty($channelName)) {
                     </ul>
                 </div>
                 <div class="panel-body">
-
-                    <div class="col-md-6" id="yptRightBar">
-                        <?php
-                        if (!empty($obj->experimentalWebcam)) {
-                            ?>
-                            <div class="panel panel-default">
-                                <div class="panel-heading"><?php echo __("WebCam Streaming"); ?></div>
-                                <div class="panel-body">
-                                    <div class="embed-responsive embed-responsive-16by9">
-                                        <div class="embed-responsive-item"  id="webcam">
-                                            <button class="btn btn-primary btn-block" id="enableWebCam">
-                                                <i class="fa fa-camera"></i> <?php echo __("Enable WebCam Stream"); ?>
-                                            </button>
-                                            <div class="alert alert-warning">
-                                                <i class="fa fa-warning"><?php echo __("We will check if there is a stream conflict before stream"); ?></i>
-                                            </div>
-
-                                            <div class="alert alert-info">
-                                                <?php echo __("This is an experimental resource"); ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="col-lg-8" id="indexCol1">
+                        <div class="row">
+                            <div class="<?php echo $col1Class; ?>">
+                                <?php
+                                include $global['systemRootPath'] . 'plugin/Live/indexCol1.php';
+                                ?>
                             </div>
-                            <?php
-                        }
-                        ?>
-                        <div class="clear clearfix"></div>
-                        <div class="panel panel-default">
-                            <div class="panel-heading"><i class="fa fa-share"></i> <?php echo __("Share Info"); ?> (<?php echo $channelName; ?>)</div>
-                            <div class="panel-body">          
-                                <div class="form-group">
-                                    <label for="playerURL"><i class="fa fa-play-circle"></i> <?php echo __("Player URL"); ?>:</label>
-                                    <?php
-                                    getInputCopyToClipboard('playerURL', Live::getM3U8File($trasnmition['key']));
-                                    ?>
-                                </div>       
-                                <div class="form-group">
-                                    <label for="avideoURL"><i class="fa fa-circle"></i> <?php echo __("Live URL"); ?>:</label>
-                                    <?php
-                                    getInputCopyToClipboard('avideoURL', Live::getLinkToLiveFromUsers_id($users_id));
-                                    ?>
-                                </div>   
-                                <div class="form-group">
-                                    <label for="embedStream"><i class="fa fa-code"></i> <?php echo __("Embed Stream"); ?>:</label>
-                                    <?php
-                                    getInputCopyToClipboard('embedStream', '<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="' . Live::getLinkToLiveFromUsers_id($users_id) . '&embed=1" frameborder="0" allowfullscreen="allowfullscreen" ></iframe>');
-                                    ?>
-                                </div>
+                            <div class="<?php echo $col2Class; ?>" id="yptRightBar">
+                                <?php
+                                include $global['systemRootPath'] . 'plugin/Live/indexCol2.php';
+                                ?>
                             </div>
                         </div>
-                        <div class="panel panel-default">
-                            <div class="panel-heading"><i class="fas fa-hdd"></i> <?php echo __("Devices Stream Info"); ?> (<?php echo $channelName; ?>)</div>
-                            <div class="panel-body" style="overflow: hidden;">
-                                <div class="form-group">
-                                    <label for="server"><i class="fa fa-server"></i> <?php echo __("Server URL"); ?>:</label>
-                                    <?php
-                                    getInputCopyToClipboard('server', Live::getServer() . "?p=" . User::getUserPass());
-                                    ?>
-                                    <small class="label label-info"><i class="fa fa-warning"></i> <?php echo __("If you change your password the Server URL parameters will be changed too."); ?></small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="streamkey"><i class="fa fa-key"></i> <?php echo __("Stream name/key"); ?>:</label>
-                                    <div class="input-group">
-                                        <span class="input-group-btn">
-                                            <a class="btn btn-default" href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?resetKey=1"><i class="fa fa-refresh"></i> <?php echo __("Reset Key"); ?></a>
-                                        </span>
-                                        <?php
-                                        getInputCopyToClipboard('streamkey', $trasnmition['key']);
-                                        ?>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="serverAndStreamkey"><i class="fa fa-key"></i> <?php echo __("Server URL"); ?> + <?php echo __("Stream name/key"); ?>:</label>
-                                    <?php
-                                    getInputCopyToClipboard('serverAndStreamkey', Live::getServer() . "?p=" . User::getUserPass() . "/" . $trasnmition['key']);
-                                    ?>
-                                    <span class="label label-warning"><i class="fa fa-warning"></i> <?php echo __("Keep Key Private, Anyone with key can broadcast on your account"); ?></span>
-                                </div>
-                            </div>
-                        </div>
+                    </div>
+                    <div class="col-lg-4" id="indexCol2">
                         <?php
-                        AVideoPlugin::getLivePanel();
+                        include $global['systemRootPath'] . 'plugin/Live/indexCol3.php';
                         ?>
                     </div>
-                    <div class="col-md-6">
-                        <div class="panel panel-default">
-                            <div class="panel-heading">
-                                <?php
-                                $streamName = $trasnmition['key'];
-                                include $global['systemRootPath'] . 'plugin/Live/view/onlineLabel.php';
-                                ?>
-                            </div>
-                            <div class="panel-body">          
-                                <div class="embed-responsive embed-responsive-16by9">
-                                    <video poster="<?php echo $global['webSiteRootURL']; ?><?php echo $poster; ?>?<?php echo filectime($global['systemRootPath'] . $poster); ?>" controls 
-                                           class="embed-responsive-item video-js vjs-default-skin <?php echo $vjsClass; ?> vjs-big-play-centered" 
-                                           id="mainVideo" >
-                                        <source src="<?php echo Live::getM3U8File($trasnmition['key']); ?>" type='application/x-mpegURL'>
-                                    </video>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="panel panel-default">
-                            <div class="panel-heading">
-                                <?php
-                                echo __("Upload Poster Image");
-                                ?>
-                                <button class="btn btn-danger btn-sm btn-xs pull-right" id="removePoster">
-                                    <i class="far fa-trash-alt"></i> <?php echo __("Remove Poster"); ?>
-                                </button>
-                            </div>
-                            <div class="panel-body"> 
-                                <input id="input-jpg" type="file" class="file-loading" accept="image/*">
-                            </div>
-                        </div>
-                        <div class="panel panel-default">
-                            <div class="panel-heading"><?php echo __("Stream Settings"); ?></div>
-                            <div class="panel-body"> 
-                                <div class="form-group">
-                                    <label for="title"><?php echo __("Title"); ?>:</label>
-                                    <input type="text" class="form-control" id="title" value="<?php echo $trasnmition['title'] ?>">
-                                </div>    
-                                <div class="form-group">
-                                    <label for="description"><?php echo __("Description"); ?>:</label>
-                                    <textarea class="form-control" id="description"><?php echo $trasnmition['description'] ?></textarea>
-                                </div>
-                                <!--
-                                -->
-                                <hr>
-                                <div class="form-group">
-                                    <span class="fa fa-globe"></span> <?php echo __("Make Stream Publicly Listed"); ?> 
-                                    <b>(<?php echo __("MAKE SURE YOU CLICK SAVE"); ?>)</b>
-                                    <div class="material-switch pull-right">
-                                        <input id="listed" type="checkbox" value="1" <?php echo!empty($trasnmition['public']) ? "checked" : ""; ?>/>
-                                        <label for="listed" class="label-success"></label> 
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="panel panel-default">
-                            <div class="panel-heading"><?php echo __("Groups That Can See This Stream"); ?><br><small><?php echo __("Uncheck all to make it public"); ?></small></div>
-                            <div class="panel-body"> 
-                                <?php
-                                $ug = UserGroups::getAllUsersGroups();
-                                foreach ($ug as $value) {
-                                    ?>
-                                    <div class="form-group">
-                                        <span class="fa fa-users"></span> <?php echo $value['group_name']; ?>
-                                        <div class="material-switch pull-right">
-                                            <input id="group<?php echo $value['id']; ?>" type="checkbox" value="<?php echo $value['id']; ?>" class="userGroups" <?php echo (in_array($value['id'], $groups) ? "checked" : "") ?>/>
-                                            <label for="group<?php echo $value['id']; ?>" class="label-success"></label>
-                                        </div>
-                                    </div>
-                                    <?php
-                                }
-                                ?>
-                                <button type="button" class="btn btn-success" id="btnSaveStream"><?php echo __("Save Stream"); ?></button>
-                                <a href="<?php echo $global['webSiteRootURL']; ?>usersGroups" class="btn btn-primary"><span class="fa fa-users"></span> <?php echo __("Add more user Groups"); ?></a>
-                            </div>
-                        </div>
-
-                    </div>
-
                 </div>
             </div>
         </div>
@@ -315,7 +182,7 @@ if (empty($channelName)) {
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
-        <script>
+        <script>            
             var flashvars = {server: "<?php echo Live::getServer(); ?>?p=<?php echo User::getUserPass(); ?>", stream: "<?php echo $trasnmition['key']; ?>"};
                 var params = {};
                 var attributes = {};
@@ -326,7 +193,7 @@ if (empty($channelName)) {
                         type: 'post',
                         success: function (response) {
                             offLine = true;
-                            if(response.applications){
+                            if (response.applications) {
                                 for (i = 0; i < response.applications.length; i++) {
                                     if (response.applications[i].key === "<?php echo $trasnmition['key']; ?>") {
                                         offLine = false;
@@ -390,9 +257,9 @@ if (empty($channelName)) {
                                     //maxImageWidth: 2560,
                                     //maxImageHeight: 1440
                                 }).on('fileuploaded', function (event, previewId, index, fileId) {
-                                    var poster = webSiteRootURL+'<?php echo Live::_getPosterImage(User::getId(), $_REQUEST['live_servers_id']); ?>?'+Math.random();
+                                    var poster = webSiteRootURL + '<?php echo Live::_getPosterImage(User::getId(), $_REQUEST['live_servers_id']); ?>?' + Math.random();
                                     $('#mainVideo video').attr('poster', poster);
-                                    $('#mainVideo .vjs-poster').css('background-image', 'url("'+poster+'"');
+                                    $('#mainVideo .vjs-poster').css('background-image', 'url("' + poster + '"');
                                 });
 
                                 $('#removePoster').click(function () {
@@ -402,24 +269,25 @@ if (empty($channelName)) {
                                                         success: function (response) {
                                                             modal.hidePleaseWait();
                                                             if (response.error) {
-                                                                swal("<?php echo __("Sorry!"); ?>", response.msg, "error");
+                                                                avideoAlert("<?php echo __("Sorry!"); ?>", response.msg, "error");
                                                             } else {
                                                                 $('#mainVideo video').attr('poster', webSiteRootURL + response.newPoster);
-                                                                $('#mainVideo .vjs-poster').css('background-image', 'url("'+webSiteRootURL+ response.newPoster + '")');
+                                                                $('#mainVideo .vjs-poster').css('background-image', 'url("' + webSiteRootURL + response.newPoster + '")');
                                                                 $('.kv-file-content img').attr('src', '<?php echo $global['webSiteRootURL']; ?>' + response.newPoster);
                                                             }
                                                         }
                                                     });
                                                 });
-                                                $('#btnSaveStream').click(function () {
+                                                $('.btnSaveStream').click(function () {
                                                     saveStream();
                                                 });
                                                 $('#enableWebCam').click(function () {
                                                     amIOnline();
                                                 });
-                                                if (typeof player === 'undefined') {
-                                                    player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
-                                                }
+                                                
+                                                <?php
+                                                echo PlayerSkins::getStartPlayerJS("", "", true);
+                                                ?>
                                             });
         </script>
     </body>

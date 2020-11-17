@@ -120,7 +120,7 @@ if (!User::isAdmin()) {
 
                     }).done(function (resposta) {
                         if (resposta.error) {
-                            swal("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
+                            avideoAlert("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
                         }
                         tableLinks.ajax.reload();
                         modal.hidePleaseWait();
@@ -138,7 +138,7 @@ if (!User::isAdmin()) {
                 buttons: true,
                 dangerMode: true,
             })
-            .then((willDelete) => {
+            .then(function(willDelete) {
               if (willDelete) {
 modal.showPleaseWait();
                                 $.ajax({
@@ -148,7 +148,7 @@ modal.showPleaseWait();
 
                                 }).done(function (resposta) {
                                     if (resposta.error) {
-                                        swal("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
+                                        avideoAlert("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
                                     }
                                     tableLinks.ajax.reload();
                                     modal.hidePleaseWait();

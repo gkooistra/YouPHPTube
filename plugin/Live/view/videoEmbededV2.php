@@ -20,7 +20,7 @@ if (!empty($_GET['c'])) {
 $customizedAdvanced = AVideoPlugin::getObjectDataIfEnabled('CustomizeAdvanced');
 
 $livet =  LiveTransmition::getFromDbByUserName($_GET['u']);
-$uuid = $livet['key'];
+$uuid = LiveTransmition::keyNameFix($livet['key']);
 $p = AVideoPlugin::loadPlugin("Live");
 
 $objSecure = AVideoPlugin::loadPluginIfEnabled('SecureVideosDirectory');
@@ -43,11 +43,12 @@ $poster = Live::getPosterImage($livet['users_id'], $_REQUEST['live_servers_id'])
         <link rel="icon" href="<?php echo $global['webSiteRootURL']; ?>view/img/favicon.ico">
         <title><?php echo $config->getWebSiteTitle(); ?> </title>
         <link href="<?php echo $global['webSiteRootURL']; ?>bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css"/>
-
-        <link href="<?php echo $global['webSiteRootURL']; ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo $global['webSiteRootURL']; ?>css/player.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/jquery-3.5.1.min.js" type="text/javascript"></script>
+        <link href="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
+        <?php
+        echo AVideoPlugin::afterVideoJS();
+        ?>
         <?php
         echo AVideoPlugin::getHeadCode();
         ?>
@@ -128,17 +129,6 @@ $poster = Live::getPosterImage($livet['users_id'], $_REQUEST['live_servers_id'])
                 ?>
             </div>
         </div>
-
-        <?php
-        $liveCount = AVideoPlugin::loadPluginIfEnabled('LiveCountdownEvent');
-        $html = array();
-        if ($liveCount) {
-            $html = $liveCount->getNextLiveApplicationFromUser($user_id);
-        }
-        foreach ($html as $value) {
-            echo $value['html'];
-        };
-        ?>
         <script>
             $(function () {
                 $('.liveChat .messages').css({"height": ($(window).height() - 128) + "px"});
@@ -148,37 +138,12 @@ $poster = Live::getPosterImage($livet['users_id'], $_REQUEST['live_servers_id'])
             });
         </script>
         <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.min.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-contrib-ads/videojs.ads.min.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/videojs-persistvolume/videojs.persistvolume.js" type="text/javascript"></script>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/script.js" type="text/javascript"></script>
         <script>
 
-            $(document).ready(function () {
-                if (typeof player === 'undefined') {
-                    player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
-                }
-                player.ready(function () {
-                    var err = this.error();
-                    if (err && err.code) {
-                        $('.vjs-error-display').hide();
-                        $('#mainVideo').find('.vjs-poster').css({'background-image': 'url(<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/Offline.jpg)'});
 <?php
-if (!empty($html)) {
-    echo "showCountDown();";
-}
+echo PlayerSkins::getStartPlayerJS();
 ?>
-                    }
-<?php
-if ($config->getAutoplay()) {
-    echo "this.play();";
-}
-?>
-
-                });
-                player.persistvolume({
-                    namespace: "AVideo"
-                });
-            });
         </script>
         <?php
         require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';

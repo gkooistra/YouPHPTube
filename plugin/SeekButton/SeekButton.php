@@ -5,6 +5,12 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class SeekButton extends PluginAbstract {
 
+    public function getTags() {
+        return array(
+            PluginTags::$FREE,
+            PluginTags::$PLAYER,
+        );
+    }
     public function getDescription() {
         return "Add seek buttons to the control bar";
     }
@@ -18,7 +24,7 @@ class SeekButton extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "1.0";
+        return "1.1";
     }
 
     public function getEmptyDataObject() {
@@ -34,6 +40,7 @@ class SeekButton extends PluginAbstract {
         $css = "";
         if (isVideoPlayerHasProgressBar()) {
             $css = '<link href="' . $global['webSiteRootURL'] . 'plugin/SeekButton/videojs-seek-buttons/videojs-seek-buttons.css" rel="stylesheet" type="text/css"/>';
+            $css .= '<link href="' . $global['webSiteRootURL'] . 'plugin/SeekButton/seek.css" rel="stylesheet" type="text/css"/>';
             $css .= '<style>.video-js .vjs-seek-button {font-size: 25px;width: 2em !important;}</style>';
         }
         return $css;
@@ -43,23 +50,18 @@ class SeekButton extends PluginAbstract {
         global $global;
         if (isVideoPlayerHasProgressBar()) {
             $obj = $this->getDataObject();
-            $js = '<script src="' . $global['webSiteRootURL'] . 'plugin/SeekButton/videojs-seek-buttons/videojs-seek-buttons.min.js" type="text/javascript"></script>';
-            if (!empty($_SESSION['type'])) {
-                if (($_SESSION['type'] == "audio") || ($_SESSION['type'] == "linkAudio")) {
-                    $js .= '<script>$(document).ready(function () {  setTimeout(function(){ if(typeof player == \'undefined\'){player = videojs(\'mainAudio\''.PlayerSkins::getDataSetup().');} ';
-                } else {
-                    $js .= '<script>$(document).ready(function () {  setTimeout(function(){ if(typeof player == \'undefined\'){player = videojs(\'mainVideo\''.PlayerSkins::getDataSetup().');} ';
-                }
-            } else {
-                $js .= '<script>$(document).ready(function () {  setTimeout(function(){ if(typeof player == \'undefined\'){player = videojs(\'mainVideo\''.PlayerSkins::getDataSetup().');} ';
+            $js = "";
+            if (isVideoPlayerHasProgressBar()) {
+                $js .= '<script src="' . $global['webSiteRootURL'] . 'plugin/SeekButton/videojs-seek-buttons/videojs-seek-buttons.min.js" type="text/javascript"></script>';
+                $js .= '<script>'
+                        . 'var playerSeekForward = ' . $obj->forward . '; '
+                        . 'var playerSeekBack = ' . $obj->back . ';'
+                        . 'var forwardLayer = ' . json_encode(file_get_contents($global['systemRootPath']."plugin/SeekButton/forward.html")) . ';'
+                        . 'var backLayer = ' . json_encode(file_get_contents($global['systemRootPath']."plugin/SeekButton/back.html")) . ';'
+                        . '</script>';
+                $js .= '<script>'.PlayerSkins::getStartPlayerJS(file_get_contents($global['systemRootPath']."plugin/SeekButton/seek.js")).'</script>';
             }
-            $js .= 'player.seekButtons({forward: ' . $obj->forward . ',back: ' . $obj->back . ' }); }, 30); });' . '</script>';
             return $js;
         }
     }
-
-    public function getTags() {
-        return array('free', 'buttons', 'video player');
-    }
-
 }

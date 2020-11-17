@@ -22,7 +22,7 @@ function createGallery($title, $sort, $rowCount, $getName, $mostWord, $lessWord,
     $paggingId = uniqid();
     $uid = "gallery" . uniqid();
     ?>
-    <div class="clear clearfix galeryRowElement" id="<?php echo $uid; ?>">
+    <div class="row clear clearfix galeryRowElement" id="<?php echo $uid; ?>">
         <h3 class="galleryTitle">
             <a class="btn-default" href="<?php echo $global['webSiteRootURL']; ?>?showOnly=<?php echo $getName; ?>">
                 <i class="<?php echo $icon; ?>"></i>
@@ -109,7 +109,7 @@ function createOrderInfo($getName, $mostWord, $lessWord, $orderString) {
     return array($tmpOrderString, $upDown, $mostLess);
 }
 
-function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = false) {
+function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = false, $screenColsLarge = 0, $screenColsMedium = 0, $screenColsSmall = 0, $screenColsXSmall = 0) {
     global $global, $config, $obj, $advancedCustom, $advancedCustomUser;
     $countCols = 0;
     $obj = AVideoPlugin::getObjectData("Gallery");
@@ -134,8 +134,23 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
         }
 
         $countCols++;
+        
+        if(!empty($screenColsLarge)){
+            $obj->screenColsLarge = $screenColsLarge;
+        }
+        if(!empty($screenColsMedium)){
+            $obj->screenColsMedium = $screenColsMedium;
+        }
+        if(!empty($screenColsSmall)){
+            $obj->screenColsSmall = $screenColsSmall;
+        }
+        if(!empty($screenColsXSmall)){
+            $obj->screenColsXSmall = $screenColsXSmall;
+        }
+        
+        $colsClass = "col-lg-".(12 / $obj->screenColsLarge)." col-md-".(12 / $obj->screenColsMedium)." col-sm-".(12 / $obj->screenColsSmall)." col-xs-".(12 / $obj->screenColsXSmall);
         ?>
-        <div class="col-lg-<?php echo 12 / $obj->screenColsLarge; ?> col-md-<?php echo 12 / $obj->screenColsMedium; ?> col-sm-<?php echo 12 / $obj->screenColsSmall; ?> col-xs-<?php echo 12 / $obj->screenColsXSmall; ?> galleryVideo thumbsImage fixPadding" style="z-index: <?php echo $zindex--; ?>; min-height: 175px;" itemscope itemtype="http://schema.org/VideoObject">
+        <div class=" <?php echo $colsClass; ?> galleryVideo thumbsImage fixPadding" style="z-index: <?php echo $zindex--; ?>; min-height: 175px;" itemscope itemtype="http://schema.org/VideoObject">
             <a class="galleryLink" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title'], false, $getCN); ?>" title="<?php echo $value['title']; ?>">
                 <?php
                 @$timesG[__LINE__] += microtime(true) - $startG;
@@ -162,7 +177,24 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
                     echo AVideoPlugin::thumbsOverlay($value['id']);
                     @$timesG[__LINE__] += microtime(true) - $startG;
                     $startG = microtime(true);
-                    if (User::isLogged() && !empty($program)) {
+                    if(!empty($program) && $value['type']=='serie' && !empty($value['serie_playlists_id'])){
+                        ?>
+                        <div class="gallerySerieOverlay">
+                            <div class="gallerySerieOverlayTotal">
+                                <?php
+                                    $plids = PlayList::getVideosIDFromPlaylistLight($value['serie_playlists_id']);
+                                    echo count($plids);
+                                ?>
+                                <br><i class="fas fa-list"></i>
+                            </div>
+                                <i class="fas fa-play"></i>
+                                <?php
+                                    echo __("Play All");
+                                ?>
+                        </div>
+                        <?php
+                    }else
+                    if (!empty($program) && User::isLogged()) {
                         ?>
                         <div class="galleryVideoButtons">
                             <?php
@@ -210,8 +242,8 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
             </a>
 
             <div class="text-muted galeryDetails" style="overflow: hidden;">
-                <div>
-                    <?php if (empty($_GET['catName'])) { ?>
+                <div class="galleryTags">
+                    <?php if (empty($_GET['catName']) && !empty($obj->showCategoryTag)) { ?>
                         <a class="label label-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $value['clean_category']; ?>">
                             <?php
                             if (!empty($value['iconClass'])) {
@@ -270,8 +302,9 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
                     if ((!empty($value['description'])) && !empty($obj->Description)) {
                         $desc = str_replace(array('"', "'", "#", "/", "\\"), array('``', "`", "", "", ""), preg_replace("/\r|\n/", " ", nl2br(trim($value['description']))));
                         if (!empty($desc)) {
+                            $titleAlert = str_replace(array('"', "'"), array('``', "`"), $value['title']);
                             ?>
-                            <a href="#" onclick='alertHTMLText("<?php echo str_replace(array('"', "'"), array('``', "`"), $value['title']); ?>", "<div style=\"max-height: 300px; overflow-y: scroll;overflow-x: hidden;\"><?php echo $desc; ?></div>");return false;' ><i class="far fa-file-alt"></i> <?php echo __("Description"); ?></a>
+                            <a href="#" onclick='avideoAlert("<?php echo $titleAlert; ?>", "<div style=\"max-height: 300px; overflow-y: scroll;overflow-x: hidden;\"><?php echo $desc; ?></div>", "info");return false;' ><i class="far fa-file-alt"></i> <?php echo __("Description"); ?></a>
                             <?php
                         }
                     }
@@ -343,6 +376,20 @@ function createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = f
         </div>
 
         <?php
+        if($countCols>1){
+            if($countCols%$obj->screenColsLarge===0){
+                echo "<div class='clearfix hidden-md hidden-sm hidden-xs'></div>";
+            }
+            if($countCols%$obj->screenColsMedium===0){
+                echo "<div class='clearfix hidden-lg hidden-sm hidden-xs'></div>";
+            }
+            if($countCols%$obj->screenColsSmall===0){
+                echo "<div class='clearfix hidden-lg hidden-md hidden-xs'></div>";
+            }
+            if($countCols%$obj->screenColsXSmall===0){
+                echo "<div class='clearfix hidden-lg hidden-md hidden-sm'></div>";
+            }
+        }
     }
     ?>
     <div class="col-xs-12  text-center clear clearfix" style="padding: 10px;">
@@ -428,5 +475,21 @@ function reloadSearch() {
     global $search, $searchPhrase;
     $_GET['search'] = $search;
     $_POST['searchPhrase'] = $searchPhrase;
+}
+
+
+function getTrendingVideos($rowCount = 12, $screenColsLarge = 0, $screenColsMedium = 0, $screenColsSmall = 0, $screenColsXSmall = 0) {
+    global $global;
+    $countCols = 0;
+    unset($_POST['sort']);
+    $_GET['sort']['trending'] = 1;
+    $_REQUEST['current'] = getCurrentPage();
+    $_REQUEST['rowCount'] = $rowCount;
+    $videos = Video::getAllVideos("viewableNotUnlisted");
+    // need to add dechex because some times it return an negative value and make it fails on javascript playlists
+    echo "<link href=\"{$global['webSiteRootURL']}plugin/Gallery/style.css\" rel=\"stylesheet\" type=\"text/css\"/><div class='row gallery '>";
+    $countCols = createGallerySection($videos, "", array(), false, $screenColsLarge, $screenColsMedium, $screenColsSmall, $screenColsXSmall);
+    echo "</div>";
+    return $countCols;
 }
 ?>

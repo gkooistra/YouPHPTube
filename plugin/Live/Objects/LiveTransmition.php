@@ -1,4 +1,5 @@
 <?php
+
 require_once dirname(__FILE__) . '/../../../videos/configuration.php';
 require_once dirname(__FILE__) . '/../../../objects/bootGrid.php';
 require_once dirname(__FILE__) . '/../../../objects/user.php';
@@ -118,8 +119,8 @@ class LiveTransmition extends ObjectYPT {
         return $user;
     }
 
-    static function createTransmitionIfNeed($user_id) { 
-        if(empty($user_id)){
+    static function createTransmitionIfNeed($user_id) {
+        if (empty($user_id)) {
             return false;
         }
         $row = static::getFromDbByUser($user_id);
@@ -140,8 +141,13 @@ class LiveTransmition extends ObjectYPT {
         $row = static::getFromDbByUser($user_id);
 
         $l = new LiveTransmition($row['id']);
-        $l->setKey(uniqid());
-        return $l->save();
+        $newKey = uniqid();
+        $l->setKey($newKey);
+        if($l->save()){
+            return $newKey;
+        }else{
+            return false;
+        }
     }
 
     static function getFromDbByUserName($userName) {
@@ -164,22 +170,24 @@ class LiveTransmition extends ObjectYPT {
         if (!is_string($key)) {
             return false;
         }
-        $key = preg_replace("/[^A-Za-z0-9]/", '', $key);
-        $name = "LivetransmitionkeyExists($key)";
-        $row = ObjectYPT::getCache($name, 3600);
-        $row = object_to_array($row);
-        if(empty($row)){
-            $sql = "SELECT u.*, lt.* FROM " . static::getTableName() . " lt "
-                    . " LEFT JOIN users u ON u.id = users_id AND u.status='a' WHERE  `key` = '$key' LIMIT 1";
-            $res = sqlDAL::readSql($sql);
-            $data = sqlDAL::fetchAssoc($res);
-            sqlDAL::close($res);
-            if ($res) {
-                $row = $data;
-            } else {
-                $row = false;
+        $parts = explode("_", $key);
+        if(!empty($parts[1])){
+            $adaptive = array('hi', 'low', 'mid');
+            if(in_array($parts[1], $adaptive)){
+                return false;
             }
-            ObjectYPT::setCache($name, $row);
+        }
+        $key = $parts[0];
+        $key = preg_replace("/[^A-Za-z0-9]/", '', $key);
+        $sql = "SELECT u.*, lt.* FROM " . static::getTableName() . " lt "
+                . " LEFT JOIN users u ON u.id = users_id AND u.status='a' WHERE  `key` = '$key' LIMIT 1";
+        $res = sqlDAL::readSql($sql);
+        $data = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($res) {
+            $row = $data;
+        } else {
+            $row = false;
         }
         return $row;
     }
@@ -187,7 +195,8 @@ class LiveTransmition extends ObjectYPT {
     function save() {
         $this->public = intval($this->public);
         $this->saveTransmition = intval($this->saveTransmition);
-        return parent::save();
+        $id = parent::save();
+        return $id;
     }
 
     function deleteGroupsTrasmition() {
@@ -204,7 +213,11 @@ class LiveTransmition extends ObjectYPT {
         $sql = "INSERT INTO live_transmitions_has_users_groups (live_transmitions_id, users_groups_id) VALUES (?,?)";
         return sqlDAL::writeSql($sql, "ii", array($this->id, $users_groups_id));
     }
-
+    
+    function isAPrivateLive(){
+        return !empty($this->getGroups());
+    }
+    
     function getGroups() {
         $rows = array();
         if (empty($this->id)) {
@@ -270,6 +283,13 @@ class LiveTransmition extends ObjectYPT {
             $user = false;
         }
         return $user;
+    }
+    
+    static function keyNameFix($key){
+        if(!empty($_REQUEST['playlists_id_live']) && !preg_match("/.*_([0-9]+)/", $key)){
+            $key .= "_{$_REQUEST['playlists_id_live']}";
+        }
+        return $key;
     }
 
 }

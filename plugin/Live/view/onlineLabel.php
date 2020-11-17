@@ -14,6 +14,7 @@ $live_servers_id = Live::getCurrentLiveServersId();
             ?>
             if (player.readyState()) {
                 var uri = player.tech_.hls.selectPlaylist().uri;
+                console.log("isOfflineVideo player.readyState", uri);
                 if (uri.includes("loopBGHLS/res")) {
                     return true;
                 }
@@ -21,29 +22,55 @@ $live_servers_id = Live::getCurrentLiveServersId();
                     return true;
                 }
                 return false;
+            }else if(player.readyState()===0 && player.paused()){
+                console.log("isOfflineVideo paused ");
+                return false;
+            }else{
+                console.log("isOfflineVideo player.readyState not ready", player.readyState());
             }
             <?php
         }
         ?>
         return true;
     }
+    var isOnlineLabel = false;
     var playCorrectSource<?php echo $live_servers_id; ?>Timout;
     function playCorrectSource<?php echo $live_servers_id; ?>() {
+        if(typeof player === 'undefined'){
+            clearTimeout(playCorrectSource<?php echo $live_servers_id; ?>Timout);
+            playCorrectSource<?php echo $live_servers_id; ?>Timout = setTimeout(function () {
+                playCorrectSource<?php echo $live_servers_id; ?>();
+            }, 1000);
+            return false;
+        }
+        var bigPlayButtonModified = false;
         if($('#liveViewStatus<?php echo $live_servers_id; ?>').hasClass('isOnline') && !isOfflineVideo()){
+            isOnlineLabel=true;
+            player.bigPlayButton.show();
+            bigPlayButtonModified  = true;
             console.log("Change video to Online");
             $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('label-warning');
             $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('label-danger');
             $('#liveViewStatus<?php echo $live_servers_id; ?>').addClass('label-success');
             $('#liveViewStatus<?php echo $live_servers_id; ?>').text("<?php echo __("ONLINE"); ?>");
-            player.play();
+            //playerPlayIfAutoPlay(0);
+            if (isAutoplayEnabled() && !player.paused()) {
+                player.play();
+            }
         }else if ($('#liveViewStatus<?php echo $live_servers_id; ?>').hasClass('isOnline') && isOfflineVideo()) {
+            isOnlineLabel=true;
+            player.bigPlayButton.show();
+            bigPlayButtonModified  = true;
             console.log("Change video to please wait");
             $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('label-success');
             $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('label-danger');
             $('#liveViewStatus<?php echo $live_servers_id; ?>').addClass('label-warning');
             $('#liveViewStatus<?php echo $live_servers_id; ?>').text("<?php echo __("Please Wait ..."); ?>");
             reloadVideoJS();
-            playerPlay(0);
+            //playerPlayIfAutoPlay(0);            
+            if (isAutoplayEnabled() && !player.paused()) {
+                player.play();
+            }
             player.on('error', function(){
                 console.log("PError 1 "+player.error());
             });
@@ -57,6 +84,7 @@ $live_servers_id = Live::getCurrentLiveServersId();
             }, 5000);
         } else if (!$('#liveViewStatus<?php echo $live_servers_id; ?>').hasClass('isOnline') && !isOfflineVideo()) {
             if (player.readyState() <= 2) {
+                isOnlineLabel=false;
                 console.log("Change video to offline");
                 $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('label-warning');
                 $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('label-success');
@@ -87,6 +115,9 @@ $live_servers_id = Live::getCurrentLiveServersId();
                 }, 15000);
             }
         }
+        if(!bigPlayButtonModified){
+            player.bigPlayButton.hide();
+        }
     }
 
     function getStats<?php echo $live_servers_id; ?>() {
@@ -98,8 +129,10 @@ $live_servers_id = Live::getCurrentLiveServersId();
             success: function (response) {
                 if(response.name == "<?php echo $streamName; ?>"){
                     if (response.msg === "ONLINE") {
+                        isOnlineLabel=true;
                         $('#liveViewStatus<?php echo $live_servers_id; ?>').addClass('isOnline');
                     } else {
+                        isOnlineLabel=false;
                         $('#liveViewStatus<?php echo $live_servers_id; ?>').removeClass('isOnline');
                     }
                     playCorrectSource<?php echo $live_servers_id; ?>();

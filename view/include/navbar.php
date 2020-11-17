@@ -5,18 +5,32 @@ if (isset($_GET['noNavbar'])) {
         $_SESSION['noNavbar'] = 1;
     } else {
         $_SESSION['noNavbar'] = 0;
+        $_SESSION['noNavbarClose'] = 0;
     }
 }
-if (!empty($_SESSION['noNavbar'])) {
-    //$actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-    $actual_link = basename($_SERVER['PHP_SELF']);
-    $params = $_GET;
-    unset($params['noNavbar']);
-    $params['noNavbar'] = "0";
-    $new_query_string = http_build_query($params);
-    ?>
-    <a href="<?php echo $actual_link, "?", $new_query_string; ?>" class="btn btn-default" style="position: absolute; right: 10px; top: 5px;"><i class="fas fa-bars"></i></a>    
-    <?php
+if (isIframe() && !empty($_SESSION['noNavbar'])) {
+    if (isset($_GET['noNavbarClose'])) {
+        _session_start();
+        if (!empty($_GET['noNavbar'])) {
+            $_SESSION['noNavbarClose'] = 1;
+        } else {
+            $_SESSION['noNavbarClose'] = 0;
+        }
+    }
+    if (empty($_SESSION['noNavbarClose'])) {
+        //$actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+        $actual_link = basename($_SERVER['PHP_SELF']);
+        $params = $_GET;
+        unset($params['noNavbar']);
+        $params['noNavbar'] = "0";
+        $new_query_string = http_build_query($params);
+        ?>
+        <a href="<?php echo $actual_link, "?", $new_query_string; ?>" class="btn btn-default" style="position: absolute; right: 10px; top: 5px;"><i class="fas fa-bars"></i></a>    
+        <?php
+    } else {
+        echo '<style>body{padding-top:0;}</style>';
+    }
+    echo '<nav class="hidden" id="mainNavBar" style="display:none;"></nav>';
     return '';
 }
 if (!empty($advancedCustomUser->keepViewerOnChannel)) {
@@ -92,6 +106,8 @@ if (!$includeDefaultNavBar) {
         margin-left: 5px; 
         margin-right: 40px; 
         border: 0;
+        background: none;
+        background-color: transparent;
     }
 
     #rightLoginButton{
@@ -226,7 +242,7 @@ if (!$includeDefaultNavBar) {
         ?>
         @media screen and (min-width: 992px) {
 
-            body.youtube div.container-fluid{
+            body.youtube>div.container-fluid{
                 margin-left: 300px;
             }
             body.youtube div.container-fluid .col-sm-10.col-sm-offset-1.list-group-item{
@@ -258,7 +274,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
             <li>
                 <ul class="left-side">
                     <li style="max-width: 40px;">
-                        <button class="btn btn-default navbar-btn pull-left" id="buttonMenu"  data-toggle="tooltip" title="<?php echo __("Main Menu"); ?>" data-placement="bottom" ><span class="fa fa-bars"></span></button>
+                        <button class="btn btn-default navbar-btn pull-left" id="buttonMenu"  data-toggle="tooltip" title="<?php echo __("Main Menu"); ?>" data-placement="right" ><span class="fa fa-bars"></span></button>
                         <script>
                             function YPTSidebarOpen() {
                                 $('body').addClass('youtube')
@@ -283,7 +299,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     } else {
                                         YPTSidebarOpen();
                                     }
-
+                                    
                                     $('#myNavbar').removeClass("in");
                                     $('#mysearch').removeClass("in");
                                 });
@@ -383,58 +399,20 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         if (User::canUpload() && empty($advancedCustom->doNotShowUploadButton)) {
                             ?>
                             <li>
-                                <div class="btn-group" data-toggle="tooltip" title="<?php echo __("Submit your videos"); ?>" data-placement="bottom" >
+                                <div class="btn-group" data-toggle="tooltip" title="<?php echo __("Submit your videos"); ?>" data-placement="left" >
                                     <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown">
                                         <i class="<?php echo isset($advancedCustom->uploadButtonDropdownIcon) ? $advancedCustom->uploadButtonDropdownIcon : "fas fa-video"; ?>"></i> <?php echo!empty($advancedCustom->uploadButtonDropdownText) ? $advancedCustom->uploadButtonDropdownText : ""; ?> <span class="caret"></span>
                                     </button>
                                     <?php
-                                    if ((isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && User::isVerified()) || (isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && !$advancedCustomUser->onlyVerifiedEmailCanUpload) || !isset($advancedCustomUser->onlyVerifiedEmailCanUpload)
-                                    ) {
+                                    if ((isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && User::isVerified()) || (isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && !$advancedCustomUser->onlyVerifiedEmailCanUpload) || !isset($advancedCustomUser->onlyVerifiedEmailCanUpload)) {
                                         ?>
                                         <ul class="dropdown-menu dropdown-menu-right" role="menu" style="">
                                             <?php
-                                            if (!empty($advancedCustom->encoderNetwork) && empty($advancedCustom->doNotShowEncoderNetwork)) {
-                                                ?>
-                                                <li>
-                                                    <form id="formEncoderN" method="post" action="<?php echo $advancedCustom->encoderNetwork; ?>" target="encoder"  autocomplete="off">
-                                                        <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>"  autocomplete="off" />
-                                                        <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>"  autocomplete="off" />
-                                                        <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>"  autocomplete="off" />
-                                                    </form>
-                                                    <a href="#" onclick="$('#formEncoderN').submit();
-                                                                            return false;">
-                                                        <span class="fa fa-cogs"></span> <?php echo empty($advancedCustom->encoderNetworkLabel) ? __("Encoder Network") : $advancedCustom->encoderNetworkLabel; ?>
-                                                    </a>
-                                                </li>
-                                                <?php
-                                            }
-                                            if (empty($advancedCustom->doNotShowEncoderButton)) {
-                                                if (!empty($config->getEncoderURL())) {
-                                                    ?>
-                                                    <li>
-                                                        <form id="formEncoder" method="post" action="<?php echo $config->getEncoderURL(); ?>" target="encoder"  autocomplete="off" >
-                                                            <input type="hidden" name="webSiteRootURL" value="<?php echo $global['webSiteRootURL']; ?>"  autocomplete="off"  />
-                                                            <input type="hidden" name="user" value="<?php echo User::getUserName(); ?>"  autocomplete="off"  />
-                                                            <input type="hidden" name="pass" value="<?php echo User::getUserPass(); ?>"  autocomplete="off"  />
-                                                        </form>
-                                                        <a href="#" onclick="$('#formEncoder').submit();
-                                                                                    return false;">
-                                                            <span class="fa fa-cog"></span> <?php echo empty($advancedCustom->encoderButtonLabel) ? __("Encode video and audio") : $advancedCustom->encoderButtonLabel; ?>
-                                                        </a>
-                                                    </li>
-                                                    <?php
-                                                } else {
-                                                    ?>
-                                                    <li>
-                                                        <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations" ><span class="fa fa-cogs"></span> <?php echo __("Configure an Encoder URL"); ?></a>
-                                                    </li>
-                                                    <?php
-                                                }
-                                            }
+                                            include $global['systemRootPath'] . 'view/include/navbarEncoder.php';
                                             if (empty($advancedCustom->doNotShowUploadMP4Button)) {
                                                 ?>
                                                 <li>
-                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?upload=1" >
+                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?upload=1"  data-toggle="tooltip" title="<?php echo __("Upload files without encode"); ?>" data-placement="left"  >
                                                         <span class="fa fa-upload"></span> <?php echo empty($advancedCustom->uploadMP4ButtonLabel) ? __("Direct upload") : $advancedCustom->uploadMP4ButtonLabel; ?>
                                                     </a>
                                                 </li>
@@ -443,7 +421,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                             if (empty($advancedCustom->doNotShowImportMP4Button)) {
                                                 ?>
                                                 <li>
-                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>view/import.php" >
+                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>view/import.php"  data-toggle="tooltip" title="<?php echo __("Search for videos in your local disk"); ?>" data-placement="left" >
                                                         <span class="fas fa-hdd"></span> <?php echo empty($advancedCustom->importMP4ButtonLabel) ? __("Direct Import Local Videos") : $advancedCustom->importMP4ButtonLabel; ?>
                                                     </a>
                                                 </li>
@@ -452,7 +430,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                             if (empty($advancedCustom->doNotShowEmbedButton)) {
                                                 ?>
                                                 <li>
-                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?link=1" >
+                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?link=1"  data-toggle="tooltip" title="<?php echo __("Embed videos/files in your site"); ?>" data-placement="left" >
                                                         <span class="fa fa-link"></span> <?php echo empty($advancedCustom->embedButtonLabel) ? __("Embed a video link") : $advancedCustom->embedButtonLabel; ?>
                                                     </a>
                                                 </li>
@@ -461,7 +439,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                             if (AVideoPlugin::isEnabledByName("Articles")) {
                                                 ?>
                                                 <li>
-                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?article=1" >
+                                                    <a  href="<?php echo $global['webSiteRootURL']; ?>mvideos?article=1"  data-toggle="tooltip" title="<?php echo __("Write an article"); ?>" data-placement="left" >
                                                         <i class="far fa-newspaper"></i> <?php echo __("Add Article"); ?>
                                                     </a>
                                                 </li>
@@ -469,7 +447,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                             }
                                             echo AVideoPlugin::getUploadMenuButton();
                                             ?>
-                                        </ul>
+                                        </ul>     
                                         <?php
                                     } else {
                                         ?>
@@ -479,6 +457,9 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                                     <span class="fa fa-exclamation"></span> <?php echo __("Only verified users can upload"); ?>
                                                 </a>
                                             </li>
+                                            <?php
+                                            echo AVideoPlugin::getUploadMenuButton();
+                                            ?>
                                         </ul>
 
                                         <?php
@@ -488,6 +469,28 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
 
                             </li>
                             <?php
+                        } else {
+                            $output = ob_get_clean();
+                            echo AVideoPlugin::getUploadMenuButton();
+                            $getUploadMenuButton = ob_get_clean();
+                            if (!empty($getUploadMenuButton)) {
+                                ?>
+                                <li>
+                                    <div class="btn-group" data-toggle="tooltip" title="<?php echo __("Submit your videos"); ?>" data-placement="left" >
+                                        <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown">
+                                            <i class="<?php echo isset($advancedCustom->uploadButtonDropdownIcon) ? $advancedCustom->uploadButtonDropdownIcon : "fas fa-video"; ?>"></i> <?php echo!empty($advancedCustom->uploadButtonDropdownText) ? $advancedCustom->uploadButtonDropdownText : ""; ?> <span class="caret"></span>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-right" role="menu" style="">
+                                            <?php
+                                            echo $getUploadMenuButton;
+                                            ?>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <?php
+                            }
+                            ob_start();
+                            echo $output;
                         }
                         ?>
                         <li>
@@ -507,7 +510,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     min-width: 20px;
                                 }
                             </style>
-                            <div id="navBarFlag" data-input-name="country" data-selected-country="<?php echo $lang; ?>"  data-toggle="tooltip" title="<?php echo __('Change Language'); ?>" data-placement="bottom"></div>
+                            <div id="navBarFlag" data-input-name="country" data-selected-country="<?php echo $lang; ?>"  data-toggle="tooltip" title="<?php echo __('Change Language'); ?>" data-placement="left"></div>
                             <script>
                                 $(function () {
                                     $("#navBarFlag").flagStrap({
@@ -578,8 +581,8 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                             $tooltip = "";
                             if (User::isLogged()) {
                                 $tooltip = 'data-toggle="tooltip" data-html="true" title="' . User::getName() . ":: " . User::getMail() . '" data-placement="left"';
-                            }else{
-                                $tooltip = 'data-toggle="tooltip" data-html="true" title="' .__("Login") . '" data-placement="left"';
+                            } else {
+                                $tooltip = 'data-toggle="tooltip" data-html="true" title="' . __("Login") . '" data-placement="left"';
                             }
                             ?>
                             <li class="rightProfile" <?php echo $tooltip; ?> >
@@ -588,7 +591,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     <?php
                                     if (User::isLogged()) {
                                         ?>
-                                        <button type="button" class="btn btn-default  dropdown-toggle navbar-btn pull-left"  data-toggle="dropdown" id="rightProfileButton" style="min-height:34px;">
+                                        <button type="button" class="btn btn-default dropdown-toggle navbar-btn pull-left btn-circle"  data-toggle="dropdown" id="rightProfileButton" style="padding:0;">
                                             <img src="<?php echo User::getPhoto(); ?>" 
                                                  style="width: 32px; height: 32px; max-width: 32px;"  
                                                  class="img img-responsive img-circle" alt="User Photo"
@@ -983,6 +986,11 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     </a>
                                 </li>
                                 <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>i/log" class="">
+                                        <i class="fas fa-clipboard-list"></i> <?php echo __("Log file"); ?>
+                                    </a>
+                                </li>
+                                <li>
                                     <a href="#" class="generateSiteMapButton">
                                         <i class="fa fa-sitemap"></i> <?php echo __("Generate Sitemap"); ?>
                                     </a>
@@ -990,6 +998,77 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                             </ul>
                         </li>
                         <?php
+                    } else {
+                        $menus = array();
+                        if (Permissions::canAdminUsers()) {
+                            $menus[] = '
+                                ?>
+                                <li>
+                                    <a href="<?php echo $global[\'webSiteRootURL\']; ?>users">
+                                        <span class="glyphicon glyphicon-user"></span>
+                                        <?php echo __("Users"); ?>
+                                    </a>
+                                </li>
+                                <?php
+                                ';
+                        }
+                        if (Permissions::canAdminUserGroups()) {
+                            $menus[] = '?>
+                                <li>
+                                    <a href="<?php echo $global[\'webSiteRootURL\']; ?>usersGroups">
+                                        <span class="fa fa-users"></span>
+                                        <?php echo __("Users Groups"); ?>
+                                    </a>
+                                </li>
+                                <?php
+                                ';
+                        }
+                        if (Permissions::canClearCache()) {
+                            $menus[] = '?>
+                                <li>
+                                    <a href="#" class="clearCacheFirstPageButton">
+                                        <i class="fa fa-trash"></i> <?php echo __("Clear First Page Cache"); ?>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="clearCacheButton">
+                                        <i class="fa fa-trash"></i> <?php echo __("Clear Cache Directory"); ?>
+                                    </a>
+                                </li>
+                                <?php
+                                ';
+                        }
+                        if (Permissions::canSeeLogs()) {
+                            $menus[] = ' ?>
+                                <li>
+                                    <a href="<?php echo $global[\'webSiteRootURL\']; ?>i/log" class="">
+                                        <i class="fas fa-clipboard-list"></i> <?php echo __("Log file"); ?>
+                                    </a>
+                                </li>
+                                <?php
+                                ';
+                        }
+                        if (Permissions::canGenerateSiteMap()) {
+                            $menus[] = '?>
+                                <li>
+                                    <a href="#" class="generateSiteMapButton">
+                                        <i class="fa fa-sitemap"></i> <?php echo __("Generate Sitemap"); ?>
+                                    </a>
+                                </li>
+                                <?php
+                                ';
+                        }
+                        if (count($menus)) {
+                            ?>
+                            <hr>
+                            <h2 class="text-danger"><?php echo __("Extra Permissions"); ?></h2>
+                            <ul  class="nav navbar" style="margin-bottom: 10px;">
+                                <?php
+                                eval(implode(" ", $menus));
+                                ?>
+                            </ul>
+                            <?php
+                        }
                     }
                     ?>
 
@@ -1070,7 +1149,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     if (empty($subcat['total'])) {
                                         continue;
                                     }
-                                    if (in_array($subcat['id'], $parsed_cats)) {
+                                    if (is_array($parsed_cats) && in_array($subcat['id'], $parsed_cats)) {
                                         continue;
                                     }
                                     //$parsed_cats[] = $subcat['id'];
@@ -1175,7 +1254,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                 var navsub_toggle_selected = $('.nav li.navsub-toggle a.selected');
                 navsub_toggle_selected.next().show();
                 navsub_toggle_selected = navsub_toggle_selected.parent();
-
+                
                 var navsub_toggle_selected_stop = 24;
                 while (navsub_toggle_selected.length) {
                     if ($.inArray(navsub_toggle_selected.prop('localName'), ['li', 'ul']) == -1)
@@ -1184,25 +1263,25 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         navsub_toggle_selected.show().prev().addClass('selected');
                     }
                     navsub_toggle_selected = navsub_toggle_selected.parent();
-
+                    
                     navsub_toggle_selected_stop--;
                     if (navsub_toggle_selected_stop < 0)
                         break;
                 }
             }, 500);
-
-
+            
+            
             $('.nav').on('click', 'li.navsub-toggle a:not(.selected)', function (e) {
                 var a = $(this),
                         b = a.next();
                 if (b.length) {
                     e.preventDefault();
-
+                    
                     a.addClass('selected');
                     b.slideDown();
-
+                    
                     var c = a.closest('.nav').find('li.navsub-toggle a.selected').not(a).removeClass('selected').next();
-
+                    
                     if (c.length)
                         c.slideUp();
                 }

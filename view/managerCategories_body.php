@@ -1,25 +1,29 @@
-<div class="container">
-    <?php include $global['systemRootPath'] . 'view/include/updateCheck.php'; ?>
-    <button type="button" class="btn btn-default" id="addCategoryBtn">
-        <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> <?php echo __("New Category"); ?>
-    </button>
+<div class="container-fluid">
+    <div class="panel panel-default">
+        <div class="panel-heading">
 
-    <table id="grid" class="table table-condensed table-hover table-striped">
-        <thead>
-            <tr>
-                <th data-column-id="id" data-type="numeric" data-identifier="true" data-width="5%"><?php echo __("ID"); ?></th>
-                <th data-column-id="iconHtml" data-sortable="false" data-width="5%"><?php echo __("Icon"); ?></th>
-                <th data-column-id="name" data-order="desc"  data-formatter="name"  data-width="40%"><?php echo __("Name"); ?></th>
-                <th data-column-id="private" data-formatter="private"><?php echo __("Private"); ?></th>
-                <th data-column-id="owner"><?php echo __("Owner"); ?></th>
-                <th data-column-id="fullTotal" data-sortable="false"><?php echo __("Videos"); ?></th>
-                <th data-column-id="allow_download" ><?php echo __("Download"); ?></th>
-                <th data-column-id="order" ><?php echo __("Order"); ?></th>
-                <th data-column-id="commands" data-formatter="commands" data-sortable="false"></th>
-            </tr>
-        </thead>
-    </table>
-
+            <button type="button" class="btn btn-default" id="addCategoryBtn">
+                <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> <?php echo __("New Category"); ?>
+            </button>
+        </div>
+        <div class="panel-body">
+            <table id="grid" class="table table-condensed table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th data-column-id="id" data-type="numeric" data-identifier="true" data-width="5%"><?php echo __("ID"); ?></th>
+                        <th data-column-id="iconHtml" data-sortable="false" data-width="5%"><?php echo __("Icon"); ?></th>
+                        <th data-column-id="name" data-order="desc"  data-formatter="name"  data-width="40%"><?php echo __("Name"); ?></th>
+                        <th data-column-id="private" data-formatter="private"><?php echo __("Private"); ?></th>
+                        <th data-column-id="owner"><?php echo __("Owner"); ?></th>
+                        <th data-column-id="fullTotal" data-sortable="false"><?php echo __("Videos"); ?></th>
+                        <th data-column-id="allow_download" ><?php echo __("Download"); ?></th>
+                        <th data-column-id="order" ><?php echo __("Order"); ?></th>
+                        <th data-column-id="commands" data-formatter="commands" data-sortable="false"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
     <div id="categoryFormModal" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -157,15 +161,15 @@
                 },
                 "commands": function (column, row)
                 {
-                    var editBtn = '<button type="button" class="btn btn-xs btn-default command-edit" data-row-id="' + row.id + '" data-toggle="tooltip" data-placement="left" title="<?php echo __("Edit"); ?>"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>'
-                    var deleteBtn = '<button type="button" class="btn btn-default btn-xs command-delete"  data-row-id="' + row.id + '"  data-toggle="tooltip" data-placement="left" title="<?php echo __("Delete"); ?>"><span class="glyphicon glyphicon-erase" aria-hidden="true"></span></button>';
-                    var rssBtn = '<a class="btn btn-info btn-xs" target="_blank" href="<?php echo $global['webSiteRootURL']; ?>feed/?catName=' + row.clean_name + '" ><i class="fas fa-rss-square"></i></a>';
+                    var editBtn = '<button type="button" class="btn btn-xs btn-default command-edit" data-row-id="' + row.id + '" data-toggle="tooltip" title="<?php echo __("Edit"); ?>"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>'
+                    var deleteBtn = '<button type="button" class="btn btn-default btn-xs command-delete" data-row-id="' + row.id + '" data-toggle="tooltip" title="<?php echo __("Delete"); ?>"><i class="fa fa-trash" aria-hidden="true"></i></button>';
+                    var rssBtn = '<a class="btn btn-info btn-xs" data-toggle="tooltip" title="<?php echo __("RSS Feed"); ?>" target="_blank" href="<?php echo $global['webSiteRootURL']; ?>feed/?catName=' + row.clean_name + '" ><i class="fas fa-rss-square"></i></a>';
 
                     if (!row.canEdit) {
                         editBtn = "";
                         deleteBtn = "";
                     }
-
+                    
                     return editBtn + deleteBtn + rssBtn;
                 }
             }
@@ -198,7 +202,7 @@
                     buttons: true,
                     dangerMode: true,
                 })
-                        .then((willDelete) => {
+                        .then(function (willDelete) {
                             if (willDelete) {
 
 
@@ -210,9 +214,9 @@
                                     success: function (response) {
                                         if (response.status === "1") {
                                             $("#grid").bootgrid("reload");
-                                            swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your category has been deleted!"); ?>", "success");
+                                            avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your category has been deleted!"); ?>", "success");
                                         } else {
-                                            swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your category has NOT been deleted!"); ?>", "error");
+                                            avideoAlert("<?php echo __("Sorry!"); ?>", "<?php echo __("Your category has NOT been deleted!"); ?>", "error");
                                         }
                                         modal.hidePleaseWait();
                                     }
@@ -220,6 +224,7 @@
                             }
                         });
             });
+            setTimeout(function(){$('[data-toggle="tooltip"]').tooltip();},1000);
         });
 
 
@@ -259,9 +264,9 @@
                     if (response.status) {
                         $('#categoryFormModal').modal('hide');
                         $("#grid").bootgrid("reload");
-                        swal("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your category has been saved!"); ?>", "success");
+                        avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your category has been saved!"); ?>", "success");
                     } else {
-                        swal("<?php echo __("Sorry!"); ?>", "<?php echo __("Your category has NOT been saved!"); ?>", "error");
+                        avideoAlert("<?php echo __("Sorry!"); ?>", "<?php echo __("Your category has NOT been saved!"); ?>", "error");
                     }
                     modal.hidePleaseWait();
                 }

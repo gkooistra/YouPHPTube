@@ -2,7 +2,8 @@
 if (!isset($global['systemRootPath'])) {
     require_once '../../videos/configuration.php';
 }
-
+$isSerie = 1;
+$isPlayList = true;
 require_once $global['systemRootPath'] . 'objects/playlist.php';
 require_once $global['systemRootPath'] . 'plugin/PlayLists/PlayListElement.php';
 
@@ -116,7 +117,7 @@ if (!empty($video['id'])) {
                     <?php
                 }
                 ?>
-
+                <!-- playlist player -->
                 <div class="row main-video" id="mvideo">
                     <div class="col-sm-2 col-md-2 firstC"></div>
                     <div class="col-sm-8 col-md-8 secC">
@@ -210,7 +211,6 @@ if (!empty($video['id'])) {
         echo AVideoPlugin::afterVideoJS();
         include $global['systemRootPath'] . 'view/include/footer.php';
         $videoJSArray = array(
-            "view/js/videojs-persistvolume/videojs.persistvolume.js",
             "view/js/BootstrapMenu.min.js");
         $jsURL = combineFiles($videoJSArray, "js");
         ?>
@@ -298,6 +298,9 @@ if (!empty($video['id'])) {
                                                     setTimeout(function () {
                                                         player.currentTime(playerPlaylist[index].videoStartSeconds);
                                                     }, 500);
+                                                    if(typeof enableDownloadProtection === 'function'){
+                                                        enableDownloadProtection();    
+                                                    }   
                                                 });
                                                 setTimeout(function () {
                                                     var Button = videojs.getComponent('Button');

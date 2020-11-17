@@ -60,10 +60,19 @@ if ($canDownloadVideosFromVideo) {
     if ($video['type'] == "video") {
         $files = getVideosURL($video['filename']);
         foreach ($files as $key => $theLink) {
+            $notAllowedKeys = array('m3u8');
             if (empty($advancedCustom->showImageDownloadOption)) {
-                if ($key == "jpg" || $key == "gif" || $key == "webp" || $key == "pjpg" || $key == "m3u8") {
-                    continue;
+                $notAllowedKeys = array_merge($notAllowedKeys, array('jpg', 'gif', 'webp', 'pjpg'));
+            }
+            $keyFound = false;
+            foreach ($notAllowedKeys as $notAllowedKey) {
+                if(preg_match("/{$notAllowedKey}/", $key)){
+                    $keyFound = true;
+                    break;
                 }
+            }
+            if($keyFound){
+                continue;
             }
             $contextMenu[] = "{name: '" . __("Download video") . " ({$key})',
                         onClick: function () {
@@ -113,7 +122,9 @@ if ($playerSkinsObj->showSocialShareOnEmbed && $playerSkinsObj->contextMenuShare
         var menu = new BootstrapMenu('#mainVideo', {
             actions: [<?php echo implode(",", $contextMenu); ?>]
         });
-        setImageLoop();
+        if (typeof setImageLoop === 'function') {
+            setImageLoop();
+        }
         $('#SharingModal').modal({show: false});
     });
 </script>
