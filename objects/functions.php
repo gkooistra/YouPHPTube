@@ -2084,6 +2084,9 @@ function combineFiles($filesArray, $extension = "js") {
     } else {
         $minifyEnabled = false;
     }
+    // temporary disable minify
+    $minifyEnabled = false;    
+    
     $md5FileName = md5($fileName) . ".{$extension}";
     if (!file_exists($cacheDir . $md5FileName)) {
         foreach ($filesArray as $value) {
@@ -4394,7 +4397,7 @@ function getPagination($total, $page = 0, $link = "", $maxVisible = 10, $infinit
     if ($total < 2) {
         return "";
     }
-    $uid = uniqid();
+    $uid = md5($link);
     if ($total < $maxVisible) {
         $maxVisible = $total;
     }
@@ -4412,7 +4415,7 @@ function getPagination($total, $page = 0, $link = "", $maxVisible = 10, $infinit
 
     $class = "";
     if (!empty($infinityScrollGetFromSelector) && !empty($infinityScrollAppendIntoSelector)) {
-        $class = "infiniteScrollPagination hidden";
+        $class = "infiniteScrollPagination{$uid} hidden";
     }
 
     $pag = '<nav aria-label="Page navigation" class="text-center ' . $class . '"><ul class="pagination">';
