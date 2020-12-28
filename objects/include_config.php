@@ -60,6 +60,7 @@ if (!empty($global['enableDDOSprotection']))
 
 // set the reffer for aVideo
 $url1['host'] = "";
+$global["HTTP_REFERER"] = "";
 if (!empty($_SERVER["HTTP_REFERER"])) {
     if ((
             strpos($_SERVER["HTTP_REFERER"], '/video/') !== false || strpos($_SERVER["HTTP_REFERER"], '/v/') !== false) &&
@@ -89,7 +90,7 @@ if (!empty($_GET['redirectUri']) && strpos($_GET['redirectUri'], 'logoff.php') !
 }
 
 $url2 = parse_url($global['webSiteRootURL']);
-if ($url1['host'] !== $url2['host']) {
+if (!empty($url1['host']) && !empty($url2['host']) && $url1['host'] !== $url2['host']) {
     $global["HTTP_REFERER"] = $global['webSiteRootURL'];
 }
 $_SESSION["LAST_HTTP_REFERER"] = $global["HTTP_REFERER"];
@@ -137,10 +138,11 @@ if (empty($global['disableTimeFix'])) {
     ObjectYPT::setTimeZone();
 }
 
-$advancedCustomUser = AVideoPlugin::getObjectData("CustomizeUser");
-$customizePlugin = AVideoPlugin::getObjectData("Customize");
-$permissionsPlugin = AVideoPlugin::getObjectData("Permissions");
-AVideoPlugin::loadPlugin("PlayerSkins");
+$avideoLayout = AVideoPlugin::getObjectData("Layout");
+$avideoCustomizeUser = $advancedCustomUser = AVideoPlugin::getObjectData("CustomizeUser");
+$avideoCustomize = $customizePlugin = AVideoPlugin::getObjectData("Customize");
+$avideoPermissions = $permissionsPlugin = AVideoPlugin::getObjectData("Permissions");
+$avideoPlayerSkins = AVideoPlugin::getObjectData("PlayerSkins");
 $sitemapFile = "{$global['systemRootPath']}sitemap.xml";
 
 if (!empty($_GET['type'])) {

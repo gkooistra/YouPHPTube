@@ -39,8 +39,14 @@ if (empty($customizedAdvanced)) {
     $customizedAdvanced = AVideoPlugin::getObjectDataIfEnabled('CustomizeAdvanced');
 }
 
-if (!isSameDomain(@$_SERVER['HTTP_REFERER'], $global['webSiteRootURL'])) {
+if (!isSameDomain(@$_SERVER['HTTP_REFERER'], $global['webSiteRootURL']) && !isAVideoMobileApp()) {
     if (!empty($advancedCustomUser->blockEmbedFromSharedVideos) && !CustomizeUser::canShareVideosFromVideo($video['id'])) {
+        if(!empty($advancedCustomUser->blockEmbedFromSharedVideos)){
+            error_log("Embed is forbidden: \$advancedCustomUser->blockEmbedFromSharedVideos");
+        }
+        if(!CustomizeUser::canShareVideosFromVideo($video['id'])){
+            error_log("Embed is forbidden: !CustomizeUser::canShareVideosFromVideo(\$video['id'])");
+        }
         forbiddenPage("Embed is forbidden");
     }
 }
@@ -127,7 +133,8 @@ if (!empty($_GET['t'])) {
     $t = parseDurationToSeconds($video['externalOptions']->videoStartSeconds);
 }
 
-$playerSkinsObj = AVideoPlugin::getObjectData("PlayerSkins");
+$playerSkinsO = AVideoPlugin::getObjectData("PlayerSkins");
+$disableEmbedTopInfo = $playerSkinsO->disableEmbedTopInfo;
 
 $url = Video::getLink($video['id'], $video['clean_title'], false);
 $title = str_replace('"', '', $video['title']) . ' - ' . $config->getWebSiteTitle();
@@ -138,7 +145,7 @@ if (empty($currentTime)) {
 }
 
 if (User::hasBlockedUser($video['users_id'])) {
-    $playerSkinsObj->disableEmbedTopInfo = true;
+    $disableEmbedTopInfo = true;
     $video['type'] = "blockedUser";
 }
 ?>
@@ -148,7 +155,7 @@ if (User::hasBlockedUser($video['users_id'])) {
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-3.5.1.min.js" type="text/javascript"></script>
 
         <?php
-        echo AVideoPlugin::getHeadCode();
+        //echo AVideoPlugin::getHeadCode();
         ?>
         <script>
             var isEmbed = true;
@@ -169,16 +176,6 @@ if (User::hasBlockedUser($video['users_id'])) {
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css"/>
 
         <link rel="image_src" href="<?php echo $img; ?>" />
-        <meta property="fb:app_id"             content="774958212660408" />
-        <meta property="og:url"                content="<?php echo $url; ?>" />
-        <meta property="og:type"               content="video.other" />
-        <meta property="og:title"              content="<?php echo $title; ?>" />
-        <meta property="og:description"        content="<?php echo!empty($custom) ? $custom : str_replace('"', '', $video['title']); ?>" />
-        <meta property="og:image"              content="<?php echo $img; ?>" />
-        <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
-        <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
-        <meta property="video:duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
-        <meta property="duration" content="<?php echo Video::getItemDurationSeconds($video['duration']); ?>"  />
         <style>
             body {
                 padding: 0 !important;
@@ -247,9 +244,22 @@ if (User::hasBlockedUser($video['users_id'])) {
                 background-color: rgba(255,255,255,0.8);
                 border-color:  rgba(255,255,255,1);
             }
+            
+            
+            <?php
+            if (empty($controls)) {
+                ?>
+                    #topInfo, .vjs-big-play-button, .vjs-control-bar{
+                        display: none;
+                    }
+                <?php
+            }
+            ?>
         </style>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
+        getOpenGraph($video['id']);
+        getLdJson($video['id']);
         ?>
     </head>
 
@@ -287,14 +297,14 @@ if (User::hasBlockedUser($video['users_id'])) {
         <?php
     } else if ($video['type'] == "article") {
         ?>
-        <div id="main-video" class="bgWhite list-group-item" style="max-height: 100vh; overflow: hidden; overflow-y: auto; font-size: 1.5em;">
+        <div id="main-video" class="bgWhite list-group-item ypt-article" style="max-height: 100vh; overflow: hidden; overflow-y: auto; font-size: 1.5em;">
             <h1 style="font-size: 1.5em; font-weight: bold; text-transform: uppercase; border-bottom: #CCC solid 1px;">
                 <?php
                 echo $video['title'];
                 ?>   
             </h1>
             <?php
-            echo $video['description'];
+            echo Video::htmlDescription($video['description']);
             ?>     
             <script>
                 $(document).ready(function () {
@@ -465,7 +475,7 @@ if (User::hasBlockedUser($video['users_id'])) {
         </script>
         <?php
     }
-    if (empty($playerSkinsObj->disableEmbedTopInfo)) {
+    if (empty($disableEmbedTopInfo)) {
         ?>
         <div id="topInfo" style="display: none;">
             <a href="<?php echo $url; ?>" target="_blank">
@@ -483,7 +493,9 @@ if (User::hasBlockedUser($video['users_id'])) {
         <?php
     }
     ?>
-    <script src="<?php echo $global['webSiteRootURL']; ?>view/js/video.js/video.min.js" type="text/javascript"></script>
+    <?php
+    include $global['systemRootPath'] . 'view/include/video.min.js.php';
+    ?>
     <?php
     echo AVideoPlugin::afterVideoJS();
     $jsFiles = array();
@@ -523,7 +535,7 @@ if (User::hasBlockedUser($video['users_id'])) {
         $(document).ready(function () {
             setInterval(function () {
                 if (typeof player !== 'undefined') {
-                    if (!player.paused() && (!$('.vjs-control-bar').is(":visible") || $('.vjs-control-bar').css('opacity') == "0")) {
+                    if (!player.paused() && (!player.userActive() || !$('.vjs-control-bar').is(":visible") || $('.vjs-control-bar').css('opacity') == "0")) {
                         $('#topInfo').fadeOut();
                     } else {
                         $('#topInfo').fadeIn();
@@ -534,6 +546,9 @@ if (User::hasBlockedUser($video['users_id'])) {
             $("iframe, #topInfo").mouseover(function (e) {
                 clearTimeout(topInfoTimeout);
                 $('#mainVideo').addClass("vjs-user-active");
+                topInfoTimeout = setTimeout(function () {
+                    $('#mainVideo').removeClass("vjs-user-active");
+                }, 5000);
             });
 
             $("iframe").mouseout(function (e) {

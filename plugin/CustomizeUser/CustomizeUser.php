@@ -35,6 +35,7 @@ class CustomizeUser extends PluginAbstract {
     public function getEmptyDataObject() {
         global $advancedCustom;
         $obj = new stdClass();
+        $obj->nonAdminCannotDownload = false;
         $obj->userCanAllowFilesDownload = false;
         $obj->userCanAllowFilesShare = false;
         $obj->userCanAllowFilesDownloadSelectPerVideo = false;
@@ -137,6 +138,7 @@ class CustomizeUser extends PluginAbstract {
 
     public function getUserOptions() {
         $obj = $this->getDataObject();
+        $userOptions = array();
         if ($obj->Checkmark1Enabled) {
             $userOptions["Checkmark 1"] = "checkmark1";
         }
@@ -152,11 +154,23 @@ class CustomizeUser extends PluginAbstract {
     static function canDownloadVideosFromUser($users_id) {
         global $config;
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
+        if(!empty($obj->nonAdminCannotDownload) && !User::isAdmin()){
+            return false;
+        }
         if (empty($obj) || empty($obj->userCanAllowFilesDownload)) {
-            return $config->getAllow_download();
+            return self::canDownloadVideos();
         }
         $user = new User($users_id);
         return !empty($user->getExternalOption('userCanAllowFilesDownload'));
+    }
+    
+    static function canDownloadVideos() {
+        global $config;
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
+        if(!empty($obj->nonAdminCannotDownload) && !User::isAdmin()){
+            return false;
+        }
+        return $config->getAllow_download();
     }
 
     static function setCanDownloadVideosFromUser($users_id, $value = true) {
@@ -171,6 +185,11 @@ class CustomizeUser extends PluginAbstract {
     static function canShareVideosFromUser($users_id) {
         global $advancedCustom;
 
+        if (!empty($advancedCustom->disableShareOnly)) {
+            _error_log("CustomizeUser::canShareVideosFromUser disableShareOnly");
+            return false;
+        }
+        
         if (!empty($advancedCustom->disableShareAndPlaylist)) {
             _error_log("CustomizeUser::canShareVideosFromUser disableShareAndPlaylist");
             return false;
@@ -254,6 +273,9 @@ class CustomizeUser extends PluginAbstract {
     }
 
     static function canDownloadVideosFromVideo($videos_id) {
+        if(CustomizeUser::canDownloadVideos()){
+            return false;
+        }
         $video = new Video("", "", $videos_id);
         if (empty($video)) {
             return false;

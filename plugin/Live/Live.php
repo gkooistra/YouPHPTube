@@ -111,6 +111,14 @@ class Live extends PluginAbstract {
                 sqlDal::writeSql(trim($value));
             }
         }
+        //update version 5.2
+        if (AVideoPlugin::compareVersion($this->getName(), "6.0") < 0) {
+            $sqls = file_get_contents($global['systemRootPath'] . 'plugin/Live/install/updateV6.0.sql');
+            $sqlParts = explode(";", $sqls);
+            foreach ($sqlParts as $value) {
+                sqlDal::writeSql(trim($value));
+            }
+        }
         return true;
     }
 
@@ -166,6 +174,8 @@ class Live extends PluginAbstract {
         self::addDataObjectHelper('useLiveServers', 'Use Live Servers', 'Check this if you will use External Live Servers https://github.com/WWBN/AVideo/wiki/Live-Plugin#livestream-server-balance ');
         $obj->disableMeetCamera = false;
         self::addDataObjectHelper('disableMeetCamera', 'Disable Meet camera', 'This requires out Meet Server, with the Meet camera you can use your PC webcam directly in the webpage or mobile to make livestreams');
+        $obj->playLiveInFullScreen = false;
+        self::addDataObjectHelper('playLiveInFullScreen', 'Play Livestream in Full Screen');
         $obj->hls_path = "/HLS/live";
         self::addDataObjectHelper('hls_path', 'HLS Path URL', 'Used only when we stop a Live, we use this path to delete the files');
         $obj->requestStatsTimout = 4; // if the server does not respond we stop wait
@@ -177,6 +187,38 @@ class Live extends PluginAbstract {
         $obj->streamDeniedMsg = "You can not stream live videos";
         self::addDataObjectHelper('streamDeniedMsg', 'Denied Message', 'We will show this message when a user is not allowed so watch a livestream');
         return $obj;
+    }
+    
+    
+    public function getHeadCode() {
+        global $global;
+        $obj = $this->getDataObject();
+        // preload image
+        $js = "";
+        $css = '';
+        
+        if(!empty($obj->playLiveInFullScreen)){
+            if(isLive() || isEmbed()){
+                $css .= '<link href="' . $global['webSiteRootURL'] . 'plugin/YouPHPFlix2/view/css/fullscreen.css" rel="stylesheet" type="text/css"/>';
+                $css .= '<style>.container-fluid {overflow: visible;padding: 0;}#mvideo{padding: 0 !important; position: absolute; top: 0;}</style>';
+            }
+            $js .= '<script>var playLiveInFullScreen = true</script>';
+            $css .= '<style>body.fullScreen{overflow: hidden;}</style>';
+        }
+        return $js.$css;
+    }
+    
+    public function getFooterCode() {
+        $obj = $this->getDataObject();
+        global $global;
+        
+        $js = '';
+        if(!empty($obj->playLiveInFullScreen)){
+            $js = '<script src="' . $global['webSiteRootURL'] . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
+            $js .= '<script>$(function () { if(typeof linksToFullscreen === \'function\'){ linksToFullscreen(\'a.galleryLink\'); } });</script>';
+            
+        }
+        return $js;
     }
 
     public function getButtonTitle() {
@@ -419,13 +461,15 @@ class Live extends PluginAbstract {
 
     static function getPlayerServer() {
         $obj = AVideoPlugin::getObjectData("Live");
+        $url = $obj->playerServer;
         if (!empty($obj->useLiveServers)) {
             $ls = new Live_servers(self::getCurrentLiveServersId());
             if (!empty($ls->getPlayerServer())) {
-                return $ls->getPlayerServer();
+                $url = $ls->getPlayerServer();
             }
         }
-        return $obj->playerServer;
+        $url = str_replace("encoder.gdrive.local","192.168.1.18", $url);
+        return $url;
     }
 
     static function getUseAadaptiveMode() {
@@ -709,7 +753,21 @@ class Live extends PluginAbstract {
             return intval($ls->live_servers_id);
         }
     }
-
+    
+    static function getLastServersIdFromUser($users_id) {
+        $last = LiveTransmitionHistory::getLatestFromUser($users_id);
+        if (empty($last)) {
+            return 0;
+        } else {
+            return intval($last['live_servers_id']);
+        }
+    }
+    
+    static function getLinkToLiveFromUsers_idWithLastServersId($users_id){
+        $live_servers_id = self::getLastServersIdFromUser($users_id);
+        return self::getLinkToLiveFromUsers_idAndLiveServer($users_id, $live_servers_id);
+    }
+    
     static function getCurrentLiveServersId() {
         $live_servers_id = self::getLiveServersIdRequest();
         if ($live_servers_id) {
@@ -958,8 +1016,8 @@ class Live extends PluginAbstract {
                     if(!empty($matches[1])){
                         $_REQUEST['playlists_id_live'] = intval($matches[1]);
                         $playlists_id_live = $_REQUEST['playlists_id_live'];
-                        $pl = new PlayList($_REQUEST['playlists_id_live']);
-                        $title = $pl->getName();
+                        $photo = PlayLists::getImage($_REQUEST['playlists_id_live']);
+                        $title = PlayLists::getNameOrSerieTitle($_REQUEST['playlists_id_live']);
                     }
                 }
                 

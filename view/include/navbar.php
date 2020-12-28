@@ -18,7 +18,7 @@ if (isIframe() && !empty($_SESSION['noNavbar'])) {
         }
     }
     if (empty($_SESSION['noNavbarClose'])) {
-        //$actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+//$actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
         $actual_link = basename($_SERVER['PHP_SELF']);
         $params = $_GET;
         unset($params['noNavbar']);
@@ -299,7 +299,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     } else {
                                         YPTSidebarOpen();
                                     }
-                                    
+
                                     $('#myNavbar').removeClass("in");
                                     $('#mysearch').removeClass("in");
                                 });
@@ -752,6 +752,28 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <?php
                     }
 
+                    if (AVideoPlugin::isEnabledByName("PlayLists") && PlayLists::showTVFeatures()) {
+                        ?>
+                        <li>
+                            <div>
+                                <a href="<?php echo $global['webSiteRootURL']; ?>epg" class="btn btn-primary btn-block " style="border-radius:  0 0 0 0;">
+                                    <i class="fas fa-stream"></i>
+                                    <?php echo __("EPG"); ?>
+                                </a>
+
+                            </div>
+                        </li>
+                        <li>
+                            <div>
+                                <a href="<?php echo $global['webSiteRootURL']; ?>tv" class="btn btn-primary btn-block " style="border-radius:  0 0 0 0;">
+                                    <i class="fas fa-tv"></i>
+                                    <?php echo __("TV"); ?>
+                                </a>
+
+                            </div>
+                        </li>
+                        <?php
+                    }
                     if (empty($advancedCustom->doNotShowLeftTrendingButton)) {
                         ?>
                         <li>
@@ -1133,6 +1155,8 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <h3 class="text-danger"><?php echo __($advancedCustom->CategoryLabel); ?></h3>
                     </li>
                     <?php
+                    $_rowCount = getRowCount();                    
+                    $_REQUEST['rowCount'] = 1000;
                     $parsed_cats = array();
                     if (!function_exists('mkSub')) {
 
@@ -1202,6 +1226,8 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         $_POST = $post;
                         $_GET = $get;
                     }
+                                   
+                    $_REQUEST['rowCount'] = $_rowCount;
                     ?>
 
                     <!-- categories END -->
@@ -1254,7 +1280,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                 var navsub_toggle_selected = $('.nav li.navsub-toggle a.selected');
                 navsub_toggle_selected.next().show();
                 navsub_toggle_selected = navsub_toggle_selected.parent();
-                
+
                 var navsub_toggle_selected_stop = 24;
                 while (navsub_toggle_selected.length) {
                     if ($.inArray(navsub_toggle_selected.prop('localName'), ['li', 'ul']) == -1)
@@ -1263,25 +1289,25 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         navsub_toggle_selected.show().prev().addClass('selected');
                     }
                     navsub_toggle_selected = navsub_toggle_selected.parent();
-                    
+
                     navsub_toggle_selected_stop--;
                     if (navsub_toggle_selected_stop < 0)
                         break;
                 }
             }, 500);
-            
-            
+
+
             $('.nav').on('click', 'li.navsub-toggle a:not(.selected)', function (e) {
                 var a = $(this),
                         b = a.next();
                 if (b.length) {
                     e.preventDefault();
-                    
+
                     a.addClass('selected');
                     b.slideDown();
-                    
+
                     var c = a.closest('.nav').find('li.navsub-toggle a.selected').not(a).removeClass('selected').next();
-                    
+
                     if (c.length)
                         c.slideUp();
                 }

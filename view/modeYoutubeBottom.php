@@ -33,10 +33,10 @@ if (empty($video) && !empty($_GET['videos_id'])) {
         $imgh = $data[1];
     }
 }
-if(empty($video['created'])){
+if (empty($video['created'])) {
     return false;
 }
-if(User::hasBlockedUser($video['users_id'])){
+if (User::hasBlockedUser($video['users_id'])) {
     return false;
 }
 ?>
@@ -76,8 +76,8 @@ if(User::hasBlockedUser($video['users_id'])){
                         $video['tags'] = array();
                     }
                     foreach ($video['tags'] as $value) {
-                        if(is_array($value)){
-                            $value = (object)$value;
+                        if (is_array($value)) {
+                            $value = (object) $value;
                         }
                         if ($value->label === __("Group")) {
                             ?>
@@ -120,40 +120,42 @@ if(User::hasBlockedUser($video['users_id'])){
                     }
                     $filesToDownload = array();
                     if (CustomizeUser::canDownloadVideosFromVideo($video['id'])) {
-                        if($video['type']=="zip"){
+                        if ($video['type'] == "zip") {
                             $files = getVideosURLZIP($video['filename']);
-                        }else{
+                        } else {
                             $files = getVideosURL($video['filename']);
-                        }
+                        }//var_dump($files);exit;
                         foreach ($files as $key => $theLink) {
-                            $notAllowedKeys = array('m3u8');
+                            //$notAllowedKeys = array('m3u8');
+                            $notAllowedKeys = array();
                             if (empty($advancedCustom->showImageDownloadOption)) {
                                 $notAllowedKeys = array_merge($notAllowedKeys, array('jpg', 'gif', 'webp', 'pjpg'));
                             }
                             $keyFound = false;
                             foreach ($notAllowedKeys as $notAllowedKey) {
-                                if(preg_match("/{$notAllowedKey}/", $key)){
+                                if (preg_match("/{$notAllowedKey}/", $key)) {
                                     $keyFound = true;
                                     break;
                                 }
                             }
-                            if($keyFound){
+                            if ($keyFound) {
                                 continue;
                             }
-                            if (strpos($theLink['url'], '?') === false) {
-                                $theLink['url'] .= "?download=1&title=" . urlencode($video['title'] . "_{$key}_.mp4");
-                            }
+
+                            $theLink['url'] = addQueryStringParameter($theLink['url'], "download", 1);
+                            $theLink['url'] = addQueryStringParameter($theLink['url'], "title", $video['title'] . "_{$key}_.mp4");
+
                             $parts = explode("_", $key);
                             $name = $key;
-                            if(count($parts)>1){
+                            if (count($parts) > 1) {
                                 $name = strtoupper($parts[0]);
-                                if(is_numeric($parts[1])){
-                                    $name .= " <div class='label label-primary'>{$parts[1]}p</div> ".getResolutionLabel($parts[1]);
-                                }else{
-                                    $name .= " <div class='label label-primary'>".strtoupper($parts[1])."</div> ";
+                                if (is_numeric($parts[1])) {
+                                    $name .= " <div class='label label-primary'>{$parts[1]}p</div> " . getResolutionLabel($parts[1]);
+                                } else {
+                                    $name .= " <div class='label label-primary'>" . strtoupper($parts[1]) . "</div> ";
                                 }
                             }
-                            
+
                             $filesToDownload[] = array('name' => $name, 'url' => $theLink['url']);
                         }
                         if (!empty($filesToDownload)) {
@@ -242,13 +244,14 @@ if(User::hasBlockedUser($video['users_id'])){
             });
         });
     </script>
-<?php } 
+<?php
+}
 
-if ($video['type']!=='notfound' && CustomizeUser::canShareVideosFromVideo($video['id'])) {
-    getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true));
-} 
+if ($video['type'] !== 'notfound' && CustomizeUser::canShareVideosFromVideo($video['id'])) {
+    getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true), $img);
+}
 ?>
-    <div class="row bgWhite list-group-item" id="modeYoutubeBottomContentDetails">
+<div class="row bgWhite list-group-item" id="modeYoutubeBottomContentDetails">
     <div class="row">
         <div class="col-xs-12 col-sm-12 col-lg-12">
             <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Category"); ?>:</strong></div>
@@ -264,13 +267,21 @@ if ($video['type']!=='notfound' && CustomizeUser::canShareVideosFromVideo($video
                 </div>
                 <?php
             }
-            if ($video['type']!=='notfound' && $video['type'] !== 'article') {
+            if ($video['type'] !== 'notfound' && $video['type'] !== 'article') {
                 ?>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
-                <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description">
-                    <?php 
-                    echo Video::htmlDescription($video['description']);
-                    ?>
+                <div class="col-xs-8 col-sm-10 col-lg-10" itemprop="description" id="descriptionArea">
+                    <div id="descriptionAreaPreContent">
+                        <div id="descriptionAreaContent">
+                            <?php
+                            echo Video::htmlDescription($video['description']);
+                            ?>
+                        </div>
+                    </div>
+                    <button onclick="$('#descriptionArea').toggleClass('expanded');" class="btn btn-xs btn-default" id="descriptionAreaShowMoreBtn" style="display: none; ">
+                        <span class="showMore"><i class="fas fa-caret-down"></i> <?php echo __("Show More"); ?></span>
+                        <span class="showLess"><i class="fas fa-caret-up"></i> <?php echo __("Show Less"); ?></span>
+                    </button>
                 </div>
                 <?php
             }
@@ -281,6 +292,9 @@ if ($video['type']!=='notfound' && CustomizeUser::canShareVideosFromVideo($video
 </div>
 <script>
     $(document).ready(function () {
+        if ($('#descriptionArea').height() < $('#descriptionAreaContent').height()) {
+            $('#descriptionAreaShowMoreBtn').show();
+        }
 <?php
 if (empty($advancedCustom->showShareMenuOpenByDefault)) {
     ?>
@@ -299,7 +313,7 @@ if (empty($advancedCustom->showShareMenuOpenByDefault)) {
 if (!empty($video['id']) && empty($advancedCustom->disableComments) && Video::showYoutubeModeOptions()) {
     ?>
     <div class="row bgWhite list-group-item">
-        <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
+    <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
     </div>
     <?php
 }

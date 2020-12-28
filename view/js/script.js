@@ -132,9 +132,15 @@ function lazyImage() {
                 // called after an element was successfully handled
                 afterLoad: function (element) {
                     element.removeClass('blur');
-                    element.parent().find('.thumbsGIF').lazy({
+                    var gif = element.parent().find('.thumbsGIF');
+                    gif.lazy({
                         effect: 'fadeIn'
                     });
+                    setTimeout(function(){
+                        gif.hide();
+                        gif.height(element.height());
+                        gif.width(element.width());
+                    },100);
                 }
             });
             mouseEffect();
@@ -319,13 +325,19 @@ function subscribeNotify(email, user_id) {
 function mouseEffect() {
 
     $(".thumbsImage").on("mouseenter", function () {
+        var gif = $(this).find(".thumbsGIF");
+        var jpg = $(this).find(".thumbsJPG");
         try {
-            $(this).find(".thumbsGIF").lazy({effect: 'fadeIn'});
+            gif.lazy({effect: 'fadeIn'});
+            setTimeout(function(){
+                gif.height(element.height());
+                gif.width(element.width());
+            },100);
         } catch (e) {
         }
-        $(this).find(".thumbsGIF").height($(this).find(".thumbsJPG").height());
-        $(this).find(".thumbsGIF").width($(this).find(".thumbsJPG").width());
-        $(this).find(".thumbsGIF").stop(true, true).fadeIn();
+        gif.height(jpg.height());
+        gif.width(jpg.width());
+        gif.stop(true, true).fadeIn();
     });
     $(".thumbsImage").on("mouseleave", function () {
         $(this).find(".thumbsGIF").stop(true, true).fadeOut();
@@ -397,14 +409,24 @@ function inIframe() {
         return true;
     }
 }
+
+function playerIsReady() {
+    return (typeof player !== 'undefined' && player.isReady_);
+}
+
 var promisePlaytry = 20;
 var promisePlayTimeoutTime = 500;
 var promisePlayTimeout;
 var promisePlay;
 var browserPreventShowed = false;
+var playerPlayTimeout;
 function playerPlay(currentTime) {
-    if (typeof player === 'undefined' || !player.isReady_) {
-        setTimeout(function () {
+    clearTimeout(playerPlayTimeout);
+    if (currentTime) {
+        console.log("playerPlay time:", currentTime);
+    }
+    if (!playerIsReady()) {
+        playerPlayTimeout = setTimeout(function () {
             playerPlay(currentTime);
         }, 200);
         return false;
@@ -451,12 +473,20 @@ function playerPlay(currentTime) {
                         }
                     }
                 }).catch(function (error) {
-                    if (promisePlaytry <= 10) {
-                        console.log("playerPlay: (" + promisePlaytry + ") Autoplay was prevented, trying to mute and play ***");
-                        tryToPlayMuted(currentTime);
-                    } else {
-                        console.log("playerPlay: (" + promisePlaytry + ") Autoplay was prevented, trying to play again");
+                    if (player.networkState() === 3) {
+                        promisePlaytry = 20;
+                        console.log("playerPlay: Network error detected, trying again");
+                        player.src(player.currentSources());
+                        userIsControling = false;
                         tryToPlay(currentTime);
+                    } else {
+                        if (promisePlaytry <= 10) {
+                            console.log("playerPlay: (" + promisePlaytry + ") Autoplay was prevented, trying to mute and play ***");
+                            tryToPlayMuted(currentTime);
+                        } else {
+                            console.log("playerPlay: (" + promisePlaytry + ") Autoplay was prevented, trying to play again");
+                            tryToPlay(currentTime);
+                        }
                     }
                 });
             } else {
@@ -516,7 +546,9 @@ function tryToPlay(currentTime) {
     clearTimeout(promisePlayTimeout);
     promisePlayTimeout = setTimeout(function () {
         if (player.paused()) {
-            playerPlay(currentTime);
+            playerPlayTimeout = setTimeout(function () {
+                playerPlay(currentTime);
+            }, 200);
         }
     }, promisePlayTimeoutTime);
 }
@@ -548,7 +580,9 @@ function muteInCookieAllow() {
 
 function playMuted(currentTime) {
     muteInCookieAllow();
-    return playerPlay(currentTime);
+    playerPlayTimeout = setTimeout(function () {
+        playerPlay(currentTime);
+    }, 200);
 }
 
 function showMuteTooltip() {
@@ -587,7 +621,9 @@ function showMuteTooltip() {
 
 function playerPlayIfAutoPlay(currentTime) {
     if (isAutoplayEnabled()) {
-        playerPlay(currentTime);
+        playerPlayTimeout = setTimeout(function () {
+            playerPlay(currentTime);
+        }, 200);
         return true;
     }
     setCurrentTime(currentTime);
@@ -643,7 +679,9 @@ function playNext(url) {
     } else if (isPlayerLoop()) {
         $.toast("Looping video");
         userIsControling = false;
-        playerPlay(0);
+        playerPlayTimeout = setTimeout(function () {
+            playerPlay(currentTime);
+        }, 200);
     }
 }
 
@@ -756,8 +794,8 @@ function setCurrentTime(currentTime) {
     }
 }
 
-function isALiveContent(){
-    if(typeof isLive !== 'undefined' && isLive){
+function isALiveContent() {
+    if (typeof isLive !== 'undefined' && isLive) {
         return true;
     }
     return false;
@@ -765,10 +803,10 @@ function isALiveContent(){
 
 function isAutoplayEnabled() {
     console.log("Cookies.get('autoplay')", Cookies.get('autoplay'));
-    if(isALiveContent()){
+    if (isALiveContent()) {
         console.log("isAutoplayEnabled always autoplay live contents");
         return true;
-    }else
+    } else
     if ($("#autoplay").length && $("#autoplay").is(':visible')) {
         autoplay = $("#autoplay").is(":checked");
         console.log("isAutoplayEnabled #autoplay said " + ((autoplay) ? "Yes" : "No"));
@@ -821,6 +859,10 @@ function avideoAlert(title, msg, type) {
     } else {
         swal(title, msg, type);
     }
+}
+
+function avideoToast(msg) {
+    $.toast(msg);
 }
 
 function avideoAlertHTMLText(title, msg, type) {
@@ -943,13 +985,15 @@ $(document).ready(function () {
         $(".thumbsGIF").fadeOut();
         if (gifId != undefined) {
             id = gifId.replace('thumbsGIF', '');
-            $(this).find(".thumbsGIF").height($(this).find(".thumbsJPG").height());
-            $(this).find(".thumbsGIF").width($(this).find(".thumbsJPG").width());
+            var gif = $(this).find(".thumbsGIF");
+            var jpg = $(this).find(".thumbsGIF");
+            gif.height(jpg.height());
+            gif.width(jpg.width());
             try {
-                $(this).find(".thumbsGIF").lazy({effect: 'fadeIn'});
+                gif.lazy({effect: 'fadeIn'});
             } catch (e) {
             }
-            $(this).find(".thumbsGIF").stop(true, true).fadeIn();
+            gif.stop(true, true).fadeIn();
         }
     });
     $(".thumbsImage").on("mouseleave", function () {
@@ -1055,4 +1099,47 @@ function startTimer(duration, selector) {
         }
 
     }, 1000);
+}
+
+function addGetParam(_url, _key, _value) {
+    var param = _key + '=' + escape(_value);
+
+    var sep = '&';
+    if (_url.indexOf('?') < 0) {
+        sep = '?';
+    } else {
+        var lastChar = _url.slice(-1);
+        if (lastChar == '&')
+            sep = '';
+        if (lastChar == '?')
+            sep = '';
+    }
+    _url += sep + param;
+
+    return _url;
+}
+
+function readFileCroppie(input, crop) {
+    if ($(input)[0].files && $(input)[0].files[0]) {
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+            crop.croppie('bind', {
+                url: e.target.result
+            }).then(function () {
+                console.log('jQuery bind complete');
+            });
+
+        }
+
+        reader.readAsDataURL($(input)[0].files[0]);
+    } else {
+        avideoAlert("Sorry - you're browser doesn't support the FileReader API");
+    }
+}
+
+function getCroppie(uploadCropObject, callback, width, height) {
+    uploadCropObject.croppie('result', { type: 'base64', size: { width: width, height: height }, format: 'png' }).then(function (resp) {
+        eval(callback + "(resp);");
+    });
 }

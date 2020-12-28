@@ -31,7 +31,7 @@ class YPTWallet extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "2.0";
+        return "3.0";
     }
 
     public function getEmptyDataObject() {
@@ -249,6 +249,7 @@ class YPTWallet extends PluginAbstract {
         }
         $wallet = $this->getOrCreateWallet($users_id);
         $balance = $wallet->getBalance();
+        _error_log("YPTWallet::addBalance BEFORE (user_id={$users_id}) (balance={$balance})");
         $balance += $value;
         $wallet->setBalance($balance);
         $wallet_id = $wallet->save();
@@ -264,7 +265,11 @@ class YPTWallet extends PluginAbstract {
             $user = new User($users_id);
             WalletLog::addLog($wallet_id, ($value * -1), " From user ($users_id) " . $user->getUser() . " - " . $description, $json_data, "success", "addBalance to main wallet");
         }
-        _error_log("YPTWallet::addBalance $wallet_id, $value, $description, $json_data");
+        
+        $wallet = $this->getOrCreateWallet($users_id);
+        $balance = $wallet->getBalance();
+        _error_log("YPTWallet::addBalance AFTER (user_id={$users_id}) (balance={$balance})");
+        //_error_log("YPTWallet::addBalance $wallet_id, $value, $description, $json_data");
     }
 
     public function saveBalance($users_id, $value) {
@@ -351,7 +356,8 @@ class YPTWallet extends PluginAbstract {
         $description = "Transfer Balance {$value} from user <a href='{$global['webSiteRootURL']}channel/{$users_id_from}'>{$identificationFrom}</a> to <strong>YOU</strong>";
         if (!empty($forceDescription)) {
             $description = $forceDescription;
-        }
+        } 
+        ObjectYPT::clearSessionCache();
         WalletLog::addLog($wallet_id, $value, $description, "{}", "success", "transferBalance from");
         return true;
     }
@@ -581,6 +587,26 @@ class YPTWallet extends PluginAbstract {
             }
         }
         return true;
+    }
+    
+    static function getUserBalance($users_id=0){
+        if(empty($users_id)){
+            $users_id = User::getId();
+        }
+        if(empty($users_id)){
+            return 0;
+        }
+        $wallet = self::getWallet($users_id);
+        return $wallet->getBalance();
+    }
+    
+    public function getFooterCode() {
+        global $global;
+        $obj = $this->getDataObject();
+        $js = "";
+        $js .= "<script src=\"{$global['webSiteRootURL']}plugin/YPTWallet/script.js\"></script>";
+
+        return $js;
     }
 
 }

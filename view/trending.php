@@ -157,7 +157,7 @@ $metaDescription = __("Trending");
                             echo "disabled";
                         }
                         ?>">
-                            <a class="page-link" href="<?php echo "{$global['webSiteRootURL']}trending?current=" . ($_REQUEST['current'] - 1); ?>" tabindex="-1">Previous</a>
+                            <a class="page-link" href="<?php echo "{$global['webSiteRootURL']}trending?current=" . ($_REQUEST['current'] - 1); ?>" tabindex="-1"><?php echo __('Previous') ?></a>
                         </li>
                         <?php
                         $size = 5;
@@ -187,7 +187,7 @@ $metaDescription = __("Trending");
                             echo "disabled";
                         }
                         ?>">
-                            <a class="page-link" href="<?php echo "{$global['webSiteRootURL']}trending?current=" . ($_REQUEST['current'] + 1); ?>">Next</a>
+                            <a class="page-link" href="<?php echo "{$global['webSiteRootURL']}trending?current=" . ($_REQUEST['current'] + 1); ?>"><?php echo __('Next') ?></a>
                         </li>
                     </ul>
                 </nav>
@@ -200,15 +200,15 @@ $metaDescription = __("Trending");
             <div class="infinite-scroll-request loader-ellips text-center">
                 <img src="img/loading.gif" alt=""/>
             </div>
-            <p class="infinite-scroll-last text-center text-muted">End of content</p>
-            <p class="infinite-scroll-error text-center text-muted">No more pages to load</p>
+            <p class="infinite-scroll-last text-center text-muted"><?php echo __('End of content')?></p>
+            <p class="infinite-scroll-error text-center text-muted"><?php echo __('No more pages to load')?></p>
         </div>
         <?php
         if ($_REQUEST['current'] + 1 <= $pages) {
             ?>
             <!-- pagination has path -->
             <p class="pagination hidden">
-                <a class="pagination__next" href="<?php echo $global['webSiteRootURL']; ?>trending?current=<?php echo $_REQUEST['current'] + 1; ?>">Next page</a>
+                <a class="pagination__next" href="<?php echo $global['webSiteRootURL']; ?>trending?current=<?php echo $_REQUEST['current'] + 1; ?>"><?php echo __('Next page') ?></a>
             </p>
             <?php
         }

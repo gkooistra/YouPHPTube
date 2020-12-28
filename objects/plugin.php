@@ -114,7 +114,7 @@ class Plugin extends ObjectYPT {
         }
         if (empty($getPluginByName[$name])) {
             $sql = "SELECT * FROM " . static::getTableName() . " WHERE name = ? LIMIT 1";
-            $res = sqlDAL::readSql($sql, "s", array($name));
+            $res = sqlDAL::readSql($sql, "s", array($name), true);
             $data = sqlDAL::fetchAssoc($res);
             sqlDAL::close($res);
             if (!empty($data)) {
@@ -127,10 +127,13 @@ class Plugin extends ObjectYPT {
     }
 
     static function getPluginByUUID($uuid) {
-        global $global, $getPluginByUUID;
+        global $global, $getPluginByUUID, $pluginJustInstalled;
         $name = "plugin$uuid";
-        if (empty($getPluginByUUID)) {
+        if (!isset($getPluginByUUID)) {
             $getPluginByUUID = array();
+        }
+        if (!isset($pluginJustInstalled)) {
+            $pluginJustInstalled = array();
         }
         if (empty($getPluginByUUID[$uuid])) {
             $getPluginByUUID[$uuid] = object_to_array(ObjectYPT::getCache($name, 0));
@@ -150,7 +153,17 @@ class Plugin extends ObjectYPT {
                 $getPluginByUUID[$uuid] = $data;
                 ObjectYPT::setCache($name, $getPluginByUUID[$uuid]);
             } else {
-                $getPluginByUUID[$uuid] = false;
+                $name = AVideoPlugin::getPluginsNameOnByDefaultFromUUID($uuid);
+                if ($name !== false && empty($pluginJustInstalled[$uuid])) {
+                    $pluginJustInstalled[$uuid] = 1;
+                    _error_log("plugin::getPluginByUUID {$name} {$uuid} this plugin is On By Default we will install it ($sql)");
+                    self::deleteByUUID($uuid);
+                    self::deleteByName($name);
+                    unset($getPluginByUUID[$uuid]);
+                    $getPluginByUUID[$uuid] = self::getOrCreatePluginByName($name, 'active');
+                } else {
+                    $getPluginByUUID[$uuid] = false;
+                }
             }
         }
         return $getPluginByUUID[$uuid];
@@ -221,7 +234,7 @@ class Plugin extends ObjectYPT {
                         $obj->pluginversion = $p->getPluginVersion();
                         $obj->pluginversionMarketPlace = (!empty($pluginsMarketplace->plugins->{$obj->uuid}) ? $pluginsMarketplace->plugins->{$obj->uuid}->pluginversion : 0);
                         $obj->pluginversionCompare = (!empty($obj->pluginversionMarketPlace) ? version_compare($obj->pluginversion, $obj->pluginversionMarketPlace) : 0);
-                        $obj->permissions = $obj->enabled?Permissions::getPluginPermissions($obj->id):array();
+                        $obj->permissions = $obj->enabled ? Permissions::getPluginPermissions($obj->id) : array();
                         $obj->isPluginTablesInstalled = AVideoPlugin::isPluginTablesInstalled($obj->name, false);
                         if ($obj->pluginversionCompare < 0) {
                             $obj->tags[] = "update";
@@ -271,6 +284,8 @@ class Plugin extends ObjectYPT {
 
     static function getDatabaseFileName($pluginName) {
         global $global;
+
+        $pluginName = AVideoPlugin::fixName($pluginName);
         $dir = $global['systemRootPath'] . "plugin";
         $filename = $dir . DIRECTORY_SEPARATOR . $pluginName . DIRECTORY_SEPARATOR . "install" . DIRECTORY_SEPARATOR . "install.sql";
         if (!file_exists($filename)) {
@@ -371,6 +386,34 @@ class Plugin extends ObjectYPT {
         return $getEnabled[$uuid];
     }
 
+    static function deleteByUUID($uuid) {
+        global $global;
+        $uuid = $global['mysqli']->real_escape_string($uuid);
+        if (!empty($uuid)) {
+            _error_log("Plugin:deleteByUUID {$uuid}");
+            $sql = "DELETE FROM " . static::getTableName() . " ";
+            $sql .= " WHERE uuid = ?";
+            $global['lastQuery'] = $sql;
+            //_error_log("Delete Query: ".$sql);
+            return sqlDAL::writeSql($sql, "s", array($uuid));
+        }
+        return false;
+    }
+
+    static function deleteByName($name) {
+        global $global;
+        $name = $global['mysqli']->real_escape_string($name);
+        if (!empty($name)) {
+            _error_log("Plugin:deleteByName {$name}");
+            $sql = "DELETE FROM " . static::getTableName() . " ";
+            $sql .= " WHERE name = ?";
+            $global['lastQuery'] = $sql;
+            //_error_log("Delete Query: ".$sql);
+            return sqlDAL::writeSql($sql, "s", array($name));
+        }
+        return false;
+    }
+
     static function getOrCreatePluginByName($name, $statusIfCreate = 'inactive') {
         global $global;
         if (self::getPluginByName($name) === false) {
@@ -401,10 +444,15 @@ class Plugin extends ObjectYPT {
         if (empty($this->object_data)) {
             $this->object_data = 'null';
         }
-        $name = "plugin{$this->uuid}";
+        self::deletePluginCache($this->uuid);
+        ObjectYPT::deleteALLCache();
+        return parent::save();
+    }
+    
+    static function deletePluginCache($uuid){
+        $name = "plugin{$uuid}";
         ObjectYPT::deleteCache($name);
         ObjectYPT::deleteCache("plugin::getAllEnabled");
-        return parent::save();
     }
 
     static function encryptIfNeed($object_data) {

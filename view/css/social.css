@@ -48,6 +48,12 @@ ul.social-network li {
 .social-network a.icoPinboard:hover {
     background-color: red;
 }
+.social-network a.icoParler:hover {
+    background-color: #be1e2d;
+}
+.social-network a.icoCopy:hover {
+    background-color: #333;
+}
 .social-network a.icoRss:hover i,
 .social-network a.icoFacebook:hover i,
 .social-network a.icoTwitter:hover i,
@@ -102,7 +108,7 @@ a.socialIcon:hover,
     -ms-transition: all 0.8s;
     transition: all 0.8s;
 }.social-circle a {
-    background-color: #D3D3D3;
+    background-color: #999;
 }
 #shareDiv,
 #shareDiv .tabbable-panel {

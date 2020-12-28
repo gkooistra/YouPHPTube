@@ -145,7 +145,7 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
                             <?php
                             $link = LiveLinks::getLinkToLiveFromId($_GET['link']);
                             $linkEmbed = LiveLinks::getLinkToLiveFromId($_GET['link'], true);
-                            getShareMenu($t['title'], $link, $link, $linkEmbed, "row");
+                            getShareMenu($t['title'], $link, $link, $linkEmbed, $img, "row");
                             ?>
                             <div class="col-md-12 watch8-action-buttons text-muted">
 
@@ -166,7 +166,9 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
             </div>  
 
         </div>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.min.js" type="text/javascript"></script>
+        <?php
+        include $global['systemRootPath'] . 'view/include/video.min.js.php';
+        ?>
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>

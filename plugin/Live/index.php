@@ -25,10 +25,11 @@ if (!empty($_GET['u']) && !empty($_GET['embedv2'])) {
 } else if (!empty($_GET['u'])) {
     include $global['systemRootPath'] . 'plugin/Live/view/modeYoutubeLive.php';
     exit;
-} else if (!User::canStream()) {
-    header('HTTP/1.0 403 Forbidden');
-    header("Location: {$global['webSiteRootURL']}?error=" . __($obj->streamDeniedMsg));
+} else if (!User::isLogged()) {
+    gotToLoginAndComeBackHere("");
     exit;
+} else if (!User::canStream()) {
+    forbiddenPage(__($obj->streamDeniedMsg));
 }
 
 require_once $global['systemRootPath'] . 'objects/userGroups.php';
@@ -81,7 +82,9 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
         <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/swfobject.js" type="text/javascript"></script>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/video.js/video.min.js" type="text/javascript"></script>
+        <?php
+        include $global['systemRootPath'] . 'view/include/video.min.js.php';
+        ?>
         <link href="<?php echo $global['webSiteRootURL']; ?>view/js/bootstrap-fileinput/css/fileinput.min.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo $global['webSiteRootURL']; ?>view/js/bootstrap-fileinput/js/fileinput.min.js" type="text/javascript"></script>
         <style>
@@ -221,10 +224,11 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
                     });
 
                     $.ajax({
-                        url: 'saveLive.php',
+                        url: '<?php echo $global['webSiteRootURL']; ?>plugin/Live/saveLive.php',
                         data: {
                             "title": $('#title').val(),
                             "description": $('#description').val(),
+                            "categories_id": $('select[name="categories_id"]').val(),
                             "key": "<?php echo $trasnmition['key']; ?>",
                             "listed": $('#listed').is(":checked"),
                             "userGroups": selectedUserGroups

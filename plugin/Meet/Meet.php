@@ -67,14 +67,14 @@ Passcode: {password}
         return $obj;
     }
 
-    static function getTokenArray($meet_schedule_id, $users_id = 0, $expirationInMinutes = 2) {
+    static function getTokenArray($meet_schedule_id, $users_id = 0) {
         global $config;
         $obj = AVideoPlugin::getDataObject("Meet");
         if (empty($users_id)) {
             $users_id = User::getId();
         }
         $m = new Meet_schedule($meet_schedule_id);
-        $room = $m->getName();
+        $room = $m->getCleanName();
         if (empty($users_id)) {
             $user = [];
         } else {
@@ -97,15 +97,15 @@ Passcode: {password}
             "iss" => ($obj->server->value == 'custom') ? $obj->JWT_APP_ID : "*",
             "sub" => "meet.jitsi",
             "room" => $room,
-            "exp" => strtotime("+{$expirationInMinutes} min"),
+            "exp" => strtotime("30 hours"),
             "moderator" => self::isModerator($meet_schedule_id)
         ];
         return $jitsiPayload; // HS256
     }
 
-    static function getToken($meet_schedule_id, $users_id = 0, $expirationInMinutes = 60) {
+    static function getToken($meet_schedule_id, $users_id = 0) {
         $m = new Meet_schedule($meet_schedule_id);
-        $jitsiPayload = self::getTokenArray($meet_schedule_id, $users_id, $expirationInMinutes);
+        $jitsiPayload = self::getTokenArray($meet_schedule_id, $users_id);
         $key = self::getSecret();
         //var_dump($jitsiPayload, $key);
 
@@ -129,7 +129,7 @@ Passcode: {password}
     public function getPluginMenu() {
         global $global;
         //return '<a href="plugin/Meet/View/editor.php" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fa fa-edit"></i> Edit</a>';
-        return '<a href="plugin/Meet/checkServers.php" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fas fa-network-wired"></i> Check Servers</a>';
+        return '<a href="'.$global['webSiteRootURL'].'plugin/Meet/checkServers.php" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fas fa-network-wired"></i> Check Servers</a>';
     }
 
     static function getMeetServerStatus($cache = 30) {
@@ -221,7 +221,7 @@ Passcode: {password}
             return $roomName;
         }
         if (!empty($meet_schedule_id)) {
-            $roomName .= $m->getName();
+            $roomName .= $m->getCleanName();
         }
 
         $token = self::getToken($meet_schedule_id);
@@ -393,7 +393,7 @@ Passcode: {password}
                     'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
                     'fodeviceselection', 'hangup', 'profile', 'chat',
                     'livestreaming', 'etherpad', 'settings', 'raisehand',
-                    'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                    'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
                     'tileview', 'download', 'help', 'mute-everyone'
                 ];
             } else {
@@ -401,7 +401,7 @@ Passcode: {password}
                     'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
                     'fodeviceselection', 'hangup', 'profile', 'chat',
                     'etherpad', 'settings', 'raisehand',
-                    'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                    'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
                     'tileview', 'download', 'help', 'mute-everyone'
                 ];
             }

@@ -18,6 +18,7 @@ TimeLogStart($timeLog3);
     <?php
     TimeLogEnd($timeLog3, __LINE__);
     foreach ($videos as $value) {
+        $videosCounter++;
         TimeLogStart($timeLog3 . " Video {$value['clean_title']}");
         $images = Video::getImageFromFilename($value['filename'], $value['type']);
         TimeLogEnd($timeLog3 . " Video {$value['clean_title']}", __LINE__);
@@ -92,7 +93,7 @@ foreach ($videos as $value) {
     $img = $images->thumbsJpg;
     $poster = $images->poster;
     $canWatchPlayButton = "";
-    if (User::canWatchVideoWithAds($value['id'])) {
+    if (User::canWatchVideoWithAds($value['id']) && !Video::isSerie($value['id'])) {
         $canWatchPlayButton = "canWatchPlayButton";
     }
     ?>
@@ -227,7 +228,7 @@ foreach ($videos as $value) {
                 <?php
                 if (!empty($value['trailer1'])) {
                     ?>
-                    <a href="#" class="btn btn-warning" onclick="flixFullScreen('<?php echo parseVideos($value['trailer1'], 1, 0, 0, 0, 1); ?>');return false;">
+                    <a href="#" class="btn btn-warning" onclick="flixFullScreen('<?php echo parseVideos($value['trailer1'], 1, 0, 0, 0, 1); ?>', '');return false;">
                         <span class="fa fa-film"></span> 
                         <span class="hidden-xs"><?php echo __("Trailer"); ?></span>
                     </a>
@@ -236,6 +237,7 @@ foreach ($videos as $value) {
                 ?>
                 <?php
                 echo AVideoPlugin::getNetflixActionButton($value['id']);
+                getSharePopupButton($value['id']);
                 ?>
             </div>
         </div>
