@@ -26,7 +26,7 @@ if ($oIMDB->isReady) {
     if (empty($_GET['what']) || $_GET['what'] == 1) {
         // get poster
         $poster = $oIMDB->getPoster('big', true);
-        $filename = "{$global['systemRootPath']}videos/{$videoFileName}_portrait.jpg";
+        $filename = Video::getStoragePath()."{$videoFileName}_portrait.jpg";
         im_resizeV2($poster, $filename, $plugin->posterWidth, $plugin->posterHeight);
     }
 
@@ -50,7 +50,7 @@ if ($oIMDB->isReady) {
         _error_log("IMDB encoder URL {$encoderURL}");
         $json = url_get_contents($encoderURL);
         _error_log("IMDB encoder answer {$json}");
-        $json = json_decode($json);
+        $json = _json_decode($json);
         if (!empty($json->videos_id)) {
             $trailerVideo = new Video('', '', $json->videos_id);
             $trailerVideo->setStatus('u');

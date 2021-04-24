@@ -52,7 +52,10 @@ require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/category.php';
 $_GET['parentsOnly'] = "1";
 if (empty($_SESSION['language'])) {
-    $lang = 'us';
+    $lang = $config->getLanguage();
+    if(empty($lang)){
+        $lang = 'us_EN';
+    }
 } else {
     $lang = $_SESSION['language'];
 }
@@ -64,6 +67,13 @@ if (empty($sidebarStyle)) {
 $includeDefaultNavBar = true;
 AVideoPlugin::navBar();
 if (!$includeDefaultNavBar) {
+    return false;
+}
+
+if(!empty($_GET['avideoIframe'])){ // comes from avideoModalIframe(url) javascript
+    ?>
+        <style>body{padding: 0;}#mainFooter{display: none !important;}</style>
+    <?php
     return false;
 }
 ?>
@@ -237,6 +247,13 @@ if (!$includeDefaultNavBar) {
     li.navsub-toggle a + ul {
         padding-left: 15px;
     }
+    
+    .navbar-lang-btn .select2-container{
+        margin: 8px 0;
+    }
+    .navbar-lang-btn .select2-selection{
+        border-color: #00000077 !important;
+    }
     <?php
     if (AVideoPlugin::isEnabledByName("Gallery") || AVideoPlugin::isEnabledByName("YouPHPFlix2")) {
         ?>
@@ -286,11 +303,22 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                 $("#sidebar").fadeOut();
                                 youTubeMenuIsOpened = false;
                             }
-                            $(document).ready(function () {
-                                if (inIframe()) {
-                                    $("#mainNavBar").hide();
-                                    $("body").css("padding-top", "0");
+
+                            function YPTHidenavbar() {
+                                if (typeof inIframe == 'undefined') {
+                                    setTimeout(function () {
+                                        YPTHidenavbar()
+                                    }, 500);
+                                } else {
+                                    if (inIframe()) {
+                                        $("#mainNavBar").hide();
+                                        $("body").css("padding-top", "0");
+                                    }
                                 }
+                            }
+
+                            $(document).ready(function () {
+                                <?php if($advancedCustom->disableNavBarInsideIframe){echo 'YPTHidenavbar();';} ?>
                                 $('#buttonMenu').on("click.sidebar", function (event) {
                                     event.stopPropagation();
                                     //$('#sidebar').fadeToggle();
@@ -343,7 +371,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                     </li>
                     <li style="width: 100%; text-align: center;">
                         <a class="navbar-brand" id="mainNavbarLogo" href="<?php echo empty($advancedCustom->logoMenuBarURL) ? $global['webSiteRootURL'] : $advancedCustom->logoMenuBarURL; ?>" >
-                            <img src="<?php echo $global['webSiteRootURL'], $config->getLogo(true); ?>" alt="<?php echo $config->getWebSiteTitle(); ?>" class="img-responsive ">
+                            <img src="<?php echo getCDN(), $config->getLogo(true); ?>" alt="<?php echo $config->getWebSiteTitle(); ?>" class="img-responsive ">
                         </a>
                     </li>
                     <?php
@@ -356,7 +384,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                      class="img img-circle " style="height: 33px; width: 33px; margin-right: 15px;"> 
                             </a>
                         </li>
-                    <?php } ?>
+    <?php } ?>
 
                 </ul>
             </li>
@@ -373,7 +401,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         if (!empty($_GET['search'])) {
                             echo htmlentities($_GET['search']);
                         }
-                        ?>" name="search" placeholder="<?php echo __("Search"); ?>">
+                        ?>" name="search" placeholder="<?php echo __("Search"); ?>" id="searchFormInput">
                         <span class="input-group-append">
                             <button class="btn btn-default btn-outline-secondary border-left-0 border  py-2" type="submit">
                                 <i class="fas fa-search"></i>
@@ -494,39 +522,20 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         }
                         ?>
                         <li>
+                            <div class="navbar-lang-btn">
                             <?php
-                            $flags = getEnabledLangs();
-                            $objFlag = new stdClass();
-                            foreach ($flags as $key => $value) {
-                                //$value = strtoupper($value);
-                                $objFlag->$value = $value;
-                            }
                             if ($lang == 'en') {
-                                $lang = 'us';
+                                $lang = 'en_US';
                             }
+                            echo Layout::getLangsSelect('navBarFlag', $lang, 'navBarFlag', '', true);
                             ?>
-                            <style>
-                                #navBarFlag .dropdown-menu {
-                                    min-width: 20px;
-                                }
-                            </style>
-                            <div id="navBarFlag" data-input-name="country" data-selected-country="<?php echo $lang; ?>"  data-toggle="tooltip" title="<?php echo __('Change Language'); ?>" data-placement="left"></div>
+                                
+                            </div>
                             <script>
                                 $(function () {
-                                    $("#navBarFlag").flagStrap({
-                                        countries: <?php echo json_encode($objFlag); ?>,
-                                        inputName: 'country',
-                                        buttonType: "btn-default navbar-btn",
-                                        onSelect: function (value, element) {
-                                            if (!value && element[1]) {
-                                                value = $(element[1]).val();
-                                            }
-                                            window.location.href = "<?php echo $global['webSiteRootURL']; ?>?lang=" + value;
-                                        },
-                                        placeholder: {
-                                            value: "",
-                                            text: ""
-                                        }
+                                    $("#navBarFlag").change(function () {
+                                        var selfURI = "<?php echo getSelfURI(); ?>";
+                                        window.location.href = addGetParam(selfURI, 'lang', $(this).val());
                                     });
                                 });
                             </script>
@@ -638,7 +647,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                             <li>
                                                 <a href="<?php echo $global['webSiteRootURL']; ?>user" style="border-radius: 4px 4px 0 0;">
                                                     <span class="fa fa-user-circle"></span>
-                                                    <?php echo __("My Account"); ?>
+            <?php echo __("My Account"); ?>
                                                 </a>
                                             </li>
 
@@ -649,7 +658,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>mvideos">
                                                         <span class="glyphicon glyphicon-film"></span>
                                                         <span class="glyphicon glyphicon-headphones"></span>
-                                                        <?php echo __("My videos"); ?>
+                                                <?php echo __("My videos"); ?>
                                                     </a>
                                                 </li>
                                                 <?php
@@ -658,7 +667,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                             <li>
                                                 <a href="<?php echo User::getChannelLink(); ?>" >
                                                     <span class="fas fa-play-circle"></span>
-                                                    <?php echo __($advancedCustomUser->MyChannelLabel); ?>
+                                            <?php echo __($advancedCustomUser->MyChannelLabel); ?>
                                                 </a>
                                             </li>    
                                             <?php
@@ -669,7 +678,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                                 <li>
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>charts">
                                                         <span class="fas fa-tachometer-alt"></span>
-                                                        <?php echo __("Dashboard"); ?>
+                                                <?php echo __("Dashboard"); ?>
                                                     </a>
                                                 </li>
                                                 <?php
@@ -678,7 +687,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                                 <li>
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>subscribes">
                                                         <span class="fa fa-check"></span>
-                                                        <?php echo __("My Subscribers"); ?>
+                                                <?php echo __("My Subscribers"); ?>
                                                     </a>
                                                 </li>
                                                 <?php
@@ -688,7 +697,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                                     <li>
                                                         <a href="<?php echo $global['webSiteRootURL']; ?>categories">
                                                             <span class="glyphicon glyphicon-list"></span>
-                                                            <?php echo __($advancedCustom->CategoryLabel); ?>
+                    <?php echo __($advancedCustom->CategoryLabel); ?>
                                                         </a>
 
                                                     </li>
@@ -698,7 +707,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                                 <li>
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>comments">
                                                         <span class="fa fa-comment"></span>
-                                                        <?php echo __("Comments"); ?>
+                                                <?php echo __("Comments"); ?>
                                                     </a>
                                                 </li>
                                                 <?php
@@ -744,7 +753,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                             <div>
                                 <a href="<?php echo $global['webSiteRootURL']; ?>" class="btn btn-primary btn-block  " style="border-radius: 4px 4px 0 0;">
                                     <span class="fa fa-home"></span>
-                                    <?php echo __("Home"); ?>
+        <?php echo __("Home"); ?>
                                 </a>
 
                             </div>
@@ -758,7 +767,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                             <div>
                                 <a href="<?php echo $global['webSiteRootURL']; ?>epg" class="btn btn-primary btn-block " style="border-radius:  0 0 0 0;">
                                     <i class="fas fa-stream"></i>
-                                    <?php echo __("EPG"); ?>
+        <?php echo __("EPG"); ?>
                                 </a>
 
                             </div>
@@ -767,7 +776,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                             <div>
                                 <a href="<?php echo $global['webSiteRootURL']; ?>tv" class="btn btn-primary btn-block " style="border-radius:  0 0 0 0;">
                                     <i class="fas fa-tv"></i>
-                                    <?php echo __("TV"); ?>
+        <?php echo __("TV"); ?>
                                 </a>
 
                             </div>
@@ -781,7 +790,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                             <div>
                                 <a href="<?php echo $global['webSiteRootURL']; ?>trending" class="btn btn-primary btn-block " style="border-radius:  0 0 4px 4px;">
                                     <i class="fas fa-fire"></i>
-                                    <?php echo __("Trending"); ?>
+        <?php echo __("Trending"); ?>
                                 </a>
 
                             </div>
@@ -836,7 +845,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                 <div>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-primary btn-block" style="border-radius: 4px 4px 0 0;">
                                         <span class="fa fa-user-circle"></span>
-                                        <?php echo __("My Account"); ?>
+            <?php echo __("My Account"); ?>
                                     </a>
 
                                 </div>
@@ -850,7 +859,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                         <a href="<?php echo $global['webSiteRootURL']; ?>mvideos" class="btn btn-success btn-block" style="border-radius: 0;">
                                             <span class="glyphicon glyphicon-film"></span>
                                             <span class="glyphicon glyphicon-headphones"></span>
-                                            <?php echo __("My videos"); ?>
+                <?php echo __("My videos"); ?>
                                         </a>
                                     </div>
                                 </li>
@@ -862,7 +871,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                 <div>
                                     <a href="<?php echo User::getChannelLink(); ?>" class="btn btn-danger btn-block" style="border-radius: 0;">
                                         <span class="fas fa-play-circle"></span>
-                                        <?php echo __($advancedCustomUser->MyChannelLabel); ?>
+            <?php echo __($advancedCustomUser->MyChannelLabel); ?>
                                     </a>
 
                                 </div>
@@ -876,7 +885,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     <div>
                                         <a href="<?php echo $global['webSiteRootURL']; ?>charts" class="btn btn-default btn-block" style="border-radius: 0;">
                                             <span class="fas fa-tachometer-alt"></span>
-                                            <?php echo __("Dashboard"); ?>
+                <?php echo __("Dashboard"); ?>
                                         </a>
                                     </div>
                                 </li>
@@ -887,7 +896,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     <div>
                                         <a href="<?php echo $global['webSiteRootURL']; ?>subscribes" class="btn btn-default btn-block" style="border-radius: 0">
                                             <span class="fa fa-check"></span>
-                                            <?php echo __("My Subscribers"); ?>
+                <?php echo __("My Subscribers"); ?>
                                         </a>
                                     </div>
                                 </li>
@@ -899,7 +908,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                         <div>
                                             <a href="<?php echo $global['webSiteRootURL']; ?>categories" class="btn btn-default btn-block" style="border-radius: 0;">
                                                 <span class="glyphicon glyphicon-list"></span>
-                                                <?php echo __($advancedCustom->CategoryLabel); ?>
+                    <?php echo __($advancedCustom->CategoryLabel); ?>
                                             </a>
                                         </div>
                                     </li>
@@ -910,7 +919,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                     <div>
                                         <a href="<?php echo $global['webSiteRootURL']; ?>comments" class="btn btn-default btn-block" style="border-radius: 0 0 4px 4px;">
                                             <span class="fa fa-comment"></span>
-                                            <?php echo __("Comments"); ?>
+                <?php echo __("Comments"); ?>
                                         </a>
                                     </div>
                                 </li>
@@ -927,7 +936,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                 <div>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-success btn-block">
                                         <i class="fas fa-sign-in-alt"></i>
-                                        <?php echo __("Sign In"); ?>
+            <?php echo __("Sign In"); ?>
                                     </a>
                                 </div>
                             </li>
@@ -945,25 +954,25 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>admin/">
                                         <i class="fas fa-star"></i>
-                                        <?php echo __("Admin Panel"); ?>
+        <?php echo __("Admin Panel"); ?>
                                     </a>
                                 </li>
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>users">
                                         <span class="glyphicon glyphicon-user"></span>
-                                        <?php echo __("Users"); ?>
+        <?php echo __("Users"); ?>
                                     </a>
                                 </li>
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>usersGroups">
                                         <span class="fa fa-users"></span>
-                                        <?php echo __("Users Groups"); ?>
+        <?php echo __("Users Groups"); ?>
                                     </a>
                                 </li>
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>categories">
                                         <span class="glyphicon glyphicon-list"></span>
-                                        <?php echo __($advancedCustom->CategoryLabel); ?>
+        <?php echo __($advancedCustom->CategoryLabel); ?>
                                     </a>
                                 </li>
                                 <li>
@@ -973,28 +982,28 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                                         <?php
                                         if (!empty($updateFiles)) {
                                             ?><span class="label label-danger"><?php echo count($updateFiles); ?></span><?php
-                                        }
-                                        ?>
+                            }
+                            ?>
                                     </a>
                                 </li>
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations">
                                         <span class="glyphicon glyphicon-cog"></span>
-                                        <?php echo __("Site Configurations"); ?>
+        <?php echo __("Site Configurations"); ?>
                                     </a>
                                 </li>
                                 <!--
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>locale">
                                         <span class="glyphicon glyphicon-flag"></span>
-                                <?php echo __("Create more translations"); ?>
+        <?php echo __("Create more translations"); ?>
                                     </a>
                                 </li>
                                 -->
                                 <li>
                                     <a href="<?php echo $global['webSiteRootURL']; ?>plugins">
                                         <i class="fas fa-puzzle-piece"></i>
-                                        <?php echo __("Plugins"); ?>
+        <?php echo __("Plugins"); ?>
                                     </a>
                                 </li>
                                 <li>
@@ -1108,19 +1117,19 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <li class="nav-item <?php echo empty($_SESSION['type']) ? "active" : ""; ?>">
                             <a class="nav-link " href="<?php echo $global['webSiteRootURL']; ?>?type=all">
                                 <span class="glyphicon glyphicon-star"></span>
-                                <?php echo __("Audios and Videos"); ?>
+        <?php echo __("Audios and Videos"); ?>
                             </a>
                         </li>
                         <li class="nav-item <?php echo (!empty($_SESSION['type']) && $_SESSION['type'] == 'video' && empty($_GET['catName'])) ? "active" : ""; ?>">
                             <a class="nav-link " href="<?php echo $global['webSiteRootURL']; ?>videoOnly">
                                 <span class="glyphicon glyphicon-facetime-video"></span>
-                                <?php echo __("Videos"); ?>
+        <?php echo __("Videos"); ?>
                             </a>
                         </li>
                         <li class="nav-item <?php echo (!empty($_SESSION['type']) && $_SESSION['type'] == 'audio' && empty($_GET['catName'])) ? "active" : ""; ?>">
                             <a class="nav-link" href="<?php echo $global['webSiteRootURL']; ?>audioOnly">
                                 <span class="glyphicon glyphicon-headphones"></span>
-                                <?php echo __("Audios"); ?>
+                        <?php echo __("Audios"); ?>
                             </a>
                         </li>
                         <?php
@@ -1140,7 +1149,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <li>
                             <a href="<?php echo $global['webSiteRootURL']; ?>channels">
                                 <i class="fa fa-search"></i>
-                                <?php echo __("Browse Channels"); ?>
+        <?php echo __("Browse Channels"); ?>
                             </a>
                         </li>
 
@@ -1152,10 +1161,14 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                     </li>
                     <!-- categories -->
                     <li>
-                        <h3 class="text-danger"><?php echo __($advancedCustom->CategoryLabel); ?></h3>
+                        <h3>
+                            <a href="<?php echo $global['webSiteRootURL']; ?>listCategories" class="text-danger">
+    <?php echo __($advancedCustom->CategoryLabel); ?>
+                            </a>
+                        </h3>
                     </li>
                     <?php
-                    $_rowCount = getRowCount();                    
+                    $_rowCount = getRowCount();
                     $_REQUEST['rowCount'] = 1000;
                     $parsed_cats = array();
                     if (!function_exists('mkSub')) {
@@ -1226,7 +1239,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         $_POST = $post;
                         $_GET = $get;
                     }
-                                   
+
                     $_REQUEST['rowCount'] = $_rowCount;
                     ?>
 
@@ -1236,12 +1249,22 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <hr>
                     </li>
                     <?php
+                    if (empty($advancedCustom->disablePlayLink)) {
+                        ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo $global['webSiteRootURL']; ?>playLink">
+                                <i class="fas fa-play-circle"></i>
+                        <?php echo __("Play a Link"); ?>
+                            </a>
+                        </li>    
+                        <?php
+                    }
                     if (empty($advancedCustom->disableHelpLeftMenu)) {
                         ?>
                         <li>
                             <a href="<?php echo $global['webSiteRootURL']; ?>help">
                                 <span class="glyphicon glyphicon-question-sign"></span>
-                                <?php echo __("Help"); ?>
+                        <?php echo __("Help"); ?>
                             </a>
                         </li>
                         <?php
@@ -1252,7 +1275,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <li>
                             <a href="<?php echo $global['webSiteRootURL']; ?>about">
                                 <span class="glyphicon glyphicon-info-sign"></span>
-                                <?php echo __("About"); ?>
+                        <?php echo __("About"); ?>
                             </a>
                         </li>
                         <?php
@@ -1263,7 +1286,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         <li>
                             <a href="<?php echo $global['webSiteRootURL']; ?>contact">
                                 <span class="glyphicon glyphicon-comment"></span>
-                                <?php echo __("Contact"); ?>
+                        <?php echo __("Contact"); ?>
                             </a>
                         </li>
                         <?php
@@ -1274,6 +1297,8 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
         </div>
     </nav>
     <script>
+
+        var seachFormIsRunning = 0;
         $(document).ready(function () {
             setTimeout(function () {
                 $('.nav li.navsub-toggle a:not(.selected) + ul').hide();
@@ -1312,7 +1337,54 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         c.slideUp();
                 }
             });
+
+            $('#searchForm').submit(function (event) {
+                if (seachFormIsRunning) {
+                    event.preventDefault();
+                    return false;
+                }
+                seachFormIsRunning = 1;
+                var str = $('#searchFormInput').val();
+                if (isMediaSiteURL(str)) {
+                    event.preventDefault();
+                    console.log("searchForm is URL " + str);
+                    seachFormPlayURL(str);
+                    return false;
+                } else {
+                    console.log("searchForm submit " + str);
+                    document.location = webSiteRootURL + "?search=" + str;
+                }
+            });
+
         });
+
+        function seachFormPlayURL(url) {
+            modal.showPleaseWait();
+            $.ajax({
+                url: webSiteRootURL + 'view/url2Embed.json.php',
+                method: 'POST',
+                data: {
+                    'url': url
+                },
+                success: function (response) {
+                    seachFormIsRunning = 0;
+                    if (response.error) {
+                        modal.hidePleaseWait();
+                        avideoToast(response.msg);
+                    } else {
+                        if (typeof linksToEmbed === 'function') {
+                            document.location = response.playEmbedLink;
+                        } else
+                        if (typeof flixFullScreen == 'function') {
+                            flixFullScreen(response.playEmbedLink, response.playLink);
+                            modal.hidePleaseWait();
+                        } else {
+                            document.location = response.playLink;
+                        }
+                    }
+                }
+            });
+        }
     </script>
     <?php
     if (!empty($advancedCustom->underMenuBarHTMLCode->value)) {

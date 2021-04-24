@@ -14,7 +14,7 @@ require_once 'comment.php';
 require_once 'subscribe.php';
 // gettig the mobile submited value
 $inputJSON = url_get_contents('php://input');
-$input = json_decode($inputJSON, TRUE); //convert JSON into array
+$input = _json_decode($inputJSON, TRUE); //convert JSON into array
 if(!empty($input) && empty($_POST)){
     foreach ($input as $key => $value) {
         $_POST[$key]=$value;
@@ -57,20 +57,20 @@ foreach ($videos as $key => $value) {
         $videos[$key]['comments'][$key2]['userName'] = $user->getNameIdentificationBd();
     }
     $videos[$key]['subscribers'] = Subscribe::getTotalSubscribes($videos[$key]['users_id']);
-    
+
     $videos[$key]['firstVideo'] = "";
     foreach ($videos[$key]['VideoUrl'] as $value2) {
         if($value2["type"] === 'video'){
             $videos[$key]['firstVideo'] = $value2["url"];
             break;
-        }        
+        }
     }
     if(preg_match("/^videos/", $videos[$key]['photoURL'])){
         $videos[$key]['UserPhoto'] = "{$global['webSiteRootURL']}".$videos[$key]['photoURL'];
     }else{
         $videos[$key]['UserPhoto'] = $videos[$key]['photoURL'];
     }
-    
+
 }
 
 echo json_encode($videos);

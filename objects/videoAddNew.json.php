@@ -21,9 +21,8 @@ if (!empty($_POST['id'])) {
     }
 }
 
-if (!is_writable("{$global['systemRootPath']}objects/htmlpurifier/HTMLPurifier/DefinitionCache/Serializer")) {
-    //Directory /home/daniel/danielneto.com@gmail.com/htdocs/AVideo/objects/htmlpurifier/HTMLPurifier/DefinitionCache/Serializer not writable, please chmod to 777 
-    die('{"error":"Directory ' . $global['systemRootPath'] . 'objects/htmlpurifier/HTMLPurifier/DefinitionCache/Serializer not writable, please chmod to 777 "}');
+if (!is_writable("{$global['systemRootPath']}objects/ezyang/htmlpurifier/library/HTMLPurifier/DefinitionCache/Serializer")) {
+    die('{"error":"Directory ' . $global['systemRootPath'] . 'objects/ezyang/htmlpurifier/library/HTMLPurifier/DefinitionCache/Serializer not writable, please chmod to 777 "}');
 }
 
 TimeLogStart(__FILE__);
@@ -42,7 +41,7 @@ if (!empty($_POST['videoLink'])) {
     $extension = strtolower(@$path_parts["extension"]);
     if (empty($_POST['id']) && !(in_array($extension, $audioLinks) || in_array($extension, $videoLinks))) {
         $info = url_get_contents($config->getEncoderURL() . "getLinkInfo/" . base64_encode($_POST['videoLink']));
-        $infoObj = json_decode($info);
+        $infoObj = _json_decode($info);
         $filename = uniqid("_YPTuniqid_", true);
         $filename = $obj->setFilename($filename);
         $obj->setTitle($infoObj->title);
@@ -81,7 +80,7 @@ if (!empty($_POST['videoLink'])) {
 }else if(!empty($obj->getType()) && ($obj->getType() == 'video' || $obj->getType() == 'serie' || $obj->getType() == 'audio')){
     $obj->setVideoLink("");
 }
-    
+
 TimeLogEnd(__FILE__, __LINE__);
 if (!empty($_POST['isArticle'])) {
     $obj->setType("article");
@@ -119,7 +118,7 @@ $obj->setExternalOptions(@$_POST['externalOptions']);
 TimeLogEnd(__FILE__, __LINE__);
 $resp = $obj->save(true);
 // if is a new embed video
-if (empty($_POST['id']) && $obj->getType() == 'embed') {
+if (empty($_POST['id']) && ($obj->getType() == 'embed' || $obj->getType() == 'linkVideo' )) {
     AVideoPlugin::afterNewVideo($resp);
 }
 

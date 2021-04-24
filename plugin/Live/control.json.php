@@ -3,9 +3,10 @@
 header('Content-Type: application/json');
 if (!isset($global['systemRootPath'])) {
     $configFile = '../../videos/configuration.php';
-    if (file_exists($configFile)) {
-        require_once $configFile;
+    if (!file_exists($configFile)) {
+        $configFile = '../videos/configuration.php';
     }
+    require_once $configFile;
 }
 
 $obj = new stdClass();
@@ -100,7 +101,7 @@ switch ($obj->command) {
 }
 
 $obj->commandURL = Live::getDropURL($l->getKey(), $obj->live_servers_id);
-$obj->response = json_decode(url_get_contents($obj->commandURL));
+$obj->response = _json_decode(url_get_contents($obj->commandURL));
 
 if (!empty($obj->response)) {
     if ($obj->response->error) {

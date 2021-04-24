@@ -4,8 +4,8 @@ if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 _session_start();
-unset($_SESSION['user']['thereIsAnyRemoteUpdate']);
-unset($_SESSION['user']['thereIsAnyUpdate']);
+unset($_SESSION['sessionCache']['thereIsAnyRemoteUpdate']);
+unset($_SESSION['sessionCache']['thereIsAnyUpdate']);
 session_write_close();
 require_once $global['systemRootPath'] . 'objects/user.php';
 //check if there is a update
@@ -15,14 +15,14 @@ if (!User::isAdmin()) {
 }
 // remove cache dir before the script starts to let the script recreate the javascript and css files
 if (!empty($_POST['updateFile'])) {
-    $dir = "{$global['systemRootPath']}videos/cache";
+    $dir = Video::getStoragePath()."cache";
     rrmdir($dir);
 }
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $config->getLanguage(); ?>">
     <head>
-        <title><?php echo $config->getWebSiteTitle(); ?></title>
+        <title><?php echo __("Update AVideo System") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
@@ -124,7 +124,7 @@ if (!empty($_POST['updateFile'])) {
                 } else {
                     $obj = new stdClass();
                     $templine = '';
-                    $logfile = "{$global['systemRootPath']}videos/avideo.";
+                    $logfile = Video::getStoragePath()."avideo.";
                     if (file_exists($logfile . "log")) {
                         unlink($logfile . "log");
                         _error_log("avideo.log deleted by update");
@@ -192,7 +192,7 @@ if (!empty($_POST['updateFile'])) {
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
-        <script src="<?php echo $global['webSiteRootURL']; ?>js/three.js" type="text/javascript"></script>
+        <script src="<?php echo getCDN(); ?>js/three.js" type="text/javascript"></script>
     </body>
 </html>
 <?php

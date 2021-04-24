@@ -1,5 +1,7 @@
 <?php
-require_once '../videos/configuration.php';
+if(empty($global['systemRootPath'])){
+    require_once '../videos/configuration.php';
+}
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 if (empty($video) && !empty($_GET['videos_id'])) {
     $video = Video::getVideo(intval($_GET['videos_id']), "viewable", true, false, true, true);
@@ -14,7 +16,7 @@ if (empty($video) && !empty($_GET['videos_id'])) {
         $imgw = $data[0];
         $imgh = $data[1];
     } else if ($video['type'] == "audio") {
-        $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+        $img = "".getCDN()."view/img/audio_wave.jpg";
     }
     $type = 'video';
     if ($video['type'] === 'pdf') {
@@ -66,7 +68,7 @@ if (User::hasBlockedUser($video['users_id'])) {
                 echo $video['title'];
                 if (!empty($video['id']) && Video::showYoutubeModeOptions() && Video::canEdit($video['id'])) {
                     ?>
-                    <a href="<?php echo $global['webSiteRootURL']; ?>mvideos?video_id=<?php echo $video['id']; ?>" class="btn btn-primary btn-xs" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>"><i class="fa fa-edit"></i> <?php echo __("Edit Video"); ?></a>
+                    <a href="#" onclick="avideoModalIframe('<?php echo $global['webSiteRootURL']; ?>mvideos?video_id=<?php echo $video['id']; ?>');return false;" class="btn btn-primary btn-xs" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>"><i class="fa fa-edit"></i> <?php echo __("Edit Video"); ?></a>
                 <?php } ?>
                 <small>
                     <?php
@@ -94,7 +96,7 @@ if (User::hasBlockedUser($video['users_id'])) {
 
             <?php
             if (Video::showYoutubeModeOptions() && empty($advancedCustom->doNotDisplayViews)) {
-                ?> 
+                ?>
                 <span class="watch-view-count pull-right text-muted" itemprop="interactionCount"><span class="view-count<?php echo $video['id']; ?>"><?php echo number_format($video['views_count'], 0); ?></span> <?php echo __("Views"); ?></span>
                 <?php
             }
@@ -143,7 +145,7 @@ if (User::hasBlockedUser($video['users_id'])) {
                             }
 
                             $theLink['url'] = addQueryStringParameter($theLink['url'], "download", 1);
-                            $theLink['url'] = addQueryStringParameter($theLink['url'], "title", $video['title'] . "_{$key}_.mp4");
+                            $theLink['url'] = addQueryStringParameter($theLink['url'], "title", $video['title'] . "_{$key}_.".($video['type']==='audio'?'mp3':'mp4'));
 
                             $parts = explode("_", $key);
                             $name = $key;
@@ -164,14 +166,18 @@ if (User::hasBlockedUser($video['users_id'])) {
                                 <span class="fa fa-download"></span> <?php echo __("Download"); ?>
                             </a>
                             <?php
+                        }else{
+                            echo '<!-- files to download are empty -->';
                         }
+                    }else{
+                        echo '<!-- CustomizeUser::canDownloadVideosFromVideo said NO -->';
                     }
                     ?>
                 <?php } echo AVideoPlugin::getWatchActionButton($video['id']); ?>
                 <?php
                 if (!empty($video['id']) && empty($advancedCustom->removeThumbsUpAndDown)) {
                     ?>
-                    <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == - 1) ? "myVote" : "" ?>" id="dislikeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("DonÂ´t like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
+                    <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == - 1) ? "myVote" : "" ?>" id="dislikeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("Don´t like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
                         <span class="fa fa-thumbs-down"></span> <small><?php echo $video['dislikes']; ?></small>
                     </a>
                     <a href="#" class="btn btn-default no-outline pull-right <?php echo ($video['myVote'] == 1) ? "myVote" : "" ?>" id="likeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("Like this video? Sign in to make your opinion count."); ?>" <?php } ?>>

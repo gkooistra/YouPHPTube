@@ -102,7 +102,7 @@ $contentSearchFound = false;
                             <?php echo getAdsLeaderBoardTop2(); ?>
                         </center>
                         <!-- For Live Videos -->
-                        <div id="liveVideos" class="clear clearfix" style="display: none;">
+                        <div id="liveVideos" class="clear clearfix" style="display:none;">
                             <h3 class="YouTubeTitle text-danger"> <i class="fas fa-play-circle"></i> <?php echo __("Live"); ?></h3>
                             <div class="row extraVideos"></div>
                         </div>
@@ -209,7 +209,7 @@ $contentSearchFound = false;
                 </div>
             </div>
         </div>
-        <script src="<?php echo $global['webSiteRootURL']; ?>plugin/Gallery/script.js" type="text/javascript"></script>
+        <script src="<?php echo getCDN(); ?>plugin/Gallery/script.js" type="text/javascript"></script>
         <?php include $global['systemRootPath'] . 'view/include/footer.php'; ?>
     </body>
 </html>

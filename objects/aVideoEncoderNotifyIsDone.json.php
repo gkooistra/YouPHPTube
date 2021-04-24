@@ -15,7 +15,7 @@ require_once $global['systemRootPath'] . 'objects/video.php';
 $_POST['videos_id'] = intval($_POST['videos_id']);
 
 if (empty($_POST)) {
-    $obj->msg = __("Your POST data is empty may be your vide file is too big for the host");
+    $obj->msg = __("Your POST data is empty, maybe your video file is too big for the host");
     _error_log($obj->msg);
     die(json_encode($obj));
 }
@@ -24,13 +24,13 @@ if (empty($_POST)) {
 $user = new User("", @$_POST['user'], @$_POST['password']);
 $user->login(false, true);
 if (!User::canUpload()) {
-    $obj->msg = __("Permission denied to Notify Done: " . print_r($_POST, true));
+    $obj->msg = __("Permission denied to Notify Done: ") . print_r($_POST, true);
     _error_log($obj->msg);
     die(json_encode($obj));
 }
 
 if(!Video::canEdit($_POST['videos_id'])){
-    $obj->msg = __("Permission denied to edit a video: " . print_r($_POST, true));
+    $obj->msg = __("Permission denied to edit a video: ") . print_r($_POST, true);
     _error_log($obj->msg);
     die(json_encode($obj));
 }
@@ -40,17 +40,22 @@ $video = new Video("", "", $_POST['videos_id']);
 $obj->video_id = $_POST['videos_id'];
 
 if(empty($_POST['fail'])){
-    $status = $video->getStatus();
-    // if status is not unlisted
-    if($status!=='u' && $status !== 'a'){
-        if(empty($advancedCustom->makeVideosInactiveAfterEncode)){
-            // set active
-            $video->setStatus('a');
-        }else if(empty($advancedCustom->makeVideosUnlistedAfterEncode)){
-            // set active
-            $video->setStatus('u');
-        }else{
-            $video->setStatus('i');
+    // if encoder requested a status
+    if (!empty($_POST['overrideStatus'])) {
+        $video->setStatus($_POST['overrideStatus']);
+    } else { // encoder did not provide a status
+        $status = $video->getStatus();
+        // if status is not unlisted
+        if($status!=='u' && $status !== 'a'){
+            if(empty($advancedCustom->makeVideosInactiveAfterEncode)){
+                // set active
+                $video->setStatus('a');
+            }else if(empty($advancedCustom->makeVideosUnlistedAfterEncode)){
+                // set active
+                $video->setStatus('u');
+            }else{
+                $video->setStatus('i');
+            }
         }
     }
 }else{
@@ -64,7 +69,7 @@ $obj->error = false;
 $obj->video_id = $video_id;
 Video::updateFilesize($video_id);
 // delete original files if any
-$originalFilePath =  "{$global['systemRootPath']}videos/original_" . $video->getFilename();
+$originalFilePath =  Video::getStoragePath()."original_" . $video->getFilename();
 if(file_exists($originalFilePath)){
     unlink($originalFilePath);
 }

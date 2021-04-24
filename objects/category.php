@@ -104,7 +104,7 @@ class Category {
       }
       }
       }
-     * 
+     *
      */
 
     function setDescription($description) {
@@ -189,7 +189,7 @@ class Category {
 
         $insert_row = sqlDAL::writeSql($sql, $format, $values);
         if ($insert_row) {
-            $_SESSION['getAllCategoriesClearCache'] = 1;
+            $_SESSION['user']['sessionCache']['getAllCategoriesClearCache'] = 1;
             ObjectYPT::deleteALLCache();
             if (empty($this->id)) {
                 $id = $global['mysqli']->insert_id;
@@ -239,7 +239,7 @@ class Category {
 
         global $global;
         if (!empty($this->id)) {
-            $_SESSION['getAllCategoriesClearCache'] = 1;
+            $_SESSION['user']['sessionCache']['getAllCategoriesClearCache'] = 1;
             $categories_id = self::getSiteCategoryDefaultID();
             if ($categories_id) {
                 $sql = "UPDATE videos SET categories_id = ? WHERE categories_id = ?";
@@ -249,6 +249,7 @@ class Category {
         } else {
             return false;
         }
+        ObjectYPT::deleteALLCache();
         self::clearCacheCount();
         self::deleteAssets($this->id);
         return sqlDAL::writeSql($sql, "i", array($this->id));
@@ -276,7 +277,7 @@ class Category {
       return array("categoryId" => "-1", "type" => "0", "manualSet" => "0");
       }
       }
-     * 
+     *
      */
 
     static function getCategory($id) {
@@ -368,19 +369,42 @@ class Category {
             }
         }
         if ($onlyWithVideos) {
-            $sql .= " AND (SELECT count(*) FROM videos where categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id)) > 0  ";
+            $sql .= " AND ((SELECT count(*) FROM videos v where v.categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id)) > 0  ";
+            if (AVideoPlugin::isEnabledByName("Live")) {
+                $sql .= " OR "
+                        . " ("
+                        . " SELECT count(*) FROM live_transmitions lt where "
+                        . " (lt.categories_id = c.id OR lt.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        //. " AND lt.id = (select id FROM live_transmitions lt2 WHERE lt.users_id = lt2.users_id ORDER BY CREATED DESC LIMIT 1 )"
+                        . " ) > 0  ";
+            }
+            if (AVideoPlugin::isEnabledByName("LiveLinks")) {
+                $sql .= " OR "
+                        . " ("
+                        . " SELECT count(*) FROM LiveLinks ll where "
+                        . " (ll.categories_id = c.id OR ll.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        . " ) > 0  ";
+            }
+            $sql .= ")";
         }
-        if (isset($_POST['sort']['title'])) {
-            unset($_POST['sort']['title']);
+        
+        $sortWhitelist = array('id', 'name', 'clean_name', 'description', 'iconClass', 'nextVideoOrder', 'parentId', 'type', 'users_id', 'private', 'allow_download', 'order');
+        
+        if(!empty($_POST['sort']) && is_array($_POST['sort'])){
+            foreach ($_POST['sort'] as $key => $value) {
+                if(!in_array($key, $sortWhitelist)){
+                    unset($_POST['sort'][$key]);
+                }
+            }
         }
         $sql .= BootGrid::getSqlFromPost(array('name'), "", " ORDER BY `order`, name ASC ");
 
         $cacheName = md5($sql);
-        if (empty($_SESSION['getAllCategoriesClearCache'])) {
+        if (empty($_SESSION['user']['sessionCache']['getAllCategoriesClearCache'])) {
             $category = object_to_array(ObjectYPT::getCache($cacheName, 36000));
         } else {
             _session_start();
-            unset($_SESSION['getAllCategoriesClearCache']);
+            unset($_SESSION['user']['sessionCache']['getAllCategoriesClearCache']);
         }
         if (empty($category)) {
             $res = sqlDAL::readSql($sql);
@@ -389,9 +413,16 @@ class Category {
             $category = array();
             if ($res) {
                 foreach ($fullResult as $row) {
+
+                    $totals = self::getTotalFromCategory($row['id']);
+                    $fullTotals = self::getTotalFromCategory($row['id'], false, true, true);
+
                     $row['name'] = xss_esc_back($row['name']);
-                    $row['total'] = self::getTotalVideosFromCategory($row['id']);
-                    $row['fullTotal'] = self::getTotalVideosFromCategory($row['id'], false, true, true);
+                    $row['total'] = $totals['total'];
+                    $row['fullTotal'] = $fullTotals['total'];
+                    $row['fullTotal_videos'] = $fullTotals['videos'];
+                    $row['fullTotal_lives'] = $fullTotals['lives'];
+                    $row['fullTotal_livelinks'] = $fullTotals['livelinks'];
                     $row['owner'] = User::getNameIdentificationById(@$row['users_id']);
                     $row['canEdit'] = self::userCanEditCategory($row['id']);
                     $row['canAddVideo'] = self::userCanAddInCategory($row['id']);
@@ -515,8 +546,10 @@ class Category {
         $category = array();
         if ($res) {
             foreach ($fullResult as $row) {
+                $totals = self::getTotalFromCategory($row['id']);
                 $row['name'] = xss_esc_back($row['name']);
-                $row['total'] = self::getTotalVideosFromCategory($row['id']);
+                $row['total'] = $totals['total'];
+                $row['total_array'] = $totals;
                 $category[] = $row;
             }
         } else {
@@ -531,9 +564,39 @@ class Category {
         return self::getChildCategories($row['id']);
     }
 
+    static function getTotalFromCategory($categories_id, $showUnlisted = false, $getAllVideos = false, $renew = false) {
+        $videos = self::getTotalVideosFromCategory($categories_id, $showUnlisted, $getAllVideos, $renew);
+        $lives = self::getTotalLivesFromCategory($categories_id, $showUnlisted, $renew);
+        $livelinkss = self::getTotalLiveLinksFromCategory($categories_id, $showUnlisted, $renew);
+        $total = $videos + $lives + $livelinkss;
+        return array('videos' => $videos, 'lives' => $lives, 'livelinks' => $livelinkss, 'total' => $total);
+    }
+
+    static function getTotalFromChildCategory($categories_id, $showUnlisted = false, $getAllVideos = false, $renew = false) {
+
+        $categories = self::getChildCategories($categories_id);
+        $array = array('videos' => 0, 'lives' => 0, 'livelinks' => 0, 'total' => 0);
+        foreach ($categories as $value) {
+            $totals = self::getTotalFromCategory($categories_id, $showUnlisted, $getAllVideos, $renew);
+            $array = array(
+                'videos' => $array['videos'] + $totals['videos'],
+                'lives' => $array['lives'] + $totals['lives'],
+                'livelinks' => $array['livelinks'] + $totals['livelinks'],
+                'total' => $array['total'] + $totals['total']);
+            $totals = self::getTotalFromChildCategory($value['id'], $showUnlisted, $getAllVideos, $renew);
+            $array = array(
+                'videos' => $array['videos'] + $totals['videos'],
+                'lives' => $array['lives'] + $totals['lives'],
+                'livelinks' => $array['livelinks'] + $totals['livelinks'],
+                'total' => $array['total'] + $totals['total']);
+        }
+
+        return $array;
+    }
+
     static function getTotalVideosFromCategory($categories_id, $showUnlisted = false, $getAllVideos = false, $renew = false) {
         global $global, $config;
-        if ($renew || empty($_SESSION['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)])) {
+        if ($renew || empty($_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)]['videos'])) {
             $sql = "SELECT count(id) as total FROM videos v WHERE 1=1 AND categories_id = ? ";
 
             if (User::isLogged()) {
@@ -554,26 +617,141 @@ class Category {
                 $total += self::getTotalVideosFromCategory($value['id'], $showUnlisted, $getAllVideos, $renew);
             }
             _session_start();
-            $_SESSION['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)] = $total;
+            $_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)]['videos'] = $total;
         }
-        return $_SESSION['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)];
+        return $_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][intval($getAllVideos)]['videos'];
     }
 
-    static function clearCacheCount() {
+    static function getLatestVideoFromCategory($categories_id, $showUnlisted = false, $getAllVideos = false) {
+        global $global, $config;
+        $sql = "SELECT * FROM videos v WHERE 1=1 AND (categories_id = ? OR categories_id IN (SELECT id from categories where parentId = ?))";
+
+        if (User::isLogged()) {
+            $sql .= " AND (v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "') OR (v.status='u' AND v.users_id ='" . User::getId() . "'))";
+        } else {
+            $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "')";
+        }
+        if (!$getAllVideos) {
+            $sql .= Video::getUserGroupsCanSeeSQL();
+        }
+        $sql .= "ORDER BY created DESC LIMIT 1";
+        //var_dump($sql, $categories_id);
+        $res = sqlDAL::readSql($sql, "ii", array($categories_id, $categories_id));
+        $result = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        return $result;
+    }
+    
+    
+    static function getLatestLiveFromCategory($categories_id) {
+        if (!AVideoPlugin::isEnabledByName("Live")) {
+            return array();
+        }
+        global $global, $config;
+        $sql = "SELECT * FROM live_transmitions lt LEFT JOIN live_transmitions_history lth ON lt.users_id = lth.users_id "
+                . " WHERE 1=1 AND (categories_id = ? OR categories_id IN (SELECT id from categories where parentId = ?))";
+
+        $sql .= "ORDER BY lth.created DESC LIMIT 1";
+        //var_dump($sql, $categories_id);
+        $res = sqlDAL::readSql($sql, "ii", array($categories_id, $categories_id));
+        $result = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        return $result;
+    }
+
+    static function getLatestLiveLinksFromCategory($categories_id) {
+        if (AVideoPlugin::isEnabledByName("LiveLinks")) {
+            return array();
+        }
+        global $global, $config;
+        $sql = "SELECT * FROM livelinks WHERE 1=1 AND (categories_id = ? OR categories_id IN (SELECT id from categories where parentId = ?))";
+
+        $sql .= "ORDER BY created DESC LIMIT 1";
+        //var_dump($sql, $categories_id);
+        $res = sqlDAL::readSql($sql, "ii", array($categories_id, $categories_id));
+        $result = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        return $result;
+    }
+
+    static function getTotalLiveLinksFromCategory($categories_id, $showUnlisted = false, $renew = false) {
+        global $global;
+
+        if (!AVideoPlugin::isEnabledByName("LiveLinks")) {
+            return 0;
+        }
+
+        if ($renew || empty($_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][0]['livelinks'])) {
+            $sql = "SELECT count(id) as total FROM LiveLinks v WHERE 1=1 AND categories_id = ? ";
+
+            if (empty($showUnlisted)) {
+                $sql .= " AND `type` = 'public' ";
+            }
+
+            //echo $categories_id, $sql;exit;
+            $res = sqlDAL::readSql($sql, "i", array($categories_id));
+            $fullResult = sqlDAL::fetchAllAssoc($res);
+            sqlDAL::close($res);
+            $total = empty($fullResult[0]['total']) ? 0 : intval($fullResult[0]['total']);
+            $rows = self::getChildCategories($categories_id);
+            foreach ($rows as $value) {
+                $total += self::getTotalLivesFromCategory($value['id'], $showUnlisted, $renew);
+            }
+            _session_start();
+            $_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][0]['livelinks'] = $total;
+        }
+        return $_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][0]['livelinks'];
+    }
+
+    static function getTotalLivesFromCategory($categories_id, $showUnlisted = false, $renew = false) {
+
+
+        if (!AVideoPlugin::isEnabledByName("Live")) {
+            return 0;
+        }
+
+        global $global;
+        if ($renew || empty($_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][0]['live'])) {
+            $sql = "SELECT count(id) as total FROM live_transmitions v WHERE 1=1 AND categories_id = ? ";
+
+            if (empty($showUnlisted)) {
+                $sql .= " AND public = 1 ";
+            }
+
+            //echo $categories_id, $sql;exit;
+            $res = sqlDAL::readSql($sql, "i", array($categories_id));
+            $fullResult = sqlDAL::fetchAllAssoc($res);
+            sqlDAL::close($res);
+            $total = empty($fullResult[0]['total']) ? 0 : intval($fullResult[0]['total']);
+            $rows = self::getChildCategories($categories_id);
+            foreach ($rows as $value) {
+                $total += self::getTotalLivesFromCategory($value['id'], $showUnlisted, $renew);
+            }
+            _session_start();
+            $_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][0]['live'] = $total;
+        }
+        return $_SESSION['user']['sessionCache']['categoryTotal'][$categories_id][intval($showUnlisted)][0]['live'];
+    }
+
+    static function clearCacheCount($categories_id = 0) {
         // clear category count cache
         _session_start();
-        unset($_SESSION['categoryTotal']);
-        $_SESSION['getAllCategoriesClearCache'] = 1;
+        if (empty($categories_id)) {
+            unset($_SESSION['user']['sessionCache']['categoryTotal']);
+            $_SESSION['user']['sessionCache']['getAllCategoriesClearCache'] = 1;
+        } else {
+            unset($_SESSION['user']['sessionCache']['categoryTotal'][$categories_id]);
+        }
         //session_write_close();
     }
 
-    static function getTotalCategories($filterCanAddVideoOnly = false) {
+    static function getTotalCategories($filterCanAddVideoOnly = false, $onlyWithVideos = false) {
         global $global, $config;
 
         if ($config->currentVersionLowerThen('5.01')) {
             return false;
         }
-        $sql = "SELECT id, parentId FROM categories WHERE 1=1 ";
+        $sql = "SELECT id, parentId FROM categories c WHERE 1=1 ";
         if ($filterCanAddVideoOnly && !User::isAdmin()) {
             if (is_int($filterCanAddVideoOnly)) {
                 $users_id = $filterCanAddVideoOnly;
@@ -588,7 +766,27 @@ class Category {
         if (!empty($_GET['parentsOnly'])) {
             $sql .= "AND parentId = 0 OR parentId = -1 ";
         }
+        if ($onlyWithVideos) {
+            $sql .= " AND ((SELECT count(*) FROM videos v where v.categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id)) > 0  ";
+            if (AVideoPlugin::isEnabledByName("Live")) {
+                $sql .= " OR "
+                        . " ("
+                        . " SELECT count(*) FROM live_transmitions lt where "
+                        . " (lt.categories_id = c.id OR lt.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        //. " AND lt.id = (select id FROM live_transmitions lt2 WHERE lt.users_id = lt2.users_id ORDER BY CREATED DESC LIMIT 1 )"
+                        . " ) > 0  ";
+            }
+            if (AVideoPlugin::isEnabledByName("LiveLinks")) {
+                $sql .= " OR "
+                        . " ("
+                        . " SELECT count(*) FROM LiveLinks ll where "
+                        . " (ll.categories_id = c.id OR ll.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        . " ) > 0  ";
+            }
+            $sql .= ")";
+        }
         $sql .= BootGrid::getSqlSearchFromPost(array('name'));
+        //echo $sql;exit;
         $res = sqlDAL::readSql($sql);
         $numRows = sqlDal::num_rows($res);
         sqlDAL::close($res);
@@ -645,18 +843,26 @@ class Category {
     static function isAssetsValids($categories_id) {
         $photo = Category::getCategoryPhotoPath($categories_id);
         $background = Category::getCategoryBackgroundPath($categories_id);
-        if(!file_exists($photo['path']) || !file_exists($background['path'])){
+        if (!file_exists($photo['path']) || !file_exists($background['path'])) {
+            return false;
+        }
+        if(filesize($photo['path']) <= 190){ // transparent image
+            return false;
+        }
+        if(filesize($background['path']) <= 980){ // transparent image
             return false;
         }
         return true;
     }
 
     static function getCategoryPhotoPath($categories_id) {
-        return self::getCategoryAssetPath("photo.png", $categories_id);
+        $path = self::getCategoryAssetPath("photo.png", $categories_id);
+        return $path;
     }
 
     static function getCategoryBackgroundPath($categories_id) {
-        return self::getCategoryAssetPath("background.png", $categories_id);
+        $path = self::getCategoryAssetPath("background.png", $categories_id);
+        return $path;
     }
 
     private static function getCategoryAssetPath($name, $categories_id) {

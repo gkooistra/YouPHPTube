@@ -4,7 +4,7 @@ if (file_exists("../videos/configuration.php")) {
     exit;
 }
 
-$installationVersion = "10.0";
+$installationVersion = "10.7";
 
 error_log("Installation: ".__LINE__." ". json_encode($_POST));
 header('Content-Type: application/json');
@@ -142,7 +142,7 @@ error_log("Installation: ".__LINE__);
 
 $encoder = 'https://encoder1.avideo.com/';
 if(is_dir("{$_POST['systemRootPath']}Encoder")){
-    $encoder = "{$_POST['webSiteTitle']}Encoder/";
+    $encoder = "{$_POST['webSiteRootURL']}Encoder/";
 }
 
 $sql = "INSERT INTO configurations (id, video_resolution, users_id, version, webSiteTitle, language, contactEmail, encoderURL,  created, modified) "
@@ -207,6 +207,9 @@ if(empty(\$global['webSiteRootPath'])){
 \$mysqlUser = '{$_POST['databaseUser']}';
 \$mysqlPass = '{$_POST['databasePass']}';
 \$mysqlDatabase = '{$_POST['databaseName']}';
+    
+//\$global['stopBotsList'] = array('bot','spider','rouwler','Nuclei','MegaIndex','NetSystemsResearch','CensysInspect','slurp','crawler','curl','fetch','loader');
+//\$global['stopBotsWhiteList'] = array('google','bing','yahoo','yandex');
 
 /**
  * Do NOT change from here

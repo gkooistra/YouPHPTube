@@ -13,14 +13,17 @@
             <a href="<?php echo $global['webSiteRootURL']; ?>objects/getAllEmails.csv.php" class="btn btn-primary">
                 <i class="fas fa-file-csv"></i> <?php echo __("CSV File"); ?>
             </a>
+            <a href="#" class="btn btn-primary">
+                <i class="fas fa-users"></i> <span class="totalDevicesOnline">0</span>
+            </a>
         </div>
-
+        <div class="clearfix"></div>
         <ul class="nav nav-tabs">
             <li class="active"><a data-toggle="tab" href="#usersTab"><?php echo __('Active Users'); ?></a></li>
             <li><a data-toggle="tab" href="#inactiveUsersTab" onclick="startUserGrid('#gridInactive', '?status=i');"><?php echo __('Inactive Users'); ?></a></li>
             <?php
             foreach ($userGroups as $value) {
-                echo '<li><a data-toggle="tab" href="#userGroupTab' . $value['id'] . '" onclick="startUserGrid(\'#userGroupGrid'.$value['id'].'\', \'?status=a&user_groups_id='.$value['id'].'\');">' . $value['group_name'] . '</a></li>';
+                echo '<li><a data-toggle="tab" href="#userGroupTab' . $value['id'] . '" onclick="startUserGrid(\'#userGroupGrid' . $value['id'] . '\', \'?status=a&user_groups_id=' . $value['id'] . '\');">' . $value['group_name'] . '</a></li>';
             }
             ?>
         </ul>
@@ -372,7 +375,7 @@ print AVideoPlugin::updateUserFormJS();
         );
     });
     function startUserGrid(selector, queryString) {
-        if($(selector).hasClass('.bootgrid-table')){
+        if ($(selector).hasClass('.bootgrid-table')) {
             return false;
         }
         var grid = $(selector).bootgrid({

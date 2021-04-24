@@ -80,7 +80,6 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->useVideoIDOnSEOLinks = true;
         $obj->disableAnimatedGif = false;
         $obj->removeBrowserChannelLinkFromMenu = false;
-        $obj->EnableWavesurfer = false;
         $obj->EnableMinifyJS = false;
         $obj->disableShareAndPlaylist = false;
         $obj->disableShareOnly = false;
@@ -121,6 +120,7 @@ class CustomizeAdvanced extends PluginAbstract {
             }
         }
 
+        $obj->disablePlayLink = false;
         $obj->disableHelpLeftMenu = false;
         $obj->disableAboutLeftMenu = false;
         $obj->disableContactLeftMenu = false;
@@ -134,6 +134,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->thumbsHeightPortrait = 250;
         $obj->thumbsWidthLandscape = 640;
         $obj->thumbsHeightLandscape = 360;
+        $obj->usePreloadLowResolutionImages = false;
         $obj->showImageDownloadOption = false;
         $obj->doNotDisplayViews = false;
         $obj->doNotDisplayLikes = false;
@@ -173,6 +174,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $o->value = "";
         $obj->videoNotFoundText = $o;
         $obj->siteMapRowsLimit = 100;
+        $obj->siteMapUTF8Fix = false;
         $obj->showPrivateVideosOnSitemap = false;
         $obj->enableOldPassHashCheck = true;
         $obj->disableHTMLDescription = false;
@@ -190,6 +192,11 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->twitter_summary_large_image = false;
         $obj->footerStyle = "position: fixed;bottom: 0;width: 100%;";
         $obj->disableVideoTags = false;
+        $obj->doNotAllowEncoderOverwriteStatus = false;
+        $obj->doNotAllowUpdateVideoId = false;
+        $obj->makeVideosIDHarderToGuess = false;
+        self::addDataObjectHelper('makeVideosIDHarderToGuess', 'Make the videos ID harder to guess', 'This will change the videos_id on the URL to a crypted value. this crypt user your $global[salt] (configuration.php), so make sure you keep it save in case you need to restore your site, otherwise all the shared links will be lost');
+        
         
         
         $o = new stdClass();
@@ -205,7 +212,7 @@ class CustomizeAdvanced extends PluginAbstract {
 
     public function getHelp() {
         if (User::isAdmin()) {
-            return "<h2 id='CustomizeAdvanced help'>CustomizeAdvanced (admin)</h2><p>" . $this->getDescription() . "</p><table class='table'><tbody><tr><td>EnableWavesurfer</td><td>Enables the visualisation for audio. This will always download full audio first, so with big audio-files, you might better disable it.</td></tr><tr><td>commentsMaxLength</td><td>Maximum lenght for comments in videos</td></tr><tr><td>disableYoutubePlayerIntegration</td> <td>Disables the integrating of youtube-videos and just embed them.</td></tr><tr><td>EnableMinifyJS</td><td>Minify your JS. Clear videos/cache after changing this option.</td></tr></tbody></table>";
+            return "<h2 id='CustomizeAdvanced help'>CustomizeAdvanced (admin)</h2><p>" . $this->getDescription() . "</p>";
         }
         return "";
     }
@@ -223,15 +230,16 @@ class CustomizeAdvanced extends PluginAbstract {
             }
         }
     }
+    
+    public function getEmbed($videos_id) {
+        return $this->getModeYouTube($videos_id);
+    }
 
     public function getFooterCode() {
         global $global;
 
         $obj = $this->getDataObject();
         $content = '';
-        if ($obj->disableNavBarInsideIframe) {
-            $content .= '<script>$(function () {if(inIframe()){$("#mainNavBar").fadeOut();}});</script>';
-        }
         if ($obj->autoHideNavbar && !isEmbed()) {
             $content .= '<script>$(function () {setTimeout(function(){$("#mainNavBar").autoHidingNavbar();},5000);});</script>';
             $content .= '<script>'. file_get_contents($global['systemRootPath'] . 'plugin/CustomizeAdvanced/autoHideNavbar.js').'</script>';

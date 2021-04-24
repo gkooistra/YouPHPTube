@@ -16,8 +16,8 @@ if(empty($_REQUEST['url'])){
 if(!isSameDomain($global['webSiteRootURL'], $_REQUEST['url'])){
     forbiddenPage("It is not from the same domain");
 }
-$url = parse_url($_REQUEST['url']);
-parse_str($url["query"], $vars);
+
+$vars["v"] = getVideoIDFromURL($_REQUEST['url']);
 
 if(empty($vars["v"])){
     forbiddenPage("Video variable not found");
@@ -47,7 +47,7 @@ if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($
     $imgw = $data[0];
     $imgh = $data[1];
 } else if ($video['type'] == "audio") {
-    $img = "{$global['webSiteRootURL']}view/img/audio_wave.jpg";
+    $img = "".getCDN()."view/img/audio_wave.jpg";
 }
 $type = 'video';
 if ($video['type'] === 'pdf') {
