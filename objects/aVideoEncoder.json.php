@@ -8,8 +8,6 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'objects/user.php';
-require_once $global['systemRootPath'] . 'objects/video.php';
 
 if (empty($_POST)) {
     $obj->msg = __("Your POST data is empty, maybe your video file is too big for the host");
@@ -21,9 +19,10 @@ if (empty($_POST['format']) || !in_array($_POST['format'], $global['allowedExten
     _error_log("aVideoEncoder.json: Extension not allowed File " . __FILE__ . ": " . json_encode($_POST));
     die();
 }
-// pass admin user and pass
-$user = new User("", @$_POST['user'], @$_POST['password']);
-$user->login(false, true);
+if(!isset($_REQUEST['encodedPass'])){
+    $_REQUEST['encodedPass'] = 1;
+}
+useVideoHashOrLogin();
 if (!User::canUpload()) {
     _error_log("aVideoEncoder.json: Permission denied to receive a file: " . json_encode($_POST));
     $obj->msg = __("Permission denied to receive a file: ") . json_encode($_POST);
@@ -69,29 +68,8 @@ if(!empty($_REQUEST['duration'])){
     }
 }
 
-$status = $video->getStatus();
-// if encoder requested a status
-if (!empty($_POST['overrideStatus'])) {
-    $video->setStatus($_POST['overrideStatus']);
-} else { // encoder did not provide a status
-    // if status is not unlisted
-    if ($status !== 'u' && $status !== 'a') {
-        if (empty($advancedCustom->makeVideosInactiveAfterEncode)) {
-            // set active or active+encoding
-            if (!empty($_POST['keepEncoding'])) {
-                $video->setStatus('k');
-            } else {
-                $video->setStatus('a');
-            }
+$status = $video->setAutoStatus();
 
-        } elseif (empty($advancedCustom->makeVideosUnlistedAfterEncode)) {
-            // set active
-            $video->setStatus('u');
-        } else {
-            $video->setStatus('i');
-        }
-    }
-}
 $video->setVideoDownloadedLink($_POST['videoDownloadedLink']);
 _error_log("aVideoEncoder.json: Encoder receiving post " . json_encode($_POST));
 //_error_log(print_r($_POST, true));
@@ -105,12 +83,13 @@ if (preg_match("/(mp3|wav|ogg)$/i", $_POST['format'])) {
 
 $videoFileName = $video->getFilename();
 if (empty($videoFileName)) {
-    $mainName = preg_replace("/[^A-Za-z0-9]/", "", cleanString($title));
-    $videoFileName = uniqid($mainName . "_YPTuniqid_", true);
-    $video->setFilename($videoFileName);
+    $paths = Video::getNewVideoFilename();
+    $filename = $paths['filename'];
+    $videoFileName = $video->setFilename($videoFileName);
 }
 
-$destination_local = Video::getStoragePath()."{$videoFileName}";
+$paths = Video::getPaths($videoFileName, true);
+$destination_local = "{$paths['path']}{$videoFileName}";
 
 if (!empty($_FILES)) {
     _error_log("aVideoEncoder.json: Files " . json_encode($_FILES));
@@ -159,7 +138,7 @@ if (!empty($_FILES['video']['tmp_name'])) {
     decideMoveUploadedToVideos($_FILES['video']['tmp_name'], $filename);
 } else {
     // set encoding
-    $video->setStatus('e');
+    $video->setStatus(Video::$statusEncoding);
 }
 if (!empty($_FILES['image']['tmp_name']) && !file_exists("{$destination_local}.jpg")) {
     if (!move_uploaded_file($_FILES['image']['tmp_name'], "{$destination_local}.jpg")) {
@@ -197,6 +176,10 @@ if (!empty($_POST['usergroups_id'])) {
 
 $obj->error = false;
 $obj->video_id = $video_id;
+
+$v = new Video('', '', $video_id);
+$obj->video_id_hash = $v->getVideoIdHash();
+
 _error_log("aVideoEncoder.json: Files Received for video {$video_id}: " . $video->getTitle());
 die(json_encode($obj));
 

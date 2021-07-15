@@ -74,7 +74,7 @@ class Subscribe {
     static function getSubscribe($id) {
         global $global;
         $id = intval($id);
-        $sql = "SELECT * FROM subscribes WHERE  id = $id LIMIT 1";
+        $sql = "SELECT * FROM subscribes WHERE  id = ? LIMIT 1";
         $res = sqlDAL::readSql($sql, "i", array($id));
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
@@ -113,7 +113,7 @@ class Subscribe {
             $sql .= " AND status = '{$status}' ";
         }
         $sql .= " LIMIT 1";
-        $res = sqlDAL::readSql($sql);
+        $res = sqlDAL::readSql($sql, "", array(), true);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res != false) {
@@ -206,11 +206,22 @@ class Subscribe {
      * @param type $user_id
      * @return boolean
      */
-    static function getSubscribedChannels($user_id) {
+    static function getSubscribedChannels($user_id, $limit=0, $page=0) {
         global $global;
+        $limit = intval($limit);
+        $page = intval($page)-1;
+        if($page<0){
+            $page=0;
+        }
+        $offset = $limit*$page;
+        $sql = "SELECT s.*, (SELECT MAX(v.created) FROM videos v WHERE v.users_id = s.users_id) as newestvideo "
+                . " FROM subscribes as s WHERE status = 'a' AND subscriber_users_id = ? "
+                . " ORDER BY newestvideo DESC ";
 
-        $sql = "SELECT s.* FROM subscribes as s WHERE status = 'a' AND subscriber_users_id = ? ";
-
+        if(!empty($limit)){
+            $sql .= " LIMIT {$offset},{$limit} ";
+        }
+        //var_dump($sql, $user_id);exit;
         $res = sqlDAL::readSql($sql, "i", array($user_id));
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
@@ -277,7 +288,7 @@ class Subscribe {
         global $global;
         $sql = "SELECT id FROM subscribes WHERE status = 'a' AND subscriber_users_id = ? ";
 
-        $sql .= BootGrid::getSqlSearchFromPost(array('email'));
+        //$sql .= BootGrid::getSqlSearchFromPost(array('email'));
         $res = sqlDAL::readSql($sql, "i", array($user_id));
         $numRows = sqlDAL::num_rows($res);
         sqlDAL::close($res);
@@ -363,7 +374,7 @@ class Subscribe {
                                    title="' . __("Stop getting notified for every new video") . '">
                                 <i class="fa fa-bell" ></i>
                             </button></span><span class=" notNotify' . $user_id . ' ' . $notNotify . '"><button onclick="toogleNotify' . $user_id . '();" class="btn btn-default btn-xs "  data-toggle="tooltip"
-                                   title="' . __("Get notified for every new video") . '">
+                                   title="' . __("Click to get notified for every new video") . '">
                                 <i class="fa fa-bell-slash"></i>
                             </button></span>';
             $script = "<script>
@@ -391,5 +402,15 @@ class Subscribe {
     function setSubscriber_users_id($subscriber_users_id) {
         $this->subscriber_users_id = $subscriber_users_id;
     }
+    
+    function getUsers_id() {
+        return $this->users_id;
+    }
+
+    function setUsers_id($users_id) {
+        $this->users_id = $users_id;
+    }
+
+
 
 }

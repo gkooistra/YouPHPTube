@@ -66,6 +66,7 @@ $jsFiles[] = "view/js/webui-popover/jquery.webui-popover.min.js";
 $jsFiles[] = "view/js/bootstrap-list-filter/bootstrap-list-filter.min.js";
 $jsFiles[] = "view/js/js-cookie/js.cookie.js";
 $jsFiles[] = "view/js/jquery-toast/jquery.toast.min.js";
+$jsFiles[] = "view/bootstrap/jquery-bootstrap-scrolling-tabs/jquery.scrolling-tabs.min.js";
 $jsFiles = array_merge($jsFiles, AVideoPlugin::getJSFiles());
 $jsURL = combineFiles($jsFiles, "js");
 ?>
@@ -84,6 +85,11 @@ if (isset($_SESSION['savedQuerys'])) {
 if (!empty($advancedCustom->footerHTMLCode->value)) {
     echo $advancedCustom->footerHTMLCode->value;
 }
+
+if(isFirstPage()){
+    echo '<script src="'.(getCDN().'view/js/a2hs.js?'.filectime("{$global['systemRootPath']}view/js/a2hs.js")).'" type="text/javascript"></script>';
+}
+
 ?>
 <script>
     var checkFooterTimout;

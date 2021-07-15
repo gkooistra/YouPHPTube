@@ -1,9 +1,12 @@
 <?php
 
 //$global['stopBotsList'] = array('bot','spider','rouwler','Nuclei','MegaIndex','NetSystemsResearch','CensysInspect','slurp','crawler','curl','fetch','loader');
-//$global['stopBotsWhiteList'] = array('google','bing','yahoo','yandex');
+//$global['stopBotsWhiteList'] = array('google','bing','yahoo','yandex','twitter');
 if (!empty($global['stopBotsList']) && is_array($global['stopBotsList'])) {
     foreach ($global['stopBotsList'] as $value) {
+        if(empty($_SERVER['HTTP_USER_AGENT'])){
+            continue;
+        }
         if (stripos($_SERVER['HTTP_USER_AGENT'], $value) !== false) {
             if (!empty($global['stopBotsWhiteList']) && is_array($global['stopBotsWhiteList'])) {
                 // check if it is whitelisted
@@ -38,7 +41,7 @@ global $global, $config, $advancedCustom, $advancedCustomUser;
 $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
 
 if ($global['mysqli'] === false || !empty($global['mysqli']->connect_errno)) {
-    _error_log("MySQL connect_errno[{$global['mysqli']->connect_errno}] {$global['mysqli']->connect_error}", AVideoLog::$ERROR);
+    error_log("MySQL connect_errno[{$global['mysqli']->connect_errno}] {$global['mysqli']->connect_error}");
     include $global['systemRootPath'] . 'view/include/offlinePage.php';
     exit;
 }

@@ -1,5 +1,4 @@
 <?php
-
 global $t;
 
 $t['%d Users linked'] = "%d Användare länkade";
@@ -144,7 +143,7 @@ $t['Email can not be blank'] = "E-post kan inte vara tomt";
 $t['Embed Stream'] = "Bädda in ström";
 $t['Embed a video link'] = "Bädda in en videolänk";
 $t['Embed'] = "Bädda in";
-$t['Embeded'] = "Bädda in";
+$t['Embedded'] = "Bädda in";
 $t['Enable SMTP Auth'] = "Aktivera SMTP Auth";
 $t['Enable SMTP'] = "Aktivera SMTP";
 $t['Enable WebCam Stream'] = "Aktivera WebCam Stream";
@@ -217,8 +216,8 @@ $t['Message could not be sent'] = "Meddelandet kunde inte skickas";
 $t['Message sent'] = "Meddelande skickat";
 $t['Message'] = "Meddelande";
 $t['Modified'] = "Modifierad";
-$t['Most Popular'] = "Mest populär";
-$t['Most Watched'] = "Mest sett";
+$t['Most Popular'] = "Mest Populär";
+$t['Most Watched'] = "Mest Sett";
 $t['Most popular'] = "Mest populär";
 $t['Most watched'] = "Mest sett";
 $t['My Account'] = "Mitt konto";

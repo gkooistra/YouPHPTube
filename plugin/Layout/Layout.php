@@ -41,7 +41,11 @@ class Layout extends PluginAbstract {
           $obj->showCustomCSS = true;
          * 
          */
-        $obj->showButtonNotification = false;
+        //$obj->showButtonNotification = false;
+        $obj->categoriesTopButtons = false;
+        $obj->categoriesTopButtonsShowOnlyOnFirstPage = true;
+        $obj->categoriesTopButtonsShowVideosCount = false;
+        $obj->categoriesTopButtonsFluid = true;
 
         $o = new stdClass();
         $o->type = array(0 => '-- ' . __("Random")) + self::getLoadersArray();
@@ -452,6 +456,17 @@ class Layout extends PluginAbstract {
             return false;
         }
         include $global['systemRootPath'] . 'plugin/Layout/menuRight.php';
+    }
+    
+    public function navBarAfter() {
+        global $global;
+        $obj = $this->getDataObject();
+        if(!empty($obj->categoriesTopButtons)){
+            if(!empty($obj->categoriesTopButtonsShowOnlyOnFirstPage) && !isFirstPage()){
+                return '';
+            }
+            include $global['systemRootPath'] . 'plugin/Layout/categoriesTopButtons.php';
+        }
     }
 
 }

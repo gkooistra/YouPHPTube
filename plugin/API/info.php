@@ -52,7 +52,7 @@ $reflector = new ReflectionClass('API');
             return strcasecmp($matchesA[2], $matchesB[2]);
         });
         ?>
-        <div class="container">
+        <div class="container-fluid">
             <ul class="list-group">                    
                 <li class="list-group-item">
                     <details>
@@ -73,7 +73,7 @@ $reflector = new ReflectionClass('API');
                             ?>
                         </pre>
 
-                        You can get notified for the new video uploads with the Webhook in the Notification plugin, Check <a href="https://github.com/WWBN/AVideo/wiki/Notifications-Plugin#webhooks" target="_blank" rel="noopener noreferrer">here</a> for more details
+                        You can Click to get notified for the new video uploads with the Webhook in the Notification plugin, Check <a href="https://github.com/WWBN/AVideo/wiki/Notifications-Plugin#webhooks" target="_blank" rel="noopener noreferrer">here</a> for more details
 
                     </details> 
                 </li>

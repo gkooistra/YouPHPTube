@@ -305,7 +305,6 @@ class PlayList extends ObjectYPT {
         $close = false;
         _session_start();
         unset($_SESSION['user']['sessionCache']['getAllFromUserVideo'][$videos_id]);
-        unset($_SESSION['user']['sessionCache']['getAllFromUserVideo'][$videos_id]);
     }
 
     public static function getVideosIDFromPlaylistLight($playlists_id) {
@@ -395,6 +394,9 @@ class PlayList extends ObjectYPT {
                         foreach ($row['subtitles'] as $value) {
                             $row['subtitlesSRT'][] = convertSRTTrack($value);
                         }
+                    }
+                    if(empty($row['externalOptions'])){
+                        $row['externalOptions'] = json_encode(array('videoStartSeconds'=>'00:00:00'));
                     }
                     $rows[] = $row;
                 }

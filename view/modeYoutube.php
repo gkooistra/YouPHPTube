@@ -95,7 +95,7 @@ if (!empty($evideo)) {
                 $isPlayListTrailer = true;
             }
         }
-        if (empty($playlist_index) && $isPlayListTrailer) {
+        if (empty($playlist_index) && $isPlayListTrailer && !empty($videoSerie)) {
             $video = $videoSerie;
         } else {
             $vid = new Video("", "", $videosPlayList[$playlist_index]['id']);
@@ -172,34 +172,6 @@ if (!empty($evideo)) {
         } else {
             $modeYouTubeTimeLog['Code part 1.3'] = microtime(true) - $modeYouTubeTime;
             $modeYouTubeTime = microtime(true);
-            /*
-              if ($video['category_order'] == 1) {
-              $modeYouTubeTimeLog['Code part 1.4'] = microtime(true)-$modeYouTubeTime;
-              $modeYouTubeTime = microtime(true);
-              unset($_POST['sort']);
-              $category = Category::getAllCategories();
-              $_POST['sort']['title'] = "ASC";
-
-              $modeYouTubeTimeLog['Code part 1.4.1'] = microtime(true)-$modeYouTubeTime;
-              $modeYouTubeTime = microtime(true);
-              // maybe there's a more slim method?
-              $videos = Video::getAllVideos();
-              $videoFound = false;
-              $autoPlayVideo;
-              foreach ($videos as $value) {
-              if ($videoFound) {
-              $autoPlayVideo = $value;
-              break;
-              }
-
-              if ($value['id'] == $video['id']) {
-              // if the video is found, make another round to have the next video properly.
-              $videoFound = true;
-              }
-              }
-              } else {
-             * 
-             */
             $modeYouTubeTimeLog['Code part 1.5'] = microtime(true) - $modeYouTubeTime;
             $modeYouTubeTime = microtime(true);
             if (!empty($video['id'])) {
@@ -228,7 +200,7 @@ if (!empty($evideo)) {
         $video['creator'] = '<div class="pull-left"><img src="' . User::getPhoto($video['users_id']) . '" alt="User Photo" class="img img-responsive img-circle zoom" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br />' . $subscribe . '<br /><small>' . humanTiming(strtotime($video['videoCreation'])) . '</small></div></div>';
         $obj = new Video("", "", $video['id']);
 
-// dont need because have one embeded video on this page
+// Don't need because have an embedded video on this page
 // $resp = $obj->addView();
     }
 
@@ -298,16 +270,12 @@ if (!empty($evideo)) {
         AVideoPlugin::getModeYouTube($v['id']);
         $modeYouTubeTimeLog['Code part 5'] = microtime(true) - $modeYouTubeTime;
         $modeYouTubeTime = microtime(true);
-        if (empty($video)) {
-            header('HTTP/1.0 404 Not Found', true, 404);
-        }
-        $modeYouTubeTimeLog['Code part 6'] = microtime(true) - $modeYouTubeTime;
-        $modeYouTubeTime = microtime(true);
     }
 }
 
 // video not found
 if (empty($video)) {
+    /*
     $img = "".getCDN()."view/img/this-video-is-not-available.jpg";
     $poster = "".getCDN()."view/img/this-video-is-not-available.jpg";
     $imgw = 1280;
@@ -331,6 +299,9 @@ if (empty($video)) {
     $video['filename'] = "";
 
     header('HTTP/1.0 404 Not Found', true, 404);
+     * 
+     */
+    videoNotFound('The video is not available');
 }
 $metaDescription = " {$video['id']}";
 
@@ -437,11 +408,7 @@ if (!empty($video['users_id']) && User::hasBlockedUser($video['users_id'])) {
         ?>
         <?php
         echo AVideoPlugin::afterVideoJS();
-        if ($advancedCustom != false) {
-            $disableYoutubeIntegration = $advancedCustom->disableYoutubePlayerIntegration;
-        } else {
-            $disableYoutubeIntegration = false;
-        }
+        $disableYoutubeIntegration = @$advancedCustom->disableYoutubePlayerIntegration || isMobile();
 
         if ((isset($_GET['isEmbedded'])) && ($disableYoutubeIntegration == false)) {
             if ($_GET['isEmbedded'] == "y") {

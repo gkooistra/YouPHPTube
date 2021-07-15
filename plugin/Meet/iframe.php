@@ -33,6 +33,9 @@ if (Meet::isModerator($meet_schedule_id)) {
 
 $domain = Meet::getDomainURL();
 
+// for tests
+//$domain = str_replace('ca2.ypt.me', 'ca1.ypt.me', $domain);
+
 $nameIdentification = '';
 if(User::isLogged()){
     $nameIdentification = User::getNameIdentification();
@@ -48,6 +51,8 @@ if(User::isLogged()){
         <link rel="shortcut icon" href="<?php echo $config->getFavicon(); ?>" sizes="16x16,24x24,32x32,48x48,144x144">
         <meta name="msapplication-TileImage" content="<?php echo $config->getFavicon(true); ?>">
         <script src="<?php echo getCDN(); ?>view/js/jquery-3.5.1.min.js"></script>
+        <script src="<?php echo getCDN(); ?>view/js/js-cookie/js.cookie.js" type="text/javascript"></script>
+        <script src="<?php echo getCDN(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
         <script src="<?php echo getCDN(); ?>view/js/script.js"></script>
         <script>
             var getRTMPLink = '<?php echo Live::getRTMPLink($meet->getUsers_id()); ?>';

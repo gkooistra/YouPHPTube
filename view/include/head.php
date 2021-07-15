@@ -6,7 +6,9 @@ $extraPluginFile = $global['systemRootPath'] . 'plugin/Customize/Objects/ExtraCo
 if(empty($advancedCustom)){
     $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
 }
-
+if(is_object($video)){
+    $video = Video::getVideoLight($video->getId());
+}
 $custom = array();
 
 if (file_exists($extraPluginFile) && AVideoPlugin::isEnabled("c4fe1b83-8f5a-4d1b-b912-172c608bf9e3")) {
@@ -19,7 +21,9 @@ if (!empty($poster)) {
     $subTitle = str_replace(array('"', "\n", "\r"), array("", "", ""), strip_tags($video['description']));
     $custom = array();
     $custom[] = $subTitle;
-    $custom[] = $video["category"];
+    if(!empty($video["category"])){
+        $custom[] = $video["category"];
+    }
 }
 
 if (!empty($_GET['catName'])) {
@@ -56,7 +60,7 @@ if(empty($config)){
 <meta name="description" content="<?php echo $metaDescription; ?>">
 <meta name="device_id" content="<?php echo getDeviceID(); ?>">
 <meta name="keywords" content="<?php echo str_replace('"', "", strip_tags($advancedCustom->keywords)); ?>">
-
+<link rel="manifest" href="<?php echo $global['webSiteRootURL']; ?>manifest.json">
 <link rel="apple-touch-icon" sizes="180x180" href="<?php echo $config->getFavicon(true); ?>">
 <link rel="icon" type="image/png" href="<?php echo $config->getFavicon(true); ?>">
 <link rel="shortcut icon" href="<?php echo $config->getFavicon(); ?>" sizes="16x16,24x24,32x32,48x48,144x144">
@@ -81,6 +85,7 @@ $cssFiles = array();
 $cssFiles[] = "view/bootstrap/bootstrapSelectPicker/css/bootstrap-select.min.css";
 $cssFiles[] = "view/js/bootgrid/jquery.bootgrid.css";
 $cssFiles[] = "view/js/jquery-toast/jquery.toast.min.css";
+$cssFiles[] = "view/bootstrap/jquery-bootstrap-scrolling-tabs/jquery.scrolling-tabs.min.css";
 //$cssFiles[] = "view/css/custom/{$theme}.css";
 $cssFiles = array_merge($cssFiles);
 $cssURL = combineFiles($cssFiles, "css");
@@ -141,6 +146,11 @@ if (isRTL()) {
 <script>
     var webSiteRootURL = '<?php echo $global['webSiteRootURL']; ?>';
     var player;
+    var _serverTime = "<?php echo time(); ?>";
+    var _serverDBTime = "<?php echo getDatabaseTime(); ?>";
+    var _serverTimeString = "<?php echo date('Y-m-d H:i:s'); ?>";
+    var _serverDBTimeString = "<?php echo date('Y-m-d H:i:s', getDatabaseTime()); ?>";
+    var _serverTimezone = "<?php echo date_default_timezone_get(); ?>";
 </script>
 <?php
 if (!$config->getDisable_analytics()) {

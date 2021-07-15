@@ -5,10 +5,12 @@ $obj = AVideoPlugin::getDataObject("Live");
     .liveVideo{
         position: relative;
     }
-    .liveVideo .liveNow{
+    .liveVideo .liveNow, .liveVideo .liveFuture{
         position: absolute;
         bottom: 5px;
         right: 5px;
+    }
+    .liveVideo .liveNow{
         background-color: rgba(255,0,0,0.7);
     }
     #availableLiveStream{
@@ -26,7 +28,7 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
     ?>
     <li>
         <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live"  class="btn btn-danger navbar-btn" data-toggle="tooltip" title="<?php echo __("Broadcast a Live Stream"); ?>" data-placement="bottom" >
-            <span class="fa fa-circle"></span>  <span class="hidden-md hidden-sm hidden-mdx"><?php echo $buttonTitle; ?></span>
+            <span class="fa fa-circle"></span>  <span class="hidden-md hidden-sm hidden-mdx"><?php echo __($buttonTitle); ?></span>
         </a>
     </li>
     <?php
@@ -170,7 +172,7 @@ if (empty($obj->doNotShowGoLiveButton) && User::canStream()) {
 
             $liveLi.find('.thumbsJPG').attr("src", getImageURL + "&format=jpg" + ('&' + Math.random()));
             if (!disableGif) {
-                $liveLi.find('.thumbsGIF').attr("src", getImageURL + "&format=gif" + ('&' + Math.random()));
+                $liveLi.find('.thumbsGIF').attr("src", getImageURL + "&format=webp" + ('&' + Math.random()));
             } else {
                 $liveLi.find('.thumbsGIF').remove();
             }
@@ -256,7 +258,7 @@ if (!empty($obj->playLiveInFullScreenOnIframe)) {
             if (response.applications.length) {
                 disableGif = response.disableGif;
                 for (i = 0; i < response.applications.length; i++) {
-                    console.log('processApplicationLive', response.applications[i]);
+                    //console.log('processApplicationLive', response.applications[i]);
                     var live_index = 0;
                     if (typeof response.applications[i].live_index !== 'undefined') {
                         live_index = response.applications[i].live_index;
@@ -348,6 +350,9 @@ if (isVideo()) {
                 }
             }
             $('#liveVideos').slideDown();
+            if (callback) {
+                eval("try {$liveLi = " + callback + ";} catch (e) {console.log('processApplication application.callback error',e.message);}");
+            }
         } else {
 
             createLiveItem(href, title, name, photo, false, online, views, key, isPrivate, callback);

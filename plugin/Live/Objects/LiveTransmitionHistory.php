@@ -141,7 +141,7 @@ class LiveTransmitionHistory extends ObjectYPT {
         $obj->name = $u->getNameIdentificationBd();
         $obj->playlists_id_live = $playlists_id_live;
         $obj->poster = $p->getLivePosterImage($users_id, $live_servers_id, $playlists_id_live, $lth->getLive_index());
-        $obj->imgGif = $p->getLivePosterImage($users_id, $live_servers_id, $playlists_id_live, $lth->getLive_index(), 'gif');
+        $obj->imgGif = $p->getLivePosterImage($users_id, $live_servers_id, $playlists_id_live, $lth->getLive_index(), 'webp');
         $obj->title = $title;
         $obj->user = $u->getUser();
         $obj->categories_id = intval($lt['categories_id']);
@@ -319,6 +319,30 @@ class LiveTransmitionHistory extends ObjectYPT {
         $rows = self::getLastsLiveHistoriesFromUser($users_id, 1);
         return @$rows[0];
     }
+
+    static function getLatestFromKey($key) {
+        global $global;
+        $parts = Live::getLiveParametersFromKey($key);
+        $key = $parts['cleanKey'];
+        
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE `key` LIKE '{$key}%'  ";
+        
+        $sql .= " ORDER BY created DESC LIMIT 1";
+        $res = sqlDAL::readSql($sql);
+        $data = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        if ($res) {
+            $row = $data;
+        } else {
+            $row = false;
+        }
+        return $row;
+    }
+    
+    static function getLatestIndexFromKey($key) {
+        $row = self::getLatestFromKey($key);
+        return Live::getLiveIndexFromKey(@$row['key']);
+    }
     
     static function getLastsLiveHistoriesFromUser($users_id, $count=10) {
         global $global;
@@ -382,8 +406,6 @@ class LiveTransmitionHistory extends ObjectYPT {
         if (empty($this->live_servers_id)) {
             $this->live_servers_id = 'NULL';
         }
-
-        AVideoPlugin::onLiveStream($this->users_id, $this->live_servers_id);
 
         return parent::save();
     }

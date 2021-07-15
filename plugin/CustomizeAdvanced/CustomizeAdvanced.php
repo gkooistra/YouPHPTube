@@ -69,6 +69,8 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotShowEncoderAutomaticMP4 = false;
         $obj->doNotShowEncoderAutomaticWebm = false;
         $obj->doNotShowEncoderAutomaticAudio = false;
+        $obj->saveOriginalVideoResolution = false;
+        self::addDataObjectHelper('saveOriginalVideoResolution', 'Do not save original video', 'This option will make your encoder at the end trancode the video into the original format resolution');
         $obj->doNotShowExtractAudio = false;
         $obj->doNotShowCreateVideoSpectrum = false;
         $obj->doNotShowLeftMenuAudioAndVideoButtons = false;
@@ -207,6 +209,57 @@ class CustomizeAdvanced extends PluginAbstract {
         
         $obj->keywords = "AVideo, videos, live, movies";
         
+        
+        $o = new stdClass();
+        $o->type = "textarea";
+        $o->value = "Allow: /plugin/Live/?*
+Allow: /plugin/PlayLists/*.css
+Allow: /plugin/PlayLists/*.js
+Allow: /plugin/TopMenu/*.css
+Allow: /plugin/TopMenu/*.js
+Allow: /plugin/SubtitleSwitcher/*.css
+Allow: /plugin/SubtitleSwitcher/*.js
+Allow: /plugin/Gallery/*.css
+Allow: /plugin/Gallery/*.js
+Allow: /plugin/YouPHPFlix2/*.png
+Allow: /plugin/Live/*.css
+Allow: /plugin/Live/*.js
+Allow: /plugin/*.css
+Allow: /plugin/*.js
+Allow: .js
+Allow: .css
+Disallow: /user
+Disallow: /plugin
+Disallow: /mvideos
+Disallow: /usersGroups
+Disallow: /charts
+Disallow: /upload
+Disallow: /comments
+Disallow: /subscribes
+Disallow: /update
+Disallow: /locale
+Disallow: /objects/*
+Allow: /plugin/Live/?*
+Allow: /plugin/LiveLink/?*
+Allow: /plugin/PlayLists/*.css
+Allow: /plugin/PlayLists/*.js
+Allow: /plugin/TopMenu/*.css
+Allow: /plugin/TopMenu/*.js
+Allow: /plugin/SubtitleSwitcher/*.css
+Allow: /plugin/SubtitleSwitcher/*.js
+Allow: /plugin/Gallery/*.css
+Allow: /plugin/Gallery/*.js
+Allow: /plugin/YouPHPFlix2/*.png
+Allow: /plugin/Live/*.css
+Allow: /plugin/Live/*.js
+Allow: /plugin/*.css
+Allow: /plugin/*.js
+Allow: .js
+Allow: .css";
+        $obj->robotsTXT = $o;
+        self::addDataObjectHelper('robotsTXT', 'robots.txt file content', 'robots.txt is a plain text file that follows the Robots Exclusion Standard. A robots.txt file consists of one or more rules. Each rule blocks (or allows) access for a given crawler to a specified file path in that website.');
+        
+        
         return $obj;
     }
 
@@ -294,7 +347,18 @@ class CustomizeAdvanced extends PluginAbstract {
     public function getHeadCode() {
         global $global;
         $obj = $this->getDataObject();
+        
+        if($obj->makeVideosIDHarderToGuess){
+            if(isVideo()){
+                if(!empty($global['makeVideosIDHarderToGuessNotDecrypted'])){
+                    unset($global['makeVideosIDHarderToGuessNotDecrypted']);
+                    forbiddenPage(__('Invalid ID'));
+                }
+            }
+        }
+        
         $baseName = basename($_SERVER['REQUEST_URI']);
+        
         $js = "";
         if(empty($obj->autoPlayAjax)){
             $js .= "<script>var autoPlayAjax=false;</script>";
@@ -349,6 +413,11 @@ class CustomizeAdvanced extends PluginAbstract {
                                     });}</script>";
         }
         return $js;
+    }
+    
+    public function afterNewVideo($videos_id) {
+        Video::updateFilesize($videos_id);
+        return true;
     }
 
 }

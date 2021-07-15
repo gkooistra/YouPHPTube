@@ -44,27 +44,20 @@
             ?>
             <video poster="<?php echo $global['webSiteRootURL']; ?><?php echo $poster; ?>?<?php echo filectime($global['systemRootPath'] . $poster); ?>" controls 
                    class="embed-responsive-item video-js vjs-default-skin <?php echo $vjsClass; ?> vjs-big-play-centered" 
-                   id="mainVideo" >
-                <source src="<?php echo $liveStreamObject->getM3U8(); ?>" type='application/x-mpegURL'>
+                   id="mainVideo" ><!-- indexCol1 -->
+                <source src="<?php 
+                $liveStreamObject2 = new LiveStreamObject($trasnmition['key'], Live::getLiveServersIdRequest(), @$_REQUEST['live_index'], 0);
+                $m3u8URL = $liveStreamObject2->getOnlineM3U8(User::getId());
+                echo $m3u8URL; 
+                ?>" type='application/x-mpegURL'>
             </video>
         </div>
     </div>
-    <div class="panel-footer" style="display: none;" id="liveControls">
+    <div class="panel-footer clearfix" id="liveFooterPanel">
         <?php
-        echo Live::getAllControlls($trasnmition['id']);
+        echo Live::getAllControlls($liveStreamObject2->getKeyWithIndex(true, true));
         ?>
     </div>
-    <script>
-        $(document).ready(function () {
-            setInterval(function () {
-                if (isOnlineLabel) {
-                    $("#liveControls").slideDown();
-                } else {
-                    $("#liveControls").slideUp();
-                }
-            }, 1000);
-        });
-    </script>
 </div>
 <?php
 include $global['systemRootPath'] . 'plugin/Live/tabs/tabStreamSettings.php';

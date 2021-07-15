@@ -16,7 +16,7 @@ class Tags extends ObjectYPT {
     static function getTableName() {
         return 'tags';
     }
-
+    
     function loadFromName($name, $tags_types_id) {
         $row = self::getFromName($name, $tags_types_id);
         if (empty($row))
@@ -31,7 +31,7 @@ class Tags extends ObjectYPT {
         global $global;
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  name = ? AND tags_types_id = ? LIMIT 1";
         // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/AVideo/about
-        $res = sqlDAL::readSql($sql,"si",array($name, $tags_types_id));
+        $res = sqlDAL::readSql($sql,"si",array($name, $tags_types_id)); 
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {
@@ -56,8 +56,8 @@ class Tags extends ObjectYPT {
     function setName($name) {
         $name = trim(preg_replace("/[^[:alnum:][:space:]_-]/u", '', $name));
         $this->name = $name;
-    }
-
+    }  
+    
     function getTags_types_id() {
         return $this->tags_types_id;
     }
@@ -65,7 +65,7 @@ class Tags extends ObjectYPT {
     function setTags_types_id($tags_types_id) {
         $this->tags_types_id = $tags_types_id;
     }
-
+    
     public function _addVideo($videos_id) {
         if(empty($this->id) || empty($videos_id)){
             return false;
@@ -74,14 +74,14 @@ class Tags extends ObjectYPT {
         $tagHasVideos->setTags_id($this->id);
         $tagHasVideos->setVideos_id($videos_id);
         return $tagHasVideos->save();
-    }
-
+    }  
+    
     static function addVideo($tags_id, $videos_id) {
         $tag = new Tags($tags_id);
         return $tag->_addVideo($videos_id);
     }
-
-    static function getAllFromVideosId($videos_id) {
+    
+    static function getAllFromVideosId($videos_id) {        
         $tags = TagsHasVideos::getAllFromVideosId($videos_id);
         if(!is_array($tags)){
             //_error_log("getAllFromVideosId($videos_id) ".  json_encode($tags));
@@ -93,13 +93,14 @@ class Tags extends ObjectYPT {
             $obj = new stdClass();
             $obj->type_name = $value['type_name'];
             $obj->tag_types_id = $value['tags_types_id'];
+            $obj->tags_id = $value['tags_id'];
             $obj->name = $value['name'];
             $tagsArray[] = $obj;
         }
         return $tagsArray;
     }
-
-    static function getObjectFromVideosId($videos_id) {
+    
+    static function getObjectFromVideosId($videos_id) {        
         $array = self::getAllFromVideosId($videos_id);
         $tagsArray = array();
         foreach ($array as $value) {
@@ -110,7 +111,7 @@ class Tags extends ObjectYPT {
         }
         return empty($tagsArray)?(new stdClass()):$tagsArray;
     }
-
+    
     static function getAllTagsList($tags_types_id) {
         global $global;
         $tags_types_id = intval($tags_types_id);
@@ -119,9 +120,9 @@ class Tags extends ObjectYPT {
             $sql .= " AND tags_types_id = $tags_types_id ";
         }
         $sql .= " ORDER BY name ";
-        $res = sqlDAL::readSql($sql);
+        $res = sqlDAL::readSql($sql); 
         $fullData = sqlDAL::fetchAllAssoc($res);
-
+        
         sqlDAL::close($res);
         $rows = array();
         if ($res!=false) {
@@ -132,7 +133,7 @@ class Tags extends ObjectYPT {
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
-    }
-
-
+    }   
+    
+        
 }

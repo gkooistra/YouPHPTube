@@ -19,6 +19,7 @@ var _serverTime;
 var _serverDBTime;
 var _serverTimeString;
 var _serverDBTimeString;
+let deferredPrompt;
 
 $(document).mousemove(function (e) {
     mouseX = e.pageX;
@@ -139,10 +140,10 @@ function lazyImage() {
 
                     element.addClass('gifNotLoaded');
                     element.removeClass('blur');
-                    
+
                     element.mouseover(function () {
-                        
-                        if($(this).hasClass('gifNotLoaded')){
+
+                        if ($(this).hasClass('gifNotLoaded')) {
                             var element = $(this);
                             element.removeClass('gifNotLoaded');
                             var gif = element.parent().find('.thumbsGIF');
@@ -151,9 +152,9 @@ function lazyImage() {
                             });
                             gif.height(element.height());
                             gif.width(element.width());
-                            console.log('lazyImage', gif);
+                            //console.log('lazyImage', gif);
                         }
-                        
+
                         $("#log").append("<div>Handler for .mouseover() called.</div>");
                     });
 
@@ -334,6 +335,10 @@ function secondsToStr(seconds, level) {
 function validateEmail(email) {
     var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(email);
+}
+
+function isEmailValid(email) {
+    return validateEmail(email);
 }
 
 function subscribe(email, user_id) {
@@ -725,7 +730,9 @@ function playNext(url) {
                     console.log(response);
                     if (!response || response.error) {
                         console.log("playNext ajax fail");
-                        //document.location = url;
+                        if (response.url) {
+                            //document.location = response.url;
+                        }
                     } else {
                         console.log("playNext ajax success");
                         $('topInfo').hide();
@@ -886,21 +893,21 @@ function setCurrentTime(currentTime) {
 }
 
 function isALiveContent() {
-    if (typeof isLive !== 'undefined' && isLive) {
+    if (typeof isLive !== 'undefined' && isLive && (typeof isOnlineLabel === 'undefined' || isOnlineLabel === true)) {
         return true;
     }
     return false;
 }
 
 function isAutoplayEnabled() {
-    console.log("Cookies.get('autoplay')", Cookies.get('autoplay'));
+    //console.log("Cookies.get('autoplay')", Cookies.get('autoplay'));
     if (isALiveContent()) {
-        console.log("isAutoplayEnabled always autoplay live contents");
+        //console.log("isAutoplayEnabled always autoplay live contents");
         return true;
     } else
     if ($("#autoplay").length && $("#autoplay").is(':visible')) {
         autoplay = $("#autoplay").is(":checked");
-        console.log("isAutoplayEnabled #autoplay said " + ((autoplay) ? "Yes" : "No"));
+        //console.log("isAutoplayEnabled #autoplay said " + ((autoplay) ? "Yes" : "No"));
         setAutoplay(autoplay);
         return autoplay;
     } else if (
@@ -908,23 +915,23 @@ function isAutoplayEnabled() {
             typeof Cookies.get('autoplay') !== 'undefined'
             ) {
         if (Cookies.get('autoplay') === 'true' || Cookies.get('autoplay') == true) {
-            console.log("isAutoplayEnabled Cookie said Yes ");
+            //console.log("isAutoplayEnabled Cookie said Yes ");
             setAutoplay(true);
             return true;
         } else {
-            console.log("isAutoplayEnabled Cookie said No ");
+            //console.log("isAutoplayEnabled Cookie said No ");
             setAutoplay(false);
             return false;
         }
     } else {
         if (typeof autoplay !== 'undefined') {
-            console.log("isAutoplayEnabled autoplay said " + ((autoplay) ? "Yes" : "No"));
+            //console.log("isAutoplayEnabled autoplay said " + ((autoplay) ? "Yes" : "No"));
             setAutoplay(autoplay);
             return autoplay;
         }
     }
     setAutoplay(false);
-    console.log("isAutoplayEnabled Default is No ");
+    //console.log("isAutoplayEnabled Default is No ");
     return false;
 }
 
@@ -933,6 +940,38 @@ function setAutoplay(value) {
         path: '/',
         expires: 365
     });
+}
+
+function showAutoPlayVideoDiv() {
+    var auto = $("#autoplay").prop('checked');
+    if (!auto) {
+        $('#autoPlayVideoDiv').slideUp();
+    } else {
+        $('#autoPlayVideoDiv').slideDown();
+    }
+}
+
+function enableAutoPlay() {
+    setAutoplay(true);
+    checkAutoPlay();
+}
+
+function disableAutoPlay() {
+    setAutoplay(false);
+    checkAutoPlay();
+}
+
+function checkAutoPlay() {
+    if (isAutoplayEnabled()) {
+        $("#autoplay").prop('checked', true);
+        $('.autoplay-button').addClass('checked');
+        avideoTooltip(".autoplay-button", "Autoplay is ON");
+    } else {
+        $("#autoplay").prop('checked', false);
+        $('.autoplay-button').removeClass('checked');
+        avideoTooltip(".autoplay-button", "Autoplay is OFF");
+    }
+    showAutoPlayVideoDiv();
 }
 
 function isPlayNextEnabled() {
@@ -1016,7 +1055,7 @@ function avideoModalIframeLarge(url) {
 function avideoModalIframeWithClassName(url, className) {
     var span = document.createElement("span");
     url = addGetParam(url, 'avideoIframe', 1);
-    span.innerHTML = '<iframe src="' + url + '" />';
+    span.innerHTML = '<iframe frameBorder="0" src="' + url + '" />';
     swal({
         content: span,
         closeModal: true,
@@ -1030,7 +1069,16 @@ function avideoModalIframeWithClassName(url, className) {
 }
 
 function avideoModalIframeIsVisible() {
-    if ($('.swal-modal-iframe').parent().hasClass('swal-overlay--show-modal')) {
+    var modal = '';
+    if ($('.swal-modal-iframe-small').length) {
+        modal = $('.swal-modal-iframe-small');
+    } else if ($('.swal-modal-iframe-large').length) {
+        modal = $('.swal-modal-iframe-large');
+    } else {
+        modal = $('.swal-modal-iframe');
+    }
+
+    if (modal.parent().hasClass('swal-overlay--show-modal')) {
         return true;
     } else {
         return false;
@@ -1121,7 +1169,36 @@ function countTo(selector, total) {
 if (typeof showPleaseWaitTimeOut == 'undefined') {
     var showPleaseWaitTimeOut = 0;
 }
+
+var tabsCategoryDocumentHeight = 0;
+function tabsCategoryDocumentHeightChanged() {
+    var newHeight = $(document).height();
+    if (tabsCategoryDocumentHeight !== newHeight) {
+        tabsCategoryDocumentHeight = newHeight;
+        return true;
+    }
+    return false;
+}
+
 $(document).ready(function () {
+    Cookies.set('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone, {
+        path: '/',
+        expires: 365
+    });
+
+    tabsCategoryDocumentHeight = $(document).height();
+    if (typeof $('.nav-tabs-horizontal').scrollingTabs == 'function') {
+        $('.nav-tabs-horizontal').scrollingTabs();
+        //$('.nav-tabs-horizontal').fadeIn();
+    }
+    setInterval(function () {
+        if (tabsCategoryDocumentHeightChanged()) {
+            if (typeof $('.nav-tabs-horizontal').scrollingTabs == 'function') {
+                $('.nav-tabs-horizontal').scrollingTabs('refresh');
+            }
+        }
+    }, 1000);
+
     modal = modal || (function () {
         var pleaseWaitDiv = $("#pleaseWaitDialog");
         if (pleaseWaitDiv.length === 0) {
@@ -1274,6 +1351,46 @@ $(document).ready(function () {
         }
 
     }, 1000);
+
+    $("input.saveCookie").each(function () {
+        var mycookie = Cookies.get($(this).attr('name'));
+        if (mycookie && mycookie == "true") {
+            $(this).prop('checked', mycookie);
+        }
+    });
+    $("input.saveCookie").change(function () {
+        var auto = $(this).prop('checked');
+        Cookies.set($(this).attr("name"), auto, {
+            path: '/',
+            expires: 365
+        });
+    });
+    if (isAutoplayEnabled()) {
+        $("#autoplay").prop('checked', true);
+    }
+    $("#autoplay").change(function () {
+        checkAutoPlay();
+    });
+    checkAutoPlay();
+
+    // Code to handle install prompt on desktop
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later.
+        deferredPrompt = e;
+        var beforeinstallprompt = Cookies.get('beforeinstallprompt');
+        if (beforeinstallprompt) {
+            return false;
+        }
+        var msg = "<a href='#' onclick='A2HSInstall();'><img src='" + $('[rel="apple-touch-icon"]').attr('href') + "' class='img img-responsive pull-left' style='max-width: 20px; margin-right:5px;'> Add To Home Screen </a>";
+        var options = {text: msg, hideAfter: 20000};
+        $.toast(options);
+        Cookies.set('beforeinstallprompt', 1, {
+            path: '/',
+            expires: 365
+        });
+    });
 });
 
 function validURL(str) {
@@ -1291,7 +1408,7 @@ function isURL(url) {
 }
 var startTimerInterval = [];
 function startTimer(duration, selector) {
-    console.log('startTimer 1', duration);
+    //console.log('startTimer 1', duration);
     clearInterval(startTimerInterval[selector]);
     var timer = duration;
     startTimerInterval[selector] = setInterval(function () {
@@ -1372,7 +1489,7 @@ var startTimerToDateTimeOut = [];
 function startTimerToDate(toDate, selector, useDBDate) {
     clearTimeout(startTimerToDateTimeOut[selector]);
     if (typeof _serverTime === 'undefined') {
-        console.log('startTimerToDate _serverTime is undefined');
+        //console.log('startTimerToDate _serverTime is undefined');
         getServerTime();
         startTimerToDateTimeOut[selector] = setTimeout(function () {
             startTimerToDate(toDate, selector, useDBDate)
@@ -1380,25 +1497,29 @@ function startTimerToDate(toDate, selector, useDBDate) {
         return false;
     }
     if (typeof toDate === 'string') {
+        //console.log('startTimerToDate 1 '+toDate);
         toDate = new Date(toDate);
     }
     if (useDBDate) {
         if (typeof _serverDBTimeString !== 'undefined') {
             date2 = new Date(_serverDBTimeString);
+            //console.log('startTimerToDate 2 '+date2);
         }
     } else {
         if (typeof _serverTimeString !== 'undefined') {
             date2 = new Date(_serverTimeString);
+            //console.log('startTimerToDate 3 '+date2);
         }
     }
     if (typeof date2 === 'undefined') {
         date2 = new Date();
+        //console.log('startTimerToDate 4 '+date2);
     }
 
     var seconds = (toDate.getTime() - date2.getTime()) / 1000;
-    console.log('startTimerToDate toDate', toDate);
-    console.log('startTimerToDate selector', selector);
-    console.log('startTimerToDate seconds', seconds);
+    //console.log('startTimerToDate toDate', toDate);
+    //console.log('startTimerToDate selector', selector);
+    //console.log('startTimerToDate seconds', seconds);
     return startTimer(seconds, selector);
 }
 
@@ -1421,6 +1542,8 @@ function getServerTime() {
         return false;
     }
     getServerTimeActive = 1;
+    var d = new Date();
+
     $.ajax({
         url: webSiteRootURL + 'objects/getTimes.json.php',
         success: function (response) {
@@ -1495,7 +1618,7 @@ function getCroppie(uploadCropObject, callback, width, height) {
     console.log('getCroppie 3', ret);
 }
 
-function setToolTips() {
+async function setToolTips() {
     if (!$('[data-toggle="tooltip"]').not('.alreadyTooltip').length) {
         return false;
     }
@@ -1581,6 +1704,9 @@ function avideoAjax(url, data) {
                 avideoAlertError(response.msg);
             } else {
                 avideoToastSuccess(response.msg);
+                if (typeof response.eval !== 'undefined') {
+                    eval(response.eval);
+                }
             }
         }
     });

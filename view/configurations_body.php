@@ -3,7 +3,7 @@ if (User::isAdmin()) {
     ?>
 
     <form class="form-compact form-horizontal"  id="updateConfigForm" onsubmit="">
-        <div class="panel panel-default "">
+        <div class="panel panel-default ">
             <div class="panel-heading tabbable-line">
 
                 <ul class="nav nav-tabs">
@@ -343,12 +343,12 @@ if (User::isAdmin()) {
                                             </label>
                                             <div class="col-md-8">
                                                 <div class="material-switch">
-                                                    <input data-toggle="toggle" type="checkbox" name="autoplay" id="autoplay" value="1" <?php
+                                                    <input data-toggle="toggle" type="checkbox" name="autoplaySwitch" id="autoplaySwitch" value="1" <?php
                                                     if (!empty($config->getAutoplay())) {
                                                         echo "checked";
                                                     }
                                                     ?> >
-                                                    <label for="autoplay" class="label-primary"></label>
+                                                    <label for="autoplaySwitch" class="label-primary"></label>
                                                 </div>
                                             </div>
                                         </div>
@@ -448,7 +448,7 @@ if (User::isAdmin()) {
                                                         ?>  aria-describedby="disable_analyticsHelp">
                                                         <label for="disable_analytics" class="label-success"></label>
                                                     </div>
-                                                    <small id="disable_analyticsHelp" class="form-text text-muted"><?php echo __("This help us to track and dettect errors"); ?></small>
+                                                    <small id="disable_analyticsHelp" class="form-text text-muted"><?php echo __("This help us to track and detect errors"); ?></small>
                                                 </div>
                                             </div>
 
@@ -639,7 +639,7 @@ if (User::isAdmin()) {
 
             </div>
             <div class="panel-footer">
-                <button type="submit" class="btn btn-block btn-primary btn-lg" ><?php echo __("Save"); ?> <span class="fa fa-save"></span></button>
+                <button type="button" class="btn btn-block btn-primary btn-lg" onclick="$('#updateConfigForm').submit();" ><i class="fas fa-save"></i> <?php echo __("Save"); ?></button>
             </div>
         </div>
 
@@ -815,7 +815,7 @@ if (User::isAdmin()) {
                                 "disable_youtubeupload": $('#disable_youtubeupload').prop("checked"),
                                 "allow_download": $("#allow_download").prop("checked"),
                                 "session_timeout": $('#session_timeout').val(),
-                                "autoplay": $('#autoplay').prop("checked"),
+                                "autoplay": $('#autoplaySwitch').prop("checked"),
                                 "theme": theme,
                                 "smtp": $('#enableSmtp').prop("checked"),
                                 "smtpAuth": $('#enableSmtpAuth').prop("checked"),

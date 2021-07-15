@@ -20,9 +20,7 @@ if (empty($_POST)) {
     die(json_encode($obj));
 }
 
-// pass admin user and pass
-$user = new User("", @$_POST['user'], @$_POST['password']);
-$user->login(false, true);
+useVideoHashOrLogin();
 if (!User::canUpload()) {
     $obj->msg = __("Permission denied to Notify Done: ") . print_r($_POST, true);
     _error_log($obj->msg);
@@ -39,32 +37,24 @@ Video::clearCache($_POST['videos_id']);
 $video = new Video("", "", $_POST['videos_id']);
 $obj->video_id = $_POST['videos_id'];
 
-if(empty($_POST['fail'])){
-    // if encoder requested a status
-    if (!empty($_POST['overrideStatus'])) {
-        $video->setStatus($_POST['overrideStatus']);
-    } else { // encoder did not provide a status
-        $status = $video->getStatus();
-        // if status is not unlisted
-        if($status!=='u' && $status !== 'a'){
-            if(empty($advancedCustom->makeVideosInactiveAfterEncode)){
-                // set active
-                $video->setStatus('a');
-            }else if(empty($advancedCustom->makeVideosUnlistedAfterEncode)){
-                // set active
-                $video->setStatus('u');
-            }else{
-                $video->setStatus('i');
-            }
-        }
-    }
-}else{
-    $video->setStatus('i');
-}
+
+$video->setAutoStatus(Video::$statusActive);
+
 $video_id = $video->save();
-if(empty($_POST['fail'])){
-    AVideoPlugin::afterNewVideo($_POST['videos_id']);
+
+$video = new Video("", "", $video_id);
+
+if($video->getStatus() === Video::$statusActive){
+    AVideoPlugin::afterNewVideo($video_id);
 }
+
+if($video->getType() == 'audio' && AVideoPlugin::isEnabledByName('MP4ThumbsAndGif')){
+    $videoFileName = $video->getFilename();
+    MP4ThumbsAndGif::getImage($videoFileName, 'jpg', $video_id);
+    Video::deleteThumbs($videoFileName);
+    Video::deleteGifAndWebp($videoFileName);
+}
+
 $obj->error = false;
 $obj->video_id = $video_id;
 Video::updateFilesize($video_id);

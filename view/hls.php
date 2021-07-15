@@ -15,18 +15,22 @@ session_write_close();
 if (empty($_GET['videoDirectory'])) {
     forbiddenPage("No directory set");
 }
-
+$global['disableGeoblock'] = 1;
 $video = Video::getVideoFromFileName($_GET['videoDirectory'], true);
 
-$filename = Video::getStoragePath() . "{$_GET['videoDirectory']}".DIRECTORY_SEPARATOR."index.m3u8";
+$filename = Video::getPathToFile("{$_GET['videoDirectory']}".DIRECTORY_SEPARATOR."index.m3u8");
 
 if (empty($video) || !file_exists($filename)) {
     header("Content-Type: text/plain");
     if (empty($video)) {
-        _error_log("HLS.php: Video Not found videoDirectory=({$_GET['videoDirectory']})");
+        $msg = "HLS.php: Video Not found videoDirectory=({$_GET['videoDirectory']})";
+        error_log($msg);
+        //echo $msg;
     }
     if (!file_exists($filename)) {
-        _error_log("HLS.php: Video file do not exists ({$filename})");
+        $msg = "HLS.php: Video file do not exists ({$filename})";
+        error_log($msg);
+        //echo $msg;
     }
 
     echo "#EXTM3U
@@ -47,7 +51,7 @@ if (empty($video) || !file_exists($filename)) {
     }
 }
 
-$_GET['file'] = Video::getStoragePath() . "{$_GET['videoDirectory']}".DIRECTORY_SEPARATOR."index.m3u8";
+$_GET['file'] = Video::getPathToFile("{$_GET['videoDirectory']}".DIRECTORY_SEPARATOR."index.m3u8");
 //var_dump($_GET['file']);exit;
 $cachedPath = explode(DIRECTORY_SEPARATOR, $_GET['videoDirectory']);
 if (empty($_SESSION['user']['sessionCache']['hls'][$cachedPath[0]]) && empty($_GET['download'])) {
@@ -68,7 +72,7 @@ if (!empty($_GET['token'])) {
 }
 $newContent = "";
 // if is using a CDN I can not check if the user is logged
-if (isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->videosCDN) || User::canWatchVideo($video['id'])) {
+if (isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->videosCDN) || User::canWatchVideo($video['id']) || isCDN()) {
 
     if (!empty($_GET['download'])) {
         downloadHLS($_GET['file']);
@@ -90,5 +94,6 @@ if (isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->vi
     $newContent .= User::canWatchVideo($video['id']) ? "" : " cannot watch ({$video['id']})";
     $newContent .= " " . date("Y-m-d H:i:s");
 }
-header("Content-Type: text/plain");
+//header("Content-Type: text/plain");
+header('Content-Type:');
 echo $newContent;

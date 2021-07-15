@@ -21,6 +21,14 @@ if(!empty($parts["query"])){
     parse_str($parts["query"], $_GET);
 }
 
+if(!empty($_GET['e']) && empty($_GET['p'])){
+    $objE = json_decode(decryptString($_GET['e']));
+    if(!empty($objE->users_id)){
+        $user = new User($objE->users_id);
+        $_GET['p'] = $user->getPassword();
+    }
+}
+
 if(empty($_GET['p']) && !empty($_POST['p'])){
     $_GET['p'] = $_POST['p'];
 }

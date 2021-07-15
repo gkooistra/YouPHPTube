@@ -8,7 +8,7 @@ require_once $global['systemRootPath'] . 'objects/playlist.php';
 require_once $global['systemRootPath'] . 'plugin/PlayLists/PlayListElement.php';
 
 if (!PlayList::canSee($_GET['playlists_id'], User::getId())) {
-    die('{"error":"' . __("Permission denied") . '"}');
+    forbiddenPage(_('You cannot see this playlist'));
 }
 
 $video = PlayLists::isPlayListASerie($_GET['playlists_id']);
@@ -58,14 +58,16 @@ foreach ($playList as $key => $value) {
 
 $video = PlayLists::isPlayListASerie($_GET['playlists_id']);
 
+$playlist_index = intval(@$_REQUEST['playlist_index']);
+
 if (!empty($video['id'])) {
     AVideoPlugin::getEmbed($video['id']);
     setVideos_id($video['id']);
 } else if (!empty($playListData[$playlist_index])) {
-    setVideos_id($playListData[$playlist_index]['id']);
+    setVideos_id($playListData[$playlist_index]->getVideos_id());
+    $video = Video::getVideo($playListData[$playlist_index]->getVideos_id());
 }
 
-$playlist_index = intval(@$_REQUEST['playlist_index']);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">

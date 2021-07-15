@@ -51,10 +51,8 @@ Options All -Indexes
 # END Expires
 # BEGIN Caching
 <ifModule mod_headers.c>
-    <FilesMatch "\.(ts|key|ttf|otf|eot|woff|woff2|mp4|webm|m3u8|mp3|ogg|css|jpg|png|gif)$">
-        Header set Access-Control-Allow-Origin: *
-    </FilesMatch>
-    <filesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|swf)$">
+    Header set Access-Control-Allow-Origin: *
+    <filesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|swf|ts)$">
         Header set Cache-Control "max-age=2592000, public"
     </filesMatch>
     <filesMatch "\.(woff2|css)$">
@@ -66,7 +64,7 @@ Options All -Indexes
     <filesMatch "\.(xml|txt)$">
         Header set Cache-Control "max-age=216000, public, must-revalidate"
     </filesMatch>
-    <filesMatch "\.(html|htm|php)$">
+    <filesMatch "\.(html|htm|php|key|m3u8)$">
         Header set Cache-Control "max-age=1, private, must-revalidate"
     </filesMatch>
 </ifModule>
@@ -74,6 +72,9 @@ Options All -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine on
     #VideoHLS for DRM
+
+    RewriteRule    ^videos/webfonts/(fa-.*) view/css/fontawesome-free-5.5.0-web/webfonts/$1    [NC,L]
+
     RewriteRule    ^playLink/?$ view/modePlayLink.php    [QSA]
     RewriteRule    ^videos/([^/]+)/(.*).key$ plugin/VideoHLS/downloadProtection.php?filename=$1&key=$2    [QSA]
 
@@ -302,14 +303,16 @@ Options All -Indexes
 
     RewriteRule    ^sitemap.xml$ view/sitemap.xml.php    [NC,L]
     RewriteRule    ^robots.txt$ view/robots.txt.php    [NC,L]
+    RewriteRule    ^manifest.json$ view/manifest.json.php    [NC,L]
 
     RewriteRule    ^videos/(.*)/index.m3u8$ view/hls.php?videoDirectory=$1    [NC,L,QSA]
     RewriteRule    ^videos/(.*)/index.m3u8.mp4$ view/hls.php?playHLSasMP4=1&videoDirectory=$1    [NC,L,QSA]
 
     RewriteRule    ^vast.xml/?([0-9]+)?$ plugin/AD_Server/VAST.php?campaign_has_videos_id=$1    [NC,L]
 
+
     <IfModule mod_xsendfile.c>
-        RewriteRule    ^videos/([^!#$&'()*+,\/:;=?@[\]]+(\.(mp4|webm|m3u8|mp3|ogg)))$ view/xsendfile.php?file=$1    [QSA]
+        RewriteRule    ^videos/([_A-Za-z0-9.-]+/)?([^!#$&'()*+,\/:;=?@[\]]+(\.(mp4|webm|m3u8|mp3|ogg)))$ view/xsendfile.php?file=$2    [QSA]
     </IfModule>
 
     # if image do not exists

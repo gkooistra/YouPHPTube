@@ -186,7 +186,7 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="btn-group" id="actionButtonsVideoManager">
-                <button class="btn btn-secondary" id="checkBtn">
+                <button class="btn btn-default" id="checkBtn">
                     <i class="far fa-square" aria-hidden="true" id="chk"></i>
                 </button>
                 <?php if (!$config->getDisable_youtubeupload()) { ?>
@@ -528,8 +528,8 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <label for="inputTrailer"><?php echo __("Embed code for trailer"); ?></label>
-                                        <input type="text" id="inputTrailer" class="form-control" placeholder="<?php echo __("Embed code for trailer"); ?>" required>
+                                        <label for="inputTrailer"><?php echo __("Embed URL for trailer"); ?></label>
+                                        <input type="text" id="inputTrailer" class="form-control" placeholder="<?php echo __("Embed URL for trailer"); ?>" required>
 
                                         <div>
                                             <label for="videoStartSecond" ><?php echo __("Start video at"); ?></label>
@@ -1080,7 +1080,7 @@ echo AVideoPlugin::getManagerVideosEdit();
                                                 showUploadedThumbs: false,
                                                 maxFileCount: 1,
                                                 initialPreview: [
-                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + ".jpg'>",
+                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + ".jpg'>",
                                                 ],
                                                 initialCaption: row.clean_title + '.jpg',
                                                 initialPreviewShowDelete: false,
@@ -1098,7 +1098,7 @@ echo AVideoPlugin::getManagerVideosEdit();
                                                 showUploadedThumbs: false,
                                                 maxFileCount: 1,
                                                 initialPreview: [
-                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "_portrait.jpg'>",
+                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + "_portrait.jpg'>",
                                                 ],
                                                 initialCaption: row.clean_title + '_portrait.jpg',
                                                 initialPreviewShowDelete: false,
@@ -1116,7 +1116,7 @@ echo AVideoPlugin::getManagerVideosEdit();
                                                 showUploadedThumbs: false,
                                                 maxFileCount: 1,
                                                 initialPreview: [
-                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + ".gif'>",
+                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + ".gif'>",
                                                 ],
                                                 initialCaption: row.clean_title + '.gif',
                                                 initialPreviewShowDelete: false,
@@ -1134,7 +1134,7 @@ echo AVideoPlugin::getManagerVideosEdit();
                                                 showUploadedThumbs: false,
                                                 maxFileCount: 1,
                                                 initialPreview: [
-                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "_portrait.gif'>",
+                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + "_portrait.gif'>",
                                                 ],
                                                 initialCaption: row.clean_title + '_portrait.gif',
                                                 initialPreviewShowDelete: false,
@@ -1152,7 +1152,7 @@ echo AVideoPlugin::getManagerVideosEdit();
                                                 showUploadedThumbs: false,
                                                 maxFileCount: 1,
                                                 initialPreview: [
-                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + ".webp'>",
+                                                    "<img style='height:160px' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + ".webp'>",
                                                 ],
                                                 initialCaption: row.clean_title + '.webp',
                                                 initialPreviewShowDelete: false,
@@ -1225,11 +1225,14 @@ if (empty($advancedCustom->disableHTMLDescription)) {
                                                     success: function (response) {
                                                     if (response.status === "1" || response.status === true) {
                                                     if (response.video.id) {
-                                                    videos_id = response.video.id;
+                                                        videos_id = response.video.id;
+                                                        //videoUploaded = videos_id;
                                                     }
-                                                    if (response.video.type === 'embed' || response.video.type === 'linkVideo' || response.video.type === 'article') {
-                                                    videoUploaded = true;
-                                                    }
+                                                    /**/
+                                                     if (response.video.type === 'embed' || response.video.type === 'linkVideo' || response.video.type === 'article') {
+                                                        videoUploaded = true;
+                                                     }
+                                                     
                                                     if (closeModal && videoUploaded) {
                                                     $('#videoFormModal').modal('hide');
                                                     }
@@ -1255,6 +1258,7 @@ if (empty($advancedCustom->disableHTMLDescription)) {
 
                                         function resetVideoForm() {
                                             isArticle = 0;
+                                            $('#fileUploadVideos_id').val(0);
                                             $('.nav-tabs a[href="#pmedia"], #pmedia').show();
                                             $("#pmedia").css("display", "");
                                             $("#pmedia").attr("style", "");
@@ -1755,6 +1759,7 @@ if (empty($advancedCustom->disableCopyEmbed)) {
                                                         var activeBtn = '<button style="color: #090" type="button" class="btn btn-default btn-xs command-active"  data-row-id="' + row.id + '"  data-toggle="tooltip" title="<?php echo str_replace("'", "\\'", __("This video is Active and Listed, click here to unlist it")); ?>"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span></button>';
                                                         var inactiveBtn = '<button style="color: #A00" type="button" class="btn btn-default btn-xs command-inactive"  data-row-id="' + row.id + '"  data-toggle="tooltip" title="<?php echo str_replace("'", "\\'", __("This video is inactive, click here to activate it")); ?>"><span class="glyphicon glyphicon-eye-close" aria-hidden="true"></span></button>';
                                                         var unlistedBtn = '<button style="color: #BBB" type="button" class="btn btn-default btn-xs command-unlisted"  data-row-id="' + row.id + '"  data-toggle="tooltip" title="<?php echo str_replace("'", "\\'", __("This video is unlisted, click here to inactivate it")); ?>"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span></button>';
+                                                        var fansOnlyBtn = '<button style="color: #FFD700" type="button" class="btn btn-default btn-xs command-fansOnly"  data-row-id="' + row.id + '"  data-toggle="tooltip" title="<?php echo str_replace("'", "\\'", __("This video is for fans Only, click here to toogle it")); ?>" onclick="avideoAjax(webSiteRootURL+\'plugin/FansSubscriptions/toogleFansOnly.json.php?videos_id=' + row.id + '\', {});"><i class="fas fa-star" aria-hidden="true"></i></button>';
                                                         var status;
                                                         var pluginsButtons = '<?php echo AVideoPlugin::getVideosManagerListButton(); ?>';
                                                         var download = "";
@@ -1799,6 +1804,8 @@ if (User::isAdmin()) {
                                                             status = activeBtn;
                                                         } else if (row.status == "u") {
                                                             status = unlistedBtn;
+                                                        }  else if (row.status == "f") {
+                                                            status = fansOnlyBtn;
                                                         } else if (row.status == "x") {
                                                             return editBtn + deleteBtn;
                                                         } else if (row.status == "d") {
@@ -1833,7 +1840,9 @@ if (Permissions::canAdminVideos()) {
     <?php
 }
 ?>
-                                                        return embedBtn + editBtn + deleteBtn + status + suggestBtn + pluginsButtons + download + nextIsSet;
+                                                        var playBtn = '<button type="button" class="btn btn-default btn-xs"  onclick="avideoModalIframe(\'' + row.embedlink + '\')"  data-toggle="tooltip" title="<?php echo __('Play'); ?>"><span class="fas fa-play" aria-hidden="true"></span></button>';
+
+                                                        return playBtn + embedBtn + editBtn + deleteBtn + status + suggestBtn + pluginsButtons + download + nextIsSet;
                                                     },
                                                     "tags": function (column, row) {
                                                         var tags = "";
@@ -1854,7 +1863,7 @@ if (Permissions::canAdminVideos()) {
                                                             }
                                                             var text = row.tags[i].text;
                                                             if (typeof row.tags[i].tooltip !== "undefined") {
-                                                                text += ' '+row.tags[i].tooltip;
+                                                                text += ' ' + row.tags[i].tooltip;
                                                             }
                                                             tags += "<div class=\"clearfix\"></div><span class='label label-primary  tagTitle'>" + row.tags[i].label + ": </span><span class=\"label label-" + row.tags[i].type + " \">" + text + "</span>";
                                                         }
@@ -1924,14 +1933,14 @@ if (Permissions::canAdminVideos()) {
                                                         var type, img, is_portrait;
                                                         if (row.type === "audio") {
                                                             type = "<i class='fa fa-headphones hidden-xs' style='font-size:14px;'></i> ";
-                                                            img = "<img class='img img-responsive img-thumbnail pull-left rotate" + row.rotation + "' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + ".jpg?" + Math.random() + "' style='max-height:80px; margin-right: 5px;'> ";
+                                                            img = "<img class='img img-responsive img-thumbnail pull-left rotate" + row.rotation + "' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + ".jpg?" + Math.random() + "' style='max-height:80px; margin-right: 5px;'> ";
                                                             if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.pjpg !== 'undefined' && row.videosURL.pjpg.url) {
                                                                 img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.pjpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
                                                             } else if (row.videosURL && typeof row.videosURL !== 'undefined' && typeof row.videosURL.jpg !== 'undefined' && row.videosURL.jpg.url) {
                                                                 img = "<img class='img img-responsive img-thumbnail pull-left' src='" + row.videosURL.jpg.url + "?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
                                                             } else {
                                                                 is_portrait = (row.rotation === "90" || row.rotation === "270") ? "img-portrait" : "";
-                                                                img = "<img class='img img-responsive " + is_portrait + " img-thumbnail pull-left rotate" + row.rotation + "' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + ".jpg?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
+                                                                img = "<img class='img img-responsive " + is_portrait + " img-thumbnail pull-left rotate" + row.rotation + "' src='<?php echo $global['webSiteRootURL']; ?>videos/" + row.filename + "/" + row.filename + ".jpg?" + Math.random() + "'  style='max-height:80px; margin-right: 5px;'> ";
                                                             }
                                                         } else {
                                                             type = "<i class='fa fa-film hidden-xs' style='font-size:14px;'></i> ";
@@ -1959,7 +1968,7 @@ if (AVideoPlugin::isEnabledByName('PlayLists')) {
 ?>
                                                         img = img + '<div class="hidden-md hidden-lg"><i class="fas fa-stopwatch"></i> ' + row.duration + '</div>';
                                                         var pluginsButtons = '<?php echo AVideoPlugin::getVideosManagerListButtonTitle(); ?>';
-                                                        var buttonTitleLink = '<a href="<?php echo $global['webSiteRootURL']; ?>video/' + row.id + '/' + row.clean_title + '" class="btn btn-default btn-xs titleBtn" style="overflow: hidden;">' + type + row.title + '</a>';
+                                                        var buttonTitleLink = '<a href="' + row.link + '" class="btn btn-default btn-xs titleBtn" style="overflow: hidden;">' + type + row.title + '</a>';
                                                         return img + '<div class="clearfix hidden-md hidden-lg"></div>' + buttonTitleLink + tags + "<div class='clearfix'></div><div class='gridYTPluginButtons'>" + yt + pluginsButtons + "</div>" + playList;
                                                     }
 

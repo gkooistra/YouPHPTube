@@ -60,6 +60,14 @@ if (empty($meet_schedule_id)) {
                 event_on_meetReady();
             }
             aVideoMeetCreateButtons();
+            <?php
+            $css = file_get_contents($global['systemRootPath'] . 'plugin/Meet/meet.mobile.css');
+            if(!isMobile()){
+                $css = "@media (max-width: 767px) {{$css}}";
+            }
+            $css .= file_get_contents($global['systemRootPath'] . 'plugin/Meet/meet.css');
+            ?>
+            aVideoMeetAppendElement("head", <?php echo json_encode("<style>{$css}</style>"); ?>);
             console.log("YPTMeetScript conference is ready");
         } else if (typeof e.data.aVideoMeetStartRecording !== 'undefined') {
             console.log("YPTMeetScript aVideoMeetStartRecording");
@@ -69,6 +77,10 @@ if (empty($meet_schedule_id)) {
             aVideoMeetStopRecording(e.data.aVideoMeetStopRecording.dropURL);
         }
     });
+
+    function aVideoMeetZoom(zoom) {
+        document.querySelector("iframe").contentWindow.postMessage({zoom: zoom}, "*");
+    }
 
     function getMeetDisplayName(domain, roomName, jwt, email, TOOLBAR_BUTTONS) {
         console.log('getMeetDisplayName');
@@ -81,10 +93,10 @@ if (empty($meet_schedule_id)) {
             },
         }).then(function (displayName) {
             displayName = displayName.trim();
-            if (!displayName || /^$|^\s+$/.test(displayName)){
+            if (!displayName || /^$|^\s+$/.test(displayName)) {
                 //avideoAlertError('<?php echo __("You must provide a name"); ?>');
                 return getMeetDisplayName(domain, roomName, jwt, email, TOOLBAR_BUTTONS);
-            }else{
+            } else {
                 return aVideoMeetStart(domain, roomName, jwt, email, displayName, TOOLBAR_BUTTONS);
             }
         });
@@ -93,12 +105,12 @@ if (empty($meet_schedule_id)) {
 
     var api;
     function aVideoMeetStart(domain, roomName, jwt, email, displayName, TOOLBAR_BUTTONS) {
-    
-        if(!displayName || displayName == ''){
+
+        if (!displayName || displayName == '') {
             displayName = getMeetDisplayName();
             return getMeetDisplayName(domain, roomName, jwt, email, TOOLBAR_BUTTONS);
         }
-    
+
         const options = {
             roomName: roomName,
             jwt: jwt,

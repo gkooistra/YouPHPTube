@@ -2,14 +2,13 @@
 $objLive = AVideoPlugin::getDataObject("Live");
 //Live::deleteStatsCache();
 if ($objLive->allowMultipleLivesPerUser) {
-    $stats = getStatsNotifications();
-    $onliveApplications = array();
-    foreach ($stats["applications"] as $value) {
+    $onliveApplications = Live::getLivesOnlineFromKey($key);
+    foreach ($onliveApplications as $value) {
         if (empty($value['key'])) {
             continue;
         }
         if (preg_match('/' . $trasnmition['key'] . '/', $value['key'])) {
-            $onliveApplications[] = '<a class="btn btn-default btn-block live_'.$value['live_servers_id'].'_'.$value['key'].'" href="' . $value['href'] . '" target="_blank"><span class="label label-danger liveNow faa-flash faa-slow animated">' . __('LIVE NOW') . '</span> ' . $value['title'] . '</a>';
+            $onliveApplications[] = '<a class="btn btn-default btn-block live_' . $value['live_servers_id'] . '_' . $value['key'] . '" href="' . $value['href'] . '" target="_blank"><span class="label label-danger liveNow faa-flash faa-slow animated">' . __('LIVE NOW') . '</span> ' . $value['title'] . '</a>';
         }
     }
 }
@@ -27,7 +26,7 @@ $key = $liveStreamObject->getKeyWithIndex(true);
         <div class="form-group">
             <label for="server"><i class="fa fa-server"></i> <?php echo __("Server URL"); ?>:</label>
             <?php
-            getInputCopyToClipboard('server', Live::getServer() . "?p=" . User::getUserPass());
+            getInputCopyToClipboard('server', Live::getRTMPLinkWithOutKey(User::getId()));
             ?>
             <small class="label label-info"><i class="fa fa-warning"></i> <?php echo __("If you change your password the Server URL parameters will be changed too."); ?></small>
             <span class="label label-warning"><i class="fa fa-warning"></i> <?php echo __("Keep Key Private, Anyone with key can broadcast on your account"); ?></span>
@@ -67,7 +66,7 @@ $key = $liveStreamObject->getKeyWithIndex(true);
         <div class="form-group">
             <label for="serverAndStreamkey"><i class="fa fa-key"></i> <?php echo __("Server URL"); ?> + <?php echo __("Stream name/key"); ?>:</label>
             <?php
-            getInputCopyToClipboard('serverAndStreamkey', Live::getServer() . "?p=" . User::getUserPass() . "/" . $key);
+            getInputCopyToClipboard('serverAndStreamkey', Live::getRTMPLink(User::getId()));
             ?>
         </div>
         <div class="form-group">

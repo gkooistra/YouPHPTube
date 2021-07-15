@@ -10,8 +10,15 @@ $obj = AVideoPlugin::getObjectData("Gallery");
 $liveobj = AVideoPlugin::getObjectData("Live");
 $_REQUEST['rowCount'] = 2;
 $_REQUEST['current'] = getCurrentPage();
-$categories = Category::getAllCategories(false, true);
-$total = Category::getTotalCategories(false, true);
+
+$onlySuggested = $obj->CategoriesShowOnlySuggested;
+if(!empty(getSearchVar())){
+    $onlySuggested = false;
+}
+$sort = $_POST['sort'];
+unset($_POST['sort']);
+$categories = Category::getAllCategories(false, true, $onlySuggested);
+$total = Category::getTotalCategories(false, true, $onlySuggested);
 $totalPages = ceil($total / getRowCount());
 $page = getCurrentPage();
 if ($totalPages < $page) {
@@ -70,3 +77,6 @@ $_REQUEST['rowCount'] = $obj->CategoriesRowCount;
     echo getPagination($totalPages, $page, $link, 10, ".categoriesContainerItem", ".categoriesContainerItem");
     ?>
 </div>
+<?php
+$_POST['sort'] = $sort;
+?>

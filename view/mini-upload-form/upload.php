@@ -43,10 +43,11 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
     if (empty($videos_id)) {
         $video = new Video($title, $filename, 0);
     } else {
-        $video = new Video("", $filename, $videos_id);
+        $video = new Video("", "", $videos_id);
+        $filename = $video->getFilename();
         if ($video->getTitle() === "Video automatically booked") {
             $video->setTitle($title);
-            $video->setStatus('i');
+            $video->setStatus(Video::$statusInactive);
         }
     }
     //var_dump($videos_id, $_FILES['upl']['name'], $title, $video->getTitle());exit;
@@ -103,19 +104,8 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
         }
         $video->setType("zip", true);
     }
-    if (empty($advancedCustom->makeVideosInactiveAfterEncode) && $video->getTitle() !== "Video automatically booked") {
-
-        // set active
-
-        $video->setStatus('a');
-    } else if (empty($advancedCustom->makeVideosUnlistedAfterEncode) && $video->getTitle() !== "Video automatically booked") {
-
-        // set active
-
-        $video->setStatus('u');
-    } else {
-        $video->setStatus('i');
-    }
+    
+    $video->setAutoStatus(Video::$statusInactive);
 
     $id = $video->save();
     if ($id) {
@@ -148,14 +138,16 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
 
         if (!empty($_FILES['upl']['tmp_name'])) {
             AVideoPlugin::afterNewVideo($obj->videos_id);
+            $video->setAutoStatus(Video::$statusActive);
         }
-
 
         if ($extension !== "jpg" && $video->getType() == "image") {
             sleep(1); // to make sure the file will be available
-            $file = Video::getStoragePath() . "" . $video->getFilename();
+            $file = $video->getFilename();
+            $jpgFrom = Video::getPathToFile("{$file}.{$extension}");
+            $jpgTo = Video::getPathToFile("{$file}.jpg");
             try {
-                convertImage("{$file}.{$extension}", "{$file}.jpg", 70);
+                convertImage($jpgFrom, $jpgTo, 70);
             } catch (Exception $exc) {
                 _error_log("We could not convert the image to JPG " . $exc->getMessage());
             }

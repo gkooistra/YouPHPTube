@@ -304,6 +304,14 @@ abstract class PluginAbstract {
     public function getModeYouTube($videos_id) {
         return false;
     }
+    
+    public function getModeLive($key) {
+        return false;
+    }
+    
+    public function getModeLiveLink($liveLink_id) {
+        return false;
+    }
 
     public function getModeYouTubeLive($users_id) {
         return false;
@@ -343,6 +351,10 @@ abstract class PluginAbstract {
     }
 
     public function navBar() {
+        return "";
+    }
+    
+    public function navBarAfter() {
         return "";
     }
 
@@ -677,6 +689,10 @@ abstract class PluginAbstract {
         $p = new Plugin($pluginDB['id']);
         $p->setObject_data(json_encode($pluginDO));
         return $p->save();
+    }
+    
+    public function getWalletConfigurationHTML($users_id, $wallet, $walletDataObject) {
+        return "";
     }
 }
 

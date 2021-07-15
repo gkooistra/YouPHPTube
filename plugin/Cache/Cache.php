@@ -105,7 +105,7 @@ class Cache extends PluginAbstract {
     public function getStart() {
         global $global;
         // ignore cache if it is command line
-
+        //var_dump($this->isFirstPage());exit;
         $obj = $this->getDataObject();
         if ($obj->logPageLoadTime) {
             $this->start();
@@ -126,6 +126,9 @@ class Cache extends PluginAbstract {
         if ($this->isBlacklisted() || $this->isFirstPage() || !class_exists('User') || !User::isLogged() || !empty($obj->enableCacheForLoggedUsers)) {
             $cacheName = 'firstPage'.DIRECTORY_SEPARATOR.$this->getFileName();
             $lifetime = $obj->cacheTimeInSeconds;
+            if($isBot && $lifetime < 3600){
+                $lifetime = 3600;
+            }
             $firstPageCache = ObjectYPT::getCache($cacheName, $lifetime, true);
             if(!empty($firstPageCache) && strtolower($firstPageCache) != 'false'){
                 if ($isBot && $_SERVER['REQUEST_URI'] !== '/login') {
@@ -135,6 +138,14 @@ class Cache extends PluginAbstract {
                 if (preg_match("/\.json\.?/", $baseName)) {
                     header('Content-Type: application/json');
                 }
+                
+                if($isBot){
+                    $firstPageCache = strip_specific_tags($firstPageCache);
+                    $firstPageCache = strip_render_blocking_resources($firstPageCache);
+                }else{
+                    $firstPageCache = optimizeHTMLTags($firstPageCache);
+                }
+                
                 echo $firstPageCache.PHP_EOL.'<!-- Cached Page Generated in '.getScriptRunMicrotimeInSeconds().' Seconds -->';
                 if ($obj->logPageLoadTime) {
                     $this->end("Cache");
@@ -161,8 +172,10 @@ class Cache extends PluginAbstract {
         global $global;
         $obj = $this->getDataObject();
         echo PHP_EOL.'<!--        Page Generated in '.getScriptRunMicrotimeInSeconds().' Seconds -->';
-        $c = ob_get_contents();
+        $c = ob_get_clean();
+        $c = optimizeHTMLTags($c);
         ob_start();
+        echo $c;
         if (!headers_sent()) {
             header_remove('Set-Cookie');
         }
@@ -175,7 +188,8 @@ class Cache extends PluginAbstract {
 
         if ($this->isBlacklisted() || $this->isFirstPage() || !class_exists('User') || !User::isLogged() || !empty($obj->enableCacheForLoggedUsers)) {
             $cacheName = 'firstPage'.DIRECTORY_SEPARATOR.$this->getFileName();
-            ObjectYPT::setCache($cacheName, $c);
+            $r = ObjectYPT::setCache($cacheName, $c);
+            //var_dump($r);
         }
         if ($obj->logPageLoadTime) {
             $this->end();
@@ -194,6 +208,7 @@ class Cache extends PluginAbstract {
             'Meet',
             '/roku.json',
             'mrss',
+            '/sitemap.xml',
             'plugin/Live/verifyToken.json.php');
         foreach ($cacheBotWhitelist as $value) {
             if (strpos($_SERVER['REQUEST_URI'], $value) !== false) {

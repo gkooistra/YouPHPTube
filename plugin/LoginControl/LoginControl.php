@@ -155,7 +155,7 @@ Best regards,
             return false;
         }
         if (empty($loginControlCreateLog)) {
-            _error_log("LoginControl::createLog {$_SERVER['SCRIPT_NAME']} " . json_encode(debug_backtrace()));
+            //_error_log("LoginControl::createLog {$_SERVER['SCRIPT_NAME']} " . json_encode(debug_backtrace()));
             $ulh = new logincontrol_history(0);
             $ulh->setIp(getRealIpAddr());
             $ulh->setStatus(self::is2FAConfirmed($users_id) ? logincontrol_history_status::$CONFIRMED : logincontrol_history_status::$WAITING_CONFIRMATION);
@@ -448,7 +448,7 @@ Best regards,
 
     function onUserSocketConnect() {
         $obj = $this->getDataObject();
-        if ($obj->singleDeviceLogin && !preg_match('/Chat2/', $_SERVER["SCRIPT_FILENAME"])) {
+        if (!User::isAdmin() && $obj->singleDeviceLogin && !preg_match('/Chat2/', $_SERVER["SCRIPT_FILENAME"])) {
             echo ' if(response.msg.users_id && response.msg.users_id == "' . User::getId() . '" && response.msg.yptDeviceId  && response.msg.yptDeviceId !== "' . getDeviceID(false) . '"){
                 $.ajax({
                     url: webSiteRootURL + "logoff",

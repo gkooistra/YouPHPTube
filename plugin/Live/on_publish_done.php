@@ -20,6 +20,14 @@ _error_log("NGINX ON Publish Done  parse_str: " . json_encode($_GET));
 
 $_GET = object_to_array($_GET);
 
+if(!empty($_GET['e']) && empty($_GET['p'])){
+    $obj = json_decode(decryptString($_GET['e']));
+    if(!empty($obj->users_id)){
+        $user = new User($obj->users_id);
+        $_GET['p'] = $user->getPassword();
+    }
+}
+
 if ($_POST['name'] == 'live') {
     _error_log("NGINX ON Publish Done  wrong name {$_POST['p']}");
     // fix name for streamlab

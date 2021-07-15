@@ -80,7 +80,10 @@ if (empty($output)) {
     }
     ObjectYPT::setCache($cacheFeedName, $output);
 }else{
-    echo '<!-- cache -->';
+    //echo '<!-- cache -->';
+}
+if(!is_string($output)){
+    $output = json_encode($output);
 }
 die($output);
 ?>

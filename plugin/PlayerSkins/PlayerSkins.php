@@ -47,6 +47,7 @@ class PlayerSkins extends PluginAbstract {
         $obj->showLoopButton = true;
         $obj->showLogo = false;
         $obj->showShareSocial = true;
+        $obj->showShareAutoplay = true;
         $obj->showLogoOnEmbed = false;
         $obj->showLogoAdjustScale = "0.4";
         $obj->showLogoAdjustLeft = "-74px";
@@ -63,16 +64,22 @@ class PlayerSkins extends PluginAbstract {
     }
 
     static function getMediaTag($filename, $htmlMediaTag = false) {
-        global $autoPlayURL, $global, $config, $isVideoTypeEmbed;
+        global $autoPlayURL, $global, $config, $isVideoTypeEmbed, $advancedCustom;
         $obj = AVideoPlugin::getObjectData('PlayerSkins');
         $html = '';
         if (empty($htmlMediaTag)) {
             $video = Video::getVideoFromFileName($filename, true);
             $vType = Video::getIncludeType($video);
             $_GET['isMediaPlaySite'] = $video['id'];
-            if (!empty($video['externalOptions']->videoStartSeconds)) {
-                $video['externalOptions']->videoStartSeconds = parseDurationToSeconds($video['externalOptions']->videoStartSeconds);
-            } else {
+            if(is_object($video['externalOptions'])){
+                if (!empty($video['externalOptions']->videoStartSeconds)) {
+                    $video['externalOptions']->videoStartSeconds = parseDurationToSeconds($video['externalOptions']->videoStartSeconds);
+                } else {
+                    $video['externalOptions']->videoStartSeconds = 0;
+                }
+            }else{
+                //_error_log('externalOptions Error '.$video['externalOptions'], AVideoLog::$WARNING);
+                $video['externalOptions'] = new stdClass();
                 $video['externalOptions']->videoStartSeconds = 0;
             }
             $images = Video::getImageFromFilename($filename);
@@ -119,11 +126,11 @@ class PlayerSkins extends PluginAbstract {
                 $htmlMediaTag .= '</audio>';
             } else if ($vType == 'embed') {
                 $disableYoutubeIntegration = false;
-                if (!empty($advancedCustom->disableYoutubePlayerIntegration)) {
+                if (!empty($advancedCustom->disableYoutubePlayerIntegration) || isMobile()) {
                     $disableYoutubeIntegration = true;
                 }
                 $_GET['isEmbedded'] = "";
-                if (((strpos($video['videoLink'], "youtu.be") == false) && (strpos($video['videoLink'], "youtube.com") == false) && (strpos($video['videoLink'], "vimeo.com") == false)) || ($disableYoutubeIntegration)) {
+                if (($disableYoutubeIntegration) || ((strpos($video['videoLink'], "youtu.be") == false) && (strpos($video['videoLink'], "youtube.com") == false) && (strpos($video['videoLink'], "vimeo.com") == false))) {
                     $_GET['isEmbedded'] = "e";
                     $isVideoTypeEmbed = 1;
                     $url = parseVideos($video['videoLink']);
@@ -188,12 +195,6 @@ class PlayerSkins extends PluginAbstract {
             </div>
             <div id="main-video" class="embed-responsive embed-responsive-16by9">' . $htmlMediaTag . '</div>';
 
-        if (AVideoPlugin::isEnabledByName('VideoLogoOverlay')) {
-            $style = VideoLogoOverlay::getStyle();
-            $url = VideoLogoOverlay::getLink();
-            $html .= '<div style="' . $style . '" class="VideoLogoOverlay"><a href="' . $url . '" target="_blank"> <img src="' . $global['webSiteRootURL'] . 'videos/logoOverlay.png" alt="Logo"  class="img-responsive col-lg-12 col-md-8 col-sm-7 col-xs-6"></a></div>';
-        }
-
         $html .= showCloseButton() . '</div></div><div class="'.$col3Classes.'"></div></div>';
 
         return $html;
@@ -250,6 +251,9 @@ class PlayerSkins extends PluginAbstract {
             if ($obj->showShareSocial && CustomizeUser::canShareVideosFromVideo(@$video['id'])) {
                 $css .= "<link href=\"".getCDN()."plugin/PlayerSkins/shareButton.css\" rel=\"stylesheet\" type=\"text/css\"/>";
             }
+            if ($obj->showShareAutoplay && !isLive()) {
+                $css .= "<link href=\"".getCDN()."plugin/PlayerSkins/autoplayButton.css\" rel=\"stylesheet\" type=\"text/css\"/>";
+            }
         }
 
         $url = urlencode(getSelfURI());
@@ -282,6 +286,10 @@ class PlayerSkins extends PluginAbstract {
                 //$js .= "<script src=\"".getCDN()."plugin/PlayerSkins/shareButton.js\"></script>";
                 $js .= $social['html'];
                 $js .= "<script>function tooglePlayersocial(){showSharing{$social['id']}();}</script>";
+            }
+
+            if ($obj->showShareAutoplay && !isLive()) {
+                PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayerSkins/autoplayButton.js"));
             }
         }
         if (isAudio()) {
@@ -355,6 +363,10 @@ class PlayerSkins extends PluginAbstract {
         $js = "";
         if (empty($currentTime) && !isLive()) {
             $currentTime = self::getCurrentTime();
+        }
+        
+        if(!empty($global['doNotLoadPlayer'])){
+            return '';
         }
         
         if(empty($prepareStartPlayerJS_onPlayerReady)){

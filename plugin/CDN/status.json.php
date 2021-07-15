@@ -32,38 +32,24 @@ foreach ($_REQUEST['par'] as $key => $value) {
 }
 
 // Update S3 CDN
-$resp->CDN_S3 = '';
-$plugin = AVideoPlugin::getDataObjectIfEnabled('AWS_S3');
-if (!empty($plugin)) {
-    $region = trim($plugin->region);
-    $bucket_name = trim($plugin->bucket_name);
-    $endpoint = trim($plugin->endpoint);
-    if (!empty($endpoint)) {
-        $resp->CDN_S3 = str_replace('https://', "https://{$bucket_name}.", $endpoint);
-    } else if (!empty($plugin->region)) {
-        $resp->CDN_S3 = "https://{$bucket_name}.s3-accesspoint.{$region}.amazonaws.com";
-    }
-    if (!empty($resp->CDN_S3)) {
-        $resp->CDN_S3 = addLastSlash($resp->CDN_S3);
-    }
+if (AVideoPlugin::isEnabledByName('AWS_S3')) {
+    $resp->CDN_S3 = CDN::getCDN_S3URL();
+}else{
+    $resp->CDN_S3 = '';
 }
 
 // Update B2 CDN
-$resp->CDN_B2 = '';
-$plugin = AVideoPlugin::getDataObjectIfEnabled('Blackblaze_B2');
-if (!empty($plugin)) {
-    $b2 = new Blackblaze_B2();
-    $resp->CDN_B2 = $b2->getEndpoint();
-    if (!empty($resp->CDN_B2)) {
-        $resp->CDN_B2 = addLastSlash($resp->CDN_B2);
-    }
+if (AVideoPlugin::isEnabledByName('Blackblaze_B2')) {
+    $resp->CDN_B2 = CDN::getCDN_B2URL();
+}else{
+    $resp->CDN_B2 = '';
 }
 
 // Update FTP CDN
-$resp->CDN_FTP = '';
-$plugin = AVideoPlugin::getDataObjectIfEnabled('FTP_Storage');
-if (!empty($plugin)) {
-    $resp->CDN_FTP = addLastSlash($plugin->endpoint);
+if (AVideoPlugin::isEnabledByName('FTP_Storage')) {
+    $resp->CDN_FTP = CDN::getCDN_FTPURL();
+}else{
+    $resp->CDN_FTP = '';
 }
 
 // Update YPT Storage CDN
@@ -76,9 +62,9 @@ if (!empty($plugin)) {
             continue;
         }
         $resp->CDN_YPTStorage[] = array(
-                'id'=>$value['id'], 
-                'url'=>addLastSlash($value['url'])
-            );
+            'id' => $value['id'],
+            'url' => addLastSlash($value['url'])
+        );
     }
 }
 
@@ -94,8 +80,8 @@ if (!empty($plugin)) {
                 continue;
             }
             $resp->CDN_LiveServers[] = array(
-                'id'=>$value['id'], 
-                'url'=>addLastSlash($value['playerServer'])
+                'id' => $value['id'],
+                'url' => addLastSlash($value['playerServer'])
             );
         }
     } else {

@@ -46,18 +46,26 @@ abstract class ObjectYPT implements ObjectInterface {
     }
 
     public static function setTimeZone() {
-        global $advancedCustom;
+        global $advancedCustom, $timezoneOriginal;
+        if(!isset($timezoneOriginal)){
+            $timezoneOriginal = date_default_timezone_get();
+        }
         $row = self::getNowFromDB();
         $dt = new DateTime($row['my_date_field']);
-        $timeZOnesOptions = object_to_array($advancedCustom->timeZone->type);
-        if (empty($timeZOnesOptions[$advancedCustom->timeZone->value])) {
+        if(!empty($_COOKIE['timezone']) && $_COOKIE['timezone'] !== 'undefined'){
+            $timezone = $_COOKIE['timezone'];
+        }else{
+            $timeZOnesOptions = object_to_array($advancedCustom->timeZone->type);
+            $timezone = $timeZOnesOptions[$advancedCustom->timeZone->value];
+        }
+        if (empty($timezone) || $timezone == 'undefined') {
             return false;
         }
         try {
-            $objDate = new DateTimeZone($timeZOnesOptions[$advancedCustom->timeZone->value]);
+            $objDate = new DateTimeZone($timezone);
             if (is_object($objDate)) {
                 $dt->setTimezone($objDate);
-                date_default_timezone_set($timeZOnesOptions[$advancedCustom->timeZone->value]);
+                date_default_timezone_set($timezone);
                 return $dt;
             }
             return false;
@@ -359,6 +367,9 @@ abstract class ObjectYPT implements ObjectInterface {
         if (isCommandLineInterface()) {
             return false;
         }
+        if(isBot()){
+            $lifetime = 0;
+        }
         global $getCachesProcessed, $_getCache;
 
         if (empty($_getCache)) {
@@ -416,10 +427,12 @@ abstract class ObjectYPT implements ObjectInterface {
         } elseif (file_exists($cachefile)) {
             self::deleteCache($name);
         }
+        //_error_log("YPTObject::getCache log error [{$name}] $cachefile filemtime = ".filemtime($cachefile));
         return null;
     }
 
     public static function deleteCache($name) {
+        if(empty($name)){return false;}
         global $__getAVideoCache;
         unset($__getAVideoCache);
         $cachefile = self::getCacheFileName($name);
@@ -498,10 +511,10 @@ abstract class ObjectYPT implements ObjectInterface {
                 $tmpDir .= 'notlogged_'.md5("notlogged".$global['salt']).DIRECTORY_SEPARATOR;
             }
         }
-
+        $tmpDir = fixPath($tmpDir);
         make_path($tmpDir);
         if (!file_exists($tmpDir . "index.html") && is_writable($tmpDir)) {// to avoid search into the directory
-            file_put_contents($tmpDir . "index.html", time());
+            _file_put_contents($tmpDir . "index.html", time());
         }
 
         $_getCacheDir[$filename] = $tmpDir;
@@ -643,6 +656,25 @@ abstract class ObjectYPT implements ObjectInterface {
         }
         return $tableExists[$tableName];
     }
+    
+    static function clientTimezoneToDatabaseTimezone($clientDate){
+        
+        if(!preg_match('/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/', $clientDate)){
+            return $clientDate;
+        }
+        
+        global $timezoneOriginal;
+        $currentTimezone = date_default_timezone_get();
+        $time = strtotime($clientDate);
+        date_default_timezone_set($timezoneOriginal);
+        
+        $dbDate = date('Y-m-d H:i:s', $time);
+        
+        date_default_timezone_set($currentTimezone);
+        return $dbDate;
+    }
+    
+    
 
 }
 

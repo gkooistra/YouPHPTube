@@ -19,7 +19,8 @@ $_SERVER["HTTP_USER_AGENT"] = $AVideoStreamer_UA;
 $socketobj = AVideoPlugin::getDataObject("YPTSocket");
 $address = $socketobj->host;
 $port = $socketobj->port;
-
+$socketobj->forceNonSecure = false;
+        
 $url = "://localhost:{$port}";
 $SocketURL = 'ws' . $url;
 _test_send($SocketURL, 'ws');
@@ -73,9 +74,14 @@ function _test_send($SocketURL, $msg) {
     }, function ($e) {
         global $responses;
         preg_match('/(tcp|tls):\/\/([^:]+):([0-9]+)/i', $e->getMessage(), $matches);
-        $c = new AVideoSocketConfiguration($matches[1], $matches[3], $matches[2], false, $e->getMessage());
-        $responses[] = $c;
-        $c->log();
+        if (empty($matches)) {
+            _log("ERROR on get connect response [" . $e->getMessage() . "]");
+            //$responses[] = $e->getMessage();
+        }else{
+            $c = new AVideoSocketConfiguration($matches[1], $matches[3], $matches[2], false, $e->getMessage());
+            $responses[] = $c;
+            $c->log();
+        }
         printIfComplete();
     });
 
@@ -190,13 +196,21 @@ function printIfComplete() {
         }
         $msg = ' We found ' . count($responses) . ' possible configurations:' . PHP_EOL;
         foreach ($responses as $value) {
-            $msg .= PHP_EOL.'              '.$value->getSecureText() . PHP_EOL;
+            $msg .= PHP_EOL . '              ' . $value->getSecureText() . PHP_EOL;
             $msg .= '-------------------------------------------------------' . PHP_EOL;
             $msg .= '*** Force not to use wss (non secure): ' . ($value->wss == 'ws' ? 'Checked' : 'Unchecked') . ' ' . PHP_EOL;
             $msg .= '*** Server Port: ' . ($value->port) . PHP_EOL;
             $msg .= '*** Server host: ' . ($value->host) . PHP_EOL;
             $msg .= '-------------------------------------------------------' . PHP_EOL . PHP_EOL;
         }
+        /*
+        if(empty($responses)){
+            $msg .= 'Restarting socket server' . PHP_EOL;
+            $msg .= restartServer();
+            $msg .= 'Restarting complete' . PHP_EOL;
+        }
+         * 
+         */
         _log($msg);
     }
 }
