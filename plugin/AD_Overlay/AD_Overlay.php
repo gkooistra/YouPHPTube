@@ -5,7 +5,6 @@ require_once $global['systemRootPath'] . 'plugin/AD_Overlay/Objects/AD_Overlay_C
 
 class AD_Overlay extends PluginAbstract {
 
-
     public function getTags() {
         return array(
             PluginTags::$MONETIZATION,
@@ -31,7 +30,7 @@ class AD_Overlay extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "1.0";
+        return "2.1";
     }
 
     public function getEmptyDataObject() {
@@ -81,7 +80,7 @@ class AD_Overlay extends PluginAbstract {
           $obj->end = false;
 
           $obj->durationInSeconds = 30;
-         *
+         * 
          */
         $obj->debug = false;
         //$obj->adWidth = 0;
@@ -96,13 +95,18 @@ class AD_Overlay extends PluginAbstract {
         if (empty($_GET['videoName']) && empty($_GET['u']) && empty($_GET['link'])) {
             return false;
         }
+        $videos_id = getVideos_id();
+        $showAds = AVideoPlugin::showAds($videos_id);
+        if (!$showAds) {
+            return "";
+        }
         $obj = $this->getDataObject();
         global $global;
         $style = "width: 100%;";
         if (!empty($obj->adWidth) && !empty($obj->adHeight)) {
             $style = "width: $obj->adWidth; height: width: $obj->adHeight;";
         }
-        $css = '<link href="' . $global['webSiteRootURL'] . 'plugin/AD_Overlay/videojs-overlay/videojs-overlay.css" rel="stylesheet" type="text/css"/>';
+        $css = '<link href="' .getCDN() . 'plugin/AD_Overlay/videojs-overlay/videojs-overlay.css" rel="stylesheet" type="text/css"/>';
 
         $css .= '<style>#adOverlay{min-width: 640px;}.video-js .vjs-overlay-background, .video-js .vjs-overlay-no-background {
     max-height: 50%;
@@ -118,6 +122,11 @@ class AD_Overlay extends PluginAbstract {
     public function getFooterCode() {
 
         global $global, $video;
+        $videos_id = getVideos_id();
+        $showAds = AVideoPlugin::showAds($videos_id);
+        if (!$showAds) {
+            return "";
+        }
         if (basename($_SERVER["SCRIPT_FILENAME"]) === 'managerUsers.php') {
             include $global['systemRootPath'] . 'plugin/AD_Overlay/footer.php';
         }
@@ -156,11 +165,13 @@ class AD_Overlay extends PluginAbstract {
             return '<!-- AD_Overlay adText not detected -->';
         }
 
+        $ad = AVideoPlugin::getObjectData('ADs');
+
         $js = '<div id="adOverlay" style="display:none;"><button class="pull-right btn" onclick="$(\'.vjs-overlay\').fadeOut();"><i class="fa fa-times"></i></button>'
-                . '<center>' . $adText . '</center>'
+                . '<center>' . ADs::giveGoogleATimeout($adText) . '</center>'
                 . '</div>';
 
-        $js .= '<script src="' . $global['webSiteRootURL'] . 'plugin/AD_Overlay/videojs-overlay/videojs-overlay.js" type="text/javascript"></script>';
+        $js .= '<script src="' .getCDN() . 'plugin/AD_Overlay/videojs-overlay/videojs-overlay.js" type="text/javascript"></script>';
 
         $onPlayerReady = "setTimeout(function(){
                         \$('#cbb').click(function() {
