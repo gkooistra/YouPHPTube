@@ -9,17 +9,16 @@ if (!User::isLogged()) {
 
 $plugin = AVideoPlugin::loadPluginIfEnabled("YPTWallet");
 $obj = $plugin->getDataObject();
-$options = json_decode($obj->withdrawFundsOptions);
+$options = _json_decode($obj->withdrawFundsOptions);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title>Add Funds</title>
+        <title><?php echo __("Withdraw Funds") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
     </head>
-
     <body class="<?php echo $global['bodyClass']; ?>">
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
@@ -27,10 +26,20 @@ $options = json_decode($obj->withdrawFundsOptions);
         <div class="container">
             <div class="row">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><?php echo __("Withdraw Funds"); ?></div>
+                    <div class="panel-heading">
+                        <?php echo __("Withdraw Funds"); ?>
+                        <?php
+                        if ($obj->enableAutoWithdrawFundsPagePaypal) {
+                            ?>
+                            <label class="label label-success pull-right"><i class="fab fa-paypal"></i> <?php echo __('Automatic Withdraw'); ?></label>    
+                            <?php
+                        }
+                        ?>
+                    </div>
                     <div class="panel-body">
                         <div class="col-sm-6">
                             <?php echo $obj->withdraw_funds_text ?>
+                            <?php echo AVideoPlugin::getWalletConfigurationHTML(User::getId(), $plugin, $obj); ?>
                         </div>
                         <div class="col-sm-6">
                             <?php
@@ -58,7 +67,7 @@ $options = json_decode($obj->withdrawFundsOptions);
                             }
                             ?>
                             <div class="form-group">
-                                <label for="value"><?php echo __("Specify Ammount"); ?> <?php echo $obj->currency_symbol; ?> <?php echo $obj->currency; ?></label>
+                                <label for="value"><?php echo __("Specify Amount"); ?> <?php echo $obj->currency_symbol; ?> <?php echo $obj->currency; ?></label>
                                 <select class="form-control" id="value" >
                                     <?php
                                     foreach ($options as $value) {
@@ -73,22 +82,21 @@ $options = json_decode($obj->withdrawFundsOptions);
                                 <label for="information"><?php echo __("Information"); ?></label>
                                 <textarea class="form-control" id="information" name="information"></textarea>
                             </div>
-                            <button class="btn btn-primary" id="manualWithdrawFundsPageButton"><?php echo $obj->manualWithdrawFundsPageButton; ?></button>
-                        </div>  
+                            <button class="btn btn-primary btn-block" id="manualWithdrawFundsPageButton">
+                                <i class="fas fa-dollar-sign"></i>
+                                <?php echo $obj->manualWithdrawFundsPageButton; ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
-
-
             </div>
         </div>
-
-
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
         <script>
             $(document).ready(function () {
-                $('#manualWithdrawFundsPageButton').click(function(){
+                $('#manualWithdrawFundsPageButton').click(function () {
                     modal.showPleaseWait();
                     $.ajax({
                         url: '<?php echo $global['webSiteRootURL']; ?>plugin/YPTWallet/view/manualWithdrawFunds.json.php',

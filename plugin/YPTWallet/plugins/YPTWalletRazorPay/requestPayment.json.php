@@ -61,7 +61,7 @@ $displayAmount = $amount = $orderData['amount'];
 
 if ($displayCurrency !== 'INR') {
     $url = "https://api.fixer.io/latest?symbols=$displayCurrency&base=INR";
-    $exchange = json_decode(file_get_contents($url), true);
+    $exchange = _json_decode(file_get_contents($url), true);
 
     $displayAmount = $exchange['rates'][$displayCurrency] * $amount / 100;
 }
@@ -153,7 +153,7 @@ $json = json_encode($data);
                         document.location = "<?php echo $global['webSiteRootURL']; ?>plugin/YPTWallet/view/addFunds.php";
                         console.log("This code runs when the popup is closed");
                     },
-                    // Boolean indicating whether pressing escape key 
+                    // Boolean indicating whether pressing escape key
                     // should close the checkout form. (default: true)
                     escape: true,
                     // Boolean indicating whether clicking translucent blank

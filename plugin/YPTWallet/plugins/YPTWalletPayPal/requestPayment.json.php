@@ -15,9 +15,13 @@ $objS = $pluginS->getDataObject();
 $obj= new stdClass();
 $obj->error = true;
 
-if(empty($_POST['value'])){ 
+if(empty($_POST['value'])){
     $obj->msg = "Invalid Value";
     die(json_encode($obj));
+}
+
+if(!empty($_REQUEST['videos_id'])){
+    YPTWallet::setAddFundsSuccessRedirectToVideo($_REQUEST['videos_id']);
 }
 
 $invoiceNumber = uniqid();

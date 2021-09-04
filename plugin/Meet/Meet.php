@@ -3,7 +3,7 @@
 use \Firebase\JWT\JWT;
 
 $JIBRI_INSTANCE = 0;
-require_once $global['systemRootPath'] . 'objects/php-jwt/src/JWT.php';
+require_once $global['systemRootPath'] . 'objects/firebase/php-jwt/src/JWT.php';
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_schedule.php';
@@ -11,7 +11,7 @@ require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_schedule_has_
 require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_join_log.php';
 User::loginFromRequest();
 
-//require_once $global['systemRootPath'] . 'objects/php-jwt/src/JWT.php';
+//require_once $global['systemRootPath'] . 'objects/firebase/php-jwt/src/JWT.php';
 //use \Firebase\JWT\JWT;
 class Meet extends PluginAbstract {
     public function getTags() {
@@ -21,7 +21,7 @@ class Meet extends PluginAbstract {
             PluginTags::$LIVE,
         );
     }
-    
+
     public function getPluginVersion() {
         return "2.0";
     }
@@ -57,7 +57,11 @@ Passcode: {password}
         $obj->invitation = $o;
 
         $o = new stdClass();
-        $o->type = array('ca1.ypt.me' => "North America 1", 'eu1.ypt.me' => "Europe 1", 'custom' => "Custom Jitsi");
+        $o->type = array(
+            'ca1.ypt.me' => "North America 1", 
+            'eu1.ypt.me' => "Europe 1", 
+            'custom' => "Custom Jitsi",
+            'ca2.ypt.me' => "Test Server do not use it", );
         $o->value = 'ca1.ypt.me';
         $obj->server = $o;
 
@@ -92,12 +96,11 @@ Passcode: {password}
                 "user" => $user,
                 "group" => $config->getWebSiteTitle()
             ],
-            "aud" => ($obj->server->value == 'custom') ? $obj->JWT_APP_ID : "avideo",
-            //"iss" => "avideo",
-            "iss" => ($obj->server->value == 'custom') ? $obj->JWT_APP_ID : "*",
+            "aud" => self::getAUD(),
+            "iss" => self::getISS(),
             "sub" => "meet.jitsi",
             "room" => $room,
-            "exp" => strtotime("30 hours"),
+            "exp" => strtotime("+30 hours"),
             "moderator" => self::isModerator($meet_schedule_id)
         ];
         return $jitsiPayload; // HS256
@@ -115,9 +118,52 @@ Passcode: {password}
     static function getSecret() {
         $obj = AVideoPlugin::getDataObject("Meet");
         if ($obj->server->value == 'custom') {
-            return $obj->JWT_APP_SECRET;
+            if($obj->JWT_APP_SECRET == 'my_jitsi_app_secret'){
+                return $obj->secret;
+            }else{
+                return $obj->JWT_APP_SECRET;
+            }
         } else {
             return $obj->secret;
+        }
+    }
+
+    static function getAPPID() {
+        $obj = AVideoPlugin::getDataObject("Meet");
+        if ($obj->server->value == 'custom') {
+            if($obj->JWT_APP_ID == 'my_jitsi_app_id'){
+                return "avideo";
+            }else{
+                return $obj->JWT_APP_ID;
+            }
+        } else {
+            return "avideo";
+        }
+    }
+
+    static function getISS() {
+        $obj = AVideoPlugin::getDataObject("Meet");
+        if ($obj->server->value == 'custom') {
+            if($obj->JWT_APP_ID == 'my_jitsi_app_id'){
+                return "*";
+            }else{
+                return $obj->JWT_APP_ID;
+            }
+        } else {
+            return "*";
+        }
+    }
+
+    static function getAUD() {
+        $obj = AVideoPlugin::getDataObject("Meet");
+        if ($obj->server->value == 'custom') {
+            if($obj->JWT_APP_ID == 'my_jitsi_app_id'){
+                return "avideo";
+            }else{
+                return $obj->JWT_APP_ID;
+            }
+        } else {
+            return "avideo";
         }
     }
 
@@ -129,7 +175,7 @@ Passcode: {password}
     public function getPluginMenu() {
         global $global;
         //return '<a href="plugin/Meet/View/editor.php" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fa fa-edit"></i> Edit</a>';
-        return '<a href="'.$global['webSiteRootURL'].'plugin/Meet/checkServers.php" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fas fa-network-wired"></i> Check Servers</a>';
+        return '<button onclick="avideoModalIframe(webSiteRootURL +\'plugin/Meet/checkServers.php\');" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fas fa-network-wired"></i> Check Servers</button>';
     }
 
     static function getMeetServerStatus($cache = 30) {
@@ -152,12 +198,12 @@ Passcode: {password}
         $json = new stdClass();
         $json->content = ObjectYPT::getCache($name, $cache);
         if (!empty($json->content) && !empty($json->time)) {
-            $json = json_decode($json->content);
+            $json = _json_decode($json->content);
             $json->msg = "From Cache";
         } else {
             $url = $meetServer . "api/checkMeet.json.php?webSiteRootURL=" . urlencode($global['webSiteRootURL']) . "&secret=" . $secret;
             $content = url_get_contents($url);
-            $json = json_decode($content);
+            $json = _json_decode($content);
             if (!empty($json)) {
                 $json->time = time();
                 $json->url = $url;
@@ -211,9 +257,10 @@ Passcode: {password}
     static function getJoinURL() {
         $domain = self::getDomainURL();
         $url = "https://" . $domain . "/";
+        //$url = str_replace('ca2.ypt.me', 'ca1.ypt.me', $url);
         return $url;
     }
-    
+
     static function getRoomID($meet_schedule_id) {
         $roomName = "";
         $m = new Meet_schedule($meet_schedule_id);
@@ -338,7 +385,7 @@ Passcode: {password}
          * Specific User Groups = 0
          * @return type
          */
-        if (empty($meet->getStarts()) || strtotime($meet->getStarts()) <= time()) {
+        if (empty($meet->getStarts()) || strtotime($meet->getStarts()) >= strtotime()) {
             // means public
             if ($meet->getPublic() == "2") {
                 $obj->canJoin = true;
@@ -354,7 +401,7 @@ Passcode: {password}
                 return $obj;
             }
         } else {
-            $obj->reason = "The meet does not start yet";
+            $obj->reason = "The meet does not start yet {$meet->getStarts()} ". humanTimingAfterwards($meet->getStarts());
             return $obj;
         }
     }
@@ -385,12 +432,12 @@ Passcode: {password}
           'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
           'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone', 'security'
           ];
-         * 
+         *
          */
         if (self::isModerator($meet_schedule_id)) {
             if (self::hasJibris()) {
                 return [
-                    'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
                     'fodeviceselection', 'hangup', 'profile', 'chat',
                     'livestreaming', 'etherpad', 'settings', 'raisehand',
                     'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
@@ -398,7 +445,7 @@ Passcode: {password}
                 ];
             } else {
                 return [
-                    'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
                     'fodeviceselection', 'hangup', 'profile', 'chat',
                     'etherpad', 'settings', 'raisehand',
                     'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
@@ -407,7 +454,7 @@ Passcode: {password}
             }
         } else {
             return [
-                'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
+                'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
                 'fodeviceselection', 'hangup', 'profile', 'chat', 'etherpad', 'settings', 'raisehand',
                 'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
                 'tileview', 'download', 'help', 'mute-everyone'
@@ -487,8 +534,9 @@ Passcode: {password}
         $ms = new Meet_schedule($meet_schedule_id);
         $invitation = $objM->invitation->value;
         $topic = $ms->getTopic();
-        $pass = $ms->getPassword();
-
+        if(User::isAdmin() || User::getId() == $ms->getUsers_id()){
+            $pass = $ms->getPassword();
+        }
         if (empty($topic)) {
             $invitation = preg_replace("/(\n|\r)[^\n\r]*{topic}[^\n\r]*(\n|\r)/i", "", $invitation);
         } else {
@@ -505,7 +553,7 @@ Passcode: {password}
         $invitation = preg_replace("/{meetLink}/i", $ms->getMeetLink(), $invitation);
         return $invitation;
     }
-    
+
     static function validatePassword($meet_schedule_id, $password){
         if(User::isAdmin() || self::isModerator($meet_schedule_id)){
             return true;

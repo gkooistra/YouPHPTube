@@ -153,7 +153,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                 <div id="menu1" class="tab-pane fade">
                     <div class="list-group-item">
                         <div class="panel panel-default">
-                            <div class="panel-heading"><a href="https://plugins.avideo.com/" class="btn btn-default btn-xs"><i class="fa fa-plug"></i> Plugin Store </a></div>
+                            <div class="panel-heading"><a href="https://youphp.tube/marketplace/?tab=plugin" class="btn btn-default btn-xs"><i class="fa fa-plug"></i> Plugin Store </a></div>
                             <div class="panel-body">
                                 <ul class="list-group" id="pluginStoreList">
                                 </ul>
@@ -162,10 +162,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                     </div>
                 </div>
             </div>
-
-
             <li class="list-group-item hidden col-md-3" id="pluginStoreListModel">
-
                 <div class="panel panel-warning panel-sm">
                     <div class="panel-heading">
                         <h3 class="panel-title"></h3>
@@ -188,7 +185,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                         </table>
                     </div>
                     <div class="panel-footer">
-                        <a href="https://youphp.tube/plugins/" class="btn btn-success btn-xs" role="button"><i class="fa fa-cart-plus"></i> <?php echo __("Buy This Plugin"); ?> </a>
+                        <a href="https://youphp.tube/plugins/?tab=plugin" class="btn btn-success btn-xs" role="button"><i class="fa fa-cart-plus"></i> <?php echo __("Buy This Plugin"); ?> </a>
                     </div>
                 </div>
             </li>
@@ -203,7 +200,7 @@ $uuidJSCondition = implode(" && ", $rowId);
         </div>
     </div>
 </div>
-<script src="<?php echo $global['webSiteRootURL']; ?>js/form2JSON.js" type="text/javascript"></script>
+<script src="<?php echo getCDN(); ?>js/form2JSON.js" type="text/javascript"></script>
 <script>
 
     function createPluginStoreList(src, name, price, description) {
@@ -214,7 +211,7 @@ $uuidJSCondition = implode(" && ", $rowId);
         $li.find('.panel-title').text(name);
         $li.find('.int').text(intPrice);
         $li.find('.cents').text("99");
-        $li.find('.desc').text(description);
+        $li.find('.desc').html(description);
         $li.find('.img').attr("src", src);
         $('#pluginStoreList').append($li);
     }
@@ -486,7 +483,11 @@ $uuidJSCondition = implode(" && ", $rowId);
                         }
                     }
                     if (row.hasOwnProperty("permissions") && row.permissions.length) {
-                        txt += '<button type="button" class="btn btn-xs btn-default btn-block" onclick="pluginPermissionsBtn(' + row.id + ')" data-toggle="tooltip" data-placement="right" title="<?php echo __('User Groups Permissions'); ?>"><span class="fa fa-users" aria-hidden="true"></span> <?php echo __('User Groups Permissions'); ?></button>';
+                        var disabled = "";
+                        if (!row.isPluginTablesInstalled) {
+                            disabled = ' disabled="disabled" ';
+                        }
+                        txt += '<button ' + disabled + ' type="button" class="btn btn-xs btn-default btn-block" onclick="pluginPermissionsBtn(' + row.id + ')" data-toggle="tooltip" data-placement="right" title="<?php echo __('User Groups Permissions'); ?>"><span class="fa fa-users" aria-hidden="true"></span> <?php echo __('User Groups Permissions'); ?></button>';
                     }
 
                     return txt;
@@ -611,7 +612,7 @@ $uuidJSCondition = implode(" && ", $rowId);
             $("#grid").bootgrid('reload');
         });
         $.ajax({
-            url: 'https://plugins.avideo.com/plugins.json?jsonp=1',
+            url: 'https://youphp.tube/marketplace/plugins.json?jsonp=1',
             dataType: 'jsonp',
             success: function (response) {
                 for (i = 0; i < response.rows.length; i++) {
