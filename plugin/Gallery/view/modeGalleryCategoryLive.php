@@ -28,7 +28,7 @@ foreach ($stats["applications"] as $key => $value) {
         'link' => @$value['link'],
         'imgGif' => @$value['imgGif'],
         'className' => @$value['className'],
-        'galleryCallback' => @$value['galleryCallback']
+        'galleryCallback' => @$value['callback']
     );
     
     $videos[] = $video;
@@ -47,7 +47,7 @@ foreach ($stats["applications"] as $key => $value) {
 if (!empty($videos)) {
     $contentSearchFound = true;
     ?>
-    <div class="row clear clearfix">
+    <div class="clear clearfix">
         <?php
         if (canPrintCategoryTitle($currentCat['name'])) {
             ?>

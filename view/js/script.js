@@ -20,6 +20,8 @@ var _serverDBTime;
 var _serverTimeString;
 var _serverDBTimeString;
 let deferredPrompt;
+var playerCurrentTime;
+var mediaId;
 
 $(document).mousemove(function (e) {
     mouseX = e.pageX;
@@ -170,6 +172,9 @@ lazyImage();
 
 var pleaseWaitIsINUse = false;
 var pauseIfIsPlayinAdsInterval;
+var seconds_watching_video = 0;
+var _startCountPlayingTime;
+
 function setPlayerListners() {
     if (typeof player !== 'undefined') {
         player.on('pause', function () {
@@ -177,6 +182,7 @@ function setPlayerListners() {
             console.log("setPlayerListners: pause");
             //userIsControling = true;
             clearInterval(pauseIfIsPlayinAdsInterval);
+            clearInterval(_startCountPlayingTime);
         });
 
         player.on('play', function () {
@@ -187,6 +193,10 @@ function setPlayerListners() {
             pauseIfIsPlayinAdsInterval = setInterval(function () {
                 pauseIfIsPlayinAds();
             }, 500);
+            clearInterval(_startCountPlayingTime);
+            _startCountPlayingTime = setInterval(function () {
+                seconds_watching_video++;
+            }, 1000);
         });
 
         $("#mainVideo .vjs-mute-control").click(function () {
@@ -342,6 +352,7 @@ function isEmailValid(email) {
 }
 
 function subscribe(email, user_id) {
+    modal.showPleaseWait();
     $.ajax({
         url: webSiteRootURL + 'objects/subscribe.json.php',
         method: 'POST',
@@ -350,22 +361,27 @@ function subscribe(email, user_id) {
             'user_id': user_id
         },
         success: function (response) {
+            var totalElement = $('.notificationButton' + user_id + ' .badge');
             if (response.subscribe == "i") {
-                $('.subs' + user_id).removeClass("subscribed");
-                $('.subs' + user_id + ' b.text').text("Subscribe");
-                $('b.textTotal' + user_id).text(parseInt($('b.textTotal' + user_id).first().text()) - 1);
+                $('.notificationButton' + user_id).removeClass("subscribed");
+                totalElement.text(parseInt(totalElement.first().text()) - 1);
             } else {
-                $('.subs' + user_id).addClass("subscribed");
-                $('.subs' + user_id + ' b.text').text("Subscribed");
-                $('b.textTotal' + user_id).text(parseInt($('b.textTotal' + user_id).first().text()) + 1);
+                $('.notificationButton' + user_id).addClass("subscribed");
+                totalElement.text(parseInt(totalElement.first().text()) + 1);
             }
             $('#popover-content #subscribeEmail').val(email);
             $('.subscribeButton' + user_id).popover('hide');
+            modal.hidePleaseWait();
         }
     });
 }
 
+function toogleNotify(user_id) {
+    email = $('#subscribeEmail' + user_id).val();
+    subscribeNotify(email, user_id);
+}
 function subscribeNotify(email, user_id) {
+    modal.showPleaseWait();
     $.ajax({
         url: webSiteRootURL + 'objects/subscribeNotify.json.php',
         method: 'POST',
@@ -375,12 +391,11 @@ function subscribeNotify(email, user_id) {
         },
         success: function (response) {
             if (response.notify) {
-                $('.notNotify' + user_id).addClass("hidden");
-                $('.notify' + user_id).removeClass("hidden");
+                $('.notificationButton' + user_id).addClass("notify");
             } else {
-                $('.notNotify' + user_id).removeClass("hidden");
-                $('.notify' + user_id).addClass("hidden");
+                $('.notificationButton' + user_id).removeClass("notify");
             }
+            modal.hidePleaseWait();
         }
     });
 }
@@ -417,29 +432,125 @@ function isMobile() {
 
 var last_videos_id = 0;
 var last_currentTime = -1;
+var videoViewAdded = false;
+
+var addViewBeaconTimeout;
+
 function addView(videos_id, currentTime) {
+    addViewSetCookie(PHPSESSID, videos_id, currentTime, seconds_watching_video);
     if (last_videos_id == videos_id && last_currentTime == currentTime) {
         return false;
     }
-    if (currentTime > 5 && currentTime % 30 !== 0) { // only update each 30 seconds
+    if (currentTime > 5 && currentTime % 5 !== 0) { // only update each 30 seconds
         return false;
     }
-    last_videos_id = videos_id;
-    last_currentTime = currentTime;
-    _addView(videos_id, currentTime);
+
+    if (!videoViewAdded || videoViewAdded !== videos_id) {
+        videoViewAdded = videos_id;
+        last_videos_id = videos_id;
+        last_currentTime = currentTime;
+        _addView(videos_id, currentTime);
+    }
+    return true;
 }
 
 function _addView(videos_id, currentTime) {
+    if (typeof PHPSESSID == 'undefined') {
+        PHPSESSID = '';
+    }
+    var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
+    url = addGetParam(url, 'PHPSESSID', PHPSESSID);
     $.ajax({
-        url: webSiteRootURL + 'objects/videoAddViewCount.json.php',
+        url: url,
         method: 'POST',
         data: {
             'id': videos_id,
             'currentTime': currentTime
         },
         success: function (response) {
-            $('.view-count' + videos_id).text(response.count);
+            $('.view-count' + videos_id).text(response.countHTML);
         }
+    });
+}
+
+var _addViewAsyncSent = false;
+function _addViewAsync() {
+    if (_addViewAsyncSent || typeof webSiteRootURL == 'undefined' || typeof player == 'undefined') {
+        return false;
+    }
+    if (typeof PHPSESSID == 'undefined') {
+        PHPSESSID = '';
+    }
+    var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
+    url = addGetParam(url, 'PHPSESSID', PHPSESSID);
+    _addViewAsyncSent = true;
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: {
+            'id': mediaId,
+            'currentTime': playerCurrentTime,
+            'seconds_watching_video': seconds_watching_video
+        },
+        async: false,
+        success: function (response) {
+            console.log('_addViewAsync', response);
+            setTimeout(function () {
+                _addViewAsyncSent = false;
+            }, 2000);
+        }
+    });
+}
+
+function addViewFromCookie() {
+    if (typeof webSiteRootURL == 'undefined') {
+        return false;
+    }
+    var addView_PHPSESSID = Cookies.get('addView_PHPSESSID');
+    var addView_videos_id = Cookies.get('addView_videos_id');
+    var addView_playerCurrentTime = Cookies.get('addView_playerCurrentTime');
+    var addView_seconds_watching_video = Cookies.get('addView_seconds_watching_video');
+
+    if (!addView_PHPSESSID || addView_PHPSESSID === 'false' ||
+            !addView_videos_id || addView_videos_id === 'false' ||
+            !addView_playerCurrentTime || addView_playerCurrentTime === 'false' ||
+            !addView_seconds_watching_video || addView_seconds_watching_video === 'false') {
+        return false;
+    }
+    addViewSetCookie(false, false, false, false);
+    var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
+    url = addGetParam(url, 'PHPSESSID', addView_PHPSESSID);
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: {
+            'id': addView_videos_id,
+            'currentTime': addView_playerCurrentTime,
+            'seconds_watching_video': addView_seconds_watching_video
+        },
+        async: false,
+        success: function (response) {
+            console.log('addViewFromCookie', response);
+        }
+    });
+}
+
+function addViewSetCookie(PHPSESSID, videos_id, playerCurrentTime, seconds_watching_video) {
+    Cookies.set('addView_PHPSESSID', PHPSESSID, {
+        path: '/',
+        expires: 1
+    });
+    Cookies.set('addView_videos_id', videos_id, {
+        path: '/',
+        expires: 1
+    });
+    Cookies.set('addView_playerCurrentTime', playerCurrentTime, {
+        path: '/',
+        expires: 1
+    });
+    Cookies.set('addView_seconds_watching_video', seconds_watching_video, {
+        path: '/',
+        expires: 1
     });
 }
 
@@ -484,12 +595,14 @@ function playerIsReady() {
 }
 
 var promisePlaytry = 20;
+var promisePlaytryNetworkFail = 0;
 var promisePlayTimeoutTime = 500;
 var promisePlayTimeout;
 var promisePlay;
 var browserPreventShowed = false;
 var playerPlayTimeout;
 var isTryingToPlay = false;
+var promisePlaytryNetworkFailTimeout;
 function playerPlay(currentTime) {
     isTryingToPlay = true;
     clearTimeout(playerPlayTimeout);
@@ -547,14 +660,22 @@ function playerPlay(currentTime) {
                         }
                     }
                 }).catch(function (error) {
-                    if (player.networkState() === 3) {
+                    if (player.networkState() === 3 && promisePlaytryNetworkFail < 5) {
                         promisePlaytry = 20;
-                        console.log("playerPlay: Network error detected, trying again");
-                        player.src(player.currentSources());
-                        userIsControling = false;
-                        tryToPlay(currentTime);
+                        promisePlaytryNetworkFail++;
+                        console.log("playerPlay: Network error detected, trying again", promisePlaytryNetworkFail);
+                        clearTimeout(promisePlaytryNetworkFailTimeout);
+                        promisePlaytryNetworkFailTimeout = setTimeout(function () {
+                            player.src(player.currentSources());
+                            userIsControling = false;
+                            tryToPlay(currentTime);
+                        }, promisePlaytryNetworkFail * 1000);
                     } else {
-                        if (promisePlaytry <= 10) {
+                        if (promisePlaytryNetworkFail >= 5) {
+                            userIsControling = true;
+                            console.log("playerPlay: (promisePlaytryNetworkFail) Autoplay was prevented");
+                            player.pause();
+                        } else if (promisePlaytry <= 10) {
                             console.log("playerPlay: (" + promisePlaytry + ") Autoplay was prevented, trying to mute and play ***");
                             tryToPlayMuted(currentTime);
                         } else {
@@ -694,6 +815,9 @@ function showMuteTooltip() {
 }
 
 function playerPlayIfAutoPlay(currentTime) {
+    if (isWebRTC()) {
+        return false;
+    }
     if (isAutoplayEnabled()) {
         playerPlayTimeout = setTimeout(function () {
             console.log('playerPlayIfAutoPlay true', currentTime);
@@ -893,15 +1017,27 @@ function setCurrentTime(currentTime) {
 }
 
 function isALiveContent() {
-    if (typeof isLive !== 'undefined' && isLive && (typeof isOnlineLabel === 'undefined' || isOnlineLabel === true)) {
+    if (typeof isLive !== 'undefined' && isLive && (typeof isOnlineLabel === 'undefined' || isOnlineLabel === true || $('.liveOnlineLabel').hasClass('label-success'))) {
         return true;
+    }
+    return false;
+}
+
+function isWebRTC() {
+    if (typeof _isWebRTC !== 'undefined') {
+        return _isWebRTC;
     }
     return false;
 }
 
 function isAutoplayEnabled() {
     //console.log("Cookies.get('autoplay')", Cookies.get('autoplay'));
-    if (isALiveContent()) {
+    if (typeof forceautoplay !== 'undefined' && forceautoplay) {
+        return true;
+    } else if (isWebRTC()) {
+        console.log("isAutoplayEnabled said No because is WebRTC ");
+        return false;
+    } else if (isALiveContent()) {
         //console.log("isAutoplayEnabled always autoplay live contents");
         return true;
     } else
@@ -984,7 +1120,7 @@ function isPlayNextEnabled() {
 }
 
 function avideoAlert(title, msg, type) {
-    if (typeof msg == 'undefined') {
+    if (typeof msg !== 'string') {
         return false;
     }
     if (msg !== msg.replace(/<\/?[^>]+(>|$)/g, "")) {//it has HTML
@@ -1028,6 +1164,17 @@ function avideoAlertAJAXHTML(url) {
     });
 }
 
+function avideoAlertAJAX(url) {
+    modal.showPleaseWait();
+    $.ajax({
+        url: url,
+        success: function (response) {
+            avideoResponse(response);
+            modal.hidePleaseWait();
+        }
+    });
+}
+
 function avideoAlertHTMLText(title, msg, type) {
     var span = document.createElement("span");
     span.innerHTML = msg;
@@ -1052,10 +1199,23 @@ function avideoModalIframeLarge(url) {
     avideoModalIframeWithClassName(url, 'swal-modal-iframe-large');
 }
 
+function avideoModalIframeFullScreen(url) {
+    avideoModalIframeWithClassName(url, 'swal-modal-iframe-full');
+}
+function avideoModalIframeFull(url) {
+    avideoModalIframeFullScreen(url);
+}
+""
 function avideoModalIframeWithClassName(url, className) {
-    var span = document.createElement("span");
     url = addGetParam(url, 'avideoIframe', 1);
-    span.innerHTML = '<iframe frameBorder="0" src="' + url + '" />';
+    var html = '';
+    html = '<div id="avideoModalIframeDiv" class="clearfix">';
+    html += '<button class="btn btn-default pull-left" onclick="swal.close();">';
+    html += '<i class="fas fa-chevron-left"></i>';
+    html += '</button></div>';
+    html += '<iframe frameBorder="0" src="' + url + '"  allow="camera *;microphone *" ></iframe>';
+    var span = document.createElement("span");
+    span.innerHTML = html;
     swal({
         content: span,
         closeModal: true,
@@ -1065,7 +1225,7 @@ function avideoModalIframeWithClassName(url, className) {
     });
     setTimeout(function () {
         avideoModalIframeRemove();
-    }, 1000);
+    }, 2000);
 }
 
 function avideoModalIframeIsVisible() {
@@ -1074,6 +1234,8 @@ function avideoModalIframeIsVisible() {
         modal = $('.swal-modal-iframe-small');
     } else if ($('.swal-modal-iframe-large').length) {
         modal = $('.swal-modal-iframe-large');
+    } else if ($('.swal-modal-iframe-full').length) {
+        modal = $('.swal-modal-iframe-full');
     } else {
         modal = $('.swal-modal-iframe');
     }
@@ -1091,7 +1253,22 @@ function avideoModalIframeRemove() {
             avideoModalIframeRemove();
         }, 1000);
     } else {
-        $('.swal-modal-iframe .swal-content').html('');
+        console.log('avideoModalIframeRemove');
+        $('.swal-content').html('');
+    }
+}
+
+function avideoResponse(response) {
+    if (response.error) {
+        if (!response.msg) {
+            response.msg = 'Error';
+        }
+        avideoAlertError(response.msg);
+    } else {
+        if (!response.msg) {
+            response.msg = 'Success';
+        }
+        avideoToastSuccess(response.msg);
     }
 }
 
@@ -1180,7 +1357,21 @@ function tabsCategoryDocumentHeightChanged() {
     return false;
 }
 
+function checkDescriptionArea() {
+    $(".descriptionArea").each(function (index) {
+        if ($(this).height() < $(this).find('.descriptionAreaContent').height()) {
+            $(this).find('.descriptionAreaShowMoreBtn').show();
+        }
+    });
+}
 $(document).ready(function () {
+    addViewFromCookie();
+    checkDescriptionArea();
+    setInterval(function () {// check for the carousel
+        checkDescriptionArea();
+    }, 3000);
+
+
     Cookies.set('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone, {
         path: '/',
         expires: 365
@@ -1498,16 +1689,16 @@ function startTimerToDate(toDate, selector, useDBDate) {
     }
     if (typeof toDate === 'string') {
         //console.log('startTimerToDate 1 '+toDate);
-        toDate = new Date(toDate);
+        toDate = new Date(toDate.replace(/-/g, "/"));
     }
     if (useDBDate) {
         if (typeof _serverDBTimeString !== 'undefined') {
-            date2 = new Date(_serverDBTimeString);
+            date2 = new Date(_serverDBTimeString.replace(/-/g, "/"));
             //console.log('startTimerToDate 2 '+date2);
         }
     } else {
         if (typeof _serverTimeString !== 'undefined') {
-            date2 = new Date(_serverTimeString);
+            date2 = new Date(_serverTimeString.replace(/-/g, "/"));
             //console.log('startTimerToDate 3 '+date2);
         }
     }
@@ -1711,3 +1902,17 @@ function avideoAjax(url, data) {
         }
     });
 }
+
+function isPlayerUserActive() {
+    return $('#mainVideo').hasClass("vjs-user-active");
+}
+
+window.addEventListener('beforeunload', function (e) {
+    //console.log('window.addEventListener(beforeunload');
+    _addViewAsync();
+}, false);
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+        _addViewAsync();
+    }
+});

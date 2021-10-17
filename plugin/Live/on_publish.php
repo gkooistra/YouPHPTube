@@ -22,10 +22,26 @@ if(!empty($parts["query"])){
 }
 
 if(!empty($_GET['e']) && empty($_GET['p'])){
-    $objE = json_decode(decryptString($_GET['e']));
+    if (strpos($_GET['e'], '/') !== false) {
+        $parts = explode("/", $_GET['e']);
+        if (!empty($parts[1])) {
+            if(empty($_POST['name'])){
+                $_POST['name'] = $parts[1];
+            }
+        }
+        $_GET['e'] = $parts[0];
+    }
+    $objE = _json_decode(decryptString($_GET['e']));
+    if(empty($objE)){
+        
+        $objE = _json_decode(decryptString(base64_decode($_GET['e'])));
+    }
+    
     if(!empty($objE->users_id)){
         $user = new User($objE->users_id);
         $_GET['p'] = $user->getPassword();
+    }else{
+        _error_log("NGINX ON Publish encryption token error: " . json_encode($objE));
     }
 }
 
@@ -80,6 +96,7 @@ if (!empty($_GET['p'])) {
             $lth->setTitle($obj->row['title']);
             $lth->setDescription($obj->row['description']);
             $lth->setKey($_POST['name']);
+            $lth->setDomain(@$_REQUEST['domain']);
             $lth->setUsers_id($user->getBdId());
             $lth->setLive_servers_id(Live_servers::getServerIdFromRTMPHost($url));
             _error_log("NGINX ON Publish saving LiveTransmitionHistory");
@@ -140,7 +157,7 @@ if (!empty($obj) && empty($obj->error)) {
     }
     //exit;
 } else {
-    _error_log("NGINX ON Publish denied ", AVideoLog::$SECURITY);
+    _error_log("NGINX ON Publish denied ". json_encode($obj), AVideoLog::$SECURITY);
     http_response_code(401);
     header("HTTP/1.1 401 Unauthorized Error");
     exit;

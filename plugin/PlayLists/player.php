@@ -25,8 +25,10 @@ $playList = PlayList::getVideosFromPlaylist($_GET['playlists_id']);
 $playListData = array();
 $videoStartSeconds = array();
 $users_id = User::getId();
+$messagesFromPlayList = array();
 foreach ($playList as $key => $value) {
     if(!User::isAdmin() && !Video::userGroupAndVideoGroupMatch($users_id, $value['videos_id'])){
+        $messagesFromPlayList[] = "videos_id={$value['videos_id']} UserGroups do not match";
         unset($playList[$key]);
         continue;
     }
@@ -51,6 +53,7 @@ foreach ($playList as $key => $value) {
         $playListSources[] = new playListSource($value2['url'], $value['type'] === 'embed');
     }
     if (empty($playListSources)) {
+        $messagesFromPlayList[] = "videos_id={$value['videos_id']} empty playlist source ";
         continue;
     }
     $playListData[] = new PlayListElement($value['title'], $value['description'], $value['duration'], $playListSources, $thumbnail, $images->poster, parseDurationToSeconds(@$externalOptions->videoStartSeconds), $value['cre'], $value['likes'], $value['views_count'], $value['videos_id']);
@@ -68,13 +71,16 @@ if (!empty($video['id'])) {
     $video = Video::getVideo($playListData[$playlist_index]->getVideos_id());
 }
 
+if(empty($playListData)){
+    videoNotFound(implode('<br>', $messagesFromPlayList));
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo $playListObj->getName() . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getCDN(); ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>view/css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getCDN(); ?>view/css/social.css" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.css" rel="stylesheet">
@@ -196,13 +202,11 @@ if (!empty($video['id'])) {
         <?php
         echo AVideoPlugin::afterVideoJS();
         include $global['systemRootPath'] . 'view/include/footer.php';
-        $videoJSArray = array(
-            "view/js/BootstrapMenu.min.js");
-        $jsURL = combineFiles($videoJSArray, "js");
         ?>
-        <script src="<?php echo $jsURL; ?>" type="text/javascript"></script><script src="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
-        <script src="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.js"></script>
-        <script src="<?php echo getCDN(); ?>view/js/videojs-youtube/Youtube.js"></script>
+        <script src="<?php echo getURL('view/js/BootstrapMenu.min.js'); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
+        <script src="<?php echo getURL('plugin/PlayLists/videojs-playlist/videojs-playlist.js'); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
+        <script src="<?php echo getURL('plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.js'); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
+        <script src="<?php echo getURL('view/js/videojs-youtube/Youtube.js'); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
         <script>
 
                                             var playerPlaylist = <?php echo json_encode($playListData); ?>;
@@ -276,16 +280,17 @@ if (!empty($video['id'])) {
                                                 $("#modeYoutubeBottomContent").load("<?php echo $global['webSiteRootURL']; ?>view/modeYoutubeBottom.php?videos_id=" + playerPlaylist[0].videos_id);
                                                 $(".vjs-playlist-item ").click(function () {
 
-
                                                 });
 
                                                 player.on('playlistitem', function () {
                                                     index = player.playlist.currentIndex();
                                                     videos_id = playerPlaylist[index].videos_id;
                                                     $("#modeYoutubeBottomContent").load("<?php echo $global['webSiteRootURL']; ?>view/modeYoutubeBottom.php?videos_id=" + playerPlaylist[index].videos_id);
-                                                    setTimeout(function () {
-                                                        player.currentTime(playerPlaylist[index].videoStartSeconds);
-                                                    }, 500);
+                                                    if(playerPlaylist[index] && playerPlaylist[index].videoStartSeconds){
+                                                        setTimeout(function () {
+                                                            player.currentTime(playerPlaylist[index].videoStartSeconds);
+                                                        }, 500);
+                                                    }
                                                     if (typeof enableDownloadProtection === 'function') {
                                                         enableDownloadProtection();
                                                     }
@@ -306,7 +311,7 @@ if (!empty($video['id'])) {
                                                         }
                                                     });
 
-// Register the new component
+                                                    // Register the new component
                                                     videojs.registerComponent('nextButton', nextButton);
                                                     player.getChild('controlBar').addChild('nextButton', {}, getPlayerButtonIndex('PlayToggle') + 1);
                                                 }, 30);

@@ -51,20 +51,26 @@ Options All -Indexes
 # END Expires
 # BEGIN Caching
 <ifModule mod_headers.c>
-    Header set Access-Control-Allow-Origin: *
+    <filesMatch "\VMAP.php$">
+        Header set Access-Control-Allow-Origin: *
+    </filesMatch>
     <filesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|swf|ts)$">
+        Header set Access-Control-Allow-Origin: *
         Header set Cache-Control "max-age=2592000, public"
     </filesMatch>
     <filesMatch "\.(woff2|css)$">
+        Header set Access-Control-Allow-Origin: *
         Header set Cache-Control "max-age=604800, public"
     </filesMatch>
     <filesMatch "\.(js)$">
+        Header set Access-Control-Allow-Origin: *
         Header set Cache-Control "max-age=216000, private"
     </filesMatch>
     <filesMatch "\.(xml|txt)$">
         Header set Cache-Control "max-age=216000, public, must-revalidate"
     </filesMatch>
     <filesMatch "\.(html|htm|php|key|m3u8)$">
+        Header set Access-Control-Allow-Origin: *
         Header set Cache-Control "max-age=1, private, must-revalidate"
     </filesMatch>
 </ifModule>
@@ -350,10 +356,8 @@ Options All -Indexes
   AddOutputFilterByType DEFLATE text/javascript
   AddOutputFilterByType DEFLATE text/plain
   AddOutputFilterByType DEFLATE text/xml
+
 </IfModule>
-RewriteEngine On
-RewriteBase /
-RewriteRule ^index\.html?$ / [NC,R,L]
 AddType text/vtt .vtt
-#php_value post_max_size 4G
-#php_value upload_max_filesize 4G
+#php_value post_max_size 16G
+#php_value upload_max_filesize 16G

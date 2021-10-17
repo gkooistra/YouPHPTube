@@ -70,7 +70,7 @@ if (!empty($_GET['type'])) {
             ],
                 /* optional : set debug mode
                   'debug_mode' => true,
-                  // Path to file writeable by the web server. Required if 'debug_mode' is not false
+                  // Path to file writable by the web server. Required if 'debug_mode' is not false
                   'debug_file' => __FILE__ . '.log', */
         ];
     } else {
@@ -154,6 +154,9 @@ if (!empty($_GET['type'])) {
         $location = "{$global['webSiteRootURL']}user?error=" . urlencode($e->getMessage());
         //header("Location: {$global['webSiteRootURL']}user?error=" . urlencode($e->getMessage()));
         //echo $e->getMessage();
+    }
+    if(!isSameDomainAsMyAVideo($location)){
+       $location = $global['webSiteRootURL'];
     }
     header('Content-Type: text/html');
     ?>
@@ -318,6 +321,9 @@ if ($object->isLogged) {
 } else {
     _error_log('login.json.php is not logged');
 }
+
+$object->PHPSESSID = session_id();
+
 TimeLogEnd($timeLog, __LINE__);
 //_error_log("login.json.php almost complete");
 $json = _json_encode($object);

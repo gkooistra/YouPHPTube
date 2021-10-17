@@ -50,8 +50,6 @@ abstract class ObjectYPT implements ObjectInterface {
         if(!isset($timezoneOriginal)){
             $timezoneOriginal = date_default_timezone_get();
         }
-        $row = self::getNowFromDB();
-        $dt = new DateTime($row['my_date_field']);
         if(!empty($_COOKIE['timezone']) && $_COOKIE['timezone'] !== 'undefined'){
             $timezone = $_COOKIE['timezone'];
         }else{
@@ -61,18 +59,7 @@ abstract class ObjectYPT implements ObjectInterface {
         if (empty($timezone) || $timezone == 'undefined') {
             return false;
         }
-        try {
-            $objDate = new DateTimeZone($timezone);
-            if (is_object($objDate)) {
-                $dt->setTimezone($objDate);
-                date_default_timezone_set($timezone);
-                return $dt;
-            }
-            return false;
-        } catch (Exception $exc) {
-            _error_log("setTimeZone: " . $exc->getMessage(), AVideoLog::$ERROR);
-            return false;
-        }
+        date_default_timezone_set($timezone);
     }
 
     protected static function getFromDb($id) {
@@ -177,6 +164,10 @@ abstract class ObjectYPT implements ObjectInterface {
                     $direction = "DESC";
                 }
                 $key = preg_replace("/[^A-Za-z0-9._ ]/", '', $key);
+                $key = trim($key);
+                if (strpos($key, '.') === false) {
+                    $key = "`{$key}`";
+                }
                 $orderBy[] = " {$keyPrefix}{$key} {$value} ";
             }
             $sql .= " ORDER BY " . implode(",", $orderBy);
@@ -279,8 +270,10 @@ abstract class ObjectYPT implements ObjectInterface {
                     $fields[] = " now() ";
                 } elseif (!isset($this->$value) || strtolower($this->$value) == 'null') {
                     $fields[] = " NULL ";
-                } else {
+                } else if(is_string($this->$value) || is_numeric($this->$value)){
                     $fields[] = " '{$this->$value}' ";
+                }else{
+                    $fields[] = " NULL ";
                 }
             }
             $sql .= " VALUES (" . implode(", ", $fields) . ")";
@@ -364,6 +357,7 @@ abstract class ObjectYPT implements ObjectInterface {
      * @return type
      */
     public static function getCache($name, $lifetime = 60, $ignoreSessionCache = false) {
+        self::setLastUsedCacheMode("No cache detected $name, $lifetime, ".intval($ignoreSessionCache));
         if (isCommandLineInterface()) {
             return false;
         }
@@ -380,8 +374,11 @@ abstract class ObjectYPT implements ObjectInterface {
             $getCachesProcessed = array();
         }
         $cachefile = self::getCacheFileName($name);
-
+        self::setLastUsedCacheFile($cachefile);
+        //_error_log('getCache: cachefile '.$cachefile);
         if (!empty($_getCache[$name])) {
+            //_error_log('getCache: '.__LINE__);
+            self::setLastUsedCacheMode("Global Variable \$_getCache[$name]");
             return $_getCache[$name];
         }
 
@@ -398,6 +395,7 @@ abstract class ObjectYPT implements ObjectInterface {
             $session = self::getSessionCache($name, $lifetime);
             if (!empty($session)) {
                 $_getCache[$name] = $session;
+                //_error_log('getCache: '.__LINE__);
                 return $session;
             }
         }
@@ -414,6 +412,7 @@ abstract class ObjectYPT implements ObjectInterface {
          */
         if (file_exists($cachefile) && (empty($lifetime) || time() - $lifetime <= filemtime($cachefile))) {
             //if(preg_match('/getStats/', $cachefile)){echo $cachefile,'<br>';}
+            self::setLastUsedCacheMode("Local File $cachefile");
             $c = @url_get_contents($cachefile);
             $json = _json_decode($c);
             
@@ -423,18 +422,38 @@ abstract class ObjectYPT implements ObjectInterface {
             
             self::setSessionCache($name, $json);
             $_getCache[$name] = $json;
+            //_error_log('getCache: '.__LINE__);
             return $json;
         } elseif (file_exists($cachefile)) {
             self::deleteCache($name);
+            @unlink($cachefile);
         }
+        //if(preg_match('/getChannelsWithMoreViews30/i', $name)){var_dump($name, $cachefile, file_exists($cachefile) , $lifetime, time() - $lifetime, filemtime($cachefile));exit;}
         //_error_log("YPTObject::getCache log error [{$name}] $cachefile filemtime = ".filemtime($cachefile));
         return null;
     }
+    
+    private static function setLastUsedCacheMode($mode){
+        global $_lastCacheMode;
+        $_lastCacheMode = $mode;
+    }
+    
+    private static function setLastUsedCacheFile($cachefile){
+        global $_lastCacheFile;
+        $_lastCacheFile = $cachefile;
+    }
+    
+    public static function getLastUsedCacheInfo(){
+        global $_lastCacheFile, $_lastCacheMode;
+        return array('file'=>$_lastCacheFile, 'mode'=>$_lastCacheMode );
+    }
 
+    
     public static function deleteCache($name) {
         if(empty($name)){return false;}
         global $__getAVideoCache;
         unset($__getAVideoCache);
+        //_error_log('deleteCache: '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         $cachefile = self::getCacheFileName($name);
         @unlink($cachefile);
         self::deleteSessionCache($name);
@@ -446,6 +465,7 @@ abstract class ObjectYPT implements ObjectInterface {
         unset($__getAVideoCache);
         $tmpDir = self::getCacheDir();
         $array = _glob($tmpDir, $pattern);
+        _error_log('deleteCachePattern: '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         foreach ($array as $value) {
             _error_log("Object::deleteCachePattern file [{$value}]");
             @unlink($value);
@@ -461,12 +481,24 @@ abstract class ObjectYPT implements ObjectInterface {
     }
 
     public static function deleteALLCache() {
+        self::deleteAllSessionCache();
+        $lockFile = getVideosDir().'.deleteALLCache.lock';
+        if(file_exists($lockFile) && filectime($lockFile) > strtotime('-5 minutes')){
+            _error_log('clearCache is in progress '. json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
+            return false;
+        }
+        $start = microtime(true);
+        _error_log('deleteALLCache starts ');
         global $__getAVideoCache;
         unset($__getAVideoCache);
+        //_error_log('deleteALLCache: '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         $tmpDir = self::getCacheDir();
         rrmdir($tmpDir);
-        self::deleteAllSessionCache();
         self::setLastDeleteALLCacheTime();
+        unlink($lockFile);
+        $end = microtime(true)-$start;
+        _error_log("deleteALLCache end in {$end} seconds");
+        return true;
     }
 
     public static function getCacheDir($filename = '') {
@@ -529,7 +561,11 @@ abstract class ObjectYPT implements ObjectInterface {
     }
 
     public static function deleteCacheFromPattern($name) {
+        if(empty($name)){
+            return false;
+        }
         $tmpDir = getTmpDir();
+        //_error_log('deleteCacheFromPattern: '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         $name = self::cleanCacheName($name);
         $ignoreLocationDirectoryName = (strpos($name, DIRECTORY_SEPARATOR) !== false);
         $filePattern = $tmpDir . DIRECTORY_SEPARATOR . $name;
@@ -568,6 +604,7 @@ abstract class ObjectYPT implements ObjectInterface {
         if (!empty($_SESSION['user']['sessionCache'][$name])) {
             if ((empty($lifetime) || time() - $lifetime <= $_SESSION['user']['sessionCache'][$name]['time'])) {
                 $c = $_SESSION['user']['sessionCache'][$name]['value'];
+                self::setLastUsedCacheMode("Session cache \$_SESSION['user']['sessionCache'][$name]");
                 $json = _json_decode($c);
                 if(is_string($json) && strtolower($json) === 'false'){
                     $json = false;

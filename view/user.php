@@ -4,8 +4,9 @@ if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 require_once $global['systemRootPath'] . 'objects/user.php';
-if (User::isLogged() && !empty($_GET['redirectUri'])) {
-    header("Location: {$_GET['redirectUri']}");
+
+if (User::isLogged()) {
+    redirectIfRedirectUriIsSet();
 }
 $tags = User::getTags(User::getId());
 $tagsStr = "";

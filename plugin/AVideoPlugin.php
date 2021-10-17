@@ -518,10 +518,10 @@ class AVideoPlugin {
             $p = static::loadPluginIfEnabled($name);
             $isPluginEnabledByName[$index] = false;
             if ($minVersion) {
-                if(!empty($p)){
-                    if(version_compare($p->getPluginVersion(), $minVersion, '>=')){
+                if (!empty($p)) {
+                    if (version_compare($p->getPluginVersion(), $minVersion, '>=')) {
                         $isPluginEnabledByName[$index] = true;
-                    }else{
+                    } else {
                         _error_log("You need to update your plugin {$name} to version {$minVersion} or greater", AVideoLog::$WARNING);
                     }
                 }
@@ -606,6 +606,45 @@ class AVideoPlugin {
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $p->afterNewVideo($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+        
+    public static function onEncoderReceiveImage($videos_id) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onEncoderReceiveImage($videos_id);
+                $p->onReceiveFile($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+
+    public static function onEncoderNotifyIsDone($videos_id) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onEncoderNotifyIsDone($videos_id);
+                $p->onReceiveFile($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+
+    public static function onUploadIsDone($videos_id) {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onUploadIsDone($videos_id);
+                $p->onReceiveFile($videos_id);
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
@@ -763,7 +802,13 @@ class AVideoPlugin {
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $appArray = $p->getLiveApplicationArray();
-                $array = array_merge($array, $appArray);
+                if (is_array($appArray)) {
+                    if (!is_array($array)) {
+                        $array = $appArray;
+                    } else {
+                        $array = array_merge($array, $appArray);
+                    }
+                }
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
@@ -1123,7 +1168,7 @@ class AVideoPlugin {
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
         if (!empty($users_id)) {
-            _error_log("userCanWatchVideo: No plugins approve user ({$users_id}) watch the video ({$videos_id}) ");
+            //_error_log("userCanWatchVideo: No plugins approve user ({$users_id}) watch the video ({$videos_id}) ");
         }
         $userCanWatchVideoFunction[$users_id][$videos_id] = $resp;
         ObjectYPT::setSessionCache($cacheName, $resp);
@@ -1152,7 +1197,9 @@ class AVideoPlugin {
                 if (!empty($can)) {
                     $resp = $can > 0 ? true : false;
                     if ($resp) {
-                        _error_log("userCanWatchVideoWithAds the plugin ({$value['dirName']}) said user ({$users_id}) can watch");
+                        if(!empty($users_id)){
+                            _error_log("userCanWatchVideoWithAds the plugin ({$value['dirName']}) said user ({$users_id}) can watch");
+                        }
                         $userCanWatchVideoWithAdsFunction[$users_id][$videos_id] = true;
                         return true;
                     } else {
@@ -1545,7 +1592,11 @@ class AVideoPlugin {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $r .= $p->getUploadMenuButton();
+                $btn = $p->getUploadMenuButton();
+                if (empty($btn)) {
+                    continue;
+                }
+                $r .= "<!-- {$value['dirName']} getUploadMenuButton start -->" . $btn . "<!-- {$value['dirName']} getUploadMenuButton end -->";
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
@@ -1960,7 +2011,7 @@ class AVideoPlugin {
         }
         return;
     }
-    
+
     public static function onVideoSetOnly_for_paid($video_id, $oldValue, $newValue) {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {

@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS `live_transmitions_history` (
   `users_id` INT(11) NOT NULL,
   `live_servers_id` INT(11) NULL DEFAULT NULL,
   `finished` DATETIME NULL DEFAULT NULL,
+  `domain` VARCHAR(255) NULL DEFAULT NULL,
+  `json` TEXT NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_live_transmitions_history_users_idx` (`users_id` ASC),
   INDEX `fk_live_transmitions_history_live_servers1_idx` (`live_servers_id` ASC),
@@ -118,6 +120,7 @@ CREATE TABLE IF NOT EXISTS `live_servers` (
   `getRemoteFile` VARCHAR(255) NULL DEFAULT NULL,
   `restreamerURL` VARCHAR(255) NULL DEFAULT NULL,
   `controlURL` VARCHAR(255) NULL DEFAULT NULL,
+  `webRTC_server` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `live_serversindex2` (`status` ASC),
   INDEX `live_servers` (`url` ASC))
@@ -126,9 +129,9 @@ DEFAULT CHARACTER SET = utf8;
 
 CREATE TABLE IF NOT EXISTS `live_restreams` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(255) NOT NULL,
-  `stream_url` VARCHAR(255) NOT NULL,
-  `stream_key` VARCHAR(255) NOT NULL,
+  `name` VARCHAR(500) NOT NULL,
+  `stream_url` VARCHAR(500) NOT NULL,
+  `stream_key` VARCHAR(500) NOT NULL,
   `status` CHAR(1) NULL,
   `created` DATETIME NULL,
   `modified` DATETIME NULL,
@@ -141,6 +144,37 @@ CREATE TABLE IF NOT EXISTS `live_restreams` (
     REFERENCES `users` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS `live_schedule` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(255) NULL,
+  `description` VARCHAR(255) NULL,
+  `key` VARCHAR(255) NULL,
+  `users_id` INT(11) NOT NULL,
+  `live_servers_id` INT(11) NULL,
+  `created` DATETIME NULL,
+  `modified` DATETIME NULL,
+  `scheduled_time` DATETIME NULL,
+  `timezone` VARCHAR(255) NULL,
+  `status` CHAR(1) NULL DEFAULT 'a',
+  `poster` VARCHAR(255) NULL,
+  `public` TINYINT(1) NULL,
+  `saveTransmition` TINYINT(1) NULL,
+  `showOnTV` TINYINT(4) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_live_schedule_users1_idx` (`users_id` ASC),
+  INDEX `fk_live_schedule_live_servers1_idx` (`live_servers_id` ASC),
+  CONSTRAINT `fk_live_schedule_users1`
+    FOREIGN KEY (`users_id`)
+    REFERENCES `users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_live_schedule_live_servers1`
+    FOREIGN KEY (`live_servers_id`)
+    REFERENCES `live_servers` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 SET SQL_MODE=@OLD_SQL_MODE;

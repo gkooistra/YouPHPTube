@@ -68,7 +68,7 @@ if ($video['type'] !== "pdf") {
     }
 }
 
-if(empty($poster)){
+if (empty($poster)) {
     $poster = "";
     if (!empty($video['filename'])) {
         $images = Video::getImageFromFilename($video['filename']);
@@ -89,7 +89,7 @@ if(empty($poster)){
         if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio")) {
             $poster = "{$global['webSiteRootURL']}videos/{$video['filename']}.jpg";
         } else {
-            $poster = "".getCDN()."view/img/audio_wave.jpg";
+            $poster = "" . getCDN() . "view/img/audio_wave.jpg";
         }
     }
 }
@@ -113,6 +113,7 @@ $resp = $obj->addView();
 $modestbranding = false;
 $autoplay = false;
 $controls = "controls";
+$showOnlyBasicControls = false;
 $loop = "";
 $mute = "";
 $objectFit = "";
@@ -124,8 +125,15 @@ if (isset($_GET['modestbranding']) && $_GET['modestbranding'] == "1") {
 if (!empty($_GET['autoplay']) || $config->getAutoplay()) {
     $autoplay = true;
 }
-if (isset($_GET['controls']) && $_GET['controls'] == "0") {
-    $controls = "";
+if (isset($_GET['controls'])) {
+    if ($_GET['controls'] == "0") {
+        $controls = "";
+    } else if ($_GET['controls'] == "-1") {
+        $showOnlyBasicControls = true;
+    } else if ($_GET['controls'] == "-2") {
+        $showOnlyBasicControls = true;
+        $hideProgressBarAndUnPause = true;
+    }
 }
 if (!empty($_GET['loop'])) {
     $loop = "loop";
@@ -133,7 +141,7 @@ if (!empty($_GET['loop'])) {
 if (!empty($_GET['mute'])) {
     $mute = 'muted="muted"';
 }
-if (!empty($_GET['objectFit'])) {
+if (!empty($_GET['objectFit']) && (intval($_GET['objectFit']) == 1 || $_GET['objectFit'] == 'true')) {
     $objectFit = 'object-fit: ' . $_GET['objectFit'];
 }
 if (!empty($_GET['t'])) {
@@ -186,7 +194,6 @@ if (User::hasBlockedUser($video['users_id'])) {
         <link href="<?php echo getCDN(); ?>view/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getCDN(); ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>view/css/player.css" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getCDN(); ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getCDN(); ?>view/js/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css"/>
@@ -218,6 +225,7 @@ if (User::hasBlockedUser($video['users_id'])) {
                 color: #FFF;
                 padding: 15px;
                 background-image: linear-gradient(rgba(0,0,0,1), rgba(0,0,0,0));
+                overflow: hidden;
 
             }
             #topInfo a{
@@ -265,10 +273,34 @@ if (User::hasBlockedUser($video['users_id'])) {
             <?php
             if (empty($controls)) {
                 ?>
-                #topInfo, .vjs-big-play-button, .vjs-control-bar{
-                    display: none;
+                #topInfo, .vjs-big-play-button, .vjs-control-bar, #seekBG{
+                    display: none !important;
                 }
                 <?php
+            } else if ($showOnlyBasicControls) {
+                ?>
+                #mainVideo > div.vjs-control-bar > .vjs-control, 
+                #mainVideo > div.vjs-control-bar > div.vjs-time-divider{
+                    display: none;
+                }
+                #mainVideo > div.vjs-control-bar > .vjs-play-control,
+                #mainVideo > div.vjs-control-bar > .vjs-fullscreen-control{
+                    display: inline-block;
+                }
+                #mainVideo > div.vjs-control-bar > .vjs-volume-panel,
+                #mainVideo > div.vjs-control-bar > .vjs-progress-control,
+                #mainVideo > div.vjs-control-bar > .vjs-resolution-button{
+                    display: flex;
+                }
+                <?php
+                if ($hideProgressBarAndUnPause) {
+                    ?>
+                    #mainVideo > div.vjs-control-bar > .vjs-progress-control, 
+                    #mainVideo > div.vjs-control-bar > button.vjs-play-control{
+                        display: none;
+                    }
+                    <?php
+                }
             }
             ?>
         </style>
@@ -410,21 +442,8 @@ if (User::hasBlockedUser($video['users_id'])) {
         <audio style="width: 100%; height: 100%;"  id="mainVideo" <?php echo $controls; ?> <?php echo $loop; ?> class="center-block video-js vjs-default-skin vjs-big-play-centered"  id="mainVideo"  data-setup='{ "fluid": true }'
                poster="<?php echo $poster; ?>">
                    <?php
-                   $ext = "";
-                   if (file_exists($global['systemRootPath'] . "videos/" . $video['filename'] . ".ogg")) {
-                       ?>
-                <source src="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.ogg" type="audio/ogg" />
-                <a href="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.ogg">horse</a>
-                <?php
-                $ext = ".ogg";
-            } else {
-                ?>
-                <source src="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.mp3" type="audio/mpeg" />
-                <a href="<?php echo $global['webSiteRootURL']; ?>videos/<?php echo $video['filename']; ?>.mp3">horse</a>
-                <?php
-                $ext = ".mp3";
-            }
-            ?>
+                   echo getSources($video['filename']);
+                   ?>
         </audio>
         <script>
     <?php
@@ -432,7 +451,7 @@ if (User::hasBlockedUser($video['users_id'])) {
     ?>
         </script>
         <?php
-    } else if ($video['type'] == "linkVideo" || $video['type'] == "liveLink" ) {
+    } else if ($video['type'] == "linkVideo" || $video['type'] == "liveLink") {
         ?>
         <!-- videoLink -->
         <video style="width: 100%; height: 100%; position: fixed; top: 0; <?php echo $objectFit; ?>" playsinline webkit-playsinline poster="<?php echo $poster; ?>" <?php echo $controls; ?> <?php echo $loop; ?>   <?php echo $mute; ?> 
@@ -448,7 +467,7 @@ if (User::hasBlockedUser($video['users_id'])) {
         </video>
 
         <?php
-        if($video['type'] == "liveLink"){
+        if ($video['type'] == "liveLink") {
             echo getLiveUsersLabelHTML();
         }
         ?>
@@ -469,8 +488,8 @@ if (User::hasBlockedUser($video['users_id'])) {
             <p><?php echo __("If you can't view this video, your browser does not support HTML5 videos"); ?></p>
         </video>
         <script><?php
-    PlayerSkins::playerJSCodeOnLoad($video['id']);
-    ?>
+               PlayerSkins::playerJSCodeOnLoad($video['id']);
+               ?>
         </script>
         <?php
     }
@@ -510,12 +529,11 @@ if (User::hasBlockedUser($video['users_id'])) {
     $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.plugins.min.js";
     $jsFiles[] = "view/js/jquery-ui/jquery-ui.min.js";
     $jsFiles[] = "view/js/jquery-toast/jquery.toast.min.js";
-    $jsFiles[] = "view/bootstrap/js/bootstrap.min.js";
-    $jsURL = combineFiles($jsFiles, "js");
+    //$jsFiles[] = "view/bootstrap/js/bootstrap.min.js";
     ?>
-    <script src="<?php echo getCDN(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
-    <script src="<?php echo $jsURL; ?>" type="text/javascript"></script>
+    <script src="<?php echo getURL('view/bootstrap/js/bootstrap.min.js'); ?>" type="text/javascript"></script>
     <?php
+    echo combineFilesHTML($jsFiles, "js");
     echo AVideoPlugin::getFooterCode();
     include $global['systemRootPath'] . 'plugin/PlayerSkins/contextMenu.php';
     ?>
@@ -545,6 +563,15 @@ if (User::hasBlockedUser($video['users_id'])) {
                     $('#mainVideo').removeClass("vjs-user-active");
                 }, 500);
             });
+<?php
+if ($hideProgressBarAndUnPause) {
+    ?>
+                player.on('pause', function () {
+                    player.play();
+                });
+    <?php
+}
+?>
 
         });
     </script>

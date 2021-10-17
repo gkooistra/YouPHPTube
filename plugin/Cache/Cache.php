@@ -40,6 +40,7 @@ class Cache extends PluginAbstract {
         $obj->cacheDir = $global['systemRootPath'] . 'videos/cache/';
         $obj->logPageLoadTime = false;
         $obj->stopBotsFromNonCachedPages = false;
+        $obj->deleteStatisticsDaysOld = 180; // 6 months
         return $obj;
     }
 
@@ -118,7 +119,7 @@ class Cache extends PluginAbstract {
         $whitelistedFiles = array('user.php', 'status.php', 'canWatchVideo.json.php', '/login', '/status');
         $blacklistedFiles = array('videosAndroid.json.php');
         $baseName = basename($_SERVER["SCRIPT_FILENAME"]);
-        if (isVideo() || isLive() || isLiveLink() || in_array($baseName, $whitelistedFiles) || in_array($_SERVER['REQUEST_URI'], $whitelistedFiles)) {
+        if (getVideos_id() || isVideo() || isLive() || isLiveLink() || in_array($baseName, $whitelistedFiles) || in_array($_SERVER['REQUEST_URI'], $whitelistedFiles)) {
             return true;
         }
 
@@ -188,6 +189,9 @@ class Cache extends PluginAbstract {
 
         if ($this->isBlacklisted() || $this->isFirstPage() || !class_exists('User') || !User::isLogged() || !empty($obj->enableCacheForLoggedUsers)) {
             $cacheName = 'firstPage'.DIRECTORY_SEPARATOR.$this->getFileName();
+            
+            $c = preg_replace('/<script id="infoForNonCachedPages">[^<]+<\/script>/', '', $c);
+            
             $r = ObjectYPT::setCache($cacheName, $c);
             //var_dump($r);
         }
@@ -209,7 +213,8 @@ class Cache extends PluginAbstract {
             '/roku.json',
             'mrss',
             '/sitemap.xml',
-            'plugin/Live/verifyToken.json.php');
+            'plugin/Live/verifyToken.json.php',
+            'control.json.php');
         foreach ($cacheBotWhitelist as $value) {
             if (strpos($_SERVER['REQUEST_URI'], $value) !== false) {
                 _error_log("Cache::isREQUEST_URIWhitelisted: ($value) is whitelisted");
@@ -252,6 +257,20 @@ class Cache extends PluginAbstract {
         $t = (floatval($finish) - floatval($global['cachePluginStart']));
         $total_time = round($t, 4);
         _error_log("Page generated in {$total_time} seconds. {$type} ({$_SERVER['REQUEST_URI']}) FROM: {$_SERVER['REMOTE_ADDR']} Browser: {$_SERVER['HTTP_USER_AGENT']}");
+    }
+    
+    public function getPluginMenu() {
+        global $global;
+        $fileAPIName = $global['systemRootPath'] . 'plugin/Cache/pluginMenu.html';
+        $content = file_get_contents($fileAPIName);        
+        return $content;
+    }
+    
+    public function getFooterCode() {
+        global $global;
+        if(preg_match('/managerPlugins.php$/', $_SERVER["SCRIPT_FILENAME"])){
+            return "<script src=\"{$global['webSiteRootURL']}plugin/Cache/pluginMenu.js\"></script>";
+        }
     }
 
 }
