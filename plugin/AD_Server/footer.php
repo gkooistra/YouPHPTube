@@ -1,7 +1,7 @@
-<script src="<?php echo getCDN(); ?>js/videojs-contrib-ads/videojs.ads.js" type="text/javascript"></script>
-<script src="<?php echo getCDN(); ?>plugin/AD_Server/videojs-ima/videojs.ima.js" type="text/javascript"></script>
+<script src="<?php echo getURL('node_modules/videojs-contrib-ads/dist/videojs.ads.min.js'); ?>" type="text/javascript"></script>
+<script src="<?php echo getURL('node_modules/videojs-ima/dist/videojs.ima.min.js'); ?>" type="text/javascript"></script>
 <script>
-    if (typeof player === 'undefined') {
+    if (typeof player === 'undefined' && $('#mainVideo').length) {
         player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
     }
     var options = {id: 'mainVideo', adTagUrl: '<?php echo $global['webSiteRootURL'] ?>plugin/AD_Server/VMAP.php?video_length=<?php echo $video_length ?>&vmap_id=<?php echo $vmap_id ?>&random=<?php echo uniqid(); ?>'};
@@ -9,7 +9,7 @@
         $(document).ready(function () {
 <?php
 if (!empty($obj->showMarkers)) {
-    ?>
+?>
                 $.getScript("<?php echo $global['webSiteRootURL'] ?>plugin/AD_Server/videojs-markers/videojs-markers.js", function (data, textStatus, jqxhr) {
 
                     if (typeof player == 'undefined') {
@@ -30,12 +30,10 @@ if (!empty($obj->showMarkers)) {
     <?php
     foreach ($vmaps as $value) {
         $vastCampaingVideos = new VastCampaignsVideos($value->VAST->campaing);
-        $video = new Video("", "", $vastCampaingVideos->getVideos_id());
-        ?>
+        $video = new Video("", "", $vastCampaingVideos->getVideos_id()); ?>
                                 {time: <?php echo $value->timeOffsetSeconds; ?>, text: "<?php echo addcslashes($video->getTitle(), '"'); ?>"},
         <?php
-    }
-    ?>
+    } ?>
                         ]
                     });
                 });

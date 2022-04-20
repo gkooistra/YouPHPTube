@@ -140,7 +140,7 @@ class PlayerSkins extends PluginAbstract {
                     }
                     $htmlMediaTag = "<!-- Embed Link {$video['title']} {$video['filename']} -->";
                     $htmlMediaTag .= '<video playsinline webkit-playsinline="webkit-playsinline"  id="mainVideo" style="display: none; height: 0;width: 0;" ></video>';
-                    $htmlMediaTag .= '<div id="main-video" class="embed-responsive embed-responsive-16by9">';
+                    $htmlMediaTag .= '<div id="main-video" class="embed-responsive-item">';
                     $htmlMediaTag .= '<iframe class="embed-responsive-item" scrolling="no" allowfullscreen="true" src="' . $url . '"></iframe>';
                     $htmlMediaTag .= '<script>$(document).ready(function () {addView(' . $video['id'] . ', 0);});</script>';
                     $htmlMediaTag .= '</div>';
@@ -209,6 +209,7 @@ class PlayerSkins extends PluginAbstract {
         $obj = $this->getDataObject();
         $css = "";
         $js = "";
+        $js .= "<script>var _adWasPlayed = 0;</script>";
         if (isLive()) {
             $js .= "<script>var isLive = true;</script>";
         }
@@ -258,7 +259,7 @@ class PlayerSkins extends PluginAbstract {
             if ($obj->showShareSocial && CustomizeUser::canShareVideosFromVideo(@$video['id'])) {
                 $css .= "<link href=\"" . getURL('plugin/PlayerSkins/shareButton.css') . "\" rel=\"stylesheet\" type=\"text/css\"/>";
             }
-            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay)) {
+            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay) && empty($_REQUEST['hideAutoplaySwitch'])) {
                 $css .= "<link href=\"" . getURL('plugin/PlayerSkins/autoplayButton.css') . "\" rel=\"stylesheet\" type=\"text/css\"/>";
             }
         }
@@ -284,7 +285,7 @@ class PlayerSkins extends PluginAbstract {
             }
             if ($obj->showLogoOnEmbed && isEmbed() || $obj->showLogo) {
                 $title = $config->getWebSiteTitle();
-                $url = "{$global['webSiteRootURL']}{$config->getLogo(true)}";
+                //$url = "{$global['webSiteRootURL']}{$config->getLogo(true)}";
                 $js .= "<script>var PlayerSkinLogoTitle = '{$title}';</script>";
                 PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayerSkins/logo.js"));
                 //$js .= "<script src=\"".getCDN()."plugin/PlayerSkins/logo.js\"></script>";
@@ -298,8 +299,21 @@ class PlayerSkins extends PluginAbstract {
                 $js .= "<script>function tooglePlayersocial(){showSharing{$social['id']}();}</script>";
             }
 
-            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay)) {
+            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay) && empty($_REQUEST['hideAutoplaySwitch'])) {
                 PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayerSkins/autoplayButton.js"));
+            }else{
+                if ($obj->showShareAutoplay) {
+                    $js .= "<!-- PlayerSkins showShareAutoplay -->";
+                }
+                if (isVideoPlayerHasProgressBar()) {
+                    $js .= "<!-- PlayerSkins isVideoPlayerHasProgressBar -->";
+                }
+                if (empty($obj->forceAlwaysAutoplay)) {
+                    $js .= "<!-- PlayerSkins empty(\$obj->forceAlwaysAutoplay) -->";
+                }
+                if (empty($_REQUEST['hideAutoplaySwitch'])) {
+                    $js .= "<!-- PlayerSkins empty(\$_REQUEST['hideAutoplaySwitch']) -->";
+                }
             }
         }
         if (isAudio()) {
@@ -312,9 +326,12 @@ class PlayerSkins extends PluginAbstract {
             }
         }
         if (!empty($getStartPlayerJSWasRequested) || isVideo()) {
-            $js .= "<script src=\"" . getCDN() . "view/js/videojs-persistvolume/videojs.persistvolume.js\"></script>";
+            $js .= "<script src=\"" . getURL('view/js/videojs-persistvolume/videojs.persistvolume.js') . "\"></script>";
             $js .= "<script>" . self::getStartPlayerJSCode() . "</script>";
         }
+
+        include $global['systemRootPath'] . 'plugin/PlayerSkins/mediaSession.php';
+        PlayerSkins::addOnPlayerReady('if(typeof updateMediaSessionMetadata === "function"){updateMediaSessionMetadata();}');
 
         return $js;
     }
@@ -397,11 +414,21 @@ class PlayerSkins extends PluginAbstract {
         $js .= "
         originalVideo = $('#mainVideo').clone();
         /* prepareStartPlayerJS_onPlayerReady = " . count($prepareStartPlayerJS_onPlayerReady) . ", prepareStartPlayerJS_getDataSetup = " . count($prepareStartPlayerJS_getDataSetup) . " */
-        if (typeof player === 'undefined') {
+        if (typeof player === 'undefined' && $('#mainVideo').length) {
             player = videojs('mainVideo'" . (self::getDataSetup(implode(" ", $prepareStartPlayerJS_getDataSetup))) . ");
             ";
         if (!empty($IMAADTag) && isVideoPlayerHasProgressBar()) {
-            $js .= "adTagOptions = {id: 'mainVideo', adTagUrl: '{$IMAADTag}', autoPlayAdBreaks:false}; player.ima(adTagOptions);";
+            $js .= "adTagOptions = {"
+                    . "id: 'mainVideo', "
+                    . "adTagUrl: '{$IMAADTag}', "
+                    . "debug: true, "
+                    . "/*useStyledLinearAds: false,*/"
+                    . "/*useStyledNonLinearAds: true,*/"
+                    . "forceNonLinearFullSlot: true, "
+                    . "/*adLabel: 'Advertisement',*/ "
+                    . "/*autoPlayAdBreaks:false,*/"
+                    . "}; "
+                    . "player.ima(adTagOptions);";
             $js .= "setInterval(function(){ fixAdSize(); }, 300);
                 // first time it's clicked.
                 var startEvent = 'click';";
@@ -425,28 +452,49 @@ class PlayerSkins extends PluginAbstract {
 
             $js .= "
                 player.on('adsready', function () {
-                    console.log('reloadAds adIsReady ');
-                    player.ima.setAdBreakReadyListener(function() {console.log('Ads playAdBreak()');player.ima.playAdBreak();});
+                    console.log('adsready');
+                        player.ima.setAdBreakReadyListener(function(e) {
+                            if(!_adWasPlayed){
+                                console.log('ADs !_adWasPlayed player.ima.playAdBreak();',e);
+                                //player.ima.requestAds();
+                                player.on('play', function () {
+                                    if(!_adWasPlayed){
+                                        player.ima.playAdBreak();
+                                        _adWasPlayed = 1;
+                                    }
+                                });
+                            }else{
+                                console.log('ADs _adWasPlayed player.ima.playAdBreak();',e);
+                                player.ima.playAdBreak();
+                            }
+                        });
                 });player.on('ads-ad-started', function () {
                     console.log('ads-ad-started');
                 });player.on('ads-manager', function (a) {
                     console.log('ads-manager', a);
-                });player.on('ads-manager', function (a) {
+                });player.on('ads-loader', function (a) {
                     console.log('ads-loader', a);
-                });player.on('ads-manager', function (a) {
+                });player.on('ads-request', function (a) {
                     console.log('ads-request', a);
                 });player.one(startEvent, function () {player.ima.initializeAdDisplayContainer();});";
         }
 
         $js .= "}
         player.ready(function () {";
+        
+        if(empty($_REQUEST['mute'])){
+            $play = "playerPlayIfAutoPlay({$currentTime});";
+        }else{
+            $play = "player.muted(true);playerPlayMutedIfAutoPlay({$currentTime});";
+        }
+        
         $js .= "var err = this.error();
             if (err && err.code) {
                 $('.vjs-error-display').hide();
                 $('#mainVideo').find('.vjs-poster').css({'background-image': 'url({$global['webSiteRootURL']}plugin/Live/view/Offline.jpg)'});
             }
             " . implode(PHP_EOL, $prepareStartPlayerJS_onPlayerReady) . "
-            playerPlayIfAutoPlay({$currentTime});
+            {$play}
         });
         player.persistvolume({
             namespace: 'AVideo'
@@ -539,8 +587,11 @@ class PlayerSkins extends PluginAbstract {
             url += '?t=' + time;
             }
             $('#linkCurrentTime, .linkCurrentTime').val(url);
-            if (time >= 5 && time % 5 === 0) {
+            if (time >= 5 && time % 1 === 0) {
                 addView({$videos_id}, time);
+            }else{
+                addViewFromCookie();
+                addViewSetCookie(PHPSESSID, {$videos_id}, time, seconds_watching_video);
             }
         });
         player.on('ended', function () {

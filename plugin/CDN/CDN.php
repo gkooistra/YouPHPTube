@@ -3,38 +3,47 @@
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/CDN/Storage/CDNStorage.php';
 
-class CDN extends PluginAbstract {
-
-    public function getTags() {
-        return array(
+class CDN extends PluginAbstract
+{
+    public function getTags()
+    {
+        return [
             PluginTags::$RECOMMENDED,
             PluginTags::$LIVE,
             PluginTags::$PLAYER,
-            PluginTags::$STORAGE
-        );
+            PluginTags::$STORAGE,
+        ];
     }
 
-    public function getDescription() {
+    public function getDescription()
+    {
+        global $global;
         $txt = "With our CDN we will provide you a highly-distributed platform of servers that helps minimize delays in loading web page content "
                 . "by reducing the physical distance between the server and the user. This helps users around the world view the same high-quality "
                 . "content without slow loading times";
+        $txt .= "<br>If you are using the CDN Storage, add this into your crontab <code>2 1 * * * php {$global['systemRootPath']}plugin/CDN/tools/moveMissingFiles.php</code>. "
+                . "This command will daily check your files and free some space into your server";
         $help = "";
         return $txt . $help;
     }
 
-    public function getName() {
+    public function getName()
+    {
         return "CDN";
     }
 
-    public function getUUID() {
+    public function getUUID()
+    {
         return "CDN73225-3807-4167-ba81-0509dd280e06";
     }
 
-    public function getPluginVersion() {
+    public function getPluginVersion()
+    {
         return "2.0";
     }
 
-    public function getEmptyDataObject() {
+    public function getEmptyDataObject()
+    {
         global $global, $config;
         $obj = new stdClass();
         $obj->key = "";
@@ -57,15 +66,23 @@ class CDN extends PluginAbstract {
         return $obj;
     }
 
-    public function getVideosManagerListButton() {
-        if(!self::userCanMoveVideoStorage()){
-            return '';
+    public function getVideosManagerListButton()
+    {
+        $btn = '';
+        $videoHLSObj = AVideoPlugin::getDataObjectIfEnabled('VideoHLS');
+        if(!empty($videoHLSObj)){
+            if (!empty($videoHLSObj->saveMP4CopyOnCDNStorageToAllowDownload) || !empty($videoHLSObj->saveMP3CopyOnCDNStorageToAllowDownload)) {
+                $btn .= '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="avideoModalIframeSmall(webSiteRootURL+\\\'plugin/CDN/downloadButtons.php?videos_id=\'+ row.id +\'\\\');" ><i class="fas fa-download"></i> Download</button>';
+            }
         }
-        $btn = '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="avideoModalIframeSmall(webSiteRootURL+\\\'plugin/CDN/Storage/syncVideo.php?videos_id=\'+ row.id +\'\\\');" ><i class="fas fa-project-diagram"></i> CDN Storage</button>';
+        if (self::userCanMoveVideoStorage()) {
+            $btn .= '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="avideoModalIframeSmall(webSiteRootURL+\\\'plugin/CDN/Storage/syncVideo.php?videos_id=\'+ row.id +\'\\\');" ><i class="fas fa-project-diagram"></i> CDN Storage</button>';
+        }
         return $btn;
     }
 
-    public function getPluginMenu() {
+    public function getPluginMenu()
+    {
         global $global;
         $fileAPIName = $global['systemRootPath'] . 'plugin/CDN/pluginMenu.html';
         $content = file_get_contents($fileAPIName);
@@ -78,7 +95,7 @@ class CDN extends PluginAbstract {
 
         $cdnMenu = str_replace('{url}', $url, $content);
         $storageMenu = '';
-        if(self::userCanMoveVideoStorage()){
+        if (self::userCanMoveVideoStorage()) {
             $fileStorageMenu = $global['systemRootPath'] . 'plugin/CDN/Storage/pluginMenu.html';
             $storageMenu = file_get_contents($fileStorageMenu);
         }
@@ -86,13 +103,13 @@ class CDN extends PluginAbstract {
     }
 
     /**
-     * 
+     *
      * @param type $type enum(CDN, CDN_S3,CDN_B2,CDN_YPTStorage,CDN_Live,CDN_LiveServers)
-     * @param type $id the ID of the URL in case the CDN is an array 
+     * @param type $id the ID of the URL in case the CDN is an array
      * @return boolean
      */
-    static public function getURL($type = 'CDN', $id = 0) {
-
+    public static function getURL($type = 'CDN', $id = 0)
+    {
         $obj = AVideoPlugin::getObjectData('CDN');
 
         if (empty($obj->{$type})) {
@@ -135,8 +152,9 @@ class CDN extends PluginAbstract {
 
         return false;
     }
-    
-    static function getCDN_S3URL() {
+
+    public static function getCDN_S3URL()
+    {
         $plugin = AVideoPlugin::getDataObjectIfEnabled('AWS_S3');
         $CDN_S3 = '';
         if (!empty($plugin)) {
@@ -145,7 +163,7 @@ class CDN extends PluginAbstract {
             $endpoint = trim($plugin->endpoint);
             if (!empty($endpoint)) {
                 $CDN_S3 = str_replace('https://', "https://{$bucket_name}.", $endpoint);
-            } else if (!empty($plugin->region)) {
+            } elseif (!empty($plugin->region)) {
                 $CDN_S3 = "https://{$bucket_name}.s3-accesspoint.{$region}.amazonaws.com";
             }
             if (!empty($resp->CDN_S3)) {
@@ -155,7 +173,8 @@ class CDN extends PluginAbstract {
         return $CDN_S3;
     }
 
-    static function getCDN_B2URL() {
+    public static function getCDN_B2URL()
+    {
         $CDN_B2 = '';
         $plugin = AVideoPlugin::getDataObjectIfEnabled('Blackblaze_B2');
         if (!empty($plugin)) {
@@ -168,7 +187,8 @@ class CDN extends PluginAbstract {
         return $CDN_B2;
     }
 
-    static function getCDN_FTPURL() {
+    public static function getCDN_FTPURL()
+    {
         $CDN_FTP = '';
         $plugin = AVideoPlugin::getDataObjectIfEnabled('CDN');
         if (!empty($plugin)) {
@@ -176,14 +196,15 @@ class CDN extends PluginAbstract {
         }
         return $CDN_FTP;
     }
-        
-    public static function getVideoTags($videos_id) {
+
+    public static function getVideoTags($videos_id)
+    {
         global $global;
         if (empty($videos_id)) {
-            return array();
+            return [];
         }
         if (!Video::canEdit($videos_id)) {
-            return array();
+            return [];
         }
         $video = Video::getVideoLight($videos_id);
         $sites_id = $video['sites_id'];
@@ -194,7 +215,7 @@ class CDN extends PluginAbstract {
         if ($isMoving) {
             $obj->type = "danger";
             $obj->text = '<i class="fas fa-sync fa-spin"></i> ' . __('Moving');
-        } else if (empty($sites_id)) {
+        } elseif (empty($sites_id)) {
             $obj->type = "success";
             $obj->text = '<i class="fas fa-map-marker-alt"></i> ' . __('Local');
         } else {
@@ -202,33 +223,37 @@ class CDN extends PluginAbstract {
             $obj->text = "<i class=\"fas fa-project-diagram\"></i> " . __('Storage');
         }
         //var_dump($obj);exit;
-        return array($obj);
+        return [$obj];
     }
 
-    
-    public function onEncoderNotifyIsDone($videos_id) {
+
+    public function onEncoderNotifyIsDone($videos_id)
+    {
         return $this->processNewVideo($videos_id);
     }
 
-    public function onUploadIsDone($videos_id) {
+    public function onUploadIsDone($videos_id)
+    {
         return $this->processNewVideo($videos_id);
     }
 
-    private function processNewVideo($videos_id) {
+    private function processNewVideo($videos_id)
+    {
         $obj = AVideoPlugin::getDataObjectIfEnabled('CDN');
-        if($obj->enable_storage){
-            if($obj->storage_autoupload_new_videos){
+        if ($obj->enable_storage) {
+            if ($obj->storage_autoupload_new_videos) {
                 CDNStorage::moveLocalToRemote($videos_id, false);
             }
         }
     }
-    
-    public static function userCanMoveVideoStorage(){
+
+    public static function userCanMoveVideoStorage()
+    {
         $obj = AVideoPlugin::getDataObjectIfEnabled('CDN');
-        if(empty($obj->enable_storage)){
+        if (empty($obj->enable_storage)) {
             return false;
         }
-        if(User::isAdmin()){
+        if (User::isAdmin()) {
             return true;
         }
         if (!empty($obj->storage_users_can_choose_storage) && User::canUpload()) {
@@ -236,12 +261,12 @@ class CDN extends PluginAbstract {
         }
         return false;
     }
-    
-    public function getFooterCode() {
+
+    public function getFooterCode()
+    {
         global $global;
-        if(self::userCanMoveVideoStorage()){
+        if (self::userCanMoveVideoStorage()) {
             include $global['systemRootPath'] . 'plugin/CDN/Storage/footer.php';
         }
     }
-
 }

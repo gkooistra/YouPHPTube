@@ -23,6 +23,9 @@ if (!empty($_GET['c'])) {
 $livet = LiveTransmition::getFromRequest();
 setLiveKey($livet['key'], Live::getLiveServersIdRequest(), @$_REQUEST['live_index']);
 $lt = new LiveTransmition($livet['id']);
+
+Live::checkIfPasswordIsGood($livet['key']);
+
 if (!$lt->userCanSeeTransmition()) {
     forbiddenPage("You are not allowed see this streaming");
 }
@@ -48,20 +51,30 @@ $imgh = 360;
 if (!empty($_REQUEST['playlists_id_live'])) {
     $liveTitle = PlayLists::getNameOrSerieTitle($_REQUEST['playlists_id_live']);
     $liveDescription = PlayLists::getDescriptionIfIsSerie($_REQUEST['playlists_id_live']);
-    $liveImg = PlayLists::getImage($_REQUEST['playlists_id_live']);
+    //$liveImg = PlayLists::getImage($_REQUEST['playlists_id_live']);
 }
 
 if (!empty($_REQUEST['live_schedule'])) {
     $ls = new Live_schedule($_REQUEST['live_schedule']);
     $liveTitle = $ls->getTitle();
     $liveDescription = $ls->getDescription();
-    $liveImg = Live_schedule::getPosterURL($_REQUEST['live_schedule']);
-    $liveUrl = addQueryStringParameter($liveUrl, 'live_schedule', $_REQUEST['live_schedule']);
-    $img = addQueryStringParameter($img, 'live_schedule', $_REQUEST['live_schedule']);
+    //$liveImg = Live_schedule::getPosterURL($_REQUEST['live_schedule']);
+    $liveUrl = addQueryStringParameter($liveUrl, 'live_schedule', intval($_REQUEST['live_schedule']));
+    $img = addQueryStringParameter($img, 'live_schedule', intval($_REQUEST['live_schedule']));
     global $getLiveKey;
-    $getLiveKey = array('key' => $ls->getKey(), 'live_servers_id' => intval($ls->getLive_servers_id()), 'live_index' => '', 'cleanKey' => '');
+    $getLiveKey = ['key' => $ls->getKey(), 'live_servers_id' => intval($ls->getLive_servers_id()), 'live_index' => '', 'cleanKey' => ''];
+    
+    if(!empty($ls->getUsers_id_company())){
+        $user_id = $ls->getUsers_id_company();
+        //var_dump($user_id);exit;
+        $u = new User($user_id);
+        $video['users_id'] = $user_id;
+        $subscribe = Subscribe::getButton($user_id);
+        $name = $u->getNameIdentificationBd();
+        $name = "<a href='" . User::getChannelLink($user_id) . "' class='btn btn-xs btn-default'>{$name} " . User::getEmailVerifiedIcon($user_id) . "</a>";
+        $liveImg = User::getPhoto($user_id);
+    }
 }
-
 
 $video['creator'] = '<div class="pull-left"><img src="' . $liveImg . '" alt="User Photo" class="img img-responsive img-circle" style="max-width: 40px;"/></div><div class="commentDetails" style="margin-left:45px;"><div class="commenterName text-muted"><strong>' . $name . '</strong><br>' . $subscribe . '</div></div>';
 
@@ -75,7 +88,8 @@ $sideAd = getAdsSideRectangle();
 
 $modeYoutubeBottomClass1 = "col-sm-7 col-md-7 col-lg-6";
 $modeYoutubeBottomClass2 = "col-sm-5 col-md-5 col-lg-4 ";
-if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
+
+if (isHTMLEmpty($sideAd)) {
     $modeYoutubeBottomClass1 = "col-sm-12 col-md-12 col-lg-10";
     $modeYoutubeBottomClass2 = "hidden ";
 }
@@ -84,7 +98,7 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo $liveTitle . $config->getPageTitleSeparator() . __("Live") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getCDN(); ?>js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
@@ -107,7 +121,7 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
-        <div class="container-fluid principalContainer" style="padding: 0;" id="modeYoutubePrincipal">
+        <div class="container-fluid principalContainer" style="padding: 0; overflow: hidden;" id="modeYoutubePrincipal">
             <?php
             if (!$isCompressed) {
                 ?>
@@ -119,8 +133,7 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
                     </div>  
                     <div class="col-md-12">
                         <?php
-                        require "{$global['systemRootPath']}plugin/Live/view/liveVideo.php";
-                        ?>
+                        require "{$global['systemRootPath']}plugin/Live/view/liveVideo.php"; ?>
                     </div>  
                     <div class="col-md-12">
                         <center style="margin:5px;">
@@ -145,8 +158,7 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
                             </div>  
                             <div class="col-md-12">
                                 <?php
-                                require "{$global['systemRootPath']}plugin/Live/view/liveVideo.php";
-                                ?>
+                                require "{$global['systemRootPath']}plugin/Live/view/liveVideo.php"; ?>
                             </div>  
                             <div class="col-md-12">
                                 <center style="margin:5px;">
@@ -179,10 +191,10 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
                             <div class="row">
                                 <div class="col-md-12 watch8-action-buttons text-muted">
                                     <?php if (empty($advancedCustom->disableShareAndPlaylist) && empty($advancedCustom->disableShareOnly)) { ?>
-                                    <a href="#" class="btn btn-default no-outline" id="shareBtn">
-                                        <span class="fa fa-share"></span> <?php echo __("Share"); ?>
-                                    </a>
-                                    <?php
+                                        <a href="#" class="btn btn-default no-outline" id="shareBtn">
+                                            <span class="fa fa-share"></span> <?php echo __("Share"); ?>
+                                        </a>
+                                        <?php
                                     }
                                     ?>
                                     <script>
@@ -195,17 +207,16 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
                                             });
                                         });
                                     </script>
-                                    <?php 
-                                    echo AVideoPlugin::getWatchActionButton(0); ?>
+                                    <?php echo AVideoPlugin::getWatchActionButton(0); ?>
                                 </div>
                             </div>
                             <?php
                             $link = Live::getLinkToLiveFromUsers_id($user_id);
-                            if(!empty($_REQUEST['live_schedule'])){
-                                $link = addQueryStringParameter($link, 'live_schedule', $_REQUEST['live_schedule']);
+                            if (!empty($_REQUEST['live_schedule'])) {
+                                $link = addQueryStringParameter($link, 'live_schedule', intval($_REQUEST['live_schedule']));
                             }
                             if (empty($advancedCustom->disableShareAndPlaylist) && empty($advancedCustom->disableShareOnly)) {
-                                getShareMenu($liveTitle, $link, $link, addQueryStringParameter($link, 'embed', 1), $img,"row bgWhite list-group-item menusDiv");
+                                getShareMenu($liveTitle, $link, $link, addQueryStringParameter($link, 'embed', 1), $img, "row bgWhite list-group-item menusDiv");
                             }
                             ?>
                             <div class="row">
@@ -230,8 +241,6 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
 
         <?php
         include $global['systemRootPath'] . 'view/include/video.min.js.php';
-        ?>
-        <?php
         echo AVideoPlugin::afterVideoJS();
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>  

@@ -15,7 +15,20 @@ if (empty($_GET['file'])) {
 
 $path_parts = pathinfo($_GET['file']);
 $file = $path_parts['basename'];
+//var_dump($_GET['file'], $path_parts, $file);exit;
 
+if ($file == "test.mp4") {
+    $path = "{$global['systemRootPath']}view/xsendfile.html";
+    header('Content-Transfer-Encoding: binary');
+    header('Connection: Keep-Alive');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+    header('Pragma: public');
+    header('Content-Type: text/html');
+    header('Content-Length: ' . filesize($path));
+    header("X-Sendfile: {$path}");
+    exit;
+}
 
 if ($file == "X-Sendfile.mp4") {
     $path = "{$global['systemRootPath']}plugin/SecureVideosDirectory/test.json";
@@ -34,11 +47,18 @@ if ($file == "configuration.php") {
     _error_log("XSENDFILE Can't read this configuration ");
     forbiddenPage("Can't read this");
 }
-
-$path = Video::getPathToFile($file);
+if(!empty($_REQUEST['cacheDownload'])){
+    $file = preg_replace('/[^0-9a-z_\.]/i', '', $_GET['file']);
+    $relativePath = "cache/download/";
+    $path = getVideosDir().$relativePath.$file;
+    $_GET['download'] = 1;
+    _error_log("cacheDownload: $path");
+}else{
+    $path = Video::getPathToFile($file);
+}
 if (file_exists($path)) {
     if (!empty($_GET['download'])) {
-        if(!CustomizeUser::canDownloadVideos()){
+        if (empty($_REQUEST['cacheDownload']) && !CustomizeUser::canDownloadVideos()) {
             _error_log("downloadHLS: CustomizeUser::canDownloadVideos said NO");
             forbiddenPage("Can't download this");
         }
@@ -62,7 +82,7 @@ if (file_exists($path)) {
         if (empty($advancedCustom->doNotUseXsendFile)) {
             //_error_log("X-Sendfile: {$path}");
             header("X-Sendfile: {$path}");
-        }else{
+        } else {
             _error_log("Careful, we recommend you to use the X-Sendfile and it is disabled on AdvancedCustom plugin -> doNotUseXsendFile. You may have an error 'Allowed Memory Size Exhausted' if your video file is too big", AVideoLog::$WARNING);
         }
     } else {

@@ -10,21 +10,21 @@ $imgw = 1280;
 $imgh = 720;
 unset($_SESSION['type']);
 session_write_close();
-$video = array();
+$video = [];
 $video['id'] = 0;
 $video['type'] = 'notfound';
 $video['rotation'] = 0;
-$video['videoLink'] = "";
+$video['videoLink'] = '';
 $video['title'] = __("Video Not Available");
 $video['clean_title'] = "video-not-available";
-$video['description'] = "";
-$video['duration'] = "";
-$video['creator'] = "";
-$video['likes'] = "";
-$video['dislikes'] = "";
+$video['description'] = '';
+$video['duration'] = '';
+$video['creator'] = '';
+$video['likes'] = '';
+$video['dislikes'] = '';
 $video['category'] = "embed";
 $video['views_count'] = 0;
-$video['filename'] = "";
+$video['filename'] = '';
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -37,19 +37,19 @@ $video['filename'] = "";
     </head>
     <body class="<?php echo $global['bodyClass']; ?>">
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
-        <div class="container-fluid principalContainer" id="modeYoutubePrincipal">
+        <div class="container-fluid principalContainer" id="modeYoutubePrincipal" style="overflow: hidden;">
             <?php
             require "{$global['systemRootPath']}view/modeYoutubeBundle.php";
             ?>
-        </div>        
+        </div>
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         showCloseButton();
         ?>
         <script>
-            $(function () { 
+            $(function () {
                 <?php
-                if(!empty($_REQUEST['404ErrorMsg'])){
+                if (!empty($_REQUEST['404ErrorMsg'])) {
                     echo "avideoAlertInfo(\"{$_REQUEST['404ErrorMsg']}\");";
                 }
                 ?>

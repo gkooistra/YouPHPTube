@@ -116,7 +116,7 @@ class ReportVideo extends PluginAbstract
     private function replaceText($users_id, $videos_id, $text)
     {
         $user = new User($users_id);
-        $userName = $user->getNameIdentification();
+        $userName = $user->getNameIdentificationBd();
 
         $video = new Video("", "", $videos_id);
         $videoName = $video->getTitle();
@@ -205,6 +205,8 @@ class ReportVideo extends PluginAbstract
         $resp = new stdClass();
         $resp->error = true;
         $resp->msg = "Block not made";
+        $resp->reported_users_id = intval($reported_users_id);
+        $resp->users_id = intval($users_id);
 
         if (empty($report)) {
             //save it on the database
@@ -280,12 +282,11 @@ class ReportVideo extends PluginAbstract
             return '';
         }
         global $global, $config;
-        $variable = ob_get_clean();
-        ob_start();
-        include $global['systemRootPath'] . 'plugin/ReportVideo/buttonBlockUser.php';
-        $button = ob_get_clean();
-        ob_start();
-        echo $variable;
+
+        $filePath = $global['systemRootPath'] . 'plugin/ReportVideo/buttonBlockUser.php';
+        $varsArray=array('users_id'=>$users_id);
+        $button = getIncludeFileContent($filePath, $varsArray);
+
         return $button;
     }
 
@@ -295,12 +296,10 @@ class ReportVideo extends PluginAbstract
             return '';
         }
         global $global, $config;
-        $variable = ob_get_clean();
-        ob_start();
-        include $global['systemRootPath'] . 'plugin/ReportVideo/actionButtonBlockUser.php';
-        $button = ob_get_clean();
-        ob_start();
-        echo $variable;
+
+        $filePath = $global['systemRootPath'] . 'plugin/ReportVideo/actionButtonBlockUser.php';
+        $varsArray=array('users_id'=>$users_id);
+        $button = getIncludeFileContent($filePath, $varsArray);
         return $button;
     }
 }

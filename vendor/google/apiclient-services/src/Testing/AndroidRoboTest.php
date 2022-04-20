@@ -24,12 +24,19 @@ class AndroidRoboTest extends \Google\Collection
   protected $appApkDataType = '';
   protected $appBundleType = AppBundle::class;
   protected $appBundleDataType = '';
+  /**
+   * @var string
+   */
   public $appInitialActivity;
+  /**
+   * @var string
+   */
   public $appPackageId;
-  public $maxDepth;
-  public $maxSteps;
   protected $roboDirectivesType = RoboDirective::class;
   protected $roboDirectivesDataType = 'array';
+  /**
+   * @var string
+   */
   public $roboMode;
   protected $roboScriptType = FileReference::class;
   protected $roboScriptDataType = '';
@@ -64,37 +71,33 @@ class AndroidRoboTest extends \Google\Collection
   {
     return $this->appBundle;
   }
+  /**
+   * @param string
+   */
   public function setAppInitialActivity($appInitialActivity)
   {
     $this->appInitialActivity = $appInitialActivity;
   }
+  /**
+   * @return string
+   */
   public function getAppInitialActivity()
   {
     return $this->appInitialActivity;
   }
+  /**
+   * @param string
+   */
   public function setAppPackageId($appPackageId)
   {
     $this->appPackageId = $appPackageId;
   }
+  /**
+   * @return string
+   */
   public function getAppPackageId()
   {
     return $this->appPackageId;
-  }
-  public function setMaxDepth($maxDepth)
-  {
-    $this->maxDepth = $maxDepth;
-  }
-  public function getMaxDepth()
-  {
-    return $this->maxDepth;
-  }
-  public function setMaxSteps($maxSteps)
-  {
-    $this->maxSteps = $maxSteps;
-  }
-  public function getMaxSteps()
-  {
-    return $this->maxSteps;
   }
   /**
    * @param RoboDirective[]
@@ -110,10 +113,16 @@ class AndroidRoboTest extends \Google\Collection
   {
     return $this->roboDirectives;
   }
+  /**
+   * @param string
+   */
   public function setRoboMode($roboMode)
   {
     $this->roboMode = $roboMode;
   }
+  /**
+   * @return string
+   */
   public function getRoboMode()
   {
     return $this->roboMode;

@@ -1,5 +1,5 @@
 <?php
-if(!User::canStream()){
+if (!User::canStream()) {
     return false;
 }
 $objScheduleLive = AVideoPlugin::getObjectData("Live");
@@ -22,7 +22,7 @@ global $Schedulecount;
                 <a data-toggle="tab" href="#newSchedule"><i class="far fa-file"></i> <?php echo __('New Schedule'); ?></a>
             </li>
             <li>
-                <a data-toggle="tab" href="#savedSchedule"><i class="far fa-save"></i> <?php echo __('Saved Schedule'); ?></a>
+                <a data-toggle="tab" href="#savedSchedule"><i class="far fa-save"></i> <?php echo __('Saved Schedule'); ?> <span class="badge badge-primary savedScheduleTotals" >0</span></a>
             </li>
         </ul>
         <div class="tab-content">
@@ -42,7 +42,13 @@ global $Schedulecount;
                     </div>
                     <div class="form-group col-sm-6" style="padding-right: 1px">
                         <label for="scheduled_time"><?php echo __("Live Starts"); ?>:</label>
-                        <input type="text" id="scheduled_time" name="scheduled_time" class="form-control input-sm" placeholder="<?php echo __("Live Starts"); ?>" required="true" autocomplete="off">
+                        <input type="text" id="scheduled_time" name="scheduled_time" class="form-control input-sm" placeholder="<?php echo __("Live Starts"); ?>" required="true" autocomplete="off" readonly="readonly" >
+                    </div>
+                    <div class="form-group col-sm-6">
+                        <label for="scheduled_password"><?php echo __("Scheduled Password"); ?>:</label>
+                        <?php
+                        echo getInputPassword('scheduled_password', 'class="form-control input-sm" ', __("Scheduled Password"));
+                        ?>
                     </div>
                     <?php
                     $options = Live_servers::getAllActive();
@@ -62,6 +68,23 @@ global $Schedulecount;
                         <?php
                     }
                     ?>
+                    <?php
+                    $myAffiliation = CustomizeUser::getAffiliateCompanies(User::getId());
+                    if (!empty($myAffiliation)) {
+                        ?>
+                        <div class="form-group col-sm-6">
+                            <?php
+                            $users_id_list = array();
+                            foreach ($myAffiliation as $value) {
+                                $users_id_list[] = $value['users_id_company'];
+                            }
+                            echo '<label for="users_id_company" >' . __("Company") . '</label>';
+                            echo Layout::getUserSelect('users_id_company', $users_id_list, "", 'users_id_company', '');
+                            ?>
+                        </div>
+                        <?php
+                    }
+                    ?>
                     <div class="form-group col-sm-12">
                         <label for="Schedule_description"><?php echo __("Description"); ?>:</label>
                         <textarea id="Schedule_description" name="description" class="form-control input-sm" placeholder="<?php echo __("Descriptions"); ?>" required="true" autocomplete="off"></textarea>
@@ -75,8 +98,11 @@ global $Schedulecount;
         </div>
     </div>
     <div class="panel-footer">
-        <button class="btn btn-primary " onclick="resetSchedule()"><i class="fas fa-plus"></i> <?php echo __("New"); ?></button>
-        <button class="btn btn-success " id="saveScheduleLive"><i class="fas fa-save"></i> <?php echo __("Save Schedule"); ?></button>
+        <button class="btn btn-primary " onclick="resetLiveSchedule()"><i class="fas fa-plus"></i> <?php echo __("New"); ?></button>
+        <button class="btn btn-success " id="saveScheduleLive" onclick="saveSchedule(false);"><i class="fas fa-save"></i> <?php echo __("Save Schedule"); ?></button>
+        <!--
+        <button class="btn btn-warning " id="saveScheduleLiveAndClose" onclick="saveSchedule(true);"><i class="fas fa-save"></i> <?php echo __("Save Schedule and Close"); ?></button>
+        -->
     </div>
 </div>
 <div id="Live_schedulebtnModelList" style="display: none;">
@@ -84,36 +110,41 @@ global $Schedulecount;
         <div class="list_name" style="white-space: nowrap;
              overflow: hidden;
              text-overflow: ellipsis;"></div>
-             <br>
-        <div class="btn-group pull-left">
-            <button class="btn btn-default btn-xs" onclick="copyToClipboard($(this).attr('serverURL')); " data-toggle="tooltip" title="<?php echo __('Server URL'); ?>" >
-                <i class="fa fa-server"></i> <span class="hidden-sm hidden-xs"><?php echo __('Server URL'); ?></span>
+        <br>
+        <div class="btn-group btn-group-justified" style="margin-top: 10px;">
+            <button class="btn btn-default" onclick="copyToClipboard($(this).attr('serverURL'));" data-toggle="tooltip" title="<?php echo __('Server URL'); ?>" >
+                <i class="fa fa-server"></i> <span class=""><?php echo __('RTMP URL'); ?></span>
             </button>
-            <button class="btn btn-default btn-xs" onclick="copyToClipboard($(this).attr('key'));" data-toggle="tooltip" title="<?php echo __('Key'); ?>" >
-                <i class="fa fa-key"></i> <span class="hidden-sm hidden-xs"><?php echo __('Key'); ?></span>
+            <button class="btn btn-default" onclick="copyToClipboard($(this).attr('key'));" data-toggle="tooltip" title="<?php echo __('Key'); ?>" >
+                <i class="fa fa-key"></i> <span class=""><?php echo __('Key'); ?></span>
             </button>
-            <button class="btn btn-default btn-xs" onclick="copyToClipboard($(this).attr('serverURL')+'/'+$(this).attr('key'));" data-toggle="tooltip" title="<?php echo __('Server URL'); ?> + <?php echo __('Key'); ?>" >
-                <i class="fa fa-server"></i> + <i class="fa fa-key"></i> <span class="hidden-sm hidden-xs"><?php echo __('Server URL'); ?> + <?php echo __('Key'); ?></span>
-            </button>
-        </div>
-        <div class="btn-group pull-right">
-            <button class="btn btn-primary btn-xs" onclick="uploadPoster($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Upload Poster Image'); ?>" >
-                <i class="far fa-image"></i> <i class="far fa-upload"></i> <span class="hidden-sm hidden-xs"><?php echo __('Upload Poster'); ?></span>
-            </button>
-            <button class="btn btn-danger btn-xs" onclick="removePosterSchedule($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Remove Poster') ?>" >
-                <i class="fa fa-trash"></i> <span class="hidden-sm hidden-xs"><?php echo __('Delete Poster'); ?></span>
+            <button class="btn btn-default" onclick="copyToClipboard($(this).attr('serverURL') + '/' + $(this).attr('key'));" data-toggle="tooltip" title="<?php echo __('Server URL'); ?> + <?php echo __('Key'); ?>" >
+                <i class="fa fa-server"></i> + <i class="fa fa-key"></i> <span class="hidden-xs"><?php echo __('RTMP URL'); ?> + <?php echo __('Key'); ?></span>
             </button>
         </div>
-        <hr>
-        <div class="btn-group pull-right">
-            <button class="btn btn-default faa-parent animated-hover " onclick="avideoModalIframeLarge(webSiteRootURL+'plugin/Live/webcamFullscreen.php?live_schedule_id='+$(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Go Live') ?>" >
-                <i class="fas fa-circle faa-flash" style="color:red;"></i> <span class="hidden-sm hidden-xs"><?php echo __($objScheduleLive->button_title); ?></span>
+        <div class="btn-group btn-group-justified" style="margin-top: 10px;">
+            <button class="btn btn-primary" onclick="uploadPosterCroppie($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Upload Poster Image'); ?>" >
+                <i class="far fa-image"></i> <i class="fas fa-upload"></i> <span class=""><?php echo __('Upload Poster'); ?></span>
             </button>
+            <button class="btn btn-danger " onclick="removePosterSchedule($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Remove Poster') ?>" >
+                <i class="fa fa-trash"></i> <span class=""><?php echo __('Delete Poster'); ?></span>
+            </button>
+        </div>
+        <div class="btn-group  btn-group-justified futureButtons" style="margin-top: 10px;">
+            <?php
+            if (Live::canStreamWithWebRTC()) {
+                ?>
+                <button class="btn btn-default faa-parent animated-hover " onclick="avideoModalIframeLarge(webSiteRootURL + 'plugin/Live/webcamFullscreen.php?live_schedule_id=' + $(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Go Live') ?>" >
+                    <i class="fas fa-circle faa-flash" style="color:red;"></i> <span class=""><?php echo __($objScheduleLive->button_title); ?></span>
+                </button>
+                <?php
+            }
+            ?>
             <button class="btn btn-primary" onclick="editSchedule($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Edit') ?>" >
-                <i class="fa fa-edit"></i> <span class="hidden-sm hidden-xs"><?php echo __('Edit'); ?></span>
+                <i class="fa fa-edit"></i> <span class=""><?php echo __('Edit'); ?></span>
             </button>
             <button class="btn btn-danger" onclick="deleteSchedule($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Delete') ?>" >
-                <i class="fa fa-trash"></i> <span class="hidden-sm hidden-xs"><?php echo __('Delete'); ?></span>
+                <i class="fa fa-trash"></i> <span class=""><?php echo __('Delete'); ?></span>
             </button>
         </div>
     </a>
@@ -123,32 +154,50 @@ global $Schedulecount;
                 var Schedule_plans = {};
                 $(document).ready(function () {
 
-                    $('#scheduled_time').datetimepicker({format: 'yyyy-mm-dd hh:ii', autoclose: true});
-                    $('#Live_schedulestart_sell_in').datetimepicker({format: 'yyyy-mm-dd hh:ii', autoclose: true});
-                    $('#saveScheduleLive').click(function () {
-                        modal.showPleaseWait();
-                        $.ajax({
-                            type: "POST",
-                            url: webSiteRootURL + "plugin/Live/view/Live_schedule/add.json.php",
-                            data: $("#Schedule_form").serialize()
-                        }).done(function (resposta) {
-                            if (resposta.error) {
-                                avideoAlertError(resposta.msg);
-                            } else {
-                                avideoAlertSuccess(resposta.msg);
-                                listScheduledLives();
-                                resetSchedule();
-                            }
-                            modal.hidePleaseWait();
-                        });
-                    });
+                    $('#scheduled_time').datetimepicker({format: 'yyyy-mm-dd hh:ii', autoclose: true, ignoreReadonly: true});
+                    $('#Live_schedulestart_sell_in').datetimepicker({format: 'yyyy-mm-dd hh:ii', autoclose: true, ignoreReadonly: true});
                     listScheduledLives();
                 });
 
-                function resetSchedule() {
+                function saveSchedule(close) {
+                    if ($('#Schedule_title').val() == '') {
+                        avideoToastError('Empty title');
+                        return false;
+                    }
+                    if ($('#scheduled_time').val() == '') {
+                        avideoToastError('Empty date');
+                        return false;
+                    }
+                    modal.showPleaseWait();
+                    var data = $("#Schedule_form").serialize();
+                    data += '&users_id_company='+$('#users_id_company').val();
+                    //console.log('saveSchedule', data);
+                    $.ajax({
+                        type: "POST",
+                        url: webSiteRootURL + "plugin/Live/view/Live_schedule/add.json.php",
+                        data: data
+                    }).done(function (resposta) {
+                        if (resposta.error) {
+                            avideoAlertError(resposta.msg);
+                            modal.hidePleaseWait();
+                        } else {
+                            if (close) {
+                                avideoModalIframeCloseToastSuccess(resposta.msg);
+                            } else {
+                                modal.hidePleaseWait();
+                                avideoToastSuccess(resposta.msg);
+                                listScheduledLives();
+                                resetLiveSchedule();
+                            }
+                        }
+                    });
+                }
+
+                function resetLiveSchedule() {
                     $("#Schedule_form")[0].reset();
                     $("#startsel1").trigger("change");
                     $("#Live_schedule_id").val('');
+                    $("#users_id_company").val(0).trigger('change');
                 }
 
                 function listScheduledLives() {
@@ -157,6 +206,7 @@ global $Schedulecount;
                         url: webSiteRootURL + "plugin/Live/view/Live_schedule/list.json.php?users_id=<?php echo User::getId(); ?>"
                     }).done(
                             function (resposta) {
+                                $('.savedScheduleTotals').text(resposta.data.length);
                                 $("#schedule_live_list").empty();
                                 for (x in resposta.data) {
                                     var schedule = resposta.data[x];
@@ -175,7 +225,7 @@ global $Schedulecount;
                                     $('.btn', $clone).attr('schedule_id', schedule.id).attr('serverURL', schedule.serverURL).attr('key', schedule.key);
                                     $($clone).attr('id', id);
                                     if (!schedule.future) {
-                                        $('.btn-group', $clone).hide();
+                                        $('.btn-group.futureButtons', $clone).hide();
                                         $($clone).addClass('disabled');
                                     }
                                     $("#schedule_live_list").append($clone);
@@ -194,7 +244,9 @@ global $Schedulecount;
                     $("#Schedule_title").val(schedule.title);
                     $("#Schedule_status").val(schedule.status);
                     $("#scheduled_time").val(schedule.scheduled_time);
-                    $("#Schedule_live_servers_id").val(schedule.live_servers_id);
+                    $("#scheduled_password").val(schedule.scheduled_password);
+                    $("#Schedule_live_servers_id").val(schedule.live_servers_id?schedule.live_servers_id:0);
+                    $("#users_id_company").val(schedule.users_id_company).trigger('change');
                     $("#Schedule_description").val(schedule.description);
                 }
 
@@ -225,33 +277,8 @@ global $Schedulecount;
                             });
                 }
 
-                function uploadPoster(schedule_id) {
-                    console.log(Schedule_plans[schedule_id]);
-                    var schedule = Schedule_plans[schedule_id];
-                    avideoAlertHTMLText('<?php echo __('Upload Poster Image'); ?>', '<input id="input-jpg-Schedule" type="file" class="file-loading" accept="image/*">', '');
-                    $("#input-jpg-Schedule").fileinput({
-                        uploadUrl: webSiteRootURL + "plugin/Live/uploadPoster.php?live_servers_id=<?php echo $_REQUEST['live_servers_id']; ?>&live_schedule_id=" + schedule_id,
-                        autoReplace: true,
-                        overwriteInitial: true,
-                        showUploadedThumbs: false,
-                        showPreview: true,
-                        maxFileCount: 1,
-                        initialPreview: [
-                            "<img class='img img-responsive' src='" + schedule.posterURL + "'>",
-                        ],
-                        initialCaption: 'ScheduledLiveBG.jpg',
-                        initialPreviewShowDelete: false,
-                        showRemove: false,
-                        showClose: false,
-                        layoutTemplates: {actionDelete: ''}, // disable thumbnail deletion
-                        allowedFileExtensions: ["jpg", "jpeg", "png"],
-                        //minImageWidth: 2048,
-                        //minImageHeight: 1152,
-                        //maxImageWidth: 2560,
-                        //maxImageHeight: 1440
-                    }).on('fileuploaded', function (event, previewId, index, fileId) {
-                        listScheduledLives();
-                    });
+                function uploadPosterCroppie(live_schedule_id) {
+                    avideoModalIframe(webSiteRootURL + "plugin/Live/view/Live_schedule/uploadPoster.php?live_schedule_id=" + live_schedule_id);
                 }
 
                 function removePosterSchedule(schedule_id) {

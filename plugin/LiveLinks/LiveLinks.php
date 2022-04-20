@@ -183,6 +183,9 @@ class LiveLinks extends PluginAbstract {
         if (!empty($obj->doNotShowLiveLinksLabel)) {
             $css .= '<style>.livelinksLabel{display: none;}</style>';
         }
+        if(isLiveLink()){
+            $js .= '<link href="'.getURL('plugin/Live/view/live.css').'" rel="stylesheet" type="text/css"/>';
+        }
 
         return $js . $css;
     }
@@ -341,7 +344,7 @@ class LiveLinks extends PluginAbstract {
                 if (empty($otherInfo)) {
                     $otherInfo = array();
                     $otherInfo['category'] = xss_esc_back($row['category']);
-                    //$otherInfo['groups'] = UserGroups::getVideoGroups($row['id']);
+                    //$otherInfo['groups'] = UserGroups::getVideosAndCategoriesUserGroups($row['id']);
                     //$otherInfo['title'] = UTF8encode($row['title']);
                     $otherInfo['description'] = UTF8encode($row['description']);
                     $otherInfo['descriptionHTML'] = Video::htmlDescription($otherInfo['description']);
@@ -436,6 +439,23 @@ class LiveLinks extends PluginAbstract {
         $t['link'] = $video->videoLink;
         $t['description'] = @$video->description;
         return $t;
+    }
+    
+    public static function getMediaSession($id) {
+        $ll = new LiveLinks($id);
+        $posters = array();
+        //var_dump($posters);exit;
+        $category = Category::getCategory($lt['categories_id']);
+        $MediaMetadata = new stdClass();
+
+        $MediaMetadata->title = $lt['title'];
+        $MediaMetadata->artist = User::getNameIdentificationById($lt['users_id']);
+        $MediaMetadata->album = $category['name'];
+        $MediaMetadata->artwork = array();
+        foreach ($posters as $key => $value) {
+            $MediaMetadata->artwork[] = array('src' => $value['url'], 'sizes' => "{$key}x{$key}", 'type' => 'image/jpg');
+        }
+        return $MediaMetadata;
     }
 
 }

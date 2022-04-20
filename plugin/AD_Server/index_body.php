@@ -230,7 +230,7 @@ if (!User::isAdmin()) {
 </div>
 <script src="<?php echo getURL('view/css/DataTables/datatables.min.js'); ?>" type="text/javascript"></script>
 <script src="<?php echo getURL('js/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js'); ?>" type="text/javascript"></script>
-<script src="<?php echo getURL('view/js/chart.js/chart.min.js'); ?>" type="text/javascript"></script>
+<script src="<?php echo getURL('node_modules/chart.js/dist/chart.min.js'); ?>" type="text/javascript"></script>
 
 <script type="text/javascript">
     function clearVideoForm() {
@@ -316,9 +316,9 @@ if (!User::isAdmin()) {
             select: function (event, ui) {
                 $('#inputVideoAd_id').val(0);
                 $("#inputVideo").val(ui.item.title);
-                $("#inputVideoClean").val('<?php echo $global['webSiteRootURL']; ?>video/' + ui.item.clean_title);
+                $("#inputVideoClean").val(ui.item.link);
                 $("#inputVideo-id").val(ui.item.id);
-                $("#inputVideo-poster").attr("src", "<?php echo $global['webSiteRootURL']; ?>videos/" + ui.item.filename + ".jpg");
+                $("#inputVideo-poster").attr("src", ui.item.videosURL.jpg.url);
                 $('#videos_id').val(ui.item.id);
                 $('#inputVideoURI').val('');
                 $('#inputVideoTitle').val('');
@@ -471,10 +471,10 @@ if (!User::isAdmin()) {
                         avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your register has been saved!"); ?>", "success");
 <?php
 if (!empty($ad_server_location)) {
-    ?>
+                                        ?>
                             $('#locationList').empty();
     <?php
-}
+                                    }
 ?>
                         $("#panelForm").trigger("reset");
                     }

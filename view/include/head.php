@@ -9,7 +9,7 @@ if (empty($advancedCustom)) {
 if (is_object($video)) {
     $video = Video::getVideoLight($video->getId());
 }
-$custom = array();
+$custom = [];
 
 $customizePluginDescription = '';
 if (file_exists($extraPluginFile) && AVideoPlugin::isEnabledByName("Customize")) {
@@ -20,8 +20,8 @@ if (file_exists($extraPluginFile) && AVideoPlugin::isEnabledByName("Customize"))
 }
 
 if (!empty($poster)) {
-    $subTitle = str_replace(array('"', "\n", "\r"), array("", "", ""), strip_tags($video['description']));
-    $custom = array();
+    $subTitle = str_replace(['"', "\n", "\r"], ["", "", ""], strip_tags($video['description']));
+    $custom = [];
     $custom[] = $subTitle;
     if (!empty($video["category"])) {
         $custom[] = $video["category"];
@@ -30,8 +30,8 @@ if (!empty($poster)) {
 
 if (!empty($_GET['catName'])) {
     $category = Category::getCategoryByName($_GET['catName']);
-    $description = str_replace(array('"', "\n", "\r"), array("", "", ""), strip_tags($category['description']));
-    $custom = array();
+    $description = str_replace(['"', "\n", "\r"], ["", "", ""], strip_tags($category['description']));
+    $custom = [];
     $custom[] = $description;
     $custom[] = $category['name'];
 }
@@ -48,7 +48,7 @@ if (!empty($metaDescription)) {
     $metaDescription = implode(" - ", $custom);
 }
 // for SEO to not rise an error of duplicated title or description of same pages with and without last slash
-$metaDescription .= getSEOComplement(array("addAutoPrefix" => false));
+$metaDescription .= getSEOComplement(["addAutoPrefix" => false]);
 $theme = getCurrentTheme();
 
 if (empty($config)) {
@@ -70,19 +70,27 @@ if (empty($config)) {
 <meta name="newCache" content="<?php echo ObjectYPT::checkSessionCacheBasedOnLastDeleteALLCacheTime() ? "yes" : "No" ?>">
 <meta name="sessionCache" content="<?php echo humanTimingAgo(@$_SESSION['user']['sessionCache']['time']), " ", @$_SESSION['user']['sessionCache']['time']; ?>">
 <meta name="systemCache" content="<?php echo humanTimingAgo(ObjectYPT::getLastDeleteALLCacheTime()), " ", ObjectYPT::getLastDeleteALLCacheTime(); ?>">
-<meta name="sessionCache-systemCache" content="<?php $dif = @$_SESSION['user']['sessionCache']['time'] - ObjectYPT::getLastDeleteALLCacheTime();
+<meta name="sessionCache-systemCache" content="<?php
+$dif = @$_SESSION['user']['sessionCache']['time'] - ObjectYPT::getLastDeleteALLCacheTime();
 echo $dif, " Seconds ";
 ?>">
 -->
 <!-- <link rel="stylesheet" type="text/css" media="only screen and (max-device-width: 768px)" href="view/css/mobile.css" /> -->
-<link href="<?php echo getCDN(); ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
-<link href="<?php echo getCDN(); ?>view/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+<link href="<?php echo getURL('node_modules/jquery-ui-dist/jquery-ui.min.css'); ?>" rel="stylesheet" type="text/css"/>
+<?php
+include $global['systemRootPath'] . 'view/include/bootstrap.css.php';
+if (empty($advancedCustom->disableAnimations)) {
+    ?>
+    <link href="<?php echo getURL('node_modules/animate.css/animate.min.css'); ?>" rel="stylesheet"  type="text/css" />
+    <?php
+}
+?>
 <link href="<?php echo getCDN(); ?>view/js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
-<link href="<?php echo getCDN(); ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
+<link href="<?php echo getCDN(); ?>node_modules/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo getCDN(); ?>view/css/font-awesome-animation.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo getCDN(); ?>view/css/flagstrap/css/flags.css" rel="stylesheet" type="text/css"/>
 <?php
-$cssFiles = array();
+$cssFiles = [];
 //$cssFiles[] = "view/js/seetalert/sweetalert.css";
 $cssFiles[] = "view/bootstrap/bootstrapSelectPicker/css/bootstrap-select.min.css";
 $cssFiles[] = "view/js/bootgrid/jquery.bootgrid.css";
@@ -93,11 +101,13 @@ $cssFiles = array_merge($cssFiles);
 echo combineFilesHTML($cssFiles, "css");
 ?>
 <link href="<?php echo $cssURL; ?>" rel="stylesheet" type="text/css"/>
-<link href="<?php echo getCDN(); ?>view/css/custom/<?php echo $theme; ?>.css" rel="stylesheet" type="text/css" id="customCSS"/>
+<link href="<?php echo getURL('view/css/custom/' . $theme . '.css'); ?>" rel="stylesheet" type="text/css" id="customCSS"/>
 <?php
-$filename = Video::getStoragePath() . "cache/custom.css";
+if (empty($global['userBootstrapLatest'])) {
+    $filename = Video::getStoragePath() . "cache/custom.css";
+}
 if ($theme === "default" && !empty($customizePlugin->showCustomCSS) && file_exists($filename)) {
-    echo '<link href="' . getCDN() . 'videos/cache/custom.css?' . filectime($filename) . filemtime($filename) . '" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
+    echo '<link href="' . getURL('videos/cache/custom.css') . '" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
 } else {
     if ($theme !== "default") {
         echo "<!-- theme is not default -->";
@@ -108,16 +118,21 @@ if ($theme === "default" && !empty($customizePlugin->showCustomCSS) && file_exis
     if (!file_exists($filename)) {
         echo "<!-- css file does not exist -->";
     }
+    if (!empty($global['userBootstrapLatest'])) {
+        echo "<!-- Using Bootstrap latest -->";
+    }
     echo '<link href="" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
 }
-$cssFiles = array();
+$cssFiles = [];
 $cssFiles[] = "view/css/main.css";
 $cssFiles = array_merge($cssFiles, AVideoPlugin::getCSSFiles());
 echo combineFilesHTML($cssFiles, "css");
 if (isRTL()) {
     ?>
+
     <style>
-        .principalContainer, #mainContainer, #bigVideo, .mainArea, .galleryVideo, #sidebar, .navbar-header li{
+        .principalContainer, #mainContainer, #bigVideo, .mainArea, .galleryVideo, #sidebar, .navbar-header li,
+        .panel-heading, th, td, a, .panel-footer, .label {
             direction:rtl;
             unicode-bidi:embed;
         }
@@ -137,11 +152,20 @@ if (isRTL()) {
             border-width: 1px;
             border-right-width: 0;
         }
-    </style>
+        .pull-left {
+            float: right!important;
+        }
+        .pull-right {
+            float: left!important;
+        }
+        .material-switch{
+            direction: initial;
+        }
+    </style>    
     <?php
 }
 ?>
-<script src="<?php echo getCDN(); ?>view/js/jquery-3.5.1.min.js"></script>
+<script src="<?php echo getURL('node_modules/jquery/dist/jquery.min.js'); ?>"></script>
 <script>
     var webSiteRootURL = '<?php echo $global['webSiteRootURL']; ?>';
     var player;

@@ -19,8 +19,8 @@ if (empty($meet_schedule_id)) {
     $meet_schedule_id = intval($meet_schedule_id);
 }
 ?>
-<script src="<?php echo getCDN(); ?>plugin/Meet/external_api.js" type="text/javascript"></script>
-<script src="<?php echo getCDN(); ?>view/js/seetalert/sweetalert.min.js" type="text/javascript"></script>
+<script src="<?php echo getURL('plugin/Meet/external_api.js'); ?>" type="text/javascript"></script>
+<script src="<?php echo getURL('node_modules/sweetalert/dist/sweetalert.min.js'); ?>" type="text/javascript"></script>
 <script>
     var webSiteRootURL = "<?php echo $global['webSiteRootURL']; ?>";
     var webSiteTitle = "<?php echo $config->getWebSiteTitle(); ?>";
@@ -62,7 +62,7 @@ if (empty($meet_schedule_id)) {
             aVideoMeetCreateButtons();
             <?php
             $css = file_get_contents($global['systemRootPath'] . 'plugin/Meet/meet.mobile.css');
-            if(!isMobile()){
+            if (!isMobile()) {
                 $css = "@media (max-width: 767px) {{$css}}";
             }
             $css .= file_get_contents($global['systemRootPath'] . 'plugin/Meet/meet.css');
@@ -75,11 +75,14 @@ if (empty($meet_schedule_id)) {
         } else if (typeof e.data.aVideoMeetStopRecording !== 'undefined') {
             console.log("YPTMeetScript aVideoMeetStopRecording");
             aVideoMeetStopRecording(e.data.aVideoMeetStopRecording.dropURL);
+        } else if (typeof e.data.terminateMeet !== 'undefined' && e.data.terminateMeet == 1) {
+            console.log("YPTMeetScript terminateMeet");
+            terminateMeet();
         }
     });
 
     function aVideoMeetZoom(zoom) {
-        document.querySelector("iframe").contentWindow.postMessage({zoom: zoom}, "*");
+        //document.querySelector("iframe").contentWindow.postMessage({zoom: zoom}, "*");
     }
 
     function getMeetDisplayName(domain, roomName, jwt, email, TOOLBAR_BUTTONS) {
@@ -122,7 +125,9 @@ if (empty($meet_schedule_id)) {
             ConfigOverwrite: {
                 disableDeepLinking: true,
                 disableInviteFunctions: true,
-                openBridgeChannel: 'websocket'
+                openBridgeChannel: 'websocket',
+                liveStreamingEnabled: true,
+                fileRecordingsEnabled: false
             },
             interfaceConfigOverwrite: {
                 TOOLBAR_BUTTONS: TOOLBAR_BUTTONS,
@@ -162,6 +167,19 @@ if (empty($meet_schedule_id)) {
         api.addEventListeners({
             readyToClose: readyToClose,
         });
+        
+        <?php
+        if(!empty($rtmpLink) && !empty($_REQUEST['startLiveMeet'])){
+            ?>
+                console.log('Live meet will start in 5 seconds');
+                setTimeout(function(){
+                    console.log('Live meet will start now');
+                    startLiveMeet();
+                },5000);
+            <?php
+        }
+        ?>
+        
 
     }
 
@@ -230,10 +248,10 @@ if (empty($meet_schedule_id)) {
     function aVideoMeetCreateButtons() {
 <?php
 if (!empty($rtmpLink) && Meet::isModerator($meet_schedule_id)) {
-    ?>
+                ?>
             aVideoMeetAppendElement(".button-group-center", <?php echo json_encode(Meet::createJitsiRecordStartStopButton($rtmpLink, $dropURL)); ?>);
     <?php
-}
+            }
 ?>
     }
 
@@ -241,6 +259,17 @@ if (!empty($rtmpLink) && Meet::isModerator($meet_schedule_id)) {
         window.parent.postMessage({"meetIsClosed": true}, "*");
         if (typeof _readyToClose == "function") {
             _readyToClose();
+        }
+    }    
+            
+    function startLiveMeet(){
+        aVideoMeetStartRecording('<?php echo $rtmpLink; ?>', '<?php echo $dropURL; ?>');
+    }
+    
+    function terminateMeet(){
+        Participants = api.getParticipantsInfo();
+        for (var index in Participants) {
+            api.executeCommand('kickParticipant',Participants[index].participantId);
         }
     }
 </script>

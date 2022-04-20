@@ -2,19 +2,19 @@
 global $croppieFilesAdded;
 if (empty($croppieFilesAdded)) {
     ?>
-    <link href="<?php echo getCDN(); ?>view/js/Croppie/croppie.css" rel="stylesheet" type="text/css"/>
-    <script src="<?php echo getCDN(); ?>view/js/Croppie/croppie.min.js" type="text/javascript"></script>
+    <link href="<?php echo getCDN(); ?>node_modules/croppie/croppie.css" rel="stylesheet" type="text/css"/>
+    <script src="<?php echo getCDN(); ?>node_modules/croppie/croppie.min.js" type="text/javascript"></script>
     <?php
 }
 $croppieFilesAdded = 1;
 ?>
 <div class="croppieDiv" objectName="uploadCrop<?php echo $uid; ?>">
-    <div class="col-md-12 ">
+    <div class="col-md-12 " >
         <div id="croppie<?php echo $uid; ?>" style="min-height: <?php echo $boundaryHeight+40; ?>px;"></div>
-        <center>
+        <div class="btn-group btn-group-justified" role="group">
             <a id="upload-btn<?php echo $uid; ?>" class="btn btn-primary"><i class="fa fa-upload"></i> <?php echo $buttonTitle; ?></a>
             <a id="delete-btn<?php echo $uid; ?>" class="btn btn-danger"><i class="fa fa-trash"></i> <?php echo __('Delete'); ?></a>
-        </center>
+        </div>
     </div>
     <div class="col-md-12 ">
         <input type="file" id="upload<?php echo $uid; ?>" value="Choose a file" accept="image/*" style="display:none;" />
@@ -23,21 +23,74 @@ $croppieFilesAdded = 1;
 <script>
 
     var uploadCrop<?php echo $uid; ?>;
-
+    var createCroppie<?php echo $uid; ?>Timeout;
     function createCroppie<?php echo $uid; ?>(imageURL) {
-        console.log('createCroppie');
+        clearTimeout(createCroppie<?php echo $uid; ?>Timeout);
+        if($('#croppie<?php echo $uid; ?>').is(":hidden")){
+            createCroppie<?php echo $uid; ?>Timeout = setTimeout(function(){
+                createCroppie<?php echo $uid; ?>(imageURL);
+            },1000);
+            return false;
+        }
+        var viewportWidth = <?php echo $viewportWidth; ?>;
+        var viewportHeight = <?php echo $viewportHeight; ?>;
+        var boundaryWidth = <?php echo $boundaryWidth; ?>;
+        var boundaryHeight = <?php echo $boundaryHeight; ?>;
+        
+        var parentWidth = $('#croppie<?php echo $uid; ?>').parent().width();
+        var totalWidth = viewportWidth+(boundaryWidth-viewportWidth);
+        
+        if(parentWidth <= totalWidth){
+            var factor = (parentWidth/(totalWidth));
+            console.log('createCroppie parent and factor ', parentWidth, totalWidth, factor, viewportWidth, viewportHeight, boundaryWidth, boundaryHeight);
+            
+            viewportWidth = parseInt(viewportWidth * factor);
+            viewportHeight = parseInt(viewportHeight * factor);
+            boundaryWidth = viewportWidth;
+            boundaryHeight = viewportHeight;
+            console.log('createCroppie make size smaller ', viewportWidth, viewportHeight, boundaryWidth, boundaryHeight);
+            $('#croppie<?php echo $uid; ?>').css("min-height", (boundaryHeight+10)+"px");
+        }else{
+            console.log('createCroppie ', viewportWidth, viewportHeight, boundaryWidth, boundaryHeight);
+        }
+        
+        var paddingTop = 25;
+        var saveButton = 55;
+        var slider = 25;
+        var uploadDeleteButtons = 40;
+        var parentHeight = $('body').height();
+        
+        var totalHeight = viewportHeight+(boundaryHeight-viewportHeight)+paddingTop+saveButton+slider+uploadDeleteButtons;
+        
+        if(parentHeight <= totalHeight){
+            var factor = (parentHeight/(totalHeight));
+            console.log('createCroppie height parent and factor parentHeight, totalHeight', parentHeight, totalHeight);
+            console.log('createCroppie height parent and factor factor, viewportWidth, viewportHeight', factor, viewportWidth, viewportHeight);
+            
+            viewportWidth = parseInt(viewportWidth * factor);
+            viewportHeight = parseInt(viewportHeight * factor);
+            boundaryWidth = viewportWidth;
+            boundaryHeight = viewportHeight;
+            console.log('createCroppie height make size smaller parentHeight, totalHeight, boundaryWidth, boundaryHeight', parentHeight, totalHeight, boundaryWidth, boundaryHeight);
+            $('#croppie<?php echo $uid; ?>').css("min-height", (boundaryHeight+10)+"px");
+        }else{
+            console.log('createCroppie height', parentHeight, totalHeight, viewportHeight, boundaryWidth, boundaryHeight);
+        }
+
+        
         uploadCrop<?php echo $uid; ?> = $('#croppie<?php echo $uid; ?>').croppie({
             //url: imageURL,
             //enableExif: true,
-            //enforceBoundary: true,
+            enforceBoundary: <?php echo json_encode($enforceBoundary); ?>,
+            enableResizeboolean: true,
             mouseWheelZoom: false,
             viewport: {
-                width: <?php echo $viewportWidth; ?>,
-                height: <?php echo $viewportHeight; ?>
+                width: viewportWidth,
+                height: viewportHeight
             },
             boundary: {
-                width: <?php echo $boundaryWidth; ?>,
-                height: <?php echo $boundaryHeight; ?>
+                width: boundaryWidth,
+                height: boundaryHeight
             }
         });
         $('#upload<?php echo $uid; ?>').off('change');
@@ -56,7 +109,13 @@ $croppieFilesAdded = 1;
         });
 
         $('#croppie<?php echo $uid; ?>').croppie('bind', {url: addGetParam(imageURL, 'cache', Math.random())}).then(function () {
-            $('#croppie<?php echo $uid; ?>').croppie('setZoom', <?php echo $zoom; ?>)
+            <?php
+            if($enforceBoundary){
+                ?>
+                $('#croppie<?php echo $uid; ?>').croppie('setZoom', <?php echo $zoom; ?>);    
+                <?php
+            }
+            ?>
         });
     }
 

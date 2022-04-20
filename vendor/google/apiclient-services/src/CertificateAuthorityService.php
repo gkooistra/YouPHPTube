@@ -25,7 +25,7 @@ use Google\Client;
  * <p>
  * The Certificate Authority Service API is a highly-available, scalable service
  * that enables you to simplify and automate the management of private
- * certificate authorities (CAs) while staying in control of your private keys."</p>
+ * certificate authorities (CAs) while staying in control of your private keys.</p>
  *
  * <p>
  * For more information about this service, see the API
@@ -46,6 +46,7 @@ class CertificateAuthorityService extends \Google\Service
   public $projects_locations_caPools_certificateAuthorities_certificateRevocationLists;
   public $projects_locations_caPools_certificates;
   public $projects_locations_certificateTemplates;
+  public $projects_locations_managedPkis;
   public $projects_locations_operations;
 
   /**
@@ -719,6 +720,30 @@ class CertificateAuthorityService extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+              ],
+            ],
+          ]
+        ]
+    );
+    $this->projects_locations_managedPkis = new CertificateAuthorityService\Resource\ProjectsLocationsManagedPkis(
+        $this,
+        $this->serviceName,
+        'managedPkis',
+        [
+          'methods' => [
+            'getIamPolicy' => [
+              'path' => 'v1/{+resource}:getIamPolicy',
+              'httpMethod' => 'GET',
+              'parameters' => [
+                'resource' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'options.requestedPolicyVersion' => [
+                  'location' => 'query',
+                  'type' => 'integer',
                 ],
               ],
             ],

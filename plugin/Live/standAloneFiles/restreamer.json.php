@@ -1,9 +1,9 @@
 <?php
 
 /**
- * This file intent to restream your lives, you can copy this file in any server with FFMPEG 
+ * This file intent to restream your lives, you can copy this file in any server with FFMPEG
  * Make sure you add the correct path to this file on the Live plugin restreamerURL parameter
- *  
+ *
  * If you want to restream to Facebook, make sure your FFMPEG is compiled with openssl support
  * On Ubuntu you can install like this:
  * apt-get -y install build-essential libwebp-dev autoconf automake cmake libtool git checkinstall nasm yasm libass-dev libfreetype6-dev libsdl2-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texinfo wget zlib1g-dev libchromaprint-dev frei0r-plugins-dev ladspa-sdk libcaca-dev libcdio-paranoia-dev libcodec2-dev libfontconfig1-dev libfreetype6-dev libfribidi-dev libgme-dev libgsm1-dev libjack-dev libmodplug-dev libmp3lame-dev libopencore-amrnb-dev libopencore-amrwb-dev libopenjp2-7-dev libopenmpt-dev libopus-dev libpulse-dev librsvg2-dev librubberband-dev librtmp-dev libshine-dev libsmbclient-dev libsnappy-dev libsoxr-dev libspeex-dev libssh-dev libtesseract-dev libtheora-dev libtwolame-dev libv4l-dev libvo-amrwbenc-dev libvpx-dev libwavpack-dev libwebp-dev libx264-dev libx265-dev libxvidcore-dev libxml2-dev libzmq3-dev libzvbi-dev liblilv-dev libmysofa-dev libopenal-dev opencl-dev gnutls-dev libfdk-aac-dev
@@ -69,7 +69,7 @@ if (!$isCommandLine) { // not command line
     $robj = new stdClass();
     $robj->token = '';
     $robj->m3u8 = $argv[1];
-    $robj->restreamsDestinations = array($argv[2]);
+    $robj->restreamsDestinations = [$argv[2]];
     $robj->users_id = 'commandline';
 }
 
@@ -78,7 +78,7 @@ $obj->error = true;
 $obj->msg = "";
 $obj->streamerURL = $streamerURL;
 $obj->token = $robj->token;
-$obj->pid = array();
+$obj->pid = [];
 $obj->logFile = str_replace('{users_id}', $robj->users_id, $logFile);
 
 
@@ -102,12 +102,12 @@ if (!$isCommandLine) {
 
     error_log("Restreamer.json.php verifying token {$verifyTokenURL}");
 
-    $arrContextOptions = array(
-        "ssl" => array(
+    $arrContextOptions = [
+        "ssl" => [
             "verify_peer" => false,
             "verify_peer_name" => false,
-        ),
-    );
+        ],
+    ];
 
     $content = file_get_contents($verifyTokenURL, false, stream_context_create($arrContextOptions));
 
@@ -118,7 +118,7 @@ if (!$isCommandLine) {
         $obj->msg = "Could not verify token";
         error_log("Restreamer.json.php empty json ERROR {$obj->msg} ({$verifyTokenURL}) ");
         die(json_encode($obj));
-    } else if (!empty($json->error)) {
+    } elseif (!empty($json->error)) {
         $obj->msg = "Token is invalid";
         error_log("Restreamer.json.php json error ERROR {$obj->msg} ({$verifyTokenURL}) " . json_encode($json));
         die(json_encode($obj));
@@ -139,7 +139,7 @@ if (empty($separateRestreams)) {
     error_log("Restreamer.json.php separateRestreams " . count($robj->restreamsDestinations));
     foreach ($robj->restreamsDestinations as $key => $value) {
         sleep(0.5);
-        $obj->pid[] = startRestream($robj->m3u8, array($value), str_replace(".log", "_{$key}.log", $obj->logFile));
+        $obj->pid[] = startRestream($robj->m3u8, [$value], str_replace(".log", "_{$key}.log", $obj->logFile));
     }
 }
 $obj->error = false;
@@ -147,16 +147,18 @@ $obj->error = false;
 error_log("Restreamer.json.php finish " . json_encode($obj));
 die(json_encode($obj));
 
-function clearCommandURL($url) {
+function clearCommandURL($url)
+{
     return preg_replace('/[^0-9a-z:.\/_&?=-]/i', "", $url);
 }
 
-function isURL200($url, $forceRecheck = false) {
+function isURL200($url, $forceRecheck = false)
+{
 
     //error_log("isURL200 checking URL {$url}");
     $headers = @get_headers($url);
     if (!is_array($headers)) {
-        $headers = array($headers);
+        $headers = [$headers];
     }
 
     $result = false;
@@ -176,7 +178,8 @@ function isURL200($url, $forceRecheck = false) {
     return $result;
 }
 
-function make_path($path) {
+function make_path($path)
+{
     $created = false;
     if (substr($path, -1) !== DIRECTORY_SEPARATOR) {
         $path = pathinfo($path, PATHINFO_DIRNAME);
@@ -192,7 +195,8 @@ function make_path($path) {
     return $created;
 }
 
-function startRestream($m3u8, $restreamsDestinations, $logFile, $tries = 1) {
+function startRestream($m3u8, $restreamsDestinations, $logFile, $tries = 1)
+{
     global $ffmpegBinary;
     if (empty($restreamsDestinations)) {
         error_log("Restreamer.json.php ERROR empty restreamsDestinations");
@@ -209,17 +213,23 @@ function startRestream($m3u8, $restreamsDestinations, $logFile, $tries = 1) {
             error_log("Restreamer.json.php tried too many times, we could not find your stream URL");
             return false;
         }
+        if ($tries === 1) {
+            error_log("Restreamer.json.php ".json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5)));
+        }
         error_log("Restreamer.json.php URL ($m3u8) is NOT ready. trying again ({$tries})");
         sleep($tries);
         return startRestream($m3u8, $restreamsDestinations, $logFile, $tries + 1);
     }
+    
+    error_log("Restreamer.json.php isURL200 tries={$tries} ".json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5)));
+    //sleep(5);
     /*
       $command = "ffmpeg -i {$m3u8} ";
       foreach ($restreamsDestinations as $value) {
       $value = clearCommandURL($value);
       $command .= ' -max_muxing_queue_size 1024 -f flv "' . $value . '" ';
       }
-     * 
+     *
      */
     if (count($restreamsDestinations) > 1) {
         //$command = "{$ffmpegBinary} -re -i \"{$m3u8}\" ";
@@ -230,14 +240,14 @@ function startRestream($m3u8, $restreamsDestinations, $logFile, $tries = 1) {
                 continue;
             }
             $value = clearCommandURL($value);
-            $command .= ' -max_muxing_queue_size 1024 -acodec copy -bsf:a aac_adtstoasc -vcodec copy -preset veryfast -f flv "' . $value . '" ';
+            $command .= ' -max_muxing_queue_size 1024 -c:a copy -ac 1 -ar 44100 -b:a 96k -vcodec libx264 -pix_fmt yuv420p -vf scale=1080:-1 -r 30 -g 60 -tune zerolatency -f flv -maxrate 2000k -preset veryfast -f flv "' . $value . '" ';
         }
     } else {
         if (!isOpenSSLEnabled() && preg_match("/rtpms:/i", $restreamsDestinations[0])) {
             error_log("Restreamer.json.php ERROR #2 FFMPEG openssl is not enabled, ignoring {$restreamsDestinations[0]} ");
         } else {
             //$command = "ffmpeg -re -i \"{$m3u8}\" -max_muxing_queue_size 1024 -acodec copy -bsf:a aac_adtstoasc -vcodec copy -f flv \"{$restreamsDestinations[0]}\"";
-            $command = "{$ffmpegBinary} -re -rw_timeout 15000000 -i \"{$m3u8}\" -max_muxing_queue_size 1024 -acodec copy -bsf:a aac_adtstoasc -vcodec copy -preset veryfast -f flv \"{$restreamsDestinations[0]}\"";
+            $command = "{$ffmpegBinary} -re -rw_timeout 15000000 -y -i \"{$m3u8}\" -max_muxing_queue_size 1024 -c:a copy -ac 1 -ar 44100 -b:a 96k -vcodec libx264 -pix_fmt yuv420p -vf scale=1080:-1 -r 30 -g 60 -tune zerolatency -f flv -maxrate 2000k -preset veryfast -f flv \"{$restreamsDestinations[0]}\"";
         }
     }
     if (empty($command) || !preg_match("/-f flv/i", $command)) {
@@ -254,7 +264,8 @@ function startRestream($m3u8, $restreamsDestinations, $logFile, $tries = 1) {
 
 $isOpenSSLEnabled = null;
 
-function isOpenSSLEnabled() {
+function isOpenSSLEnabled()
+{
     global $isOpenSSLEnabled, $ffmpegBinary;
     if (isset($isOpenSSLEnabled)) {
         return $isOpenSSLEnabled;
@@ -270,12 +281,14 @@ function isOpenSSLEnabled() {
     return $isOpenSSLEnabled;
 }
 
-function whichffmpeg() {
+function whichffmpeg()
+{
     exec("which ffmpeg 2>&1", $output, $return_var);
     return @$output[0];
 }
 
-function getProcess($m3u8) {
+function getProcess($m3u8)
+{
     $m3u8 = clearCommandURL($m3u8);
     global $ffmpegBinary;
     exec("ps -ax 2>&1", $output, $return_var);
@@ -290,9 +303,9 @@ function getProcess($m3u8) {
     return false;
 }
 
-function killIfIsRunning($m3u8) {
+function killIfIsRunning($m3u8){
     $process = getProcess($m3u8);
-    error_log("Restreamer.json.php killIfIsRunning checking if there is a process running for {$m3u8} ");
+    //error_log("Restreamer.json.php killIfIsRunning checking if there is a process running for {$m3u8} ");
     if (!empty($process)) {
         error_log("Restreamer.json.php killIfIsRunning there is a process running for {$m3u8} " . json_encode($process));
         $pid = intval($process[1]);
@@ -303,12 +316,12 @@ function killIfIsRunning($m3u8) {
         }
         return true;
     } else {
-        error_log("Restreamer.json.php killIfIsRunning there is not a process running for {$m3u8} ");
+        //error_log("Restreamer.json.php killIfIsRunning there is not a process running for {$m3u8} ");
     }
     return false;
 }
 
-function replaceSlashesForPregMatch($str) {
+function replaceSlashesForPregMatch($str)
+{
     return str_replace('/', '.', $str);
 }
-

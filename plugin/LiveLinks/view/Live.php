@@ -47,7 +47,8 @@ if ($toTime > time()) {
     $message = "<strong>{$t['title']}</strong><br>{$t['description']}";
     $image = User::getPhoto($t['users_id']);
     $bgImage = LiveLinks::getImage($t['id']);
-    countDownPage($toTime, $message, $image, $bgImage);
+    $title = $t['title'];
+    countDownPage($toTime, $message, $image, $bgImage, $title);
 }
 
 $u = new User($t['users_id']);
@@ -66,6 +67,9 @@ $poster = $img = LiveLinks::getImage($t['id']);
 $imgw = 400;
 $imgh = 255;
 
+if(isAVideoMobileApp()){
+   $_GET['embed'] = 1; 
+}
 
 if (!empty($_GET['embed'])) {
     $video['videoLink'] = LiveLinks::getSourceLink($t['id']);
@@ -79,7 +83,8 @@ $sideAd = getAdsSideRectangle();
 
 $modeYoutubeBottomClass1 = "col-sm-7 col-md-7 col-lg-6";
 $modeYoutubeBottomClass2 = "col-sm-5 col-md-5 col-lg-4 ";
-if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
+
+if (isHTMLEmpty($sideAd)) {
     $modeYoutubeBottomClass1 = "col-sm-12 col-md-12 col-lg-10";
     $modeYoutubeBottomClass2 = "hidden ";
 }
@@ -88,8 +93,8 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo $t['title'] . $config->getPageTitleSeparator() . __("Live Links") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/videojs-contrib-ads/dist/videojs.ads.min.js'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getCDN(); ?>js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
@@ -109,7 +114,7 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
-        <div class="container-fluid principalContainer" style="padding: 0;" id="modeYoutubePrincipal">
+        <div class="container-fluid principalContainer" style="padding: 0;overflow: hidden;" id="modeYoutubePrincipal">
             <?php
             if (!$isCompressed) {
                 ?>

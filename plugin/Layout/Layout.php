@@ -165,7 +165,7 @@ class Layout extends PluginAbstract {
         global $global;
         include $global['systemRootPath'] . 'plugin/Layout/fontAwesomeFAB.php';
         // Fetch variables scss file in variable
-        $font_vars = file_get_contents($global['systemRootPath'] . 'view/css/fontawesome-free-5.5.0-web/scss/_variables.scss');
+        $font_vars = file_get_contents($global['systemRootPath'] . 'node_modules/@fortawesome/fontawesome-free/scss/_variables.scss');
 
         // Find the position of first $fa-var , as all icon class names start after that
         $pos = strpos($font_vars, '$fa-var');
@@ -374,6 +374,35 @@ class Layout extends PluginAbstract {
         
         return self::getSelectSearchable($flags, $name, $selected, $id, $class . " flagSelect", true, $templatePlaceholder);
     }
+    
+    static function getUserSelect($name, $users_id_list, $selected = "", $id = "", $class = "") {
+        $elements = array();
+        foreach ($users_id_list as $users_id) {
+            $name = User::getNameIdentificationById($users_id);
+            $photo = User::getPhoto($users_id);
+            $elements[$users_id] = htmlentities("<img src='{$photo}' class='img img-responsive pull-left' style='max-height:20px;margin-top: 2px;'> {$name}");
+            if($users_id == User::getId()){
+                $elements[$users_id] .= " (Me)";
+            }
+        }
+        if (empty($id)) {
+            $id = uniqid();
+        }
+        $methodName = __FUNCTION__;
+        $code = "<script>function {$methodName}formatStateResult (state) {
+                                    if (!state.id) {
+                                      return state.text;
+                                    }
+                                    var \$state = $(
+                                      '<span>' + state.text + '</span>'
+                                    );
+                                    return \$state;
+                                  };</script>";
+        self::addFooterCode($code);
+        $code = '<script>$(document).ready(function() {$(\'#' . $id . '\').select2({templateSelection: ' . $methodName . 'formatStateResult, templateResult: ' . $methodName . 'formatStateResult,width: \'100%\'});});</script>';
+        self::addFooterCode($code);
+        return self::getSelectSearchable($elements, $name, $selected, $id, $class, true);
+    }
 
     static function getCategorySelect($name, $selected = "", $id = "", $class = "") {
         $rows = Category::getAllCategories(true, false);
@@ -465,12 +494,22 @@ class Layout extends PluginAbstract {
     public function navBarAfter() {
         global $global;
         $obj = $this->getDataObject();
-        if(!empty($obj->categoriesTopButtons)){
+        if(!AVideoPlugin::isEnabledByName('YouPHPFlix2') && !empty($obj->categoriesTopButtons)){
             if(!empty($obj->categoriesTopButtonsShowOnlyOnFirstPage) && !isFirstPage()){
                 return '';
             }
             include $global['systemRootPath'] . 'plugin/Layout/categoriesTopButtons.php';
         }
+    }
+    
+    static function getUserAutocomplete($default_users_id=0, $id = '', $parameters = array()){
+        global $global;
+        $default_users_id = intval($default_users_id);
+        if(empty($id)){
+            $id = 'getUserAutocomplete_'.uniqid();
+        }
+        include $global['systemRootPath'] . 'plugin/Layout/userAutocomplete.php';
+        return "updateUserAutocomplete{$id}();";
     }
 
 }

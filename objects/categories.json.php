@@ -18,6 +18,13 @@ $total = Category::getTotalCategories(true);
 //$breaks = array('<br />', '<br>', '<br/>');
 foreach ($categories as $key => $value) {
     $categories[$key]['iconHtml'] = "<span class='$value[iconClass]'></span>";
+    $categories[$key]['users_groups_ids_array'] = Categories_has_users_groups::getUserGroupsIdsFromCategory($value['id']);
+    
+    if(empty($categories[$key]['users_groups_ids_array'])){
+        $categories[$key]['total_users_groups'] = 0;
+    }else{
+        $categories[$key]['total_users_groups'] = count($categories[$key]['users_groups_ids_array']);
+    }
     //$categories[$key]['description'] = str_ireplace($breaks, "\r\n", $value['description']);
     /*
     $sql = "SELECT * FROM `category_type_cache` WHERE categoryId = ?";
@@ -39,4 +46,4 @@ foreach ($categories as $key => $value) {
 if (empty($_POST['sort']) && empty($_GET['sort'])) {
     array_multisort(array_column($categories, 'hierarchyAndName'), SORT_ASC, $categories);
 }
-echo '{  "current": '.getCurrentPage().',"rowCount": '.getRowCount().', "total": '.$total.', "rows":'. json_encode($categories).'}';
+echo '{  "current": '.getCurrentPage().',"rowCount": '.getRowCount().', "total": '.$total.', "rows":'. _json_encode($categories).'}';

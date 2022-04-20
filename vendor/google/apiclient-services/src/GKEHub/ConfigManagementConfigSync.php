@@ -19,12 +19,35 @@ namespace Google\Service\GKEHub;
 
 class ConfigManagementConfigSync extends \Google\Model
 {
+  /**
+   * @var bool
+   */
+  public $enabled;
   protected $gitType = ConfigManagementGitConfig::class;
   protected $gitDataType = '';
-  protected $resourceRequirementsType = ConfigManagementContainerResourceRequirements::class;
-  protected $resourceRequirementsDataType = 'map';
+  /**
+   * @var bool
+   */
+  public $preventDrift;
+  /**
+   * @var string
+   */
   public $sourceFormat;
 
+  /**
+   * @param bool
+   */
+  public function setEnabled($enabled)
+  {
+    $this->enabled = $enabled;
+  }
+  /**
+   * @return bool
+   */
+  public function getEnabled()
+  {
+    return $this->enabled;
+  }
   /**
    * @param ConfigManagementGitConfig
    */
@@ -40,23 +63,29 @@ class ConfigManagementConfigSync extends \Google\Model
     return $this->git;
   }
   /**
-   * @param ConfigManagementContainerResourceRequirements[]
+   * @param bool
    */
-  public function setResourceRequirements($resourceRequirements)
+  public function setPreventDrift($preventDrift)
   {
-    $this->resourceRequirements = $resourceRequirements;
+    $this->preventDrift = $preventDrift;
   }
   /**
-   * @return ConfigManagementContainerResourceRequirements[]
+   * @return bool
    */
-  public function getResourceRequirements()
+  public function getPreventDrift()
   {
-    return $this->resourceRequirements;
+    return $this->preventDrift;
   }
+  /**
+   * @param string
+   */
   public function setSourceFormat($sourceFormat)
   {
     $this->sourceFormat = $sourceFormat;
   }
+  /**
+   * @return string
+   */
   public function getSourceFormat()
   {
     return $this->sourceFormat;

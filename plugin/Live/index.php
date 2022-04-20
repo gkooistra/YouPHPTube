@@ -18,19 +18,24 @@ if (!empty($_GET['c'])) {
         header("Location: {$global['webSiteRootURL']}");
     }
 }
+
+if (!empty($_GET['u']) && isAVideoMobileApp()) {
+   $_GET['embed'] = 1;
+}
+
 if (!empty($_GET['u']) && !empty($_GET['embedv2'])) {
     include $global['systemRootPath'] . 'plugin/Live/view/videoEmbededV2.php';
     exit;
-} else if (!empty($_GET['u']) && !empty($_GET['embed'])) {
+} elseif (!empty($_GET['u']) && !empty($_GET['embed'])) {
     include $global['systemRootPath'] . 'plugin/Live/view/videoEmbeded.php';
     exit;
-} else if (!empty($_GET['u'])) {
+} elseif (!empty($_GET['u'])) {
     include $global['systemRootPath'] . 'plugin/Live/view/modeYoutubeLive.php';
     exit;
-} else if (!User::isLogged()) {
+} elseif (!User::isLogged()) {
     gotToLoginAndComeBackHere("");
     exit;
-} else if (!User::canStream()) {
+} elseif (!User::canStream()) {
     forbiddenPage(__($obj->streamDeniedMsg));
 }
 
@@ -45,7 +50,7 @@ if (!empty($_GET['users_id']) && User::isAdmin()) {
 
 // if user already have a key
 $trasnmition = LiveTransmition::createTransmitionIfNeed($users_id);
-$getLiveKey = array('key' => $trasnmition['key'], 'live_servers_id' => Live::getLiveServersIdRequest());
+$getLiveKey = ['key' => $trasnmition['key'], 'live_servers_id' => Live::getLiveServersIdRequest()];
 setLiveKey($trasnmition['key'], Live::getLiveServersIdRequest(), @$_REQUEST['live_index']);
 if (!empty($_GET['resetKey'])) {
     LiveTransmition::resetTransmitionKey($users_id);
@@ -64,7 +69,7 @@ if (empty($channelName)) {
     $user->setChannelName($channelName);
     $user->save();
 }
-//$global['ignoreChat2'] = 1;
+$global['ignoreChat2'] = 1;
 $col1Class = "col-md-12 col-lg-12";
 $col2Class = "hidden";
 $chat2 = AVideoPlugin::getObjectDataIfEnabled("Chat2");
@@ -72,12 +77,13 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
     $col1Class = "col-md-8 col-lg-8";
     $col2Class = "col-md-4 col-lg-4";
 }
+$global['doNotLoadPlayer'] = 1;
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo __("Live") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
@@ -106,10 +112,7 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
                     #live .panel-body {
                         height: calc(50vh - 200px);
                     }
-                    #liveFooterPanel{
-                        padding: 0;
-                    }
-                }    
+                }
                 <?php
             }
             ?>
@@ -120,107 +123,102 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
         <div class="container-fluid">
-            <ul class="nav nav-tabs">
-                <li class="active"><a data-toggle="tab" href="#live"><i class="fas fa-video"></i> <?php echo __('Live'); ?></a></li>
-                <li><a data-toggle="tab" href="#liveConfig"><i class="fas fa-cog"></i> <?php echo __('Configuration'); ?></a></li>
-            </ul>
 
-            <div class="tab-content">
-                <div id="live" class="tab-pane fade in active">
-                    <?php
-                    include $global['systemRootPath'] . 'plugin/Live/indexColCam.php';
-                    ?>
-                </div>
-                <div id="liveConfig" class="tab-pane fade">
-                    <div class="panel panel-default">
-                        <div class="panel-heading tabbable-line">
-                            <ul class="nav nav-tabs">
-                                <?php
-                                $activeServerFound = false;
-                                if (!$obj->useLiveServers) {
-                                    $liveStreamObject = new LiveStreamObject($trasnmition['key'], 0, @$_REQUEST['live_index'], 0);
-                                    $key = $liveStreamObject->getKeyWithIndex(true);
+            <div class="panel panel-default">
+                <div class="panel-heading tabbable-line">
+                    <ul class="nav nav-tabs">
+                        <?php
+                        $activeServerFound = false;
+                        if (!$obj->useLiveServers) {
+                            $liveStreamObject = new LiveStreamObject($trasnmition['key'], 0, @$_REQUEST['live_index'], 0);
+                            $key = $liveStreamObject->getKeyWithIndex(true);
+                            $activeServerFound = true;
+                            $_REQUEST['live_servers_id'] = 0; ?>
+                            <li class="active <?php echo getCSSAnimationClassAndStyle('animate__fadeInLeft', 'menu'); ?>">
+                                <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?live_servers_id=0">
+                                    <i class="fas fa-broadcast-tower"></i> <?php echo __("Local Server"); ?>
+                                </a>
+                            </li>
+                            <?php
+                        } else {
+                            $servers = Live::getAllServers();
+                            $activeFound = false;
+                            foreach ($servers as $index => $value) {
+                                $liveStreamObject = new LiveStreamObject($trasnmition['key'], $value['id'], @$_REQUEST['live_index'], 0);
+                                $key = $liveStreamObject->getKeyWithIndex(true);
+                                $active = "";
+                                if (!empty($_REQUEST['live_servers_id'])) {
+                                    if ($_REQUEST['live_servers_id'] == $value['id']) {
+                                        $activeServerFound = true;
+                                        $active = "active";
+                                    }
+                                } elseif ($index == 0) {
+                                    $_REQUEST['live_servers_id'] = $value['id'];
                                     $activeServerFound = true;
-                                    $_REQUEST['live_servers_id'] = 0;
-                                    ?>
-                                    <li class="active">
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?live_servers_id=0">
-                                            <i class="fas fa-broadcast-tower"></i> <?php echo __("Local Server"); ?>
-                                        </a>
-                                    </li>
-                                    <?php
-                                } else {
-                                    $servers = Live::getAllServers();
-                                    $activeFound = false;
-                                    foreach ($servers as $index => $value) {
-                                        $liveStreamObject = new LiveStreamObject($trasnmition['key'], $value['id'], @$_REQUEST['live_index'], 0);
-                                        $key = $liveStreamObject->getKeyWithIndex(true);
-                                        $active = "";
-                                        if (!empty($_REQUEST['live_servers_id'])) {
-                                            if ($_REQUEST['live_servers_id'] == $value['id']) {
-                                                $activeServerFound = true;
-                                                $active = "active";
-                                            }
-                                        } else if ($index == 0) {
-                                            $_REQUEST['live_servers_id'] = $value['id'];
-                                            $activeServerFound = true;
-                                            $active = "active";
-                                        }
-                                        ?>
-                                        <li class="<?php echo $active; ?>">
-                                            <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?live_servers_id=<?php echo $value['id']; ?>">
-                                                <i class="fas fa-broadcast-tower"></i> <?php echo $value['name']; ?>
-                                            </a>
-                                        </li>
-                                        <?php
-                                    }
-                                    if (User::isAdmin()) {
-                                        ?>
-                                        <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/editor.php" class="btn btn-primary pull-right"><i class="fa fa-edit"></i> Edit Live Servers</a>
-                                        <?php
-                                    }
-                                }
-                                if (empty($activeServerFound)) {
-                                    if (!empty($servers[0])) {
-                                        $_REQUEST['live_servers_id'] = $servers[0]['id'];
-                                    } else {
-                                        ?>
-                                        <li>
-                                            <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/editor.php" class="btn btn-danger">
-                                                <i class="fas fa-exclamation-triangle"></i> <?php echo __("Server not found or inactive"); ?>
-                                            </a>
-                                        </li>
-                                        <?php
-                                    }
-                                }
-                                $_REQUEST['live_servers_id'] = Live::getLiveServersIdRequest();
-                                $getLiveKey['live_servers_id'] = $_REQUEST['live_servers_id'];
-                                $getLiveKey['live_index'] = @$_REQUEST['live_index'];
-                                $poster = Live::getPosterImage(User::getId(), $_REQUEST['live_servers_id']);
-                                ?>
-                            </ul>
-                        </div>
-                        <div class="panel-body">
-                            <div class="col-lg-6" id="indexCol1">
-                                <div class="row">
-                                    <div class="<?php echo $col1Class; ?>">
-                                        <?php
-                                        include $global['systemRootPath'] . 'plugin/Live/indexCol1.php';
-                                        ?>
-                                    </div>
-                                    <div class="<?php echo $col2Class; ?>" id="yptRightBar">
-                                        <?php
-                                        include $global['systemRootPath'] . 'plugin/Live/indexCol2.php';
-                                        ?>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-6" id="indexCol2">
+                                    $active = "active";
+                                } ?>
+                                <li class="<?php echo $active; ?>  <?php echo getCSSAnimationClassAndStyle('animate__fadeInLeft', 'menu'); ?>">
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/?live_servers_id=<?php echo $value['id']; ?>">
+                                        <i class="fas fa-broadcast-tower"></i> <?php echo $value['name']; ?>
+                                    </a>
+                                </li>
                                 <?php
-                                include $global['systemRootPath'] . 'plugin/Live/indexCol3.php';
+                            }
+                            if (User::isAdmin()) {
+                                ?>
+                                <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Live/view/editor.php');" class="btn btn-primary pull-right"><i class="fa fa-edit"></i> Edit Live Servers</button>
+                                <?php
+                            }
+                        }
+                        if (Live::canStreamWithMeet()) {
+                            ?>
+                                <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Meet/');" class="btn btn-default pull-right"><i class="fas fa-comments"></i> <?php echo __("Meet"); ?></button>
+                                <?php
+                        }
+                        if (Live::canStreamWithWebRTC()) {
+                            ?>
+                                <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Live/webcamFullscreen.php?avideoIframe=1');" class="btn btn-default pull-right"><i class="fas fa-camera"></i> <?php echo __("Webcam"); ?></button>
+                                <?php
+                        }
+                        if (empty($activeServerFound)) {
+                            if (!empty($servers[0])) {
+                                $_REQUEST['live_servers_id'] = $servers[0]['id'];
+                            } else {
+                                ?>
+                                <li>
+                                    <a href="<?php echo $global['webSiteRootURL']; ?>plugin/Live/view/editor.php" class="btn btn-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> <?php echo __("Server not found or inactive"); ?>
+                                    </a>
+                                </li>
+                                <?php
+                            }
+                        }
+                        $_REQUEST['live_servers_id'] = Live::getLiveServersIdRequest();
+                        $getLiveKey['live_servers_id'] = $_REQUEST['live_servers_id'];
+                        $getLiveKey['live_index'] = @$_REQUEST['live_index'];
+                        $poster = Live::getPosterImage(User::getId(), $_REQUEST['live_servers_id']);
+                        ?>
+                    </ul>
+                </div>
+                <div class="panel-body">
+                    <div class="col-lg-6" id="indexCol1">
+                        <div class="row">
+                            <div class="<?php echo $col1Class; ?>">
+                                <?php
+                                include $global['systemRootPath'] . 'plugin/Live/indexCol1.php';
+                                ?>
+                            </div>
+                            <div class="<?php echo $col2Class; ?>" id="yptRightBar">
+                                <?php
+                                include $global['systemRootPath'] . 'plugin/Live/indexCol2.php';
                                 ?>
                             </div>
                         </div>
+                    </div>
+                    <div class="col-lg-6 " id="indexCol2">
+                        <?php
+                        include $global['systemRootPath'] . 'plugin/Live/indexCol3.php';
+                        ?>
                     </div>
                 </div>
             </div>
@@ -279,7 +277,9 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
                         "key": "<?php echo $trasnmition['key']; ?>",
                         "listed": $('#listed').is(":checked"),
                         "saveTransmition": $('#recordLive').is(":checked"),
-                        "userGroups": selectedUserGroups
+                        "userGroups": selectedUserGroups,
+                        users_id: '<?php echo $users_id; ?>',
+                        password: $('#password_livestream').val()
                     },
                     type: 'post',
                     success: function (response) {
@@ -288,32 +288,6 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
                 });
             }
             $(document).ready(function () {
-                $("#input-jpg").fileinput({
-                    uploadUrl: webSiteRootURL + "plugin/Live/uploadPoster.php?live_servers_id=<?php echo $_REQUEST['live_servers_id']; ?>",
-                    autoReplace: true,
-                    overwriteInitial: true,
-                    showUploadedThumbs: false,
-                    showPreview: true,
-                    maxFileCount: 1,
-                    initialPreview: [
-                        "<img class='img img-responsive' src='<?php echo $global['webSiteRootURL']; ?><?php echo $poster; ?>?<?php echo filectime($global['systemRootPath'] . $poster); ?>'>",
-                    ],
-                    initialCaption: 'LiveBG.jpg',
-                    initialPreviewShowDelete: false,
-                    showRemove: false,
-                    showClose: false,
-                    layoutTemplates: {actionDelete: ''}, // disable thumbnail deletion
-                    allowedFileExtensions: ["jpg", "jpeg", "png"],
-                    //minImageWidth: 2048,
-                    //minImageHeight: 1152,
-                    //maxImageWidth: 2560,
-                    //maxImageHeight: 1440
-                }).on('fileuploaded', function (event, previewId, index, fileId) {
-                    var poster = webSiteRootURL + '<?php echo Live::_getPosterImage(User::getId(), $_REQUEST['live_servers_id']); ?>?' + Math.random();
-                    $('#mainVideo video').attr('poster', poster);
-                    $('#mainVideo .vjs-poster').css('background-image', 'url("' + poster + '"');
-                });
-
                 $('#removePoster').click(function () {
                     modal.showPleaseWait();
                     $.ajax({

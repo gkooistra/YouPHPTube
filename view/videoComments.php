@@ -9,23 +9,21 @@ if (User::canSeeCommentTextarea()) {
             <textarea class="form-control custom-control" rows="3" style="resize:none" id="comment" maxlength="<?php echo empty($advancedCustom->commentsMaxLength) ? "200" : $advancedCustom->commentsMaxLength ?>" <?php
             if (!User::canComment()) {
                 echo "disabled";
-            }
-            ?>><?php
+            } ?>><?php
                           if (!User::canComment()) {
                               if (User::isLogged()) {
                                   echo __("Verify your email to be able to comment");
                               } else {
                                   echo __("You must login to be able to comment on videos");
                               }
-                          }
-                          ?></textarea>
+                          } ?></textarea>
                 <?php if (User::canComment()) { ?>
                 <span class="input-group-addon btn btn-success" id="saveCommentBtn" <?php
             if (!User::canComment()) {
                 echo "disabled='disabled'";
             }
                     ?>><span class="glyphicon glyphicon-comment"></span> <?php echo __("Comment"); ?></span>
-                  <?php } else if (User::isLogged()) { ?>
+                  <?php } elseif (User::isLogged()) { ?>
                 <a class="input-group-addon btn btn-success" href="<?php echo $global['webSiteRootURL']; ?>user" data-toggle="tooltip" title="<?php echo __("Verify your email to be able to comment"); ?>"><span class="glyphicon glyphicon-log-in"></span> <span class="hidden-sm hidden-xs"><?php echo __("Verify your email to be able to comment"); ?></span></a>
             <?php } else { ?>
                 <a class="input-group-addon btn btn-success" href="<?php echo $global['webSiteRootURL']; ?>user" data-toggle="tooltip" title="<?php echo __("You must login to be able to comment on videos"); ?>"><span class="glyphicon glyphicon-log-in"></span> <span class="hidden-sm hidden-xs"><?php echo __("You must login to be able to comment on videos"); ?></span></a>
@@ -44,44 +42,46 @@ if (User::canSeeCommentTextarea()) {
             });
         </script>
         <?php
-    }
-    ?>
+    } ?>
     <style>
         .replySet .replySet .divReplyGrid{
             padding-left: 0 !important;
         }
     </style>
     <div class="replySet hidden" id="replyTemplate" comments_id="0">
-        <div>        
+        <div>
             <?php
             if (User::canComment()) {
                 ?>
-                <button class="btn btn-default no-outline reply btn-xs"> 
+                <button class="btn btn-default no-outline reply btn-xs">
                     <?php echo __("Reply"); ?>
                 </button>
                 <?php
             }
-            ?>
-            <button class="faa-parent animated-hover btn btn-default no-outline btn-xs replyLikeBtn"> 
+    if (empty($advancedCustom->removeThumbsUpAndDown)) {
+        ?>
+            <button class="faa-parent animated-hover btn btn-default no-outline btn-xs replyLikeBtn">
                 <span class="fa fa-thumbs-up faa-bounce"></span>
                 <small>0</small>
-            </button> 
-            <button class="faa-parent animated-hover btn btn-default no-outline btn-xs replyDislikeBtn"> 
+            </button>
+            <button class="faa-parent animated-hover btn btn-default no-outline btn-xs replyDislikeBtn">
                 <span class="fa fa-thumbs-down faa-bounce faa-reverse"></span>
                 <small>0</small>
-            </button>           
-            <button class="btn btn-default no-outline allReplies btn-xs viewAllReplies">  
+            </button>
+            <?php
+    } ?>
+            <button class="btn btn-default no-outline allReplies btn-xs viewAllReplies">
                 <?php echo __("View all replies"); ?> (<span class="total_replies">0</span>) <i class="fa fa-chevron-down" aria-hidden="true"></i>
-            </button> 
-            <button class="btn btn-default no-outline allReplies btn-xs hideAllReplies" style="display: none"> 
+            </button>
+            <button class="btn btn-default no-outline allReplies btn-xs hideAllReplies" style="display: none">
                 <?php echo __("Hide Replies"); ?> <i class="fa fa-chevron-up" aria-hidden="true"></i>
-            </button> 
-            <button class="btn btn-default no-outline btn-xs pull-right delete userCanAdminComment"> 
+            </button>
+            <button class="btn btn-default no-outline btn-xs pull-right delete userCanAdminComment">
                 <i class="fa fa-trash" aria-hidden="true"></i>
-            </button> 
-            <button class="btn btn-default no-outline btn-xs pull-right edit userCanEditComment"> 
+            </button>
+            <button class="btn btn-default no-outline btn-xs pull-right edit userCanEditComment">
                 <i class="fas fa-edit" aria-hidden="true"></i>
-            </button> 
+            </button>
         </div>
         <div class="divReplyGrid" style="padding-left: 50px;">
             <div class="input-group formRepy" style="display: none;">
@@ -110,7 +110,8 @@ if (User::canSeeCommentTextarea()) {
                 if (empty($video['id'])) {
                     ?>
                     <th data-formatter="video"  data-width="200px" ><?php echo __("Video"); ?></th>
-                <?php } ?>
+                <?php
+                } ?>
                 <th data-column-id="comment"  data-formatter="commands" ><?php echo __("Comment"); ?></th>
             </tr>
         </thead>
@@ -125,7 +126,7 @@ if (User::canSeeCommentTextarea()) {
                 </div>
                 <div class="modal-body">
                     <input type="hidden" value="" id="inputEditCommentId"/>
-                    <textarea id="inputEditComment" class="form-control" placeholder="<?php echo __("Comment"); ?>" required></textarea>                                
+                    <textarea id="inputEditComment" class="form-control" placeholder="<?php echo __("Comment"); ?>" required></textarea>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo __("Close"); ?></button>
@@ -232,8 +233,8 @@ if (User::canSeeCommentTextarea()) {
                                 method: 'POST',
                                 data: {'comment': comment, 'video': video, 'comments_id': comments_id, 'id': id},
                                 success: function (response) {
-                                    if (response.status > 0) {
-                                        avideoToast("<?php echo __("Your comment has been saved!"); ?>");
+                                    avideoResponse(response);
+                                    if (!response.error) {
                                         if (comments_id) {
                                             if ($('.grid' + comments_id).hasClass('bootgrid-table')) {
                                                 $('.grid' + comments_id).bootgrid('reload');
@@ -245,8 +246,6 @@ if (User::canSeeCommentTextarea()) {
                                             $('#grid').bootgrid('reload');
                                         }
                                         addCommentCount(comments_id, 1);
-                                    } else {
-                                        avideoAlert("<?php echo __("Sorry"); ?>!", "<?php echo __("Your comment has NOT been saved!"); ?>", "error");
                                     }
                                     modal.hidePleaseWait();
                                 }
@@ -310,15 +309,14 @@ if (User::canSeeCommentTextarea()) {
 
                                             modal.showPleaseWait();
                                             $.ajax({
-                                                url: '<?php echo $global['webSiteRootURL']; ?>objects/commentDelete.json.php',
+                                                url: webSiteRootURL+'objects/commentDelete.json.php',
                                                 method: 'POST',
                                                 data: {'id': comments_id},
                                                 success: function (response) {
-                                                    if (response.status) {
+                                                    if (!response.error) {
                                                         $(t).closest('tr').fadeOut();
-                                                    } else {
-                                                        avideoAlert("<?php echo __("Sorry"); ?>!", "<?php echo __("Your comment has NOT been deleted!"); ?>", "error");
-                                                    }
+                                                    } 
+                                                    avideoResponse(response);
                                                     modal.hidePleaseWait();
                                                 }
                                             });

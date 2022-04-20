@@ -3,20 +3,21 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'objects/user.php';
-require_once $global['systemRootPath'] . 'objects/functions.php';
 if (isBot()) {
     return;
 }
 
-require_once $global['systemRootPath'] . 'objects/video.php';
+$TimeLogLimitVL = 0.01;
+$timeLogNameVL = TimeLogStart("videosList.php");
+
 $post = $_POST;
 if (!empty($_POST['video_id'])) {
     $video = Video::getVideo($_POST['video_id'], "viewable");
 }
 $_POST = $post;
 
-$catLink = "";
+TimeLogEnd($timeLogNameVL, __LINE__, $TimeLogLimitVL);
+$catLink = '';
 if (!empty($_GET['catName'])) {
     $catLink = "cat/{$_GET['catName']}/";
 }
@@ -51,26 +52,28 @@ $_SESSION['rowCount'] = $_REQUEST['rowCount'];
 $_SESSION['sort'] = $_POST['sort'];
 
 
+TimeLogEnd($timeLogNameVL, __LINE__, $TimeLogLimitVL);
 $videos = Video::getAllVideos("viewableNotUnlisted");
 $total = Video::getTotalVideos("viewableNotUnlisted");
+TimeLogEnd($timeLogNameVL, __LINE__, $TimeLogLimitVL);
 $totalPages = ceil($total / $_REQUEST['rowCount']);
 $_POST = $post;
 if (empty($totalPages)) {
     $totalPages = 1;
 }
-$videoName = "";
+$videoName = '';
 if (!empty($video['clean_title'])) {
     $videoName = $video['clean_title'];
-} else if (!empty($_GET['videoName'])) {
+} elseif (!empty($_GET['videoName'])) {
     $videoName = $_GET['videoName'];
 }
-$get = array();
+$get = [];
 
-$get = array('channelName' => @$_GET['channelName'], 'catName' => @$_GET['catName']);
+$get = ['channelName' => @$_GET['channelName'], 'catName' => @$_GET['catName']];
 if (!empty($_GET['channelName']) && empty($advancedCustomUser->hideRemoveChannelFromModeYoutube)) {
     $user = User::getChannelOwner($_GET['channelName']);
     //var_dump($user);exit;
-    ?>
+?>
     <div class="col-md-12" style="padding: 15px; margin: 5px 0; background-image: url(<?php echo $global['webSiteRootURL'], User::getBackgroundURLFromUserID($user['id']); ?>); background-size: cover;"  >
         <img src="<?php echo User::getPhoto($user['id']); ?>" class="img img-responsive img-circle" style="max-width: 60px;" alt="User Photo"/>
         <div style="position: absolute; right: 5px; top: 5px;">
@@ -84,6 +87,7 @@ $objGallery = AVideoPlugin::getObjectData("Gallery");
 if (empty($video['id'])) {
     $video['id'] = 0;
 }
+TimeLogEnd($timeLogNameVL, __LINE__, $TimeLogLimitVL);
 ?>
 <div class="col-md-8 col-sm-12 " style="position: relative; z-index: 2;" >
     <select class="form-control" id="sortBy" >
@@ -94,9 +98,10 @@ if (empty($video['id'])) {
         <option value="popular" data-icon="glyphicon-thumbs-up"  <?php echo (!empty($_POST['sort']['likes'])) ? "selected='selected'" : "" ?>> <?php echo __("Most popular"); ?></option>
         <?php
         if (empty($advancedCustom->doNotDisplayViews)) {
-            ?> 
+            ?>
             <option value="views_count" data-icon="glyphicon-eye-open"  <?php echo (!empty($_POST['sort']['views_count'])) ? "selected='selected'" : "" ?>> <?php echo __("Most watched"); ?></option>
-        <?php } ?>
+        <?php
+        } ?>
     </select>
 </div>
 <div class="col-md-4 col-sm-12" style="position: relative; z-index: 2;">
@@ -119,13 +124,23 @@ if (empty($video['id'])) {
 </div>
 
 <?php
-$program = AVideoPlugin::loadPluginIfEnabled('PlayLists');
-foreach ($videos as $key => $value) {
-    if (!empty($video['id']) && $video['id'] == $value['id']) {
-        continue; // skip video
+TimeLogEnd($timeLogNameVL, __LINE__, $TimeLogLimitVL);
+
+$cacheName = "videosList_" . md5(json_encode($_REQUEST));
+$getVideosListItem = ObjectYPT::getSessionCache($cacheName);
+//$program = AVideoPlugin::loadPluginIfEnabled('PlayLists');
+if (empty($getVideosListItem)) {
+    $getVideosListItem = '';
+    foreach ($videos as $key => $value) {
+        if (!empty($video['id']) && $video['id'] == $value['id']) {
+            continue; // skip video
+        }
+        $getVideosListItem .= Video::getVideosListItem($value['id']);
     }
-    echo Video::getVideosListItem($value['id']);
+    ObjectYPT::setSessionCache($cacheName, $getVideosListItem);
 }
+echo $getVideosListItem;
+TimeLogEnd($timeLogNameVL, __LINE__, $TimeLogLimitVL);
 ?>
 <ul class="pages">
 </ul>
@@ -154,29 +169,29 @@ foreach ($videos as $key => $value) {
         if (typeof num != 'undefined' && num != 'undefined') {
             page = '/page/' + num;
         }
-        var query = "";
+        var query = '';
 <?php
 if (!empty($get)) {
     echo "query = \"?" . http_build_query($get) . "\";";
 }
 ?>
         if (disableChannel) {
-            query = "";
+            query = '';
         }
 <?php
 if (!empty($videoName) && !empty($video['id'])) {
     ?>
             var url = '<?php echo $global['webSiteRootURL'], addslashes($catLink); ?>video/<?php echo addslashes($videoName); ?>' + page + query;
     <?php
-} else if (!empty($_GET['evideo'])) {
-    ?>
+} elseif (!empty($_GET['evideo'])) {
+        ?>
                     var url = '<?php echo $global['webSiteRootURL'], addslashes($catLink); ?>evideo/<?php echo $_GET['evideo']; ?>';
     <?php
-} else {
-    ?>
+    } else {
+        ?>
                             var url = '<?php echo $global['webSiteRootURL'], addslashes($catLink); ?>';
     <?php
-}
+    }
 ?>
                         var urlList = "<?php echo $global['webSiteRootURL']; ?>videosList/<?php echo addslashes($catLink); ?>video/<?php echo addslashes($videoName); ?>" + page + query;
 

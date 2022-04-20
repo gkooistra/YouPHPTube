@@ -66,6 +66,7 @@ class YouPHPFlix2 extends PluginAbstract {
         $obj->titleLabelOverPoster = false;
         $obj->titleLabelCSS = "";
         $obj->hidePlayButtonIfCannotWatch = false;
+        $obj->doNotShowSeriesInfoOnMainPage = false;
         return $obj;
     }
 
@@ -79,9 +80,7 @@ class YouPHPFlix2 extends PluginAbstract {
     public function getFirstPage(){
         global $global;
 
-        if(!AVideoPlugin::isEnabledByName("CombineSites")){
-            return $global['systemRootPath'].'plugin/YouPHPFlix2/view/modeFlix.php';
-        }
+        return $global['systemRootPath'].'plugin/YouPHPFlix2/view/modeFlix.php';
     }
 
     public function getHeadCode() {
@@ -93,7 +92,7 @@ class YouPHPFlix2 extends PluginAbstract {
         }
         $css = "";
         //$css .= "<link href=\"".getCDN()."view/css/custom/".$obj->theme.".css\" rel=\"stylesheet\" type=\"text/css\"/>";
-        $css .= "<link href=\"".getCDN()."plugin/YouPHPFlix2/view/css/style.css?".  filectime("{$global['systemRootPath']}plugin/YouPHPFlix2/view/css/style.css")."\" rel=\"stylesheet\" type=\"text/css\"/>";
+        $css .= "<link href=\"".getURL("plugin/YouPHPFlix2/view/css/style.css")."\" rel=\"stylesheet\" type=\"text/css\"/>";
         if(!empty($obj->youtubeModeOnFullscreen) && canFullScreen()){
             $isEmbed = 1;
             $css .= '<link href="' .getCDN() . 'plugin/YouPHPFlix2/view/css/fullscreen.css" rel="stylesheet" type="text/css"/>';

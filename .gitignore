@@ -73,3 +73,7 @@ sitemap.xml
 /plugin/WebRTCLiveCam/
 /plugin/Wix/
 /plugin/Live/standAloneFiles/WebRTCServer/configuration.php
+/plugin/Fishr/
+/plugin/JoshWho/
+.DS_Store
+/.project

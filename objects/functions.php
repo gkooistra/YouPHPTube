@@ -26,9 +26,9 @@ if (!function_exists('xss_esc')) {
         }
         $result = @htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
         if (empty($result)) {
-            $result = str_replace(array('"', "'", "\\"), array("", "", ""), strip_tags($text));
+            $result = str_replace(['"', "'", "\\"], ["", "", ""], strip_tags($text));
         }
-        $result = str_replace(array('&amp;amp;'), array('&amp;'), $result);
+        $result = str_replace(['&amp;amp;'], ['&amp;'], $result);
         return $result;
     }
 
@@ -36,7 +36,7 @@ if (!function_exists('xss_esc')) {
 
 function xss_esc_back($text) {
     $text = htmlspecialchars_decode($text, ENT_QUOTES);
-    $text = str_replace(array('&amp;', '&#039;', "#039;"), array(" ", "`", "`"), $text);
+    $text = str_replace(['&amp;', '&#039;', "#039;"], [" ", "`", "`"], $text);
     return $text;
 }
 
@@ -143,7 +143,7 @@ function humanTimingAfterwards($time, $precision = 0, $useDatabaseTime = true) {
     $time = secondsIntervalFromNow($time, $useDatabaseTime);
     if (empty($time)) {
         return __("Now");
-    } else if ($time > 0) {
+    } elseif ($time > 0) {
         return secondsToHumanTiming($time, $precision) . ' ' . __('Ago');
     }
     return __('Coming in') . ' ' . secondsToHumanTiming($time, $precision);
@@ -155,7 +155,7 @@ function secondsToHumanTiming($time, $precision = 0) {
     }
     $time = ($time < 0) ? $time * -1 : $time;
     $time = ($time < 1) ? 1 : $time;
-    $tokens = array(
+    $tokens = [
         31536000 => 'year',
         2592000 => 'month',
         604800 => 'week',
@@ -163,7 +163,7 @@ function secondsToHumanTiming($time, $precision = 0) {
         3600 => 'hour',
         60 => 'minute',
         1 => 'second',
-    );
+    ];
 
     /**
      * For detection propouse only
@@ -218,16 +218,16 @@ function isApache() {
     return (strpos($_SERVER['SERVER_SOFTWARE'], 'Apache') !== false);
 }
 
-function isPHP($version = "'7.0.0'") {
+function isPHP($version = "'7.3.0'") {
     return (version_compare(PHP_VERSION, $version) >= 0);
 }
 
 function modEnabled($mod_name) {
     if (!function_exists('apache_get_modules')) {
-        ob_start();
+        _ob_start();
         phpinfo(INFO_MODULES);
         $contents = ob_get_contents();
-        ob_end_clean();
+        _ob_end_clean();
         return (strpos($contents, 'mod_' . $mod_name) !== false);
     }
     return in_array('mod_' . $mod_name, apache_get_modules());
@@ -251,6 +251,11 @@ function isUnzip() {
 
 function isExifToo() {
     return trim(shell_exec('which exiftool'));
+}
+
+function isAPPInstalled($appName) {
+    $appName = preg_replace('/[^a-z0-9_-]/i', '', $appName);
+    return trim(shell_exec("which {$appName}"));
 }
 
 function getPathToApplication() {
@@ -303,7 +308,9 @@ function base64DataToImage($imgBase64) {
 }
 
 function getRealIpAddr() {
-    if (!empty($_SERVER['HTTP_CLIENT_IP'])) { //check ip from share internet
+    if (isCommandLineInterface()) {
+        $ip = "127.0.0.1";
+    } else if (!empty($_SERVER['HTTP_CLIENT_IP'])) { //check ip from share internet
         $ip = $_SERVER['HTTP_CLIENT_IP'];
     } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) { //to check ip is pass from proxy
         $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
@@ -316,21 +323,27 @@ function getRealIpAddr() {
 }
 
 function cleanString($text) {
-    $utf8 = array(
-        '/[áàâãªä]/u' => 'a',
-        '/[ÁÀÂÃÄ]/u' => 'A',
-        '/[ÍÌÎÏ]/u' => 'I',
-        '/[íìîï]/u' => 'i',
-        '/[éèêë]/u' => 'e',
-        '/[ÉÈÊË]/u' => 'E',
-        '/[óòôõºö]/u' => 'o',
-        '/[ÓÒÔÕÖ]/u' => 'O',
-        '/[úùûü]/u' => 'u',
-        '/[ÚÙÛÜ]/u' => 'U',
-        '/ç/' => 'c',
-        '/Ç/' => 'C',
-        '/ñ/' => 'n',
-        '/Ñ/' => 'N',
+    $utf8 = [
+        '/[áaâaaäą]/u' => 'a',
+        '/[ÁAÂAÄĄ]/u' => 'A',
+        '/[ÍIÎI]/u' => 'I',
+        '/[íiîi]/u' => 'i',
+        '/[éeeëę]/u' => 'e',
+        '/[ÉEEËĘ]/u' => 'E',
+        '/[óoôooö]/u' => 'o',
+        '/[ÓOÔOÖ]/u' => 'O',
+        '/[úuuü]/u' => 'u',
+        '/[ÚUUÜ]/u' => 'U',
+        '/[çć]/u' => 'c',
+        '/[ÇĆ]/u' => 'C',
+        '/[nń]/u' => 'n',
+        '/[NŃ]/u' => 'N',
+        '/[żź]/u' => 'z',
+        '/[ŻŹ]/u' => 'Z',
+        '/ł/' => 'l',
+        '/Ł/' => 'L',
+        '/ś/' => 's',
+        '/Ś/' => 'S',
         '/–/' => '-', // UTF-8 hyphen to 'normal' hyphen
         '/[’‘‹›‚]/u' => ' ', // Literally a single quote
         '/[“”«»„]/u' => ' ', // Double quote
@@ -350,14 +363,14 @@ function cleanString($text) {
         '/с/' => 's', '/т/' => 't', '/у/' => 'u', '/ф/' => 'f', '/х/' => 'h',
         '/ц/' => 'c', '/ч/' => 'ch', '/ш/' => 'sh', '/щ/' => 'shh', '/ъ/' => '',
         '/ы/' => 'y', '/ь/' => '', '/э/' => 'e', '/ю/' => 'yu', '/я/' => 'ya',
-        '/—/' => '-', '/«/' => '', '/»/' => '', '/…/' => ''
-    );
+        '/—/' => '-', '/«/' => '', '/»/' => '', '/…/' => '',
+    ];
     return preg_replace(array_keys($utf8), array_values($utf8), $text);
 }
 
 function cleanURLName($name) {
     $name = preg_replace('/[!#$&\'()*+,\\/:;=?@[\\]%"\/ ]+/', '-', trim(strtolower(cleanString($name))));
-    return trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $name), "-");
+    return trim(preg_replace('/[\x00-\x1F\x7F\xD7\xE0]/u', '', $name), "-");
 }
 
 /**
@@ -406,13 +419,13 @@ function getSecondsTotalVideosLength() {
         return 0;
     }
     $sql = "SELECT * FROM videos v ";
-    $formats = "";
-    $values = array();
+    $formats = '';
+    $values = [];
     if (!User::isAdmin()) {
         $id = User::getId();
         $sql .= " WHERE users_id = ? ";
         $formats = "i";
-        $values = array($id);
+        $values = [$id];
     }
 
     $res = sqlDAL::readSql($sql, $formats, $values);
@@ -477,7 +490,7 @@ function secondsToDuration($seconds) {
 function setSiteSendMessage(&$mail) {
     global $global;
     if (empty($_POST["comment"])) {
-        $_POST["comment"] = "";
+        $_POST["comment"] = '';
     }
     require_once $global['systemRootPath'] . 'objects/configuration.php';
     $config = new Configuration();
@@ -486,19 +499,19 @@ function setSiteSendMessage(&$mail) {
         _error_log("Sending SMTP Email");
         $mail->CharSet = 'UTF-8';
         $mail->IsSMTP(); // enable SMTP
-        if (!empty($_POST) && $_POST["comment"] == "Teste of comment" && User::isAdmin()) {
+        if (!empty($_POST) && $_POST["comment"] == "Test of comment" && User::isAdmin()) {
             $mail->SMTPDebug = 3;
             $mail->Debugoutput = function ($str, $level) {
                 _error_log("SMTP ERROR $level; message: $str", AVideoLog::$ERROR);
             };
         }
-        $mail->SMTPOptions = array(
-            'ssl' => array(
+        $mail->SMTPOptions = [
+            'ssl' => [
                 'verify_peer' => false,
                 'verify_peer_name' => false,
-                'allow_self_signed' => true
-            )
-        );
+                'allow_self_signed' => true,
+            ],
+        ];
         $mail->SMTPAuth = $config->getSmtpAuth(); // authentication enabled
         $mail->SMTPSecure = $config->getSmtpSecure(); // secure transfer enabled REQUIRED for Gmail
         $mail->Host = $config->getSmtpHost();
@@ -522,7 +535,7 @@ function partition(array $list, $totalItens) {
     $p = ceil($listlen / $totalItens);
     $partlen = floor($listlen / $p);
 
-    $partition = array();
+    $partition = [];
     $mark = 0;
     for ($index = 0; $index < $p; $index++) {
         $partition[$index] = array_slice($list, $mark, $totalItens);
@@ -538,7 +551,7 @@ function sendSiteEmail($to, $subject, $message) {
         return false;
     }
     if (!is_array($to)) {
-        $to = array($to);
+        $to = [$to];
     }
 
     if (empty($advancedCustom)) {
@@ -555,7 +568,7 @@ function sendSiteEmail($to, $subject, $message) {
     $webSiteTitle = $config->getWebSiteTitle();
     try {
         if (!is_array($to)) {
-            $mail = new \PHPMailer\PHPMailer\PHPMailer;
+            $mail = new \PHPMailer\PHPMailer\PHPMailer();
             setSiteSendMessage($mail);
             $mail->setFrom($contactEmail, $webSiteTitle);
             $mail->Subject = $subject . " - " . $webSiteTitle;
@@ -578,7 +591,7 @@ function sendSiteEmail($to, $subject, $message) {
             $to = array_iunique($to);
             $pieces = partition($to, $size);
             foreach ($pieces as $piece) {
-                $mail = new \PHPMailer\PHPMailer\PHPMailer;
+                $mail = new \PHPMailer\PHPMailer\PHPMailer();
                 setSiteSendMessage($mail);
                 $mail->setFrom($contactEmail, $webSiteTitle);
                 $mail->Subject = $subject . " - " . $webSiteTitle;
@@ -609,7 +622,7 @@ function sendSiteEmail($to, $subject, $message) {
 
 function sendSiteEmailAsync($to, $subject, $message) {
     global $global;
-    $content = array('to' => $to, 'subject' => $subject, 'message' => $message);
+    $content = ['to' => $to, 'subject' => $subject, 'message' => $message];
     $tmpFile = getTmpFile();
     file_put_contents($tmpFile, _json_encode($content));
     //outputAndContinueInBackground();
@@ -631,25 +644,25 @@ function createEmailMessageFromTemplate($message) {
     global $global, $config;
     $text = file_get_contents("{$global['systemRootPath']}view/include/emailTemplate.html");
     $siteTitle = $config->getWebSiteTitle();
-    $logo = "<img src=\"" . getCDN() . $config->getLogo(true) . "\" alt=\"{$siteTitle}\">";
+    $logo = "<img src=\"" . getURL($config->getLogo()) . "\" alt=\"{$siteTitle}\"/>";
 
-    $words = array($logo, $message, $siteTitle);
-    $replace = array('{logo}', '{message}', '{siteTitle}');
+    $words = [$logo, $message, $siteTitle];
+    $replace = ['{logo}', '{message}', '{siteTitle}'];
 
     return str_replace($replace, $words, $text);
 }
 
 function sendEmailToSiteOwner($subject, $message) {
-    global $advancedCustom;
+    global $advancedCustom, $global;
     $subject = UTF8encode($subject);
     $message = UTF8encode($message);
     _error_log("sendEmailToSiteOwner {$subject}");
     global $config, $global;
-    require_once $global['systemRootPath'] . 'objects/include_phpmailer.php';
+    //require_once $global['systemRootPath'] . 'objects/include_phpmailer.php';
     $contactEmail = $config->getContactEmail();
     $webSiteTitle = $config->getWebSiteTitle();
     try {
-        $mail = new \PHPMailer\PHPMailer\PHPMailer;
+        $mail = new \PHPMailer\PHPMailer\PHPMailer();
         setSiteSendMessage($mail);
         $mail->setFrom($contactEmail, $webSiteTitle);
         $mail->Subject = $subject . " - " . $webSiteTitle;
@@ -679,7 +692,7 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
     if (strpos($videoString, 'iframe') !== false) {
         // retrieve the video url
         $anchorRegex = '/src="(.*)?"/isU';
-        $results = array();
+        $results = [];
         if (preg_match($anchorRegex, $video, $results)) {
             $link = trim($results[1]);
         }
@@ -841,13 +854,13 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
     if (empty($url_parsed['query'])) {
         return "";
     }
-    $new_qs_parsed = array();
+    $new_qs_parsed = [];
     // Grab our first query string
     parse_str($url_parsed['query'], $new_qs_parsed);
     // Here's the other query string
     $other_query_string = 'modestbranding=1&showinfo='
             . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
-    $other_qs_parsed = array();
+    $other_qs_parsed = [];
     parse_str($other_query_string, $other_qs_parsed);
     // Stitch the two query strings together
     $final_query_string_array = array_merge($new_qs_parsed, $other_qs_parsed);
@@ -869,7 +882,7 @@ function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $
     // return data
 }
 
-$canUseCDN = array();
+$canUseCDN = [];
 
 function canUseCDN($videos_id) {
     if (empty($videos_id)) {
@@ -952,44 +965,44 @@ function recreateCache($filename) {
 
 function _getImagesURL($fileName, $type) {
     global $global;
-    $files = array();
+    $files = [];
     $source = Video::getSourceFile($fileName, ".jpg");
     $file1 = $source['path'];
     if (file_exists($file1)) {
-        $files["jpg"] = array(
+        $files["jpg"] = [
             'filename' => "{$fileName}.jpg",
             'path' => $file1,
             'url' => $source['url'],
             'type' => 'image',
-        );
+        ];
     } else {
         unset($file1);
-        $files["jpg"] = array(
+        $files["jpg"] = [
             'filename' => "{$type}.png",
             'path' => getCDN() . "view/img/{$type}.png",
             'url' => getCDN() . "view/img/{$type}.png",
             'type' => 'image',
-        );
+        ];
     }
     $source = Video::getSourceFile($fileName, "_portrait.jpg");
     $file2 = $source['path'];
     if (file_exists($file2)) {
-        $files["pjpg"] = array(
+        $files["pjpg"] = [
             'filename' => "{$fileName}_portrait.jpg",
             'path' => $file2,
             'url' => $source['url'],
             'type' => 'image',
-        );
-    } elseif ($type != 'image') {
+        ];
+    } elseif ($type !== 'image') {
         if (!empty($file1)) {
             $files["pjpg"] = $files["jpg"];
         } else {
-            $files["pjpg"] = array(
+            $files["pjpg"] = [
                 'filename' => "{$type}_portrait.png",
                 'path' => getCDN() . "view/img/{$type}_portrait.png",
                 'url' => getCDN() . "view/img/{$type}_portrait.png",
                 'type' => 'image',
-            );
+            ];
         }
     }
     return $files;
@@ -998,7 +1011,7 @@ function _getImagesURL($fileName, $type) {
 function getVideosURLPDF($fileName) {
     global $global;
     if (empty($fileName)) {
-        return array();
+        return [];
     }
     $time = microtime();
     $time = explode(' ', $time);
@@ -1007,12 +1020,12 @@ function getVideosURLPDF($fileName) {
 
     $source = Video::getSourceFile($fileName, ".pdf");
     $file = $source['path'];
-    $files["pdf"] = array(
+    $files["pdf"] = [
         'filename' => "{$fileName}.pdf",
         'path' => $file,
         'url' => $source['url'],
         'type' => 'pdf',
-    );
+    ];
     $files = array_merge($files, _getImagesURL($fileName, 'pdf'));
     $time = microtime();
     $time = explode(' ', $time);
@@ -1026,24 +1039,24 @@ function getVideosURLPDF($fileName) {
 function getVideosURLIMAGE($fileName) {
     global $global;
     if (empty($fileName)) {
-        return array();
+        return [];
     }
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
     $start = $time;
 
-    $types = array('png', 'gif', 'webp', 'jpg');
+    $types = ['png', 'gif', 'webp', 'jpg'];
 
     foreach ($types as $value) {
         $source = Video::getSourceFile($fileName, ".{$value}");
         $file = $source['path'];
-        $files["image"] = array(
+        $files["image"] = [
             'filename' => "{$fileName}.{$value}",
             'path' => $file,
             'url' => $source['url'],
             'type' => 'image',
-        );
+        ];
         if (file_exists($file)) {
             break;
         }
@@ -1062,24 +1075,24 @@ function getVideosURLIMAGE($fileName) {
 function getVideosURLZIP($fileName) {
     global $global;
     if (empty($fileName)) {
-        return array();
+        return [];
     }
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
     $start = $time;
 
-    $types = array('zip');
+    $types = ['zip'];
 
     foreach ($types as $value) {
         $source = Video::getSourceFile($fileName, ".{$value}");
         $file = $source['path'];
-        $files["zip"] = array(
+        $files["zip"] = [
             'filename' => "{$fileName}.zip",
             'path' => $file,
             'url' => $source['url'],
             'type' => 'zip',
-        );
+        ];
         if (file_exists($file)) {
             break;
         }
@@ -1098,7 +1111,7 @@ function getVideosURLZIP($fileName) {
 function getVideosURLArticle($fileName) {
     global $global;
     if (empty($fileName)) {
-        return array();
+        return [];
     }
     $time = microtime();
     $time = explode(' ', $time);
@@ -1118,7 +1131,7 @@ function getVideosURLArticle($fileName) {
 function getVideosURLAudio($fileName, $fileNameisThePath = false) {
     global $global;
     if (empty($fileName)) {
-        return array();
+        return [];
     }
     $time = microtime();
     $time = explode(' ', $time);
@@ -1137,25 +1150,25 @@ function getVideosURLAudio($fileName, $fileNameisThePath = false) {
             $url = Video::getURLToFile($filename);
         }
 
-        $files["mp3"] = array(
+        $files["mp3"] = [
             'filename' => $filename,
             'path' => $path,
             'url' => $url,
             'url_noCDN' => $url,
             'type' => 'audio',
             'format' => 'mp3',
-        );
+        ];
     } else {
         $source = Video::getSourceFile($fileName, ".mp3");
         $file = $source['path'];
-        $files["mp3"] = array(
+        $files["mp3"] = [
             'filename' => "{$fileName}.mp3",
             'path' => $file,
             'url' => $source['url'],
             'url_noCDN' => @$source['url_noCDN'],
             'type' => 'audio',
             'format' => 'mp3',
-        );
+        ];
     }
 
     $files = array_merge($files, _getImagesURL($fileName, 'audio_wave'));
@@ -1183,7 +1196,7 @@ function getVideosURLMP4Only($fileName) {
         return $allFiles;
     }
     _error_log("getVideosURLMP4Only does not return an ARRAY from getVideosURL_V2($fileName) " . json_encode($allFiles));
-    return array();
+    return [];
 }
 
 function getVideosURLMP3Only($fileName) {
@@ -1197,7 +1210,7 @@ function getVideosURLMP3Only($fileName) {
         return $allFiles;
     }
     _error_log("getVideosURLMP4Only does not return an ARRAY from getVideosURL_V2($fileName) " . json_encode($allFiles));
-    return array();
+    return [];
 }
 
 function getVideosURLWEBMOnly($fileName) {
@@ -1211,7 +1224,7 @@ function getVideosURLWEBMOnly($fileName) {
         return $allFiles;
     }
     _error_log("getVideosURLMP4Only does not return an ARRAY from getVideosURL_V2($fileName) " . json_encode($allFiles));
-    return array();
+    return [];
 }
 
 function getVideosURLMP4WEBMOnly($fileName) {
@@ -1256,12 +1269,12 @@ function getVideosDir() {
     return Video::getStoragePath();
 }
 
-$getVideosURL_V2Array = array();
+$getVideosURL_V2Array = [];
 
 function getVideosURL_V2($fileName, $recreateCache = false) {
     global $global, $getVideosURL_V2Array;
     if (empty($fileName)) {
-        return array();
+        return [];
     }
     //$recreateCache = true;
     $cleanfilename = Video::getCleanFilenameFromFile($fileName);
@@ -1296,7 +1309,7 @@ function getVideosURL_V2($fileName, $recreateCache = false) {
                         $value['type'] === 'video' && // is a video
                         preg_match("/^{$preg_match_url}/", $value['url']) && // the URL is the same as the main domain
                         $pathFilesize < 20) { // file size is small
-                    _error_log("getVideosURL_V2:: dummy file found, fix cache " . json_encode(array("/^{$preg_match_url}/", $value['url'], preg_match("/^{$preg_match_url}video/", $value['url']), $pathFilesize, $value)));
+                    _error_log("getVideosURL_V2:: dummy file found, fix cache " . json_encode(["/^{$preg_match_url}/", $value['url'], preg_match("/^{$preg_match_url}video/", $value['url']), $pathFilesize, $value]));
                     unset($files);
                     $video = Video::getVideoFromFileName($fileName, true, true);
                     Video::clearCache($video['id']);
@@ -1314,7 +1327,7 @@ function getVideosURL_V2($fileName, $recreateCache = false) {
         _error_log("getVideosURL_V2($fileName) Recreate cache requested " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
     }
     if (empty($files)) {
-        $files = array();
+        $files = [];
         $plugin = AVideoPlugin::loadPlugin("VideoHLS");
         if (!empty($plugin)) {
             $timeName = "getVideosURL_V2::VideoHLS::getSourceFile($fileName)";
@@ -1322,9 +1335,9 @@ function getVideosURL_V2($fileName, $recreateCache = false) {
             $files = VideoHLS::getSourceFile($fileName, true);
             TimeLogEnd($timeName, __LINE__);
         }
-        $video = array('webm', 'mp4');
-        $audio = array('mp3', 'ogg');
-        $image = array('jpg', 'gif', 'webp');
+        $video = ['webm', 'mp4'];
+        $audio = ['mp3', 'ogg'];
+        $image = ['jpg', 'gif', 'webp'];
 
         $formats = array_merge($video, $audio, $image);
 
@@ -1354,7 +1367,7 @@ function getVideosURL_V2($fileName, $recreateCache = false) {
             if (in_array($parts['extension'], $image) && filesize($file) < 1000 && !preg_match("/Dummy File/i", file_get_contents($file))) {
                 continue;
             }
-
+            $resolution = '';
             if (preg_match("/{$cleanfilename}(_.+)[.]{$parts['extension']}$/", $file, $matches)) {
                 $resolution = $matches[1];
             } else {
@@ -1372,14 +1385,14 @@ function getVideosURL_V2($fileName, $recreateCache = false) {
                     $resolution = '';
                 }
             }
-            $files["{$parts['extension']}{$resolution}"] = array(
+            $files["{$parts['extension']}{$resolution}"] = [
                 'filename' => "{$parts['filename']}.{$parts['extension']}",
                 'path' => $file,
                 'url' => $source['url'],
                 'url_noCDN' => @$source['url_noCDN'],
                 'type' => $type,
                 'format' => strtolower($parts['extension']),
-            );
+            ];
         }
 
         TimeLogEnd($timeName, __LINE__);
@@ -1409,20 +1422,23 @@ function getResolutionFromFilename($filename) {
     global $getResolutionFromFilenameArray;
 
     if (!isset($getResolutionFromFilenameArray)) {
-        $getResolutionFromFilenameArray = array();
+        $getResolutionFromFilenameArray = [];
     }
 
     if (!empty($getResolutionFromFilenameArray[$filename])) {
         return $getResolutionFromFilenameArray[$filename];
     }
 
+    if (!preg_match('/^http/i', $filename) && !file_exists($filename)) {
+        return 0;
+    }
     $res = Video::getResolutionFromFilename($filename);
     if (empty($res)) {
         if (preg_match('/[_\/]hd[.\/]/i', $filename)) {
             $res = 720;
-        } else if (preg_match('/[_\/]sd[.\/]/i', $filename)) {
+        } elseif (preg_match('/[_\/]sd[.\/]/i', $filename)) {
             $res = 480;
-        } else if (preg_match('/[_\/]low[.\/]/i', $filename)) {
+        } elseif (preg_match('/[_\/]low[.\/]/i', $filename)) {
             $res = 240;
         } else {
             $res = 0;
@@ -1434,9 +1450,9 @@ function getResolutionFromFilename($filename) {
 
 function getSources($fileName, $returnArray = false, $try = 0) {
     if ($returnArray) {
-        $videoSources = $audioTracks = $subtitleTracks = array();
+        $videoSources = $audioTracks = $subtitleTracks = [];
     } else {
-        $videoSources = $audioTracks = $subtitleTracks = "";
+        $videoSources = $audioTracks = $subtitleTracks = '';
     }
 
     $video = Video::getVideoFromFileNameLight($fileName);
@@ -1446,8 +1462,8 @@ function getSources($fileName, $returnArray = false, $try = 0) {
     } else {
         //$files = getVideosURL($fileName);
         $files = getVideosURL_V2($fileName, !empty($try));
-        $sources = "";
-        $sourcesArray = array();
+        $sources = '';
+        $sourcesArray = [];
         foreach ($files as $key => $value) {
             $path_parts = pathinfo($value['path']);
             if ($path_parts['extension'] == "webm" || $path_parts['extension'] == "mp4" || $path_parts['extension'] == "m3u8" || $path_parts['extension'] == "mp3" || $path_parts['extension'] == "ogg") {
@@ -1504,9 +1520,11 @@ function getSources($fileName, $returnArray = false, $try = 0) {
  */
 function getimgsize($file_src) {
     global $_getimagesize;
-
+    if (empty($file_src) || !file_exists($file_src)) {
+        return [0, 0];
+    }
     if (empty($_getimagesize)) {
-        $_getimagesize = array();
+        $_getimagesize = [];
     }
 
     $name = "getimgsize_" . md5($file_src);
@@ -1516,8 +1534,8 @@ function getimgsize($file_src) {
     } else {
         $cached = ObjectYPT::getCache($name, 86400); //one day
         if (!empty($cached)) {
-            $c = (Array) $cached;
-            $size = array();
+            $c = (array) $cached;
+            $size = [];
             foreach ($c as $key => $value) {
                 if (preg_match("/^[0-9]+$/", $key)) {
                     $key = intval($key);
@@ -1531,7 +1549,7 @@ function getimgsize($file_src) {
         $size = @getimagesize($file_src);
 
         if (empty($size)) {
-            $size = array(1024, 768);
+            $size = [1024, 768];
         }
 
         ObjectYPT::setCache($name, $size);
@@ -1581,7 +1599,7 @@ function im_resize($file_src, $file_dest, $wd, $hd, $q = 80) {
     try {
         $src = $icfunc($file_src);
     } catch (Exception $exc) {
-        _error_log("im_resize: " . $exc->getMessage());
+        _error_log("im_resize: ($file_src) " . $exc->getMessage());
         _error_log("im_resize: Try {$icfunc} from string");
         $src = imagecreatefromstring(file_get_contents($file_src));
         if (!$src) {
@@ -1589,7 +1607,6 @@ function im_resize($file_src, $file_dest, $wd, $hd, $q = 80) {
             return false;
         }
     }
-
     $ws = imagesx($src);
     $hs = imagesy($src);
 
@@ -1657,6 +1674,9 @@ function im_resizeV2($file_src, $file_dest, $wd, $hd, $q = 80) {
         return false;
     }
     $src = imagecreatefromjpeg($file_dest);
+    if (empty($src)) {
+        return false;
+    }
     $ws = imagesx($src);
     $hs = imagesy($src);
 
@@ -1685,7 +1705,6 @@ function im_resizeV2($file_src, $file_dest, $wd, $hd, $q = 80) {
 }
 
 function im_resizePNG($file_src, $file_dest, $wd, $hd) {
-
     $srcImage = imagecreatefrompng($file_src);
     $ws = imagesx($srcImage);
     $hs = imagesy($srcImage);
@@ -1694,11 +1713,18 @@ function im_resizePNG($file_src, $file_dest, $wd, $hd) {
     imagealphablending($targetImage, false);
     imagesavealpha($targetImage, true);
 
-    imagecopyresampled($targetImage, $srcImage,
-            0, 0,
-            0, 0,
-            $wd, $hd,
-            $ws, $hs);
+    imagecopyresampled(
+            $targetImage,
+            $srcImage,
+            0,
+            0,
+            0,
+            0,
+            $wd,
+            $hd,
+            $ws,
+            $hs
+    );
 
     $saved = imagepng($targetImage, $file_dest);
 
@@ -1706,6 +1732,8 @@ function im_resizePNG($file_src, $file_dest, $wd, $hd) {
 }
 
 function im_resizeV3($file_src, $file_dest, $wd, $hd) {
+    return im_resizeV2($file_src, $file_dest, $wd, $hd); // ffmpeg disabled
+
     _error_log("im_resizeV3: $file_src, $file_dest, $wd, $hd");
     // This tries to preserve the aspect ratio of the thumb while letterboxing it in
     // The same way that the encoder now does.
@@ -1818,14 +1846,19 @@ function convertImage($originalImage, $outputImage, $quality) {
 
     try {
         if ($imagetype == IMAGETYPE_JPEG || preg_match('/jpg|jpeg/i', $ext)) {
-            $imageTmp = @imagecreatefromjpeg($originalImage);
+            //_error_log("convertImage: IMAGETYPE_JPEG");
+            $imageTmp = imagecreatefromjpeg($originalImage);
         } elseif ($imagetype == IMAGETYPE_PNG || preg_match('/png/i', $ext)) {
+            //_error_log("convertImage: IMAGETYPE_PNG");
             $imageTmp = imagecreatefrompng($originalImage);
         } elseif ($imagetype == IMAGETYPE_GIF || preg_match('/gif/i', $ext)) {
+            //_error_log("convertImage: IMAGETYPE_GIF");
             $imageTmp = imagecreatefromgif($originalImage);
         } elseif ($imagetype == IMAGETYPE_BMP || preg_match('/bmp/i', $ext)) {
+            //_error_log("convertImage: IMAGETYPE_BMP");
             $imageTmp = imagecreatefrombmp($originalImage);
         } elseif ($imagetype == IMAGETYPE_WEBP || preg_match('/webp/i', $ext)) {
+            //_error_log("convertImage: IMAGETYPE_WEBP");
             $imageTmp = imagecreatefromwebp($originalImage);
         } else {
             _error_log("convertImage: File Extension not found ($originalImage, $outputImage, $quality) " . exif_imagetype($originalImage));
@@ -1835,8 +1868,8 @@ function convertImage($originalImage, $outputImage, $quality) {
         _error_log("convertImage: " . $exc->getMessage());
         return 0;
     }
-    if (!is_resource($imageTmp)) {
-        _error_log("convertImage: could not create a resource $originalImage, $outputImage, $quality");
+    if ($imageTmp === false) {
+        _error_log("convertImage: could not create a resource: $originalImage, $outputImage, $quality, $ext " . json_encode(debug_backtrace()));
         return 0;
     }
     // quality is a value from 0 (worst) to 100 (best)
@@ -1847,19 +1880,19 @@ function convertImage($originalImage, $outputImage, $quality) {
         } else {
             _error_log("convertImage ERROR: function imagejpeg does not exists");
         }
-    } else if ($extOutput === 'png') {
+    } elseif ($extOutput === 'png') {
         if (function_exists('imagepng')) {
             $response = imagepng($imageTmp, $outputImage, $quality / 10);
         } else {
             _error_log("convertImage ERROR: function imagepng does not exists");
         }
-    } else if ($extOutput === 'webp') {
+    } elseif ($extOutput === 'webp') {
         if (function_exists('imagewebp')) {
             $response = imagewebp($imageTmp, $outputImage, $quality);
         } else {
             _error_log("convertImage ERROR: function imagewebp does not exists");
         }
-    } else if ($extOutput === 'gif') {
+    } elseif ($extOutput === 'gif') {
         if (function_exists('imagegif')) {
             $response = imagegif($imageTmp, $outputImage);
         } else {
@@ -1981,7 +2014,13 @@ function make_path($path) {
         $path = pathinfo($path, PATHINFO_DIRNAME);
     }
     if (!is_dir($path)) {
-        $created = mkdir($path, 0755, true);
+        //if(preg_match('/getvideoinfo/i', $path)){var_dump(debug_backtrace());}
+        if (preg_match('/cache/i', $path)) {
+            $mode = 0777;
+        } else {
+            $mode = 0755;
+        }
+        $created = mkdir($path, $mode, true);
         /*
           if (!$created) {
           _error_log('make_path: could not create the dir ' . json_encode($path) . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
@@ -1999,7 +2038,7 @@ function make_path($path) {
  * @param type $allowedExtensions
  * @return type
  */
-function cleanDirectory($dir, $allowedExtensions = array('key', 'm3u8', 'ts', 'vtt', 'jpg', 'gif', 'mp3', 'webm', 'webp')) {
+function cleanDirectory($dir, $allowedExtensions = ['key', 'm3u8', 'ts', 'vtt', 'jpg', 'gif', 'mp3', 'webm', 'webp']) {
     $ffs = scandir($dir);
 
     unset($ffs[array_search('.', $ffs, true)]);
@@ -2045,14 +2084,11 @@ function decideFile_put_contentsToVideos($tmp_name, $filename) {
 function isAnyStorageEnabled() {
     if ($yptStorage = AVideoPlugin::loadPluginIfEnabled("YPTStorage")) {
         return true;
-    } else
-    if ($aws_s3 = AVideoPlugin::loadPluginIfEnabled("AWS_S3")) {
+    } elseif ($aws_s3 = AVideoPlugin::loadPluginIfEnabled("AWS_S3")) {
         return true;
-    } else
-    if ($bb_b2 = AVideoPlugin::loadPluginIfEnabled("Blackblaze_B2")) {
+    } elseif ($bb_b2 = AVideoPlugin::loadPluginIfEnabled("Blackblaze_B2")) {
         return true;
-    } else
-    if ($ftp = AVideoPlugin::loadPluginIfEnabled("FTP_Storage")) {
+    } elseif ($ftp = AVideoPlugin::loadPluginIfEnabled("FTP_Storage")) {
         return true;
     }
     return false;
@@ -2069,7 +2105,7 @@ if (!function_exists('mime_content_type')) {
 function fontAwesomeClassName($filename) {
     $mime_type = mime_content_type_per_filename($filename);
     // List of official MIME Types: http://www.iana.org/assignments/media-types/media-types.xhtml
-    $icon_classes = array(
+    $icon_classes = [
 // Media
         'image' => 'fas fa-file-image',
         'audio' => 'fas fa-file-audio',
@@ -2092,7 +2128,7 @@ function fontAwesomeClassName($filename) {
         // Archives
         'application/gzip' => 'far fa-file-archive',
         'application/zip' => 'far fa-file-archive',
-    );
+    ];
     foreach ($icon_classes as $text => $icon) {
         if (strpos($mime_type, $text) === 0) {
             return $icon;
@@ -2102,7 +2138,7 @@ function fontAwesomeClassName($filename) {
 }
 
 function mime_content_type_per_filename($filename) {
-    $mime_types = array(
+    $mime_types = [
         'txt' => 'text/plain',
         'htm' => 'text/html',
         'html' => 'text/html',
@@ -2166,8 +2202,8 @@ function mime_content_type_per_filename($filename) {
         'ppt' => 'application/vnd.ms-powerpoint',
         // open office
         'odt' => 'application/vnd.oasis.opendocument.text',
-        'ods' => 'application/vnd.oasis.opendocument.spreadsheet'
-    );
+        'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+    ];
     if (filter_var($filename, FILTER_VALIDATE_URL) === false) {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
     } else {
@@ -2204,12 +2240,12 @@ function combineFiles($filesArray, $extension = "js") {
 
     $relativeDir = 'videos/cache/' . $extension . '/';
     $cacheDir = $global['systemRootPath'] . $relativeDir;
-    $str = "";
-    $fileName = "";
+    $str = '';
+    $fileName = '';
     foreach ($filesArray as $value) {
         $fileName .= $value . filectime($global['systemRootPath'] . $value) . filemtime($global['systemRootPath'] . $value);
     }
-    if ($advancedCustom != false) {
+    if ($advancedCustom !== false) {
         $minifyEnabled = $advancedCustom->EnableMinifyJS;
     } else {
         $minifyEnabled = false;
@@ -2225,7 +2261,7 @@ function combineFiles($filesArray, $extension = "js") {
             } elseif (file_exists($value)) {
                 $str .= "\n/*{$value} created local with full-path given */\n" . local_get_contents($value);
             } else {
-                $allowed = "";
+                $allowed = '';
                 if (ini_get('allow_url_fopen')) {
                     $allowed .= "allow_url_fopen is on and ";
                 }
@@ -2246,12 +2282,12 @@ function combineFiles($filesArray, $extension = "js") {
         //if ((($extension == "js" || $extension == "css") && ($minifyEnabled))) {
         if ($extension == "css" && ($minifyEnabled)) {
             require_once $global['systemRootPath'] . 'objects/jshrink.php';
-            $str = \JShrink\Minifier::minify($str, array('flaggedComments' => false));
+            $str = \JShrink\Minifier::minify($str, ['flaggedComments' => false]);
         }
         if (!is_dir($cacheDir)) {
             make_path($cacheDir);
         }
-        $bytes = file_put_contents($cacheDir . $md5FileName, $str);
+        $bytes = _file_put_contents($cacheDir . $md5FileName, $str);
         if (empty($bytes)) {
             _error_log('combineFiles: error on save strlen=' . strlen($str) . ' ' . $cacheDir . $md5FileName . ' cacheDir=' . $cacheDir);
             return false;
@@ -2261,8 +2297,10 @@ function combineFiles($filesArray, $extension = "js") {
     return getURL($relativeDir . $md5FileName);
 }
 
-function combineFilesHTML($filesArray, $extension = "js") {
-    $jsURL = combineFiles($filesArray, $extension);
+function combineFilesHTML($filesArray, $extension = "js", $doNotCombine = false) {
+    if (empty($doNotCombine)) {
+        $jsURL = combineFiles($filesArray, $extension);
+    }
     if ($extension == "js") {
         if (empty($jsURL)) {
             $str = '';
@@ -2325,17 +2363,17 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false) {
     $agent = getSelfUserAgent();
 
     if (empty($ctx)) {
-        $opts = array(
-            'http' => array('header' => "User-Agent: {$agent}\r\n"),
-            "ssl" => array(
+        $opts = [
+            'http' => ['header' => "User-Agent: {$agent}\r\n"],
+            "ssl" => [
                 "verify_peer" => false,
                 "verify_peer_name" => false,
                 "allow_self_signed" => true,
-            ),
-        );
+            ],
+        ];
         if (!empty($timeout)) {
             ini_set('default_socket_timeout', $timeout);
-            $opts['http'] = array('timeout' => $timeout);
+            $opts['http'] = ['timeout' => $timeout];
         }
         $context = stream_context_create($opts);
     } else {
@@ -2347,7 +2385,7 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false) {
         }
         try {
             $tmp = @file_get_contents($url, false, $context);
-            if ($tmp != false) {
+            if ($tmp !== false) {
                 $response = remove_utf8_bom($tmp);
                 if ($debug) {
                     //_error_log("url_get_contents: SUCCESS file_get_contents($url) {$response}");
@@ -2413,18 +2451,21 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false) {
 function getUpdatesFilesArray() {
     global $config, $global;
     if (!class_exists('User') || !User::isAdmin()) {
-        return array();
+        return [];
     }
     $files1 = scandir($global['systemRootPath'] . "updatedb");
-    $updateFiles = array();
+    $updateFiles = [];
     foreach ($files1 as $value) {
         preg_match("/updateDb.v([0-9.]*).sql/", $value, $match);
         if (!empty($match)) {
             if ($config->currentVersionLowerThen($match[1])) {
-                $updateFiles[] = array('filename' => $match[0], 'version' => $match[1]);
+                $updateFiles[] = ['filename' => $match[0], 'version' => $match[1]];
             }
         }
     }
+    usort($updateFiles, function ($a, $b) {
+        return version_compare($a['version'], $b['version']);
+    });
     return $updateFiles;
 }
 
@@ -2455,8 +2496,8 @@ function thereIsAnyRemoteUpdate() {
         return $cache;
     }
 
-    //$version = _json_decode(url_get_contents("https://tutorials.avideo.com/version"));
-    $version = _json_decode(url_get_contents("https://tutorialsavideo.b-cdn.net/version", "", 4));
+    $version = _json_decode(url_get_contents("https://tutorials.wwbn.net/version"));
+    //$version = _json_decode(url_get_contents("https://tutorialsavideo.b-cdn.net/version", "", 4));
     if (empty($version)) {
         return false;
     }
@@ -2503,7 +2544,7 @@ function isBot() {
     // User lowercase string for comparison.
     $user_agent = strtolower($_SERVER['HTTP_USER_AGENT']);
     // A list of some common words used only for bots and crawlers.
-    $bot_identifiers = array(
+    $bot_identifiers = [
         'bot',
         'slurp',
         'crawler',
@@ -2517,8 +2558,8 @@ function isBot() {
         'gtmetrix',
         'ptst',
         'dmbrowser',
-        'dareboost'
-    );
+        'dareboost',
+    ];
     // See if one of the identifiers is in the UA string.
     foreach ($bot_identifiers as $identifier) {
         if (stripos($user_agent, $identifier) !== false) {
@@ -2540,7 +2581,7 @@ function tail($filepath, $lines = 1, $adaptive = true, $returnArray = false) {
     if (!function_exists('mb_strlen')) {
         $msg = "AVideoLog::ERROR you need to install the mb_strlen function to make it work, please the command 'sudo apt install php-mbstring'";
         if ($returnArray) {
-            return array(array($msg));
+            return [[$msg]];
         } else {
             return $msg;
         }
@@ -2563,7 +2604,7 @@ function tail($filepath, $lines = 1, $adaptive = true, $returnArray = false) {
     fseek($f, -1, SEEK_END);
     // Read it and adjust line number if necessary
     // (Otherwise the result would be wrong if file doesn't end with a blank line)
-    if (fread($f, 1) != "\n") {
+    if (fread($f, 1) !== "\n") {
         $lines -= 1;
     }
 
@@ -2594,9 +2635,9 @@ function tail($filepath, $lines = 1, $adaptive = true, $returnArray = false) {
     $output = trim($output);
     if ($returnArray) {
         $array = explode("\n", $output);
-        $newArray = array();
+        $newArray = [];
         foreach ($array as $value) {
-            $newArray[] = array($value);
+            $newArray[] = [$value];
         }
         return $newArray;
     } else {
@@ -2630,13 +2671,39 @@ function encryptPasswordVerify($password, $hash, $encodedPass = false) {
     return $passwordSalted === $hash || $passwordUnSalted === $hash || $password === $hash;
 }
 
+function encryptPasswordV2($uniqueSalt, $password, $noSalt = false) {
+    global $advancedCustom, $global, $advancedCustomUser;
+    if (!empty($advancedCustomUser->encryptPasswordsWithSalt) && !empty($global['salt']) && empty($noSalt)) {
+        $password .= $global['salt'];
+    }
+    $password .= md5($uniqueSalt);
+    return md5(hash("whirlpool", sha1($password)));
+}
+
+function encryptPasswordVerifyV2($uniqueSalt, $password, $hash, $encodedPass = false) {
+    global $advancedCustom, $global;
+    if (!$encodedPass || $encodedPass === 'false') {
+        //_error_log("encryptPasswordVerify: encrypt");
+        $passwordSalted = encryptPasswordV2($uniqueSalt, $password);
+        // in case you enable the salt later
+        $passwordUnSalted = encryptPasswordV2($uniqueSalt, $password, true);
+    } else {
+        //_error_log("encryptPasswordVerify: do not encrypt");
+        $passwordSalted = $password;
+        // in case you enable the salt later
+        $passwordUnSalted = $password;
+    }
+    //_error_log("passwordSalted = $passwordSalted,  hash=$hash, passwordUnSalted=$passwordUnSalted");
+    return $passwordSalted === $hash || $passwordUnSalted === $hash || $password === $hash;
+}
+
 function isMobile($userAgent = null, $httpHeaders = null) {
     if (empty($userAgent) && empty($_SERVER["HTTP_USER_AGENT"])) {
         return false;
     }
     global $global;
     require_once $global['systemRootPath'] . 'objects/Mobile_Detect.php';
-    $detect = new Mobile_Detect;
+    $detect = new Mobile_Detect();
 
     return $detect->isMobile($userAgent, $httpHeaders);
 }
@@ -2732,7 +2799,7 @@ function isSameDomainAsMyAVideo($url) {
 
 function requestComesFromSameDomainAsMyAVideo() {
     global $global;
-    $url = "";
+    $url = '';
     if (!empty($_SERVER['HTTP_REFERER'])) {
         $url = $_SERVER['HTTP_REFERER'];
     } elseif (!empty($_SERVER['HTTP_ORIGIN'])) {
@@ -2766,14 +2833,14 @@ function addGlobalTokenIfSameDomain($url) {
  */
 function removeQueryStringParameter($url, $varname) {
     $parsedUrl = parse_url($url);
-    $query = array();
+    $query = [];
 
     if (isset($parsedUrl['query'])) {
         parse_str($parsedUrl['query'], $query);
         unset($query[$varname]);
     }
 
-    $path = isset($parsedUrl['path']) ? $parsedUrl['path'] : '';
+    $path = $parsedUrl['path'] ?? '';
     $query = !empty($query) ? '?' . http_build_query($query) : '';
 
     if (empty($parsedUrl['scheme'])) {
@@ -2797,16 +2864,16 @@ function addQueryStringParameter($url, $varname, $value) {
     if (empty($parsedUrl['host'])) {
         return "";
     }
-    $query = array();
+    $query = [];
 
     if (isset($parsedUrl['query'])) {
         parse_str($parsedUrl['query'], $query);
     }
     $query[$varname] = $value;
-    $path = isset($parsedUrl['path']) ? $parsedUrl['path'] : '';
+    $path = $parsedUrl['path'] ?? '';
     $query = !empty($query) ? '?' . http_build_query($query) : '';
 
-    $port = "";
+    $port = '';
     if (!empty($parsedUrl['port']) && $parsedUrl['port'] != '80') {
         $port = ":{$parsedUrl['port']}";
     }
@@ -2851,7 +2918,7 @@ function isAVideoUserAgent($user_agent = "") {
     global $AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoStreamer_UA, $AVideoStorage_UA, $global;
 
     // Lavf = ffmpeg
-    $agents = array($AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoStreamer_UA, $AVideoStorage_UA, 'Lavf');
+    $agents = [$AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoStreamer_UA, $AVideoStorage_UA, 'Lavf'];
 
     foreach ($agents as $value) {
         if (preg_match("/{$value}/", $_SERVER["HTTP_USER_AGENT"])) {
@@ -2882,7 +2949,7 @@ function isAVideoStorage($user_agent = "") {
 
 function get_domain($url, $ifEmptyReturnSameString = false) {
     $pieces = parse_url($url);
-    $domain = isset($pieces['host']) ? $pieces['host'] : '';
+    $domain = $pieces['host'] ?? '';
     if (empty($domain)) {
         return $ifEmptyReturnSameString ? $url : false;
     }
@@ -2898,20 +2965,36 @@ function get_domain($url, $ifEmptyReturnSameString = false) {
 }
 
 function verify($url) {
+    global $global;
     ini_set('default_socket_timeout', 5);
-    $cacheFile = sys_get_temp_dir() . "/" . md5($url) . "_verify.log";
+    $cacheFile = sys_get_temp_dir() . '/' . md5($url) . "_verify.log";
     $lifetime = 86400; //24 hours
-    error_log("Verification Start {$url}");
-    $verifyURL = "https://search.avideo.com/verify.php?url=" . urlencode($url);
+    _error_log("Verification Start {$url} cacheFile={$cacheFile}");
+    $verifyURL = "https://search.ypt.me/verify.php";
+    $verifyURL = addQueryStringParameter($verifyURL, 'url', $url);
+    $verifyURL = addQueryStringParameter($verifyURL, 'screenshot', 1);
     if (!file_exists($cacheFile) || (time() > (filemtime($cacheFile) + $lifetime))) {
-        error_log("Verification Creating the Cache {$url}");
+        _error_log("Verification Creating the Cache {$url}");
         $result = url_get_contents($verifyURL, '', 5);
-        file_put_contents($cacheFile, $result);
+        if($result !== 'Invalid URL'){
+            file_put_contents($cacheFile, $result);
+        }
     } else {
-        error_log("Verification GetFrom Cache {$url}");
+        if (!file_exists($cacheFile)) {
+            _error_log("Verification GetFrom Cache  !file_exists($cacheFile)");
+        }
+        $filemtime = filemtime($cacheFile);
+        $time = time();
+        if ($time > ($filemtime + $lifetime)) {
+            _error_log("Verification GetFrom Cache  $time > ($filemtime + $lifetime)");
+        }
+        _error_log("Verification GetFrom Cache $cacheFile");
         $result = file_get_contents($cacheFile);
+        if($result === 'Invalid URL'){
+            unlink($cacheFile);
+        }
     }
-    error_log("Verification Response ($verifyURL): {$result}");
+    _error_log("Verification Response ($verifyURL): {$result}");
     return json_decode($result);
 }
 
@@ -2928,7 +3011,9 @@ function siteMap() {
     _error_log("siteMap: start");
     ini_set('memory_limit', '-1');
     ini_set('max_execution_time', 0);
+    @session_write_close();
     global $global, $advancedCustom;
+    $global['disableVideoTags'] = 1;
     $date = date('Y-m-d\TH:i:s') . "+00:00";
     $xml = '<?xml version="1.0" encoding="UTF-8"?>
     <urlset
@@ -2977,6 +3062,7 @@ function siteMap() {
     $_REQUEST['rowCount'] = $advancedCustom->siteMapRowsLimit;
     _error_log("siteMap: rowCount {$_REQUEST['rowCount']} ");
     $_POST['sort']['modified'] = "DESC";
+    TimeLogStart("siteMap getAllUsersThatHasVideos");
     $users = User::getAllUsersThatHasVideos(true);
     _error_log("siteMap: getAllUsers " . count($users));
     foreach ($users as $value) {
@@ -2989,6 +3075,8 @@ function siteMap() {
             </url>
             ';
     }
+    TimeLogEnd("siteMap getAllUsersThatHasVideos", __LINE__, 0.5);
+    TimeLogStart("siteMap getAllCategories");
     $xml .= '
         <!-- Categories -->
         ';
@@ -3006,6 +3094,8 @@ function siteMap() {
             </url>
             ';
     }
+    TimeLogEnd("siteMap getAllCategories", __LINE__, 0.5);
+    TimeLogStart("siteMap getAllVideos");
     $xml .= '<!-- Videos -->';
     $_REQUEST['rowCount'] = $advancedCustom->siteMapRowsLimit * 10;
     $_POST['sort']['created'] = "DESC";
@@ -3013,58 +3103,56 @@ function siteMap() {
     _error_log("siteMap: getAllVideos " . count($rows));
     foreach ($rows as $video) {
         $videos_id = $video['id'];
-        //_error_log("siteMap: getAllVideos videos_id {$videos_id} start");
-        $source = Video::getSourceFile($video['filename']);
-        if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
-            $img = $source['url'];
-            $data = getimgsize($source['path']);
-            $imgw = $data[0];
-            $imgh = $data[1];
-        } elseif ($video['type'] == "audio") {
-            $img = getCDN() . "view/img/audio_wave.jpg";
-        }
-        $type = 'video';
-        if ($video['type'] === 'pdf') {
-            $type = 'pdf';
-        }
-        if ($video['type'] === 'article') {
-            $type = 'article';
-        }
-        $images = Video::getImageFromFilename($video['filename'], $type);
-        if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
-            $img = $images->posterPortrait;
-            $data = getimgsize($images->posterPortraitPath);
-            $imgw = $data[0];
-            $imgh = $data[1];
-        } else {
-            $img = $images->poster;
-        }
 
-        $description = str_replace(array('"', "\n", "\r"), array('', ' ', ' '), empty(trim($video['description'])) ? $video['title'] : $video['description']);
+        TimeLogStart("siteMap Video::getPoster $videos_id");
+        $img = Video::getPoster($videos_id);
+        TimeLogEnd("siteMap Video::getPoster $videos_id", __LINE__, 0.5);
+
+        $description = str_replace(['"', "\n", "\r"], ['', ' ', ' '], empty(trim($video['description'])) ? $video['title'] : $video['description']);
         $duration = parseDurationToSeconds($video['duration']);
         if ($duration > 28800) {
             // this is because this issue https://github.com/WWBN/AVideo/issues/3338 remove in the future if is not necessary anymore
             $duration = 28800;
         }
+
+        TimeLogStart("siteMap Video::getLink $videos_id");
+        $loc = Video::getLink($video['id'], $video['clean_title']);
+        TimeLogEnd("siteMap Video::getLink $videos_id", __LINE__, 0.5);
+        $title = strip_tags($video['title']);
+        $description = _substr(strip_tags(br2nl($description)), 0, 2048);
+        TimeLogStart("siteMap Video::getLinkToVideo $videos_id");
+        $player_loc = Video::getLinkToVideo($video['id'], $video['clean_title'], true);
+        TimeLogEnd("siteMap Video::getLinkToVideo $videos_id", __LINE__, 0.5);
+        TimeLogStart("siteMap Video::isPublic $videos_id");
+        $requires_subscription = Video::isPublic($video['id']) ? "no" : "yes";
+        TimeLogEnd("siteMap Video::isPublic $videos_id", __LINE__, 0.5);
+        TimeLogStart("siteMap Video::getChannelLink $videos_id");
+        $uploader_info = User::getChannelLink($video['users_id']);
+        TimeLogEnd("siteMap Video::getChannelLink $videos_id", __LINE__, 0.5);
+        TimeLogStart("siteMap Video::getNameIdentificationById $videos_id");
+        $uploader = htmlentities(User::getNameIdentificationById($video['users_id']));
+        TimeLogEnd("siteMap Video::getNameIdentificationById $videos_id", __LINE__, 0.5);
+
         $xml .= '
             <url>
-                <loc>' . Video::getLink($video['id'], $video['clean_title']) . '</loc>
+                <loc>' . $loc . '</loc>
                 <video:video>
                     <video:thumbnail_loc>' . $img . '</video:thumbnail_loc>
-                    <video:title><![CDATA[' . strip_tags($video['title']) . ']]></video:title>
-                    <video:description><![CDATA[' . (_substr(strip_tags(br2nl($description)), 0, 2048)) . ']]></video:description>
-                    <video:player_loc><![CDATA[' . (parseVideos(Video::getLinkToVideo($videos_id))) . ']]></video:player_loc>
+                    <video:title><![CDATA[' . $title . ']]></video:title>
+                    <video:description><![CDATA[' . $description . ']]></video:description>
+                    <video:player_loc><![CDATA[' . $player_loc . ']]></video:player_loc>
                     <video:duration>' . $duration . '</video:duration>
                     <video:view_count>' . $video['views_count'] . '</video:view_count>
                     <video:publication_date>' . date("Y-m-d\TH:i:s", strtotime($video['created'])) . '+00:00</video:publication_date>
                     <video:family_friendly>yes</video:family_friendly>
-                    <video:requires_subscription>' . (Video::isPublic($video['id']) ? "no" : "yes") . '</video:requires_subscription>
-                    <video:uploader info="' . User::getChannelLink($video['users_id']) . '">' . User::getNameIdentificationById($video['users_id']) . '</video:uploader>
+                    <video:requires_subscription>' . $requires_subscription . '</video:requires_subscription>
+                    <video:uploader info="' . $uploader_info . '">' . $uploader . '</video:uploader>
                     <video:live>no</video:live>
                 </video:video>
             </url>
             ';
     }
+    TimeLogEnd("siteMap getAllVideos", __LINE__, 0.5);
     $xml .= '</urlset> ';
     _error_log("siteMap: done ");
     $newXML1 = preg_replace('/[^\x{0009}\x{000a}\x{000d}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]+/u', '', $xml);
@@ -3143,7 +3231,7 @@ function cleanUpAccessControlHeader() {
 function rrmdir($dir) {
     //if(preg_match('/cache/i', $dir)){_error_log("rrmdir($dir) ". json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));exit;}
 
-    $dir = str_replace(array('//', '\\\\'), DIRECTORY_SEPARATOR, $dir);
+    $dir = str_replace(['//', '\\\\'], DIRECTORY_SEPARATOR, $dir);
     //_error_log('rrmdir: ' . $dir);
     if (empty($dir)) {
         _error_log('rrmdir: the dir was empty');
@@ -3153,22 +3241,16 @@ function rrmdir($dir) {
     $dir = fixPath($dir);
     $pattern = '/' . addcslashes($dir, DIRECTORY_SEPARATOR) . 'videos[\/\\\]?$/i';
     if ($dir == getVideosDir() || $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR || preg_match($pattern, $dir)) {
-        _error_log('rrmdir: A script ties to delete the videos Directory [' . $dir . '] ' . json_encode(array($dir == getVideosDir(), $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR, preg_match($pattern, $dir))));
+        _error_log('rrmdir: A script ties to delete the videos Directory [' . $dir . '] ' . json_encode([$dir == getVideosDir(), $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR, preg_match($pattern, $dir)]));
         return false;
     }
-    if (is_dir($dir)) {
-        if (isWindows()) {
-            exec('DEL /S ' . $dir);
-        } else {
-            exec('rm -R ' . $dir);
-        }
-    }
+    rrmdirCommandLine($dir);
     if (is_dir($dir)) {
         //_error_log('rrmdir: The Directory was not deleted, trying again ' . $dir);
         $objects = scandir($dir);
         //_error_log('rrmdir: scandir ' . $dir . ' '. json_encode($objects));
         foreach ($objects as $object) {
-            if ($object != "." && $object != "..") {
+            if ($object !== '.' && $object !== '..') {
                 if (is_dir($dir . DIRECTORY_SEPARATOR . $object)) {
                     rrmdir($dir . DIRECTORY_SEPARATOR . $object);
                 } else {
@@ -3181,15 +3263,31 @@ function rrmdir($dir) {
             // do not delete videos or cache folder
             return false;
         }
-        if(rmdir($dir)){
+        if (rmdir($dir)) {
             return true;
-        }else{
+        } else {
             _error_log('rrmdir: could not delete folder ' . $dir);
             return false;
         }
     } else {
         //_error_log('rrmdir: The Directory does not exists '.$dir);
         return true;
+    }
+}
+
+function rrmdirCommandLine($dir, $async = false) {
+    if (is_dir($dir)) {
+        if (isWindows()) {
+            $command = ('rd /s /q ' . $dir);
+        } else {
+            $command = ('rm -fR ' . $dir);
+        }
+
+        if ($async) {
+            return execAsync($command);
+        } else {
+            return exec($command);
+        }
     }
 }
 
@@ -3201,11 +3299,11 @@ function ddosProtection() {
     global $global;
     $maxCon = empty($global['ddosMaxConnections']) ? 40 : $global['ddosMaxConnections'];
     $secondTimeout = empty($global['ddosSecondTimeout']) ? 5 : $global['ddosSecondTimeout'];
-    $whitelistedFiles = array(
+    $whitelistedFiles = [
         'playlists.json.php',
         'playlistsFromUserVideos.json.php',
-        'image404.php'
-    );
+        'image404.php',
+    ];
 
     if (in_array(basename($_SERVER["SCRIPT_FILENAME"]), $whitelistedFiles)) {
         return true;
@@ -3213,7 +3311,7 @@ function ddosProtection() {
 
     $time = time();
     if (!isset($_SESSION['bruteForceBlock']) || empty($_SESSION['bruteForceBlock'])) {
-        $_SESSION['bruteForceBlock'] = array();
+        $_SESSION['bruteForceBlock'] = [];
         $_SESSION['bruteForceBlock'][] = $time;
         return true;
     }
@@ -3264,6 +3362,8 @@ function getAdsLeaderBoardTop() {
         } else {
             return ADs::giveGoogleATimeout($ad->leaderBoardTop->value);
         }
+    } else {
+        return false;
     }
 }
 
@@ -3355,18 +3455,20 @@ function convertImageToOG($source, $destination) {
 }
 
 function convertImageToRoku($source, $destination) {
+    return convertImageIfNotExists($source, $destination, 1280, 720);
+}
+
+function convertImageIfNotExists($source, $destination, $width, $height) {
     if (empty($source)) {
         _error_log("convertImageToRoku: source image is empty");
         return false;
     }
-
-    $w = 1280;
-    $h = 720;
     if (file_exists($destination)) {
         $sizes = getimagesize($destination);
-        if ($sizes[0] < $w || $sizes[1] < $h) {
-            _error_log("convertImageToRoku: file is smaller " . json_encode($sizes));
+        if ($sizes[0] < $width || $sizes[1] < $height) {
+            _error_log("convertImageIfNotExists: file is smaller " . json_encode($sizes));
             unlink($destination);
+            return false;
         }
     }
     if (!file_exists($destination)) {
@@ -3374,10 +3476,10 @@ function convertImageToRoku($source, $destination) {
             $tmpDir = getTmpDir();
             $fileConverted = $tmpDir . "_jpg_" . uniqid() . ".jpg";
             convertImage($source, $fileConverted, 100);
-            im_resizeV2($fileConverted, $destination, $w, $h, 100);
+            im_resizeV2($fileConverted, $destination, $width, $height, 100);
             @unlink($fileConverted);
         } catch (Exception $exc) {
-            _error_log("convertImageToRoku: " . $exc->getMessage());
+            _error_log("convertImageIfNotExists: " . $exc->getMessage());
             return false;
         }
     }
@@ -3416,31 +3518,8 @@ function getLdJson($videos_id) {
         return false;
     }
     $videos_id = $video['id'];
-    $source = Video::getSourceFile($video['filename']);
-    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
-        $img = $source['url'];
-        $data = getimgsize($source['path']);
-        $imgw = $data[0];
-        $imgh = $data[1];
-    } elseif ($video['type'] == "audio") {
-        $img = getCDN() . "view/img/audio_wave.jpg";
-    }
-    $type = 'video';
-    if ($video['type'] === 'pdf') {
-        $type = 'pdf';
-    }
-    if ($video['type'] === 'article') {
-        $type = 'article';
-    }
-    $images = Video::getImageFromFilename($video['filename'], $type);
-    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
-        $img = $images->posterPortrait;
-        $data = getimgsize($images->posterPortraitPath);
-        $imgw = $data[0];
-        $imgh = $data[1];
-    } else {
-        $img = $images->poster;
-    }
+
+    $img = Video::getPoster($videos_id);
 
     $description = html2plainText(empty(trim($video['description'])) ? $video['title'] : $video['description']);
     $duration = Video::getItemPropDuration($video['duration']);
@@ -3509,37 +3588,7 @@ function getItemprop($videos_id) {
         return false;
     }
     $videos_id = $video['id'];
-    $source = Video::getSourceFile($video['filename']);
-    if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
-        $img = $source['url'];
-        $data = getimgsize($source['path']);
-        $imgw = $data[0];
-        $imgh = $data[1];
-    } elseif ($video['type'] == "audio") {
-        $img = getCDN() . "view/img/audio_wave.jpg";
-    }
-    $type = 'video';
-    if ($video['type'] === 'pdf') {
-        $type = 'pdf';
-    }
-    if ($video['type'] === 'image') {
-        $type = 'image';
-    }
-    if ($video['type'] === 'zip') {
-        $type = 'zip';
-    }
-    if ($video['type'] === 'article') {
-        $type = 'article';
-    }
-    $images = Video::getImageFromFilename($video['filename'], $type);
-    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
-        $img = $images->posterPortrait;
-        $data = getimgsize($images->posterPortraitPath);
-        $imgw = $data[0];
-        $imgh = $data[1];
-    } else {
-        $img = $images->poster;
-    }
+    $img = Video::getPoster($videos_id);
 
     $description = html2plainText(empty(trim($video['description'])) ? $video['title'] : $video['description']);
     $duration = Video::getItemPropDuration($video['duration']);
@@ -3566,7 +3615,7 @@ function getOS($user_agent = "") {
 
     $os_platform = "Unknown OS Platform";
 
-    $os_array = array(
+    $os_array = [
         '/windows nt 10/i' => 'Windows 10',
         '/windows nt 6.3/i' => 'Windows 8.1',
         '/windows nt 6.2/i' => 'Windows 8',
@@ -3589,8 +3638,8 @@ function getOS($user_agent = "") {
         '/ipad/i' => 'iPad',
         '/android/i' => 'Android',
         '/blackberry/i' => 'BlackBerry',
-        '/webos/i' => 'Mobile'
-    );
+        '/webos/i' => 'Mobile',
+    ];
 
     foreach ($os_array as $regex => $value) {
         if (preg_match($regex, $user_agent)) {
@@ -3721,9 +3770,10 @@ function TimeLogStart($name) {
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
     if (empty($global['start']) || !is_array($global['start'])) {
-        $global['start'] = array();
+        $global['start'] = [];
     }
     $global['start'][$name] = $time;
+    return $name;
 }
 
 function TimeLogEnd($name, $line, $TimeLogLimit = 0.7) {
@@ -3800,7 +3850,11 @@ function _error_log($message, $type = 0, $doNotRepeat = false) {
             $prefix .= "SOCKET: ";
             break;
     }
-    error_log($prefix . $message . " SCRIPT_NAME: {$_SERVER['SCRIPT_NAME']}");
+    $str = $prefix . $message . " SCRIPT_NAME: {$_SERVER['SCRIPT_NAME']}";
+    if (isCommandLineInterface()) {
+        echo '[' . date('Y-m-d H:i:s') . '] ' . $str . PHP_EOL;
+    }
+    error_log($str);
 }
 
 function postVariables($url, $array, $httpcodeOnly = true, $timeout = 10) {
@@ -3839,11 +3893,11 @@ function postVariables($url, $array, $httpcodeOnly = true, $timeout = 10) {
     }
 }
 
-function _session_start(array $options = array()) {
+function _session_start(array $options = []) {
     try {
         if (!empty($_GET['PHPSESSID'])) {
             if ($_GET['PHPSESSID'] !== session_id()) {
-                if (session_status() != PHP_SESSION_NONE) {
+                if (session_status() !== PHP_SESSION_NONE) {
                     @session_write_close();
                 }
                 session_id($_GET['PHPSESSID']);
@@ -3851,7 +3905,7 @@ function _session_start(array $options = array()) {
             }
             unset($_GET['PHPSESSID']);
             return @session_start($options);
-        } else if (session_status() == PHP_SESSION_NONE) {
+        } elseif (session_status() == PHP_SESSION_NONE) {
             return @session_start($options);
         }
     } catch (Exception $exc) {
@@ -3862,6 +3916,15 @@ function _session_start(array $options = array()) {
 
 function _mysql_connect() {
     global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, $mysqlPort, $mysql_connect_was_closed;
+
+    $checkValues = array('mysqlHost', 'mysqlUser', 'mysqlPass', 'mysqlDatabase');
+
+    foreach ($checkValues as $value) {
+        if (!isset($$value)) {
+            _error_log("_mysql_connect Variable NOT set $value");
+        }
+    }
+
     try {
         if (!_mysql_is_open()) {
             //_error_log('MySQL Connect '. json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
@@ -3870,9 +3933,14 @@ function _mysql_connect() {
             if (!empty($global['mysqli_charset'])) {
                 $global['mysqli']->set_charset($global['mysqli_charset']);
             }
+            if (isCommandLineInterface()) {
+                _error_log("_mysql_connect HOST=$mysqlHost,DB=$mysqlDatabase");
+            }
         }
     } catch (Exception $exc) {
         _error_log($exc->getTraceAsString());
+        include $global['systemRootPath'] . 'view/include/offlinePage.php';
+        exit;
         return false;
     }
 }
@@ -3927,18 +3995,30 @@ function clearCache($firstPageOnly = false) {
     file_put_contents($lockFile, time());
 
     $dir = getVideosDir() . "cache" . DIRECTORY_SEPARATOR;
-    if ($firstPageOnly || !empty($_GET['FirstPage'])) {
+    $tmpDir = ObjectYPT::getCacheDir('firstPage');
+    $parts = explode('firstpage', $tmpDir);
+
+    if ($firstPageOnly || !empty($_REQUEST['FirstPage'])) {
+        $tmpDir = $parts[0] . 'firstpage' . DIRECTORY_SEPARATOR;
+        //var_dump($tmpDir);exit;
         $dir .= "firstPage" . DIRECTORY_SEPARATOR;
+    } else {
+        $tmpDir = $parts[0];
     }
 
     //_error_log('clearCache 1: '.$dir);
     rrmdir($dir);
-
+    rrmdir($tmpDir);
     ObjectYPT::deleteCache("getEncoderURL");
+    ObjectYPT::deleteAllSessionCache();
     unlink($lockFile);
     $end = microtime(true) - $start;
     _error_log("clearCache end in {$end} seconds");
     return true;
+}
+
+function clearAllUsersSessionCache() {
+    sendSocketMessageToAll(time(), 'socketClearSessionCache');
 }
 
 function clearFirstPageCache() {
@@ -3963,13 +4043,13 @@ function getUsageFromFilename($filename, $dir = "") {
     $paths = Video::getPaths($filename);
 
     if (is_dir($paths['path'])) {
-        $files = array($paths['path']);
+        $files = [$paths['path']];
     } else {
         $files = globVideosDir($filename);
     }
     //var_dump($paths, $files, $filename);exit;
     session_write_close();
-    $filesProcessed = array();
+    $filesProcessed = [];
     if (empty($files)) {
         _error_log("getUsageFromFilename: we did not find any file for {$dir}{$filename}, we will create a fake one " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         make_path($dir);
@@ -3988,7 +4068,7 @@ function getUsageFromFilename($filename, $dir = "") {
                 $isEnabled = AVideoPlugin::isEnabledByName('YPTStorage');
                 $isEnabledCDN = AVideoPlugin::getObjectDataIfEnabled('CDN');
                 $isEnabledS3 = AVideoPlugin::loadPluginIfEnabled('AWS_S3');
-                if ($isEnabledCDN->enable_storage) {
+                if (!empty($isEnabledCDN) && $isEnabledCDN->enable_storage) {
                     $v = Video::getVideoFromFileName($filename);
                     if (!empty($v)) {
                         $size = CDNStorage::getRemoteDirectorySize($v['id']);
@@ -4005,7 +4085,7 @@ function getUsageFromFilename($filename, $dir = "") {
                     } else {
                         _error_log("getUsageFromFilename: there is no info on the YPTStorage " . print_r($info, true));
                     }
-                } else if ($dirSize < $minDirSize && $isEnabledS3) {
+                } elseif ($dirSize < $minDirSize && $isEnabledS3) {
                     // probably the HLS file is hosted on the S3
                     $size = $isEnabledS3->getFilesize($filename);
                     if (!empty($size)) {
@@ -4160,7 +4240,7 @@ function getDirSize($dir, $forceNew = false) {
     global $_getDirSize;
 
     if (!isset($_getDirSize)) {
-        $_getDirSize = array();
+        $_getDirSize = [];
     }
     if (empty($forceNew) && isset($_getDirSize[$dir])) {
         return $_getDirSize[$dir];
@@ -4336,9 +4416,9 @@ function verifyToken($token, $salt = "") {
         return false;
     }
     $old_timezone = date_default_timezone_get();
-    date_default_timezone_set($obj->timezone);    
+    date_default_timezone_set($obj->timezone);
     $time = time();
-    date_default_timezone_set($old_timezone);  
+    date_default_timezone_set($old_timezone);
     if (!($time >= $obj->time && $time <= $obj->timeout)) {
         _error_log("verifyToken token timout time = $time; obj->time = $obj->time;  obj->timeout = $obj->timeout");
         return false;
@@ -4367,7 +4447,7 @@ class YPTvideoObject {
 }
 
 function isToShowDuration($type) {
-    $notShowTo = array('pdf', 'article', 'serie', 'zip', 'image', 'live', 'livelinks');
+    $notShowTo = ['pdf', 'article', 'serie', 'zip', 'image', 'live', 'livelinks'];
     if (in_array($type, $notShowTo)) {
         return false;
     } else {
@@ -4470,10 +4550,17 @@ function isLive() {
     if (!empty($global['doNotLoadPlayer'])) {
         return false;
     }
+    if (class_exists('LiveTransmition') && class_exists('Live')) {
+        $livet = LiveTransmition::getFromRequest();
+        if (!empty($livet)) {
+            setLiveKey($livet['key'], Live::getLiveServersIdRequest(), @$_REQUEST['live_index']);
+            $isLive = 1;
+        }
+    }
     if (!empty($isLive)) {
         $live = getLiveKey();
         if (empty($live)) {
-            $live = array('key' => false, 'live_servers_id' => false, 'live_index' => false);
+            $live = ['key' => false, 'live_servers_id' => false, 'live_index' => false];
         }
         $live['liveLink'] = isLiveLink();
         return $live;
@@ -4509,7 +4596,7 @@ function setLiveKey($key, $live_servers_id, $live_index = '') {
     }
     $key = Live::getLiveKeyFromRequest($key, $live_index, $parameters['playlists_id_live']);
 
-    $getLiveKey = array('key' => $key, 'live_servers_id' => intval($live_servers_id), 'live_index' => $live_index, 'cleanKey' => $cleanKey);
+    $getLiveKey = ['key' => $key, 'live_servers_id' => intval($live_servers_id), 'live_index' => $live_index, 'cleanKey' => $cleanKey];
     return $getLiveKey;
 }
 
@@ -4538,17 +4625,24 @@ function isHLS() {
     return false;
 }
 
-function getRedirectUri() {
-    if (!empty($_GET['redirectUri'])) {
+function getRedirectUri($returnThisIfRedirectUriIsNotSet = false) {
+    if (isValidURL(@$_GET['redirectUri'])) {
         return $_GET['redirectUri'];
     }
-    if (!empty($_SESSION['redirectUri'])) {
+    if (isValidURL(@$_SESSION['redirectUri'])) {
         return $_SESSION['redirectUri'];
     }
-    if (!empty($_SERVER["HTTP_REFERER"])) {
+    if (isValidURL(@$_REQUEST["redirectUri"])) {
+        return $_REQUEST["redirectUri"];
+    }
+    if (isValidURL(@$_SERVER["HTTP_REFERER"])) {
         return $_SERVER["HTTP_REFERER"];
     }
-    return getRequestURI();
+    if (isValidURL($returnThisIfRedirectUriIsNotSet)) {
+        return $returnThisIfRedirectUriIsNotSet;
+    } else {
+        return getRequestURI();
+    }
 }
 
 function setRedirectUri($redirectUri) {
@@ -4601,9 +4695,15 @@ function getSelfURI() {
     if (empty($_SERVER['PHP_SELF']) || empty($_SERVER['HTTP_HOST'])) {
         return "";
     }
+    global $global;
+    $http = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+    if (preg_match('/^https:/i', $global['webSiteRootURL'])) {
+        $http = 'https';
+    }
+
     $queryStringWithoutError = preg_replace("/error=[^&]*/", "", @$_SERVER['QUERY_STRING']);
     $phpselfWithoutIndex = preg_replace("/index.php/", "", @$_SERVER['PHP_SELF']);
-    $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$phpselfWithoutIndex?$queryStringWithoutError";
+    $url = $http . "://$_SERVER[HTTP_HOST]$phpselfWithoutIndex?$queryStringWithoutError";
     $url = rtrim($url, '?');
     return $url;
 }
@@ -4695,7 +4795,7 @@ function isVideoOrAudioNotEmbed() {
     if (empty($v)) {
         return false;
     }
-    $types = array('audio', 'video');
+    $types = ['audio', 'video'];
     if (in_array($v['type'], $types)) {
         return true;
     }
@@ -4707,7 +4807,11 @@ function getVideoIDFromURL($url) {
         return intval($matches[1]);
     }
     if (preg_match('/\/(video|videoEmbed|v|vEmbed|article|articleEmbed)\/([0-9]+)/', $url, $matches)) {
-        return intval($matches[1]);
+        if (is_numeric($matches[1])) {
+            return intval($matches[1]);
+        } elseif (is_numeric($matches[2])) {
+            return intval($matches[2]);
+        }
     }
     if (AVideoPlugin::isEnabledByName('PlayLists')) {
         if (preg_match('/player.php\?playlists_id=([0-9]+)/', $url, $matches)) {
@@ -4760,6 +4864,23 @@ function isValidURL($url) {
     return false;
 }
 
+function isValidURLOrPath($str) {
+    //var_dump(empty($url), !is_string($url), preg_match("/^http.*/", $url), filter_var($url, FILTER_VALIDATE_URL));
+    if (empty($str) || !is_string($str)) {
+        return false;
+    }
+    if (str_starts_with($str, '/')) {
+        return true;
+    }
+    if (preg_match("/^[a-z]:.*/i", $str)) {
+        return true;
+    }
+    if (isValidURL($str)) {
+        return true;
+    }
+    return false;
+}
+
 function hasLastSlash($word) {
     return substr($word, -1) === '/';
 }
@@ -4775,7 +4896,7 @@ function URLHasLastSlash() {
 function ucname($str) {
     $str = ucwords(strtolower($str));
 
-    foreach (array('\'', '-') as $delim) {
+    foreach (['\'', '-'] as $delim) {
         if (strpos($str, $delim) !== false) {
             $str = implode($delim, array_map('ucfirst', explode($delim, $str)));
         }
@@ -4791,14 +4912,14 @@ function sanitize_array_item(&$item, $key) {
     $item = sanitize_input($item);
 }
 
-function getSEOComplement($parameters = array()) {
+function getSEOComplement($parameters = []) {
     global $config;
 
-    $allowedTypes = isset($parameters["allowedTypes"]) ? $parameters["allowedTypes"] : null;
-    $addAutoPrefix = isset($parameters["addAutoPrefix"]) ? $parameters["addAutoPrefix"] : true;
-    $addCategory = isset($parameters["addCategory"]) ? $parameters["addCategory"] : true;
+    $allowedTypes = $parameters["allowedTypes"] ?? null;
+    $addAutoPrefix = $parameters["addAutoPrefix"] ?? true;
+    $addCategory = $parameters["addCategory"] ?? true;
 
-    $parts = array();
+    $parts = [];
 
     if (!empty($_GET['error'])) {
         array_push($parts, __("Error"));
@@ -4890,7 +5011,7 @@ function getSearchVar() {
     return "";
 }
 
-$cleanSearchHistory = "";
+$cleanSearchHistory = '';
 
 function cleanSearchVar() {
     global $cleanSearchHistory;
@@ -4898,7 +5019,7 @@ function cleanSearchVar() {
     if (!empty($search)) {
         $cleanSearchHistory = $search;
     }
-    $searchIdex = array('q', 'searchPhrase', 'search');
+    $searchIdex = ['q', 'searchPhrase', 'search'];
     foreach ($searchIdex as $value) {
         unset($_REQUEST[$value], $_POST[$value], $_GET[$value]);
     }
@@ -4919,9 +5040,9 @@ function wget($url, $filename, $debug = false) {
     if (empty($url) || $url == "php://input" || !preg_match("/^http/", $url)) {
         return false;
     }
-    if (wgetIsLocked($url)) {
+    if ($lockfilename = wgetIsLocked($url)) {
         if ($debug) {
-            _error_log("wget: ERROR the url is already downloading $url, $filename");
+            _error_log("wget: ERROR the url is already downloading {$lockfilename} $url, $filename");
         }
         return false;
     }
@@ -4992,11 +5113,12 @@ function copyfile_chunked($infile, $outfile) {
      * Now read the headers from the remote server. We'll need
      * to get the content length.
      */
-    $headers = array();
+    $headers = [];
     while (!feof($i_handle)) {
         $line = fgets($i_handle);
-        if ($line == "\r\n")
+        if ($line == "\r\n") {
             break;
+        }
         $headers[] = $line;
     }
 
@@ -5029,8 +5151,9 @@ function copyfile_chunked($infile, $outfile) {
         /**
          * We're done reading when we've reached the conent length
          */
-        if ($cnt >= $length)
+        if ($cnt >= $length) {
             break;
+        }
     }
 
     fclose($i_handle);
@@ -5092,7 +5215,7 @@ function wgetIsLocked($url) {
         unlink($filename);
         return false;
     }
-    return true;
+    return $filename;
 }
 
 // due the some OS gives a fake is_writable response
@@ -5125,7 +5248,7 @@ function _isWritable($dir) {
 function getTmpDir($subdir = "") {
     global $global;
     if (empty($_SESSION['getTmpDir'])) {
-        $_SESSION['getTmpDir'] = array();
+        $_SESSION['getTmpDir'] = [];
     }
     if (empty($_SESSION['getTmpDir'][$subdir . "_"])) {
         if (empty($global['tmpDir'])) {
@@ -5140,7 +5263,7 @@ function getTmpDir($subdir = "") {
         }
         $tmpDir = addLastSlash($tmpDir);
         if (!is_dir($tmpDir)) {
-            mkdir($tmpDir, 0755, true);
+            mkdir($tmpDir, 0777, true);
         }
         _session_start();
         $_SESSION['getTmpDir'][$subdir . "_"] = $tmpDir;
@@ -5171,12 +5294,15 @@ function getMySQLDate() {
 
 function _file_put_contents($filename, $data, $flags = 0, $context = null) {
     make_path($filename);
+    if (!is_string($data)) {
+        $data = _json_encode($data);
+    }
     return file_put_contents($filename, $data, $flags, $context);
 }
 
 function html2plainText($html) {
     $text = strip_tags($html);
-    $text = str_replace(array('\\', "\n", "\r", '"'), array('', ' ', ' ', ''), trim($text));
+    $text = str_replace(['\\', "\n", "\r", '"'], ['', ' ', ' ', ''], trim($text));
     return $text;
 }
 
@@ -5390,8 +5516,17 @@ function _json_encode($object) {
                         if (empty($json) && json_last_error()) {
                             _error_log("_json_encode: Error 6 Found: " . json_last_error_msg());
                             $json = json_encode($objectDecoded, JSON_UNESCAPED_UNICODE);
-                            if (json_last_error()) {
+                            if (empty($json) && json_last_error()) {
                                 _error_log("_json_encode: Error 7 Found: " . json_last_error_msg());
+                                array_walk_recursive($objectDecoded, function (&$item) {
+                                    if (is_string($item)) {
+                                        $item = cleanString($item);
+                                    }
+                                });
+                                $json = json_encode($users);
+                                if (json_last_error()) {
+                                    _error_log("_json_encode: Error 8 Found: " . json_last_error_msg());
+                                }
                             }
                         }
                     }
@@ -5409,9 +5544,15 @@ function _json_decode($object) {
     if (!is_string($object)) {
         return $object;
     }
+    if (isValidURLOrPath($object)) {
+        $content = file_get_contents($object);
+        if (!empty($content)) {
+            $object = $content;
+        }
+    }
     $json = json_decode($object);
-    if ($json === NULL) {
-        $object = str_replace(array("\r", "\n"), array('\r', '\n'), $object);
+    if ($json === null) {
+        $object = str_replace(["\r", "\n"], ['\r', '\n'], $object);
         return json_decode($object);
     } else {
         return $json;
@@ -5455,7 +5596,7 @@ function getPagination($total, $page = 0, $link = "", $maxVisible = 10, $infinit
         }
     }
 
-    $class = "";
+    $class = '';
     if (!empty($infinityScrollGetFromSelector) && !empty($infinityScrollAppendIntoSelector)) {
         $class = "infiniteScrollPagination{$uid} hidden";
     }
@@ -5529,8 +5670,8 @@ function getPagination($total, $page = 0, $link = "", $maxVisible = 10, $infinit
     if ($isInfiniteScroll) {
         $content = file_get_contents($global['systemRootPath'] . 'objects/functiongetPagination.php');
         $pag .= str_replace(
-                array('$uid', '$webSiteRootURL', '$infinityScrollGetFromSelector', '$infinityScrollAppendIntoSelector'),
-                array($uid, $global['webSiteRootURL'], $infinityScrollGetFromSelector, $infinityScrollAppendIntoSelector),
+                ['$uid', '$webSiteRootURL', '$infinityScrollGetFromSelector', '$infinityScrollAppendIntoSelector'],
+                [$uid, $global['webSiteRootURL'], $infinityScrollGetFromSelector, $infinityScrollAppendIntoSelector],
                 $content
         );
     }
@@ -5552,13 +5693,50 @@ function getSharePopupButton($videos_id, $url = "", $title = "") {
     include $global['systemRootPath'] . 'view/include/socialModal.php';
 }
 
-function forbiddenPage($message, $logMessage = false) {
+function forbiddenPage($message = '', $logMessage = false, $unlockPassword = '', $namespace = '') {
     global $global;
+    if (!empty($unlockPassword)) {
+        if (empty($namespace)) {
+            $namespace = $_SERVER["SCRIPT_FILENAME"];
+        }
+        if (!empty($_REQUEST['unlockPassword'])) {
+            if ($_REQUEST['unlockPassword'] == $unlockPassword) {
+                _session_start();
+                if (!isset($_SESSION['user']['forbiddenPage'])) {
+                    $_SESSION['user']['forbiddenPage'] = [];
+                }
+                $_SESSION['user']['forbiddenPage'][$namespace] = $_REQUEST['unlockPassword'];
+            }
+        }
+        if (!empty($_SESSION['user']['forbiddenPage'][$namespace]) && $unlockPassword === $_SESSION['user']['forbiddenPage'][$namespace]) {
+            return true;
+        }
+    }
     $_REQUEST['403ErrorMsg'] = $message;
     if ($logMessage) {
         _error_log($message);
     }
-    include $global['systemRootPath'] . 'view/forbiddenPage.php';
+
+    $headers = headers_list(); // get list of headers
+    foreach ($headers as $header) { // iterate over that list of headers
+        if (stripos($header, 'Content-Type') !== FALSE) { // if the current header hasthe String "Content-Type" in it
+            $headerParts = explode(':', $header); // split the string, getting an array
+            $headerValue = trim($headerParts[1]); // take second part as value
+            $contentType = $headerValue;
+            break;
+        }
+    }
+    if (empty($unlockPassword) && preg_match('/json/i', $contentType)) {
+        header("Content-Type: application/json");
+        $obj = new stdClass();
+        $obj->error = true;
+        $obj->msg = $message;
+        $obj->forbiddenPage = true;
+        die(json_encode($obj));
+    } else {
+        header("Content-Type: text/html");
+        include $global['systemRootPath'] . 'view/forbiddenPage.php';
+    }
     exit;
 }
 
@@ -5586,7 +5764,10 @@ function avidoeShutdown() {
                 echo json_encode($o);
             }
         } else {
+            echo '<pre>';
             var_dump($error);
+            var_dump(debug_backtrace());
+            echo '</pre>';
         }
         exit;
     }
@@ -5613,10 +5794,8 @@ function isForbidden() {
 function diskUsageBars() {
     return ''; //TODO check why it is slowing down
     global $global;
-    ob_start();
     include $global['systemRootPath'] . 'objects/functiondiskUsageBars.php';
-    $contents = ob_get_contents();
-    ob_end_clean();
+    $contents = getIncludeFileContent($global['systemRootPath'] . 'objects/functiondiskUsageBars.php');
     return $contents;
 }
 
@@ -5658,19 +5837,22 @@ function getHostOnlyFromURL($url) {
  */
 function getDeviceID($useRandomString = true) {
     $ip = md5(getRealIpAddr());
+    $pattern = "/[^0-9a-z_.-]/i";
     if (empty($_SERVER['HTTP_USER_AGENT'])) {
         $device = "unknowDevice-{$ip}";
         $device .= '-' . intval(User::getId());
-        return $device;
+        return preg_replace($pattern, '-', $device);
     }
 
     if (empty($useRandomString)) {
         $device = 'ypt-' . get_browser_name() . '-' . getOS() . '-' . $ip . '-' . md5($_SERVER['HTTP_USER_AGENT']);
         $device = str_replace(
-                array('[', ']', ' '),
-                array('', '', '_'), $device);
+                ['[', ']', ' '],
+                ['', '', '_'],
+                $device
+        );
         $device .= '-' . intval(User::getId());
-        return $device;
+        return preg_replace($pattern, '-', $device);
     }
 
     $cookieName = "yptDeviceID";
@@ -5689,9 +5871,8 @@ function getDeviceID($useRandomString = true) {
             return "getDeviceIDError";
         }
         $_COOKIE[$cookieName] = $_GET[$cookieName];
-        return $_GET[$cookieName];
     }
-    return $_COOKIE[$cookieName];
+    return preg_replace($pattern, '-', $_COOKIE[$cookieName]);
 }
 
 function deviceIdToObject($deviceID) {
@@ -5768,13 +5949,14 @@ function _setcookie($cookieName, $value, $expires = 0) {
     }
 
     if (version_compare(phpversion(), '7.3', '>=')) {
-        $cookie_options = array(
+        $cookie_options = [
             'expires' => $expires,
             'path' => '/',
             'domain' => getDomain(),
             'secure' => true,
             'httponly' => false,
-            'samesite' => 'None');
+            'samesite' => 'None'
+        ];
         return setcookie($cookieName, $value, $cookie_options);
     } else {
         return setcookie($cookieName, $value, (int) $expires, "/", getDomain());
@@ -5784,7 +5966,7 @@ function _setcookie($cookieName, $value, $expires = 0) {
 function _unsetcookie($cookieName) {
     $domain = getDomain();
     $expires = strtotime("-10 years");
-    $value = "";
+    $value = '';
     _setcookie($cookieName, $value, $expires);
     setcookie($cookieName, $value, (int) $expires, "/") && setcookie($cookieName, $value, (int) $expires);
     setcookie($cookieName, $value, (int) $expires, "/", str_replace("www", "", $domain));
@@ -5840,7 +6022,7 @@ function gotToLoginAndComeBackHere($msg) {
 
 function setAlertMessage($msg, $type = "msg") {
     _session_start();
-    $_SESSION['YPTalertMessage'][] = array($msg, $type);
+    $_SESSION['YPTalertMessage'][] = [$msg, $type];
 }
 
 function setToastMessage($msg) {
@@ -5852,7 +6034,7 @@ function showAlertMessage() {
         foreach ($_SESSION['YPTalertMessage'] as $value) {
             if (!empty($value[0])) {
                 if (empty($_GET[$value[1]])) {
-                    $_GET[$value[1]] = array();
+                    $_GET[$value[1]] = [];
                 }
                 $_GET[$value[1]][] = $value[0];
             }
@@ -5861,11 +6043,11 @@ function showAlertMessage() {
         unset($_SESSION['YPTalertMessage']);
     }
 
-    $joinString = array('error', 'msg', 'success');
+    $joinString = ['error', 'msg', 'success'];
     foreach ($joinString as $value) {
         if (!empty($_GET[$value]) && is_array($_GET[$value])) {
             $_GET[$value] = array_unique($_GET[$value]);
-            $newStr = array();
+            $newStr = [];
             foreach ($_GET[$value] as $value2) {
                 if (!empty($value2)) {
                     $newStr[] = $value2;
@@ -5875,11 +6057,11 @@ function showAlertMessage() {
         }
     }
 
-    $check = array('error', 'msg', 'success', 'toast');
+    $check = ['error', 'msg', 'success', 'toast'];
     foreach ($check as $value) {
         if (!empty($_GET[$value])) {
             if (is_array($_GET[$value])) {
-                $newStr = array();
+                $newStr = [];
                 foreach ($_GET[$value] as $key => $value2) {
                     $value2 = str_replace('"', "''", $value2);
                     if (!empty($value2)) {
@@ -5907,7 +6089,7 @@ function showAlertMessage() {
     }
     if (!empty($_GET['toast'])) {
         if (!is_array($_GET['toast'])) {
-            $_GET['toast'] = array($_GET['toast']);
+            $_GET['toast'] = [$_GET['toast']];
         } else {
             $_GET['toast'] = array_unique($_GET['toast']);
         }
@@ -5948,18 +6130,32 @@ function getResolutionLabel($res) {
 }
 
 function getResolutionText($res) {
-    if ($res == 720) {
+    $res = intval($res);
+    if ($res >= 720 && $res < 1080) {
         return "HD";
-    } elseif ($res == 1080) {
+    } elseif ($res >= 1080 && $res < 1440) {
         return "FHD";
-    } elseif ($res == 1440) {
+    } elseif ($res >= 1440 && $res < 2160) {
         return "FHD+";
-    } elseif ($res == 2160) {
+    } elseif ($res >= 2160 && $res < 4320) {
         return "4K";
-    } elseif ($res == 4320) {
+    } elseif ($res >= 4320) {
         return "8K";
     } else {
         return '';
+    }
+}
+
+function getResolutionTextRoku($res) {
+    $res = intval($res);
+    if ($res >= 720 && $res < 1080) {
+        return "HD";
+    } elseif ($res >= 1080 && $res < 2160) {
+        return "FHD";
+    } elseif ($res >= 2160) {
+        return "UHD";
+    } else {
+        return 'SD';
     }
 }
 
@@ -5967,17 +6163,17 @@ function getResolutionText($res) {
 function _glob($dir, $pattern) {
     global $_glob;
     if (empty($dir)) {
-        return array();
+        return [];
     }
     if (empty($_glob)) {
-        $_glob = array();
+        $_glob = [];
     }
     $name = md5($dir . $pattern);
     if (isset($_glob[$name])) {
         return $_glob[$name];
     }
     $dir = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-    $array = array();
+    $array = [];
     if (is_dir($dir) && $handle = opendir($dir)) {
         $count = 0;
         while (false !== ($file_name = readdir($handle))) {
@@ -5999,7 +6195,7 @@ function _glob($dir, $pattern) {
 function globVideosDir($filename, $filesOnly = false) {
     global $global;
     if (empty($filename)) {
-        return array();
+        return [];
     }
     $cleanfilename = Video::getCleanFilenameFromFile($filename);
     $paths = Video::getPaths($filename);
@@ -6022,9 +6218,9 @@ function globVideosDir($filename, $filesOnly = false) {
 }
 
 function getValidFormats() {
-    $video = array('webm', 'mp4', 'm3u8');
-    $audio = array('mp3', 'ogg');
-    $image = array('jpg', 'gif', 'webp');
+    $video = ['webm', 'mp4', 'm3u8'];
+    $audio = ['mp3', 'ogg'];
+    $image = ['jpg', 'gif', 'webp'];
     return array_merge($video, $audio, $image);
 }
 
@@ -6045,7 +6241,7 @@ function getTimerFromDates($startTime, $endTime = 0) {
     }
     $timer = abs($endTime - $startTime);
     $uid = uniqid();
-    return "<span id='{$uid}'></span><script>$(document).ready(function () {startTimer({$timer}, '#{$uid}');})</script>";
+    return "<span id='{$uid}'></span><script>$(document).ready(function () {startTimer({$timer}, '#{$uid}', '');})</script>";
 }
 
 function getServerClock() {
@@ -6130,7 +6326,6 @@ function playHLSasMP4($filepath) {
     $output = m3u8ToMP4($filepath);
 
     if (!empty($output['error'])) {
-
         $msg = 'playHLSasMP4 was not possible';
         if (User::isAdmin()) {
             $msg .= '<br>' . "m3u8ToMP4($filepath) return empty<br>" . nl2br($output['msg']);
@@ -6162,7 +6357,7 @@ function m3u8ToMP4($input) {
     if (empty($outputfilename)) {
         $msg = "downloadHLS: empty outputfilename {$outputfilename}";
         _error_log($msg);
-        return array('error' => $error, 'msg' => $msg);
+        return ['error' => $error, 'msg' => $msg];
     }
     _error_log("downloadHLS: m3u8ToMP4($input)");
     //var_dump(!preg_match('/^http/i', $input), filesize($input), preg_match('/.m3u8$/i', $input));
@@ -6172,7 +6367,7 @@ function m3u8ToMP4($input) {
         if ($ism3u8 && !preg_match('/.m3u8$/i', $filepath)) {
             $filepath = addLastSlash($filepath) . 'index.m3u8';
         }
-        
+
         $token = getToken(60);
         $filepath = addQueryStringParameter($filepath, 'globalToken', $token);
     } else {
@@ -6201,7 +6396,7 @@ function m3u8ToMP4($input) {
                 $msg3 = "downloadHLS: ERROR 2 " . implode(PHP_EOL, $output);
                 $finalMsg = $msg1 . PHP_EOL . $msg2 . PHP_EOL . $msg3;
                 _error_log($msg3);
-                return array('error' => $error, 'msg' => $finalMsg);
+                return ['error' => $error, 'msg' => $finalMsg];
             }
         }
     } else {
@@ -6209,60 +6404,54 @@ function m3u8ToMP4($input) {
         _error_log($msg);
     }
     $error = false;
-    return array('error' => $error, 'msg' => $msg, 'path' => $outputpath, 'filename' => $outputfilename);
+    return ['error' => $error, 'msg' => $msg, 'path' => $outputpath, 'filename' => $outputfilename];
 }
 
 function getSocialModal($videos_id, $url = "", $title = "") {
     global $global;
     $video['id'] = $videos_id;
     $sharingUid = uniqid();
-    ob_start();
-    ?>
-    <div id="SharingModal<?php echo $sharingUid ?>" class="modal fade" role="dialog" style="top: 60px;">
-        <div class="modal-dialog">
-            <!-- Modal content-->
-            <div class="modal-content">
-                <div class="modal-body">
-                    <center>
-                        <?php include $global['systemRootPath'] . 'view/include/social.php'; ?>
-                    </center>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script>
-        function showSharing<?php echo $sharingUid ?>() {
-            if ($('#mainVideo').length) {
-                $('#SharingModal<?php echo $sharingUid ?>').appendTo("#mainVideo");
-            } else {
-                $('#SharingModal<?php echo $sharingUid ?>').appendTo("body");
-            }
-            $('#SharingModal<?php echo $sharingUid ?>').modal("show");
-            $('.modal-backdrop').hide();
-
-            return false;
-        }
-
-        $(document).ready(function () {
-            $('#SharingModal<?php echo $sharingUid ?>').modal({show: false});
-        });
-    </script>
-    <?php
-    $contents = ob_get_contents();
-    ob_end_clean();
-    return array('html' => $contents, 'id' => $sharingUid);
+    $filePath = $global['systemRootPath'] . 'objects/functionGetSocialModal.php';
+    $contents = getIncludeFileContent($filePath,
+            array(
+                'videos_id' => $videos_id,
+                'url' => $url,
+                'title' => $title,
+                'video' => $video,
+                'sharingUid' => $sharingUid
+            )
+    );
+    return ['html' => $contents, 'id' => $sharingUid];
 }
 
 function getCroppie(
         $buttonTitle,
         $callBackJSFunction,
-        $resultWidth,
-        $resultHeight,
+        $resultWidth = 0,
+        $resultHeight = 0,
         $viewportWidth = 0,
         $boundary = 25,
-        $viewportHeight = 0
+        $viewportHeight = 0,
+        $enforceBoundary = true
 ) {
     global $global;
+
+    if (empty($resultWidth) && empty($resultHeight)) {
+        if (isMobile()) {
+            $viewportWidth = 250;
+        } else {
+            $viewportWidth = 800;
+        }
+
+        if (defaultIsPortrait()) {
+            $resultWidth = 540;
+            $resultHeight = 800;
+        } else {
+            $resultWidth = 1280;
+            $resultHeight = 720;
+        }
+    }
+
     if (empty($viewportWidth)) {
         $viewportWidth = $resultWidth;
     }
@@ -6271,30 +6460,63 @@ function getCroppie(
         $zoom = ($viewportWidth / $resultWidth);
         $viewportHeight = $zoom * $resultHeight;
     }
+    if (empty($enforceBoundary)) {
+        $boundary = 0;
+    }
     $boundaryWidth = $viewportWidth + $boundary;
     $boundaryHeight = $viewportHeight + $boundary;
     $uid = uniqid();
-    ob_start();
-    include $global['systemRootPath'] . 'objects/functionCroppie.php';
-    $contents = ob_get_contents();
-    ob_end_clean();
+
+    $varsArray = array(
+        'buttonTitle' => $buttonTitle,
+        'callBackJSFunction' => $callBackJSFunction,
+        'resultWidth' => $resultWidth,
+        'resultHeight' => $resultHeight,
+        'viewportWidth' => $viewportWidth,
+        'boundary' => $boundary,
+        'viewportHeight' => $viewportHeight,
+        'enforceBoundary' => $enforceBoundary,
+        'zoom' => $zoom,
+        'boundaryWidth' => $boundaryWidth,
+        'boundaryHeight' => $boundaryHeight,
+        'uid' => $uid,);
+
+    $contents = getIncludeFileContent($global['systemRootPath'] . 'objects/functionCroppie.php', $varsArray);
+
     $callBackJSFunction = addcslashes($callBackJSFunction, "'");
-    return array(
+    return [
         "html" => $contents,
         "id" => "croppie{$uid}",
         "uploadCropObject" => "uploadCrop{$uid}",
         "getCroppieFunction" => "getCroppie(uploadCrop{$uid}, '{$callBackJSFunction}', {$resultWidth}, {$resultHeight});",
         "createCroppie" => "createCroppie{$uid}",
-        "restartCroppie" => "restartCroppie{$uid}"
-    );
+        "restartCroppie" => "restartCroppie{$uid}",
+    ];
 }
 
 function saveCroppieImage($destination, $postIndex = "imgBase64") {
-    if (empty($_POST[$postIndex])) {
+    if (empty($destination) || empty($_POST[$postIndex])) {
         return false;
     }
     $fileData = base64DataToImage($_POST[$postIndex]);
-    return file_put_contents($destination, $fileData);
+
+    $path_parts = pathinfo($destination);
+    $tmpDestination = $destination;
+    $extension = strtolower($path_parts['extension']);
+    if ($extension !== 'png') {
+        $tmpDestination = $destination . '.png';
+    }
+
+    $saved = _file_put_contents($tmpDestination, $fileData);
+
+    if ($saved) {
+        if ($extension !== 'png') {
+            convertImage($tmpDestination, $destination, 100);
+            unlink($tmpDestination);
+        }
+    }
+    //var_dump($saved, $tmpDestination, $destination, $extension);exit;
+    return $saved;
 }
 
 function get_ffmpeg($ignoreGPU = false) {
@@ -6312,10 +6534,19 @@ function get_ffmpeg($ignoreGPU = false) {
     return $ffmpeg . $complement;
 }
 
+function get_php() {
+    global $global;
+    $php = 'php  ';
+    if (!empty($global['php'])) {
+        $php = "{$global['php']} ";
+    }
+    return $php;
+}
+
 function isHTMLPage($url) {
     if (preg_match('/https?:\/\/(www\.)?(youtu.be|youtube.com|vimeo.com|bitchute.com)\//i', $url)) {
         return true;
-    } else if ($type = getHeaderContentTypeFromURL($url)) {
+    } elseif ($type = getHeaderContentTypeFromURL($url)) {
         if (preg_match('/text\/html/i', $type)) {
             return true;
         }
@@ -6338,19 +6569,16 @@ function canFullScreen() {
     return true;
 }
 
-function getTinyMCE($id) {
+function getTinyMCE($id, $simpleMode = false) {
     global $global;
-    ob_start();
-    include $global['systemRootPath'] . 'objects/functionsGetTinyMCE.php';
-    $contents = ob_get_contents();
-    ob_end_clean();
+    $contents = getIncludeFileContent($global['systemRootPath'] . 'objects/functionsGetTinyMCE.php', array('id' => $id, 'simpleMode' => $simpleMode));
     return $contents;
 }
 
 function pathToRemoteURL($filename, $forceHTTP = false, $ignoreCDN = false) {
     global $pathToRemoteURL, $global;
     if (!isset($pathToRemoteURL)) {
-        $pathToRemoteURL = array();
+        $pathToRemoteURL = [];
     }
 
     if (isset($pathToRemoteURL[$filename])) {
@@ -6361,31 +6589,29 @@ function pathToRemoteURL($filename, $forceHTTP = false, $ignoreCDN = false) {
         if ($yptStorage = AVideoPlugin::loadPluginIfEnabled("YPTStorage")) {
             $source = $yptStorage->getAddress("{$fileName}");
             $url = $source['url'];
-        } else if (!preg_match('/index.m3u8$/', $filename)) {
+        } elseif (!preg_match('/index.m3u8$/', $filename)) {
             if ($aws_s3 = AVideoPlugin::loadPluginIfEnabled("AWS_S3")) {
                 $source = $aws_s3->getAddress("{$fileName}");
                 $url = $source['url'];
                 if (empty($ignoreCDN)) {
                     $url = replaceCDNIfNeed($url, 'CDN_S3');
-                } else if (!empty($source['url_noCDN'])) {
+                } elseif (!empty($source['url_noCDN'])) {
                     $url = $source['url_noCDN'];
                 }
-            } else
-            if ($bb_b2 = AVideoPlugin::loadPluginIfEnabled("Blackblaze_B2")) {
+            } elseif ($bb_b2 = AVideoPlugin::loadPluginIfEnabled("Blackblaze_B2")) {
                 $source = $bb_b2->getAddress("{$fileName}");
                 $url = $source['url'];
                 if (empty($ignoreCDN)) {
                     $url = replaceCDNIfNeed($url, 'CDN_B2');
-                } else if (!empty($source['url_noCDN'])) {
+                } elseif (!empty($source['url_noCDN'])) {
                     $url = $source['url_noCDN'];
                 }
-            } else
-            if ($ftp = AVideoPlugin::loadPluginIfEnabled("FTP_Storage")) {
+            } elseif ($ftp = AVideoPlugin::loadPluginIfEnabled("FTP_Storage")) {
                 $source = $ftp->getAddress("{$fileName}");
                 $url = $source['url'];
                 if (empty($ignoreCDN)) {
                     $url = replaceCDNIfNeed($url, 'CDN_FTP');
-                } else if (!empty($source['url_noCDN'])) {
+                } elseif (!empty($source['url_noCDN'])) {
                     $url = $source['url_noCDN'];
                 }
             }
@@ -6451,7 +6677,7 @@ function getThemes() {
     if (isset($_getThemes)) {
         return $_getThemes;
     }
-    $_getThemes = array();
+    $_getThemes = [];
     foreach (glob("{$global['systemRootPath']}view/css/custom/*.css") as $filename) {
         $fileEx = basename($filename, ".css");
         $_getThemes[] = $fileEx;
@@ -6491,16 +6717,35 @@ function sendSocketMessage($msg, $callbackJSFunction = "", $users_id = "-1", $se
 }
 
 function sendSocketMessageToUsers_id($msg, $users_id, $callbackJSFunction = "") {
+
+    if (empty($users_id)) {
+        return false;
+    }
+    _error_log("sendSocketMessageToUsers_id start " . json_encode($users_id));
     if (!is_array($users_id)) {
-        $users_id = array($users_id);
+        $users_id = [$users_id];
     }
 
-    $resp = array();
+    $resp = [];
     foreach ($users_id as $value) {
         $resp[] = sendSocketMessage($msg, $callbackJSFunction, $value);
     }
 
     return $resp;
+}
+
+function sendSocketErrorMessageToUsers_id($msg, $users_id, $callbackJSFunction = "avideoResponse") {
+    $newMessage = new stdClass();
+    $newMessage->error = true;
+    $newMessage->msg = $msg;
+    return sendSocketMessageToUsers_id($newMessage, $users_id, $callbackJSFunction);
+}
+
+function sendSocketSuccessMessageToUsers_id($msg, $users_id, $callbackJSFunction = "avideoResponse") {
+    $newMessage = new stdClass();
+    $newMessage->error = false;
+    $newMessage->msg = $msg;
+    return sendSocketMessageToUsers_id($newMessage, $users_id, $callbackJSFunction);
 }
 
 function sendSocketMessageToAll($msg, $callbackJSFunction = "", $send_to_uri_pattern = "") {
@@ -6514,7 +6759,7 @@ function sendSocketMessageToNone($msg, $callbackJSFunction = "") {
 function execAsync($command) {
     //$command = escapeshellarg($command);
     // If windows, else
-    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    if (isWindows()) {
         //echo $command;
         //$pid = system("start /min  ".$command. " > NUL");
         //$commandString = "start /B " . $command;
@@ -6599,7 +6844,7 @@ function isURL200($url, $forceRecheck = false) {
     //error_log("isURL200 checking URL {$url}");
     $headers = @get_headers($url);
     if (!is_array($headers)) {
-        $headers = array($headers);
+        $headers = [$headers];
     }
 
     $object->result = false;
@@ -6634,21 +6879,28 @@ function deleteStatsNotifications() {
     ObjectYPT::deleteCache($cacheName);
 }
 
-function getStatsNotifications($force_recreate = false) {
+function getStatsNotifications($force_recreate = false, $listItIfIsAdminOrOwner = true) {
+    global $__getStatsNotifications__;
     $cacheName = "getStats" . DIRECTORY_SEPARATOR . "getStatsNotifications";
+    unset($_POST['sort']);
     if ($force_recreate) {
         Live::deleteStatsCache();
     } else {
+        if (!empty($__getStatsNotifications__)) {
+            return $__getStatsNotifications__;
+        }
         $json = ObjectYPT::getCache($cacheName, 0, true);
     }
-    if (empty($json)) {
+    if (empty($json) || !empty($json->error) || !isset($json->error)) {
         //_error_log('getStatsNotifications: 1 ' . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         $json = Live::getStats();
         $json = object_to_array($json);
 
         if (empty($json['applications']) && is_array($json)) {
-            $json['applications'] = array();
-            foreach ($json as $key => $value) {
+            $oldjson = $json;
+            $json = [];
+            $json['applications'] = [];
+            foreach ($oldjson as $key => $value) {
                 if (empty($value['applications'])) {
                     continue;
                 }
@@ -6660,7 +6912,7 @@ function getStatsNotifications($force_recreate = false) {
         $appArray = AVideoPlugin::getLiveApplicationArray();
         if (!empty($appArray)) {
             if (empty($json)) {
-                $json = array();
+                $json = [];
             }
             $json['error'] = false;
             if (empty($json['msg'])) {
@@ -6668,7 +6920,7 @@ function getStatsNotifications($force_recreate = false) {
             }
             $json['nclients'] = count($appArray);
             if (empty($json['applications'])) {
-                $json['applications'] = array();
+                $json['applications'] = [];
             }
             $json['applications'] = array_merge($json['applications'], $appArray);
         }
@@ -6685,22 +6937,45 @@ function getStatsNotifications($force_recreate = false) {
             $count++;
         }
         if (!empty($json['applications'])) {
+            $applications = array();
             foreach ($json['applications'] as $key => $value) {
+                // remove duplicated
+                if (in_array($value['href'], $applications)) {
+                    unset($json['applications'][$key]);
+                    continue;
+                }
+                $applications[] = $value['href'];
                 if (empty($value['users_id']) && !empty($value['user'])) {
                     $u = User::getFromUsername($value['user']);
                     $json['applications'][$key]['users_id'] = $u['id'];
                 }
+                if (!empty($json['applications'][$key]['key']) && $json['applications'][$key]["type"] === "live") {
+                    // make sure it is online
+                    $lth = new LiveTransmitionHistory();
+                    $lth->setTitle($json['applications'][$key]['title']);
+                    $lth->setKey($json['applications'][$key]['key']);
+                    $lth->setUsers_id($json['applications'][$key]['users_id']);
+                    $lth->setLive_servers_id($json['applications'][$key]['live_servers_id']);
+                    $json['applications'][$key]['live_transmitions_history_id'] = $lth->save();
+                }
             }
         }
         $cache = ObjectYPT::setCache($cacheName, $json);
-        _error_log('Live::createStatsCache ' . json_encode($cache));
+        //_error_log('Live::createStatsCache ' . json_encode($cache));
     } else {
         //_error_log('getStatsNotifications: 2 cached result');
         $json = object_to_array($json);
     }
-    if (empty($json['countLiveStream']) || $json['countLiveStream'] < $json['total']) {
-        $json['countLiveStream'] = $json['total'];
+
+    foreach ($json['applications'] as $key => $value) {
+        if (!Live::isApplicationListed(@$value['key'], $listItIfIsAdminOrOwner)) {
+            $json['hidden_applications'][] = $value;
+            unset($json['applications'][$key]);
+        }
     }
+
+    $json['countLiveStream'] = count($json['applications']);
+    $__getStatsNotifications__ = $json;
     return $json;
 }
 
@@ -6764,7 +7039,7 @@ function getLiveUsersLabel($viewsClass = "label label-default", $counterClass = 
         if (!empty($live)) {
             if (!empty($live['key'])) {
                 return getLiveUsersLabelLive($live['key'], $live['live_servers_id'], $viewsClass, $counterClass);
-            } else if (!empty($live['liveLinks_id'])) {
+            } elseif (!empty($live['liveLinks_id'])) {
                 return getLiveUsersLabelLiveLinks($live['liveLinks_id'], null, $viewsClass, $counterClass);
             }
         } else {
@@ -6780,12 +7055,14 @@ function getLiveUsersLabel($viewsClass = "label label-default", $counterClass = 
 }
 
 function getLiveUsersLabelHTML($viewsClass = "label label-default", $counterClass = "label label-primary") {
-    global $global;
-    ob_start();
-    include $global['systemRootPath'] . 'plugin/Live/view/onlineLabel.php';
-    $htmlMediaTag = '<div style="z-index: 999; position: absolute; top:5px; left: 5px; opacity: 0.8; filter: alpha(opacity=80);" class="liveUsersLabel">';
-    $htmlMediaTag .= ob_get_contents();
-    ob_end_clean();
+    global $global, $_getLiveUsersLabelHTML;
+    if (!empty($_getLiveUsersLabelHTML)) {
+        return '';
+    }
+    $_getLiveUsersLabelHTML = 1;
+
+    $htmlMediaTag .= '<div style="z-index: 999; position: absolute; top:5px; left: 5px; opacity: 0.8; filter: alpha(opacity=80);" class="liveUsersLabel">';
+    $htmlMediaTag .= getIncludeFileContent($global['systemRootPath'] . 'plugin/Live/view/onlineLabel.php', array('viewsClass' => $viewsClass, 'counterClass' => $counterClass));
     $htmlMediaTag .= getLiveUsersLabel($viewsClass, $counterClass);
     $htmlMediaTag .= '</div>';
     return $htmlMediaTag;
@@ -6795,7 +7072,7 @@ function getHTMLTitle($titleArray) {
     global $config, $global;
 
     if (!is_array($titleArray)) {
-        $titleArray = array();
+        $titleArray = [];
     }
     $titleArray[] = $config->getWebSiteTitle();
 
@@ -6860,7 +7137,7 @@ function getTitle() {
     return $global['pageTitle'];
 }
 
-function outputAndContinueInBackground() {
+function outputAndContinueInBackground($msg = '') {
     global $outputAndContinueInBackground;
 
     if (!empty($outputAndContinueInBackground)) {
@@ -6874,7 +7151,8 @@ function outputAndContinueInBackground() {
     if (function_exists('fastcgi_finish_request')) {
         fastcgi_finish_request();
     }
-    ob_start();
+    _ob_start();
+    echo $msg;
     @header("Connection: close");
     @header("Content-Length: " . ob_get_length());
     @header("HTTP/1.1 200 OK");
@@ -6916,6 +7194,23 @@ function getDatabaseTime() {
     return $_getDatabaseTime;
 }
 
+function getDatabaseTimezoneName() {
+    global $global, $_getDatabaseTimezoneName;
+    if (isset($_getDatabaseTimezoneName)) {
+        return $_getDatabaseTimezoneName;
+    }
+    $sql = "SELECT @@system_time_zone as time_zone";
+    $res = sqlDAL::readSql($sql);
+    $data = sqlDAL::fetchAssoc($res);
+    sqlDAL::close($res);
+    if ($res) {
+        $_getDatabaseTimezoneName = $data['time_zone'];
+    } else {
+        $_getDatabaseTimezoneName = false;
+    }
+    return $_getDatabaseTimezoneName;
+}
+
 function get_js_availableLangs() {
     global $global;
     if (empty($global['js_availableLangs'])) {
@@ -6934,11 +7229,14 @@ function listAllWordsToTranslate() {
     ini_set('max_execution_time', 300);
 
     function listAll($dir) {
-        $vars = array();
+        $vars = [];
+        if (preg_match('/vendor.*$/', $dir)) {
+            return $vars;
+        }
         if ($handle = opendir($dir)) {
             while (false !== ($entry = readdir($handle))) {
-                if ($entry != "." && $entry != "..") {
-                    $filename = $dir . "/" . $entry;
+                if ($entry !== '.' && $entry !== '..') {
+                    $filename = $dir . '/' . $entry;
                     if (is_dir($filename)) {
                         $vars = listAll($filename);
                     } elseif (preg_match("/\.php$/", $entry)) {
@@ -6969,7 +7267,6 @@ function listAllWordsToTranslate() {
 }
 
 function secondsInterval($time1, $time2) {
-
     if (!is_numeric($time1)) {
         $time1 = strtotime($time1);
     }
@@ -6983,9 +7280,9 @@ function secondsInterval($time1, $time2) {
 function secondsIntervalHuman($time, $useDatabaseTime = true) {
     $dif = secondsIntervalFromNow($time, $useDatabaseTime);
     if ($dif < 0) {
-        return humanTimingAfterwards($time);
+        return humanTimingAfterwards($time, 0, $useDatabaseTime);
     } else {
-        return humanTimingAgo($time);
+        return humanTimingAgo($time, 0, $useDatabaseTime);
     }
 }
 
@@ -7000,10 +7297,13 @@ function isTimeForFuture($time, $useDatabaseTime = true) {
 
 function secondsIntervalFromNow($time, $useDatabaseTimeOrTimezoneString = true) {
     $timeNow = time();
+    //var_dump($time, $useDatabaseTimeOrTimezoneString);
     if (!empty($useDatabaseTimeOrTimezoneString)) {
         if (is_numeric($useDatabaseTimeOrTimezoneString) || is_bool($useDatabaseTimeOrTimezoneString)) {
+            //echo $time . '-' . __LINE__ . '=>';
             $timeNow = getDatabaseTime();
-        } else if (is_string($useDatabaseTimeOrTimezoneString)) {
+        } elseif (is_string($useDatabaseTimeOrTimezoneString)) {
+            //echo '-' . __LINE__ . PHP_EOL . PHP_EOL;
             $timeNow = getTimeInTimezone($timeNow, $useDatabaseTimeOrTimezoneString);
         }
     }
@@ -7041,7 +7341,7 @@ function idToHash($id) {
     global $global, $_idToHash;
 
     if (!isset($_idToHash)) {
-        $_idToHash = array();
+        $_idToHash = [];
     }
 
     if (!empty($_idToHash[$id])) {
@@ -7062,7 +7362,7 @@ function idToHash($id) {
     $hash = (@openssl_encrypt($idConverted, $cipher_algo, $global['salt']));
     //$hash = preg_replace('/^([+]+)/', '', $hash);
     $hash = preg_replace('/(=+)$/', '', $hash);
-    $hash = str_replace(array('/', '+', '='), array('_', '-', '.'), $hash);
+    $hash = str_replace(['/', '+', '='], ['_', '-', '.'], $hash);
     //return base64_encode($hash);
     $_idToHash[$id] = $hash;
     return $hash;
@@ -7078,7 +7378,7 @@ function hashToID($hash) {
         $cipher_algo = 'rc4';
     }
     //$hash = str_pad($hash,  4, "=");
-    $hash = str_replace(array('_', '-', '.'), array('/', '+', '='), $hash);
+    $hash = str_replace(['_', '-', '.'], ['/', '+', '='], $hash);
     //$hash = base64_decode($hash);
     $decrypt = openssl_decrypt(($hash), $cipher_algo, $global['salt']);
     $decrypt = base_convert($decrypt, $base, 10);
@@ -7115,7 +7415,7 @@ function getCDN($type = 'CDN', $id = 0) {
     global $advancedCustom, $global, $_getCDNURL;
     $index = $type . $id;
     if (!isset($_getCDNURL)) {
-        $_getCDNURL = array();
+        $_getCDNURL = [];
     }
     if (empty($_getCDNURL[$index])) {
         if (!empty($type) && AVideoPlugin::isEnabledByName('CDN')) {
@@ -7125,20 +7425,41 @@ function getCDN($type = 'CDN', $id = 0) {
     if ($type == 'CDN') {
         if (!empty($global['ignoreCDN'])) {
             return $global['webSiteRootURL'];
-        } else if (!empty($advancedCustom) && isValidURL($advancedCustom->videosCDN)) {
+        } elseif (!empty($advancedCustom) && isValidURL($advancedCustom->videosCDN)) {
             $_getCDNURL[$index] = addLastSlash($advancedCustom->videosCDN);
-        } else if (empty($_getCDNURL[$index])) {
+        } elseif (empty($_getCDNURL[$index])) {
             $_getCDNURL[$index] = $global['webSiteRootURL'];
         }
     }
-
     //var_dump($type, $id, $_getCDNURL[$index]);
     return empty($_getCDNURL[$index]) ? false : $_getCDNURL[$index];
 }
 
-function getURL($relativePath) {
+function getURL($relativePath, $ignoreCDN = false) {
     global $global;
-    return getCDN() . $relativePath . '?cache=' . (@filemtime("{$global['systemRootPath']}{$relativePath}") . (@filectime("{$global['systemRootPath']}{$relativePath}")));
+    $relativePath = str_replace('\\', '/', $relativePath);
+    if (!isset($_SESSION['user']['sessionCache']['getURL'])) {
+        $_SESSION['user']['sessionCache']['getURL'] = [];
+    }
+    if (!empty($_SESSION['user']['sessionCache']['getURL'][$relativePath])) {
+        return $_SESSION['user']['sessionCache']['getURL'][$relativePath];
+    }
+
+    $file = "{$global['systemRootPath']}{$relativePath}";
+    if (empty($ignoreCDN)) {
+        $url = getCDN() . $relativePath;
+    } else {
+        $url = $global['webSiteRootURL'] . $relativePath;
+    }
+    if (file_exists($file)) {
+        $cache = @filemtime($file) . '_' . @filectime($file);
+        $url = addQueryStringParameter($url, 'cache', $cache);
+        $_SESSION['user']['sessionCache']['getURL'][$relativePath] = $url;
+    } else {
+        $url = addQueryStringParameter($url, 'cache', 'not_found');
+    }
+
+    return $url;
 }
 
 function getCDNOrURL($url, $type = 'CDN', $id = 0) {
@@ -7171,14 +7492,15 @@ function isIPPrivate($ip) {
     $result = filter_var(
             $ip,
             FILTER_VALIDATE_IP,
-            FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+            FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+    );
     if (empty($result)) {
         return true;
     }
     return false;
 }
 
-function countDownPage($toTime, $message, $image, $bgImage) {
+function countDownPage($toTime, $message, $image, $bgImage, $title) {
     global $global;
     include $global['systemRootPath'] . 'objects/functionCountDownPage.php';
     exit;
@@ -7200,7 +7522,6 @@ function inputToRequest() {
 }
 
 function useVideoHashOrLogin() {
-
     if (!empty($_REQUEST['video_id_hash'])) {
         $videos_id = Video::getVideoIdFromHash($_REQUEST['video_id_hash']);
         if (!empty($videos_id)) {
@@ -7213,15 +7534,15 @@ function useVideoHashOrLogin() {
     return User::loginFromRequest();
 }
 
-function strip_specific_tags($string, $tags_to_strip = array("script")) {
+function strip_specific_tags($string, $tags_to_strip = ['script', 'style', 'iframe', 'object', 'applet', 'link']) {
     foreach ($tags_to_strip as $tag) {
-        $string = preg_replace('/<' . $tag . '[^>]*>(.*?)<\/' . $tag . '>/s', '', $string);
+        $string = preg_replace('/<' . $tag . '[^>]*>(.*?)<\/' . $tag . '>/s', '$1', $string);
     }
     return $string;
 }
 
 function strip_render_blocking_resources($string) {
-    $tags_to_strip = array('link', 'style');
+    $tags_to_strip = ['link', 'style'];
     $head = preg_match('/<head>(.*)<\/head>/s', $string, $matches);
     $string = str_replace($matches[0], '{_head_}', $string);
     foreach ($tags_to_strip as $tag) {
@@ -7352,15 +7673,15 @@ function number_format_short($n, $precision = 1) {
         // 0 - 900
         $n_format = number_format($n, $precision);
         $suffix = '';
-    } else if ($n < 900000) {
+    } elseif ($n < 900000) {
         // 0.9k-850k
         $n_format = number_format($n / 1000, $precision);
         $suffix = 'K';
-    } else if ($n < 900000000) {
+    } elseif ($n < 900000000) {
         // 0.9m-850m
         $n_format = number_format($n / 1000000, $precision);
         $suffix = 'M';
-    } else if ($n < 900000000000) {
+    } elseif ($n < 900000000000) {
         // 0.9b-850b
         $n_format = number_format($n / 1000000000, $precision);
         $suffix = 'B';
@@ -7387,7 +7708,7 @@ function seconds2human($ss) {
     $d = floor(($ss % 2592000) / 86400);
     $M = floor($ss / 2592000);
 
-    $times = array();
+    $times = [];
 
     if (!empty($M)) {
         $times[] = "$M " . __('m');
@@ -7408,6 +7729,12 @@ function seconds2human($ss) {
     return implode(', ', $times);
 }
 
+/**
+ * convert a time in a timezone into my time
+ * @param type $time
+ * @param type $timezone
+ * @return type
+ */
 function getTimeInTimezone($time, $timezone) {
     if (!is_numeric($time)) {
         $time = strtotime($time);
@@ -7424,14 +7751,14 @@ function getTimeInTimezone($time, $timezone) {
 
 function listFolderFiles($dir) {
     if (empty($dir)) {
-        return array();
+        return [];
     }
     $ffs = scandir($dir);
 
     unset($ffs[array_search('.', $ffs, true)]);
     unset($ffs[array_search('..', $ffs, true)]);
 
-    $files = array();
+    $files = [];
     // prevent empty ordered elements
     if (count($ffs) >= 1) {
         foreach ($ffs as $ff) {
@@ -7445,4 +7772,371 @@ function listFolderFiles($dir) {
         }
     }
     return $files;
+}
+
+function convertToMyTimezone($date, $fromTimezone) {
+    $time = getTimestampFromTimezone($date, $fromTimezone);
+    return date('Y-m-d H:i:s', $time);
+}
+
+function getTimestampFromTimezone($date, $fromTimezone) {
+    $date = new DateTime($date, new DateTimeZone($fromTimezone));
+    return $date->getTimestamp();
+}
+
+function getCSSAnimation($type = 'animate__flipInX', $loaderSequenceName = 'default', $delay = 0.1) {
+    global $_getCSSAnimationClassDelay;
+    getCSSAnimationClassAndStyleAddWait($delay, $loaderSequenceName);
+    return ['class' => 'animate__animated ' . $type, 'style' => "-webkit-animation-delay: {$_getCSSAnimationClassDelay[$loaderSequenceName]}s; animation-delay: {$_getCSSAnimationClassDelay[$loaderSequenceName]}s;"];
+}
+
+function getCSSAnimationClassAndStyleAddWait($delay, $loaderSequenceName = 'default') {
+    global $_getCSSAnimationClassDelay;
+    if (!isset($_getCSSAnimationClassDelay)) {
+        $_getCSSAnimationClassDelay = [];
+    }
+    if (empty($_getCSSAnimationClassDelay[$loaderSequenceName])) {
+        $_getCSSAnimationClassDelay[$loaderSequenceName] = 0;
+    }
+    $_getCSSAnimationClassDelay[$loaderSequenceName] += $delay;
+}
+
+function getCSSAnimationClassAndStyle($type = 'animate__flipInX', $loaderSequenceName = 'default', $delay = 0.1) {
+    $array = getCSSAnimation($type, $loaderSequenceName, $delay);
+    return "{$array['class']}\" style=\"{$array['style']}";
+}
+
+function isImage($file) {
+    [$width, $height, $type, $attr] = getimagesize($file);
+    if ($type == IMAGETYPE_PNG) {
+        return 'png';
+    }
+    if ($type == IMAGETYPE_JPEG) {
+        return 'jpg';
+    }
+    if ($type == IMAGETYPE_GIF) {
+        return 'gif';
+    }
+    return false;
+}
+
+function isHTMLEmpty($html_string) {
+    $html_string_no_tags = strip_specific_tags($html_string, ['br', 'p', 'span', 'div']);
+    //var_dump($html_string_no_tags, $html_string);
+    return empty(trim(str_replace(array("\r", "\n"), array('', ''), $html_string_no_tags)));
+}
+
+function emptyHTML($html_string) {
+    return isHTMLEmpty($html_string);
+}
+
+function totalImageColors($image_path) {
+    $img = imagecreatefromjpeg($image_path);
+    $w = imagesx($img);
+    $h = imagesy($img);
+
+    // capture the raw data of the image
+    _ob_start();
+    imagegd2($img, null, $w);
+    $data = _ob_get_clean();
+    $totalLength = strlen($data);
+
+    // calculate the length of the actual pixel data
+    // from that we can derive the header size
+    $pixelDataLength = $w * $h * 4;
+    $headerLength = $totalLength - $pixelDataLength;
+
+    // use each four-byte segment as the key to a hash table
+    $counts = [];
+    for ($i = $headerLength; $i < $totalLength; $i += 4) {
+        $pixel = substr($data, $i, 4);
+        $count = & $counts[$pixel];
+        $count += 1;
+    }
+    $colorCount = count($counts);
+    return $colorCount;
+}
+
+function isImageCorrupted($image_path) {
+    $fsize = filesize($image_path);
+    if (strpos($image_path, 'thumbsSmall') !== false) {
+        if ($fsize < 1000) {
+            return true;
+        }
+    } else {
+        if ($fsize < 2000) {
+            return true;
+        }
+    }
+
+    if (totalImageColors($image_path) === 1) {
+        return true;
+    }
+
+    if (!isGoodImage($image_path)) {
+        return true;
+    }
+    return false;
+}
+
+// detect partial grey immages
+function isGoodImage($fn) {
+    [$w, $h] = getimagesize($fn);
+    $im = imagecreatefromstring(file_get_contents($fn));
+    $grey = 0;
+    for ($i = 0; $i < 5; ++$i) {
+        for ($j = 0; $j < 5; ++$j) {
+            $x = $w - 5 + $i;
+            $y = $h - 5 + $j;
+            [$r, $g, $b] = array_values(imagecolorsforindex($im, imagecolorat($im, $x, $y)));
+            if ($r == $g && $g == $b && $b == 128) {
+                ++$grey;
+            }
+        }
+    }
+    return $grey < 12;
+}
+
+function defaultIsPortrait() {
+    global $_defaultIsPortrait;
+
+    if (!isset($_defaultIsPortrait)) {
+        $_defaultIsPortrait = false;
+        if ($obj = AVideoPlugin::getDataObjectIfEnabled('YouPHPFlix2') && empty($obj->landscapePosters)) {
+            $_defaultIsPortrait = true;
+        }
+    }
+
+    return $_defaultIsPortrait;
+}
+
+function isDummyFile($filePath) {
+    global $_isDummyFile;
+
+    if (!isset($_isDummyFile)) {
+        $_isDummyFile = array();
+    }
+    if (isset($_isDummyFile[$filePath])) {
+        return $_isDummyFile[$filePath];
+    }
+
+    $return = false;
+
+    if (file_exists($filePath)) {
+        $fileSize = filesize($filePath);
+        if ($fileSize > 5 && $fileSize < 20) {
+            $return = true;
+        } else
+        if ($fileSize < 100) {
+            $return = preg_match("/Dummy File/i", file_get_contents($filePath));
+        }
+    }
+    $_isDummyFile[$filePath] = $return;
+    return $return;
+}
+
+function forbiddenPageIfCannotEmbed($videos_id) {
+    global $customizedAdvanced, $advancedCustomUser, $global;
+    if (empty($customizedAdvanced)) {
+        $customizedAdvanced = AVideoPlugin::getObjectDataIfEnabled('CustomizeAdvanced');
+    }
+    if (empty($advancedCustomUser)) {
+        $customizedAdvanced = AVideoPlugin::getObjectDataIfEnabled('CustomizeUser');
+    }
+    if (!isAVideoMobileApp()) {
+        if (!isSameDomain(@$_SERVER['HTTP_REFERER'], $global['webSiteRootURL'])) {
+            if (!empty($advancedCustomUser->blockEmbedFromSharedVideos) && !CustomizeUser::canShareVideosFromVideo($videos_id)) {
+                $reason = array();
+                if (!empty($advancedCustomUser->blockEmbedFromSharedVideos)) {
+                    error_log("forbiddenPageIfCannotEmbed: Embed is forbidden: \$advancedCustomUser->blockEmbedFromSharedVideos");
+                    $reason[] = __('Admin block video sharing');
+                }
+                if (!CustomizeUser::canShareVideosFromVideo($videos_id)) {
+                    error_log("forbiddenPageIfCannotEmbed: Embed is forbidden: !CustomizeUser::canShareVideosFromVideo(\$video['id'])");
+                    $reason[] = __('User block video sharing');
+                }
+                forbiddenPage("Embed is forbidden " . implode('<br>', $reason));
+            }
+        }
+
+        $objSecure = AVideoPlugin::loadPluginIfEnabled('SecureVideosDirectory');
+        if (!empty($objSecure)) {
+            $objSecure->verifyEmbedSecurity();
+        }
+    }
+}
+
+function getMediaSessionPosters($imagePath) {
+    global $global;
+    if (empty($imagePath)) {
+        return false;
+    }
+    $sizes = array(96, 128, 192, 256, 384, 512);
+
+    $posters = array();
+
+    foreach ($sizes as $value) {
+        $destination = str_replace('.jpg', "_{$value}.jpg", $imagePath);
+        $path = convertImageIfNotExists($imagePath, $destination, $value, $value);
+        if (!empty($path)) {
+            $convertedImage = convertImageIfNotExists($imagePath, $destination, $value, $value);
+            $relativePath = str_replace($global['systemRootPath'], '', $convertedImage);
+            $url = getURL($relativePath);
+            $posters[$value] = array('path' => $path, 'relativePath' => $relativePath, 'url' => $url);
+        }
+    }
+    return $posters;
+}
+
+function deleteMediaSessionPosters($imagePath) {
+    if (empty($imagePath)) {
+        return false;
+    }
+    $sizes = array(96, 128, 192, 256, 384, 512);
+
+    foreach ($sizes as $value) {
+        $destination = str_replace('.jpg', "_{$value}.jpg", $imagePath);
+        @unlink($destination);
+    }
+}
+
+function getMediaSession() {
+    $MediaMetadata = false;
+    $videos_id = getVideos_id();
+    if ($liveLink = isLiveLink()) {
+        $MediaMetadata = LiveLinks::getMediaSession($liveLink);
+    } else if ($live = isLive()) {
+        $MediaMetadata = Live::getMediaSession($live['key'], $live['live_servers_id'], @$live['live_schedule_id']);
+    } else if (!empty($videos_id)) {
+        if (!empty($videos_id)) {
+            $MediaMetadata = Video::getMediaSession($videos_id);
+        } else {
+            echo '<!-- mediaSession videos id is empty -->';
+        }
+    } else if (!empty($_REQUEST['videos_id'])) {
+        $MediaMetadata = Video::getMediaSession($_REQUEST['videos_id']);
+    } else if (!empty($_REQUEST['key'])) {
+        $MediaMetadata = Live::getMediaSession($_REQUEST['key'], @$_REQUEST['live_servers_id'], @$_REQUEST['live_schedule_id']);
+    }
+    return $MediaMetadata;
+}
+
+function _ob_start($force = false) {
+    global $global;
+    if (!isset($global['ob_start_callback'])) {
+        $global['ob_start_callback'] = 'ob_gzhandler';
+    } else {
+        if (empty($global['ob_start_callback'])) {
+            $global['ob_start_callback'] = null;
+        }
+    }
+    if (!empty($global['ob_start_callback']) && empty($force) && ob_get_level()) {
+        return false;
+    }
+    ob_start($global['ob_start_callback']);
+}
+
+/**
+ *
+  clear  return  send    stop
+  ob_clean          x
+  ob_end_clean      x                      x
+  ob_end_flush                      x      x
+  ob_flush                          x
+  ob_get_clean      x        x             x  // should be called ob_get_end_clean
+  ob_get_contents            x
+  ob_get_flush               x      x
+ */
+function _ob_get_clean() {
+    $content = ob_get_contents();
+    _ob_end_clean();
+    _ob_start();
+    return $content;
+}
+
+function getIncludeFileContent($filePath, $varsArray = array()) {
+    global $global, $config;
+    if (!empty($global['getIncludeFileContent'])) {
+        return getIncludeFileContentV2($filePath, $varsArray);
+    } else {
+        return getIncludeFileContentV1($filePath, $varsArray);
+    }
+}
+
+function getIncludeFileContentV1($filePath, $varsArray = array()) {
+    global $global, $config;
+    foreach ($varsArray as $key => $value) {
+        $$key = $value;
+    }
+    /*
+      if(doesPHPVersioHasOBBug()){
+      include $filePath;
+      return '';
+      }
+     */
+
+    _ob_start();
+    if (!ob_get_level()) {
+        _ob_start(true);
+    }
+    if (!ob_get_level()) {
+        include $filePath;
+        return '';
+    }
+    $__out = _ob_get_clean();
+    if (!ob_get_level()) {
+        echo $__out;
+        include $filePath;
+        return '';
+    }
+    //_ob_start();
+    $basename = basename($filePath);
+    $return = "<!-- {$basename} start -->";
+    include $filePath;
+    _ob_start();
+    $returnOB = _ob_get_clean();
+    $return .= "{$returnOB}<!-- {$basename} end -->";
+    echo $__out;
+    return $return;
+}
+
+function getIncludeFileContentV2($filePath, $varsArray = array()) {
+    global $global, $config;
+    foreach ($varsArray as $key => $value) {
+        $$key = $value;
+    }
+    _ob_start();
+    $__out = ob_get_contents();
+    ob_clean();
+    $basename = basename($filePath);
+    $return = "<!-- {$basename} start -->";
+    include $filePath;
+    _ob_start();
+    $return .= ob_get_contents();
+    $return .= "<!-- {$basename} end -->";
+    ob_clean();
+    echo $__out;
+    return $return;
+}
+
+//https://github.com/php/php-src/issues/8218
+function doesPHPVersioHasOBBug() {
+    if (version_compare(phpversion(), "8.1.4", "==")) {
+        return true;
+    } else if (version_compare(phpversion(), "8.0.17", "==")) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+//https://github.com/php/php-src/issues/8218#issuecomment-1072439915
+function _ob_end_clean() {
+    ob_end_clean();
+    header_remove("Content-Encoding");
+    /*
+      if(!doesPHPVersioHasOBBug()){
+      header_remove("Content-Encoding");
+      }
+     */
 }
