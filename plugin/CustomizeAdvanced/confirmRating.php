@@ -8,20 +8,22 @@ if (!empty($images->posterPortrait) && strpos($images->posterPortrait, 'notfound
 }
 $imgw = 1280;
 $imgh = 720;
+$metaDescription = $title = getSEOTitle($video['title']);
+$ogURL = Video::getLinkToVideo($video['id'], $video['clean_title'], false,false);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
-        <title><?php echo __("Confirm Rating") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
+        <title><?php echo __("Confirm Rating") . $config->getPageTitleSeparator() . $title; ?></title>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
         <link rel="image_src" href="<?php echo $img; ?>" />
         <meta property="fb:app_id"             content="774958212660408" />
-        <meta property="og:url"                content="<?php echo $global['webSiteRootURL'], "video/", $video['clean_title']; ?>" />
+        <meta property="og:url"                content="<?php echo $ogURL; ?>" />
         <meta property="og:type"               content="video.other" />
-        <meta property="og:title"              content="<?php echo str_replace('"', '', $video['title']); ?> - <?php echo $config->getWebSiteTitle(); ?>" />
-        <meta property="og:description"        content="<?php echo!empty($custom) ? $custom : str_replace('"', '', $video['title']); ?>" />
+        <meta property="og:title"              content="<?php echo getSEOTitle($video['title']); ?>" />
+        <meta property="og:description"        content="<?php echo getSEODescription(!empty($custom) ? $custom : $video['title']); ?>" />
         <meta property="og:image"              content="<?php echo $img; ?>" />
         <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
         <meta property="og:image:height"       content="<?php echo $imgh; ?>" />

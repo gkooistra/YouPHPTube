@@ -54,3 +54,16 @@ th:hover, .select2-dropdown{
 .btn-default.no-outline:hover{
     color: #AAA !important;
 }
+
+.gallery .title, .videosDetails .title {
+    max-height: 40px !important;
+}
+
+.hamburger svg *{
+    stroke: #FFF;
+}
+span.selection > span.select2-selection--single{
+    color: #ffffff;
+    background-color: #424242;
+    border-color: #424242;
+}

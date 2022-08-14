@@ -20,9 +20,9 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
 
-        <title><?php echo $config->getWebSiteTitle(); ?></title>
+        <title><?php  if(!empty($_GET['catName'])){echo $_GET['catName'].' - ';}; echo $config->getWebSiteTitle(); ?></title>
     </head>
-    <body class="<?php echo $global['bodyClass']; ?>">
+    <body class="<?php echo $global['bodyClass']; ?>" style="overflow-x: hidden;">
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
 
         <div class="container-fluid nopadding flickity-area" id="mainContainer" style="display:none;">

@@ -3,17 +3,36 @@
     if (!empty($currentCat)) {
         include $global['systemRootPath'] . 'plugin/Gallery/view/Category.php';
     }
-
-    if ($obj->searchOnChannels && !empty($_GET['search'])) {
-        $channels = User::getAllUsers(true);
-        //cleanSearchVar();
-        foreach ($channels as $value) {
-            $contentSearchFound = true;
-            createChannelItem($value['id'], $value['photoURL'], $value['identification']);
+    $obj = AVideoPlugin::getObjectData("Gallery");
+    if ($obj->searchOnChannels) {
+        if (!empty($_REQUEST['search'])) {
+            $users_id_array = VideoStatistic::getUsersIDFromChannelsWithMoreViews();
+            $channels = Channel::getChannels(true, "u.id, '" . implode(",", $users_id_array) . "'");
+            if (!empty($channels)) {
+                ?>
+                <div id="channelsResults" class="clear clearfix">
+                    <h3 class="galleryTitle"> <i class="fas fa-user"></i> <?php echo __('Channels'); ?></h3>
+                    <div class="row">
+                        <?php
+                        $search = $_REQUEST['search'];
+                        clearSearch();
+                        foreach ($channels as $value) {
+                            echo '<div class="col-sm-12">';
+                            User::getChannelPanel($value['id']);
+                            echo '</div>';
+                        }
+                        reloadSearch();
+                        ?>
+                    </div>
+                </div>
+                <?php
+                global $contentSearchFound;
+                $contentSearchFound = true;
+            }
         }
-        //reloadSearchVar();
     }
     if (!empty($video)) {
+        global $contentSearchFound;
         $contentSearchFound = true;
         $img_portrait = ($video['rotation'] === "90" || $video['rotation'] === "270") ? "img-portrait" : "";
         if (empty($_GET['search'])) {
@@ -22,19 +41,21 @@
         echo '<center style="margin:5px;">' . getAdsLeaderBoardTop2() . '</center>';
         if (empty($_GET['catName'])) {
             $objLive = AVideoPlugin::getDataObject('Live');
-            ?>
-            <!-- For Live Videos -->
-            <div id="liveVideos" class="clear clearfix" style="display: none;">
-                <h3 class="galleryTitle text-danger"> <i class="fas fa-play-circle"></i> <?php echo __("Live"); ?></h3>
-                <div class="extraVideos"></div>
-            </div>
-            <!-- For Live Schedule Videos -->
-            <div id="liveScheduleVideos" class="clear clearfix" style="display: none;">
-                <h3 class="galleryTitle"> <i class="far fa-calendar-alt"></i> <?php echo __($objLive->live_schedule_label); ?></h3>
-                <div class="extraVideos"></div>
-            </div>
-            <!-- For Live Videos End -->
-            <?php
+            if (empty($objLive->doNotShowLiveOnVideosList)) {
+                ?>
+                <!-- For Live Videos -->
+                <div id="liveVideos" class="clear clearfix" style="display: none;">
+                    <h3 class="galleryTitle text-danger"> <i class="fas fa-play-circle"></i> <?php echo __("Live"); ?></h3>
+                    <div class="extraVideos"></div>
+                </div>
+                <!-- For Live Schedule Videos -->
+                <div id="liveScheduleVideos" class="clear clearfix" style="display: none;">
+                    <h3 class="galleryTitle"> <i class="far fa-calendar-alt"></i> <?php echo __($objLive->live_schedule_label); ?></h3>
+                    <div class="extraVideos"></div>
+                </div>
+                <!-- For Live Videos End -->
+                <?php
+            }
         }
         echo AVideoPlugin::getGallerySection();
 
@@ -51,6 +72,10 @@
                     continue;
                 }
                 $countSections++;
+                if(preg_match('/Channel_([0-9]+)_/', $value['name'], $matches)){
+                    $users_id = intval($matches[1]);
+                    User::getChannelPanel($users_id);
+                } else
                 if ($value['name'] == 'Suggested') {
                     createGallery(!empty($obj->SuggestedCustomTitle) ? $obj->SuggestedCustomTitle : __("Suggested"), 'suggested', $obj->SuggestedRowCount, 'SuggestedOrder', "", "", $orderString, "ASC", !$obj->hidePrivateVideos, "fas fa-star");
                 } else
@@ -63,6 +88,9 @@
                 if ($value['name'] == 'DateAdded' && empty($_GET['catName'])) {
                     createGallery(!empty($obj->DateAddedCustomTitle) ? $obj->DateAddedCustomTitle : __("Date added"), 'created', $obj->DateAddedRowCount, 'dateAddedOrder', __("newest"), __("oldest"), $orderString, "DESC", !$obj->hidePrivateVideos, "far fa-calendar-alt");
                 } else
+                if ($value['name'] == 'PrivateContent') {
+                    createGallery(!empty($obj->PrivateContentCustomTitle) ? $obj->PrivateContentCustomTitle : __("Private Content"), 'created', $obj->PrivateContentRowCount, 'privateContentOrder', __("Most"), __("Fewest"), $orderString, "DESC", true, "fas fa-lock");
+                } else
                 if ($value['name'] == 'MostWatched') {
                     createGallery(!empty($obj->MostWatchedCustomTitle) ? $obj->MostWatchedCustomTitle : __("Most watched"), 'views_count', $obj->MostWatchedRowCount, 'mostWatchedOrder', __("Most"), __("Fewest"), $orderString, "DESC", !$obj->hidePrivateVideos, "far fa-eye");
                 } else
@@ -73,16 +101,16 @@
                     include $global['systemRootPath'] . 'plugin/Gallery/view/mainAreaChannels.php';
                 } else
                 if ($value['name'] == 'Categories' && empty($_GET['showOnly'])) {
-                    if(empty($currentCat) && !empty(getSearchVar())){
+                    if (empty($currentCat) && !empty(getSearchVar())) {
                         $onlySuggested = $obj->CategoriesShowOnlySuggested;
                         cleanSearchVar();
                         $categories = Category::getAllCategories(false, true, $onlySuggested);
-                        reloadSearchVar(); 
+                        reloadSearchVar();
                         foreach ($categories as $value) {
                             $currentCat = $value['clean_name'];
                             include $global['systemRootPath'] . 'plugin/Gallery/view/modeGalleryCategory.php';
                         }
-                    }else{
+                    } else {
                         include $global['systemRootPath'] . 'plugin/Gallery/view/modeGalleryCategory.php';
                     }
                 }
@@ -94,20 +122,21 @@
         }
     } else {
         include $global['systemRootPath'] . 'plugin/Gallery/view/modeGalleryCategoryLive.php';
-        $ob = ob_get_clean();
-        ob_start();
+        $ob = _ob_get_clean();
+        _ob_start();
         echo AVideoPlugin::getGallerySection();
-        $ob2 = ob_get_clean();
+        $ob2 = _ob_get_clean();
         echo $ob;
+        global $contentSearchFound;
         if (empty($contentSearchFound) && empty($ob2)) {
-            $contentSearchFound = false;
+            //$contentSearchFound = false;
         } else {
             $contentSearchFound = true;
         }
     }
 
-
-    if (!$contentSearchFound) {
+    global $contentSearchFound;
+    if (empty($contentSearchFound)) {
         _session_start();
         unset($_SESSION['type']);
         ?>
@@ -116,9 +145,13 @@
                 <span class="glyphicon glyphicon-facetime-video"></span>
                 <?php echo __("Warning"); ?>!
             </h1>
+            <!-- <?php echo basename(__FILE__); ?> -->
             <?php echo __("We have not found any videos or audios to show"); ?>.
         </div>
         <?php
+        _error_log('contentSearchFound NOT FOUND '. json_encode(debug_backtrace()));
+        _error_log('contentSearchFound NOT FOUND LAST SQL '. $debugLastGetVideoSQL);
+        _error_log('contentSearchFound NOT FOUND LAST TOTAL SQL '. $lastGetTotalVideos);
         include $global['systemRootPath'] . 'view/include/notfound.php';
     }
     ?>

@@ -1,16 +1,19 @@
-<?php
-if(empty($streamName)){
+<?php 
+if (empty($streamName)) {
     $live = isLive();
     $streamName = $live['key'];
     $live_servers_id = $live['live_servers_id'];
-}else{
+} else {
     $live_servers_id = Live::getCurrentLiveServersId();
+}
+if(empty($streamName)){
+    //return false;
 }
 $liveViewStatusID = str_replace('-', '_', "liveViewStatusID_{$streamName}_{$live_servers_id}");
 $liveViewStatusClass = "liveViewStatusClass liveViewStatusClass_{$streamName} liveViewStatusClass_{$streamName}_{$live_servers_id}";
 
 $liveObj = AVideoPlugin::getObjectData('Live');
-if($liveObj->doNotShowOnlineOfflineLabel){
+if ($liveObj->doNotShowOnlineOfflineLabel) {
     $liveViewStatusClass .= ' hidden';
 }
 if (isLiveLink() || Live::isLiveAndIsReadyFromKey($streamName, $live_servers_id, @$live['live_index'])) {
@@ -19,9 +22,54 @@ if (isLiveLink() || Live::isLiveAndIsReadyFromKey($streamName, $live_servers_id,
     echo "<span class='label label-danger liveOnlineLabel {$liveViewStatusClass}' id='{$liveViewStatusID}'>OFFLINE</span>";
 }
 ?>
-
+<script src="<?php echo getURL('plugin/Live/view/live.js');?>" type="text/javascript"></script>
 <script>
 
+        function socketLiveONCallback(json) {
+            if (typeof onlineLabelOnline == 'function') {
+                selector = '#liveViewStatusID_' + json.key + '_' + json.live_servers_id;
+                onlineLabelOnline(selector);
+                selector = '.liveViewStatusClass_' + json.key + '_' + json.live_servers_id;
+                onlineLabelOnline(selector);
+                selector = '.liveViewStatusClass_' + json.cleanKey;
+                ////console.log('socketLiveOFFCallback 3', selector);
+                onlineLabelOnline(selector);
+            }
+
+            // update the chat if the history changes
+            var IframeClass = ".yptchat2IframeClass_" + json.key + "_" + json.live_servers_id;
+            if ($(IframeClass).length) {
+                var src = $(IframeClass).attr('src');
+                if (src) {
+                    avideoToast('Loading new chat');
+                    var newSRC = addGetParam(src, 'live_transmitions_history_id', json.live_transmitions_history_id);
+                    $(IframeClass).attr('src', newSRC);
+                }
+            }
+            if(isInLive(json)){
+                playerPlay();
+                showImage('prerollPoster', json.cleanKey);
+            }
+        }
+        function socketLiveOFFCallback(json) {
+            if (typeof onlineLabelOffline == 'function') {
+                selector = '#liveViewStatusID_' + json.key + '_' + json.live_servers_id;
+                ////console.log('socketLiveOFFCallback 2', selector);
+                onlineLabelOffline(selector);
+                selector = '.liveViewStatusClass_' + json.key + '_' + json.live_servers_id;
+                ////console.log('socketLiveOFFCallback 3', selector);
+                onlineLabelOffline(selector);
+                selector = '.liveViewStatusClass_' + json.cleanKey;
+                ////console.log('socketLiveOFFCallback 3', selector);
+                onlineLabelOffline(selector);
+            }
+            
+            if(isInLive(json)){
+                showImage('postrollPoster', json.cleanKey);
+            }
+        }
+        
+        
     function isOfflineVideo() {
 <?php
 if (isMobile()) {
@@ -29,7 +77,7 @@ if (isMobile()) {
             return !$('#<?php echo $liveViewStatusID; ?>').hasClass('isOnline');
     <?php
 } else {
-    ?>
+        ?>
             if (player.readyState()) {
                 if (typeof player.tech_ !== 'undefined') {
                     var uri = player.tech_.hls.selectPlaylist().uri;
@@ -49,7 +97,7 @@ if (isMobile()) {
                 console.log("isOfflineVideo player.readyState not ready", player.readyState());
             }
     <?php
-}
+    }
 ?>
         return true;
     }
@@ -154,9 +202,6 @@ if (isMobile()) {
             data: {"name": "<?php echo $streamName; ?>"},
             type: 'post',
             success: function (response) {
-                if (avideoSocketIsActive()) {
-                    return false;
-                }
                 if (response.name == "<?php echo $streamName; ?>") {
                     if (response.msg === "ONLINE") {
                         isOnlineLabel = true;
@@ -168,12 +213,15 @@ if (isMobile()) {
                     playCorrectSource<?php echo $liveViewStatusID; ?>();
                     $('.liveViewCount').text(" " + response.nclients);
                     $('#<?php echo $liveViewStatusID; ?>').text(response.msg);
-                    $('#onlineApplications').text(response.applications.lenght);
+                    $('.onlineApplications').text($('#availableLiveStream > div').length);
                     timeout = 15000;
                 }
-                setTimeout(function () {
-                    getStats<?php echo $liveViewStatusID; ?>();
-                }, timeout);
+                
+                if (!avideoSocketIsActive()) {
+                    setTimeout(function () {
+                        getStats<?php echo $liveViewStatusID; ?>();
+                    }, timeout);
+                }
             }
         });
     }

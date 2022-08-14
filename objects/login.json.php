@@ -29,15 +29,13 @@ require_once $global['systemRootPath'] . 'objects/category.php';
 
 Category::clearCacheCount();
 TimeLogEnd($timeLog, __LINE__);
-_error_log("Start Login Request");
 
-_error_log("redirectUri: " . $_POST['redirectUri']);
-
-if (!preg_match("|^" . $global['webSiteRootURL'] . "|", $_POST['redirectUri'])) {
+if(!isSameDomain($global['webSiteRootURL'], $_POST['redirectUri'])){
     $_POST['redirectUri'] = $global['webSiteRootURL'];
 }
+_error_log("Start Login Request redirectUri=" . $_POST['redirectUri']);
 
-_error_log("same redirectUri: " . $_POST['redirectUri']);
+//User::logoff();
 
 use Hybridauth\Hybridauth;
 use Hybridauth\HttpClient;
@@ -62,11 +60,11 @@ if (!empty($_GET['type'])) {
                         "id" => trim($obj->id),
                         "team_id" => trim($obj->team_id),
                         "key_id" => trim($obj->key_id),
-                        "key_content" => trim($obj->key_content->value)
+                        "key_content" => trim($obj->key_content->value),
                     ],
                     "scope" => "name email",
-                    "verifyTokenSignature" => true
-                ]
+                    "verifyTokenSignature" => true,
+                ],
             ],
                 /* optional : set debug mode
                   'debug_mode' => true,
@@ -76,6 +74,10 @@ if (!empty($_GET['type'])) {
     } else {
         $login = AVideoPlugin::getLogin();
         foreach ($login as $value) {
+            if(!is_object($value['loginObject'])){
+                _error_log('Error on getLogin: '. json_encode($value), AVideoLog::$ERROR);
+                continue;
+            }
             $obj = $value['loginObject']->getDataObject();
             if ($value['parameters']->type === $_GET['type']) {
                 $id = $obj->id;
@@ -84,7 +86,7 @@ if (!empty($_GET['type'])) {
             }
         }
         if (empty($id)) {
-            die(sprintf(__("%s ERROR: You must set a ID on config"), $_GET['type']));
+            die(sprintf(__("%s ERROR: You must set an ID on config"), $_GET['type']));
         }
 
         if (empty($key)) {
@@ -106,8 +108,8 @@ if (!empty($_GET['type'])) {
                     'keys' => ['id' => $id, 'secret' => $key, 'key' => $id],
                     "includeEmail" => true,
                     'scope' => $scope,
-                    'trustForwarded' => false
-                ]
+                    'trustForwarded' => false,
+                ],
             ],
                 /* optional : set debug mode
                   'debug_mode' => true,
@@ -144,7 +146,7 @@ if (!empty($_GET['type'])) {
             _session_start();
             $location = $_SESSION['redirectUri'];
             //header("Location: {$_SESSION['redirectUri']}");
-            $_SESSION['redirectUri'] = "";
+            $_SESSION['redirectUri'] = '';
             unset($_SESSION['redirectUri']);
         } else {
             $location = $global['webSiteRootURL'];
@@ -155,11 +157,10 @@ if (!empty($_GET['type'])) {
         //header("Location: {$global['webSiteRootURL']}user?error=" . urlencode($e->getMessage()));
         //echo $e->getMessage();
     }
-    if(!isSameDomainAsMyAVideo($location)){
-       $location = $global['webSiteRootURL'];
+    if (!isSameDomainAsMyAVideo($location)) {
+        $location = $global['webSiteRootURL'];
     }
-    header('Content-Type: text/html');
-    ?>
+    header('Content-Type: text/html'); ?>
     <script>
         window.opener = self;
         if (window.name == 'loginYPT') {
@@ -196,13 +197,14 @@ if (empty($_POST['user']) || empty($_POST['pass'])) {
 $user = new User(0, $_POST['user'], $_POST['pass']);
 
 _error_log("login.json.php trying to login");
+_session_start();
 $resp = $user->login(false, @$_POST['encodedPass']);
 _error_log("login.json.php login respond something");
 TimeLogEnd($timeLog, __LINE__);
 $object->isCaptchaNeed = User::isCaptchaNeed();
 if ($resp === User::USER_NOT_VERIFIED) {
     _error_log("login.json.php User not verified");
-    $object->error = __("Your user is not verified, we sent you a new e-mail");
+    $object->error = __("Please verify your email address");
     die(json_encode($object));
 }
 
@@ -236,6 +238,7 @@ $object->isLogged = User::isLogged();
 $object->isAdmin = User::isAdmin();
 $object->canUpload = User::canUpload();
 $object->canComment = User::canComment();
+$object->canMeet = AVideoPlugin::isEnabledByName('Meet');
 $object->canCreateCategory = Category::canCreateCategory();
 $object->theme = getCurrentTheme();
 $object->canStream = User::canStream();
@@ -265,14 +268,14 @@ if (empty($advancedCustomUser->userCanNotChangeCategory) || User::isAdmin()) {
         array_multisort(array_column($object->categories, 'hierarchyAndName'), SORT_ASC, $object->categories);
     }
 } else {
-    $object->categories = array();
+    $object->categories = [];
 }
 //_error_log("login.json.php get user groups");
 TimeLogEnd($timeLog, __LINE__);
 $object->userGroups = UserGroups::getAllUsersGroups();
 TimeLogEnd($timeLog, __LINE__);
-$object->streamServerURL = "";
-$object->streamKey = "";
+$object->streamServerURL = '';
+$object->streamKey = '';
 if ($object->isLogged) {
     $timeLog2 = __FILE__ . "::Is Logged ";
     TimeLogStart($timeLog2);
@@ -329,5 +332,7 @@ TimeLogEnd($timeLog, __LINE__);
 $json = _json_encode($object);
 //_error_log("login.json.php complete");
 //header("Content-length: " . strlen($json));
-_error_log('login.json.php is done');
+_error_log('login.json.php is done '.User::getId());
+session_write_close();
 echo $json;
+exit;

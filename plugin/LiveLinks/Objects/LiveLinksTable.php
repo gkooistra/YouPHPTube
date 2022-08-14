@@ -52,7 +52,7 @@ class LiveLinksTable extends ObjectYPT {
     }
 
     function getLink() {
-        return $this->link;
+        return str_replace('&amp;', '&', $this->link);
     }
 
     function getStart_date() {
@@ -135,6 +135,7 @@ class LiveLinksTable extends ObjectYPT {
         if ($res != false) {
             foreach ($fullData as $row) {
                 $row['user_groups'] = self::getUserGorups($row['id']);
+                $row['link'] = str_replace('&amp;', '&', $row['link']);
                 $rows[] = $row;
             }
         } else {
@@ -143,7 +144,7 @@ class LiveLinksTable extends ObjectYPT {
         return $rows;
     }
     
-    public function userGroupsMatch($livelinks_id, $users_id=0){
+    static public function userGroupsMatch($livelinks_id, $users_id=0){
         $user_groups = self::getUserGorups($livelinks_id);
         $user_groups_ids = array();
         foreach ($user_groups as $value) {
@@ -194,6 +195,11 @@ class LiveLinksTable extends ObjectYPT {
             return false;
         }
         
+        if(empty($this->id)){
+            _error_log("Id for table " . static::getTableName() . " not defined for add", AVideoLog::$ERROR);
+            return false;
+        }
+        
         if(!is_array($usergroups_ids)){
             $usergroups_ids = array($usergroups_ids);
         }
@@ -202,7 +208,6 @@ class LiveLinksTable extends ObjectYPT {
             sqlDAL::writeSql($sql, "ii", array($this->id, $value));
         }
         
-        _error_log("Id for table " . static::getTableName() . " not defined for deletion", AVideoLog::$ERROR);
         return true;
     }
     

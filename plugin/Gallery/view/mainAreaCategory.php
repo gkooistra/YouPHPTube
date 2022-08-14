@@ -14,6 +14,14 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
     $_GET['catName'] = $currentCat['clean_name'];
     $_REQUEST['rowCount'] = $obj->CategoriesRowCount * 3;
     $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos);
+    global $contentSearchFound;
+    if(empty($contentSearchFound)){
+        $contentSearchFound = !empty($videos);
+    }
+    $liveVideos = getLiveVideosFromCategory($currentCat['id']);
+    if(!empty($liveVideos)){
+        $videos = array_merge($liveVideos, $videos);
+    }
     if (!empty($videos)) {
         ?>
         <div class="clear clearfix" id="Div<?php echo $currentCat['clean_name']; ?>">
@@ -25,7 +33,7 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
                         <i class="<?php echo $currentCat['iconClass']; ?>"></i> <?php echo $currentCat['name']; ?>
                     </a>
                     <?php
-                    if (!empty($currentCat['description'])) {
+                    if (!isHTMLEmpty($currentCat['description'])) {
                         $duid = uniqid();
                         $titleAlert = str_replace(array('"', "'"), array('``', "`"), $currentCat['name']);
                         ?>

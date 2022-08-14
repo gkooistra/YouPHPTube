@@ -4,17 +4,17 @@ if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 
-if(empty($_REQUEST['users_id'])){
+if (empty($_REQUEST['users_id'])) {
     forbiddenPage('Invalid users_id');
 }
 
-if(!User::isLogged()){
+if (!User::isLogged()) {
     gotToLoginAndComeBackHere('');
 }
 
 $row = Subscribe::getSubscribeFromID(User::getId(), $_REQUEST['users_id'], '');
 
-if(empty($row)){
+if (empty($row)) {
     forbiddenPage('Invalid subscription');
 }
 
@@ -46,8 +46,8 @@ $subscribe->save();
                     ?>
                 </div>
                 <div class="panel-body">
-                    <h1><?php echo __("You’ve unsubscribed"); ?></h1>
-                    <?php echo __(" You’ll no longer receive emails from us"); ?>
+                    <h1><?php echo __("You've unsubscribed"); ?></h1>
+                    <?php echo __(" You'll no longer receive emails from us"); ?>
                 </div>
             </div>
 

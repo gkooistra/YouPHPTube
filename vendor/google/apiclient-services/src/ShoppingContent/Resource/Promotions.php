@@ -31,8 +31,7 @@ class Promotions extends \Google\Service\Resource
 {
   /**
    * Inserts a promotion for your Merchant Center account. If the promotion
-   * already exists, then it will update the promotion instead.
-   * (promotions.create)
+   * already exists, then it updates the promotion instead. (promotions.create)
    *
    * @param string $merchantId Required. The ID of the account that contains the
    * collection.
@@ -45,6 +44,21 @@ class Promotions extends \Google\Service\Resource
     $params = ['merchantId' => $merchantId, 'postBody' => $postBody];
     $params = array_merge($params, $optParams);
     return $this->call('create', [$params], Promotion::class);
+  }
+  /**
+   * Retrieves a promotion from your Merchant Center account. (promotions.get)
+   *
+   * @param string $merchantId Required. The ID of the account that contains the
+   * collection.
+   * @param string $id Required. REST ID of the promotion to retrieve.
+   * @param array $optParams Optional parameters.
+   * @return Promotion
+   */
+  public function get($merchantId, $id, $optParams = [])
+  {
+    $params = ['merchantId' => $merchantId, 'id' => $id];
+    $params = array_merge($params, $optParams);
+    return $this->call('get', [$params], Promotion::class);
   }
 }
 

@@ -36,13 +36,14 @@ use Google\Service\Networkconnectivity\TestIamPermissionsResponse;
 class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Resource
 {
   /**
-   * Creates a new hub in the specified project. (hubs.create)
+   * Creates a new Network Connectivity Center hub in the specified project.
+   * (hubs.create)
    *
    * @param string $parent Required. The parent resource.
    * @param Hub $postBody
    * @param array $optParams Optional parameters.
    *
-   * @opt_param string hubId Optional. A unique identifier for the hub.
+   * @opt_param string hubId Required. A unique identifier for the hub.
    * @opt_param string requestId Optional. A unique request ID (optional). If you
    * specify this ID, you can use it in cases when you need to retry your request.
    * When you need to retry, this ID lets the server know that it can ignore the
@@ -63,7 +64,7 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
     return $this->call('create', [$params], GoogleLongrunningOperation::class);
   }
   /**
-   * Deletes the specified hub. (hubs.delete)
+   * Deletes a Network Connectivity Center hub. (hubs.delete)
    *
    * @param string $name Required. The name of the hub to delete.
    * @param array $optParams Optional parameters.
@@ -88,7 +89,7 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
     return $this->call('delete', [$params], GoogleLongrunningOperation::class);
   }
   /**
-   * Gets details about the specified hub. (hubs.get)
+   * Gets details about a Network Connectivity Center hub. (hubs.get)
    *
    * @param string $name Required. The name of the hub resource to get.
    * @param array $optParams Optional parameters.
@@ -105,16 +106,21 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
    * resource exists and does not have a policy set. (hubs.getIamPolicy)
    *
    * @param string $resource REQUIRED: The resource for which the policy is being
-   * requested. See the operation documentation for the appropriate value for this
-   * field.
+   * requested. See [Resource
+   * names](https://cloud.google.com/apis/design/resource_names) for the
+   * appropriate value for this field.
    * @param array $optParams Optional parameters.
    *
-   * @opt_param int options.requestedPolicyVersion Optional. The policy format
-   * version to be returned. Valid values are 0, 1, and 3. Requests specifying an
-   * invalid value will be rejected. Requests for policies with any conditional
-   * bindings must specify version 3. Policies without any conditional bindings
-   * may specify any valid value or leave the field unset. To learn which
-   * resources support conditions in their IAM policies, see the [IAM
+   * @opt_param int options.requestedPolicyVersion Optional. The maximum policy
+   * version that will be used to format the policy. Valid values are 0, 1, and 3.
+   * Requests specifying an invalid value will be rejected. Requests for policies
+   * with any conditional role bindings must specify version 3. Policies with no
+   * conditional role bindings may specify any valid value or leave the field
+   * unset. The policy in the response might use the policy version that you
+   * specified, or it might use a lower policy version. For example, if you
+   * specify version 3, but the policy has no conditional role bindings, the
+   * response uses version 1. To learn which resources support conditions in their
+   * IAM policies, see the [IAM
    * documentation](https://cloud.google.com/iam/help/conditions/resource-
    * policies).
    * @return Policy
@@ -126,7 +132,7 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
     return $this->call('getIamPolicy', [$params], Policy::class);
   }
   /**
-   * Lists hubs in a given project.
+   * Lists the Network Connectivity Center hubs associated with a given project.
    * (hubs.listProjectsLocationsNetworkconnectivityGlobalHubs)
    *
    * @param string $parent Required. The parent resource's name.
@@ -147,7 +153,8 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
     return $this->call('list', [$params], ListHubsResponse::class);
   }
   /**
-   * Updates the description and/or labels of the specified hub. (hubs.patch)
+   * Updates the description and/or labels of a Network Connectivity Center hub.
+   * (hubs.patch)
    *
    * @param string $name Immutable. The name of the hub. Hub names must be unique.
    * They use the following form:
@@ -185,8 +192,9 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
    * `PERMISSION_DENIED` errors. (hubs.setIamPolicy)
    *
    * @param string $resource REQUIRED: The resource for which the policy is being
-   * specified. See the operation documentation for the appropriate value for this
-   * field.
+   * specified. See [Resource
+   * names](https://cloud.google.com/apis/design/resource_names) for the
+   * appropriate value for this field.
    * @param SetIamPolicyRequest $postBody
    * @param array $optParams Optional parameters.
    * @return Policy
@@ -205,8 +213,9 @@ class ProjectsLocationsNetworkconnectivityGlobalHubs extends \Google\Service\Res
    * This operation may "fail open" without warning. (hubs.testIamPermissions)
    *
    * @param string $resource REQUIRED: The resource for which the policy detail is
-   * being requested. See the operation documentation for the appropriate value
-   * for this field.
+   * being requested. See [Resource
+   * names](https://cloud.google.com/apis/design/resource_names) for the
+   * appropriate value for this field.
    * @param TestIamPermissionsRequest $postBody
    * @param array $optParams Optional parameters.
    * @return TestIamPermissionsResponse

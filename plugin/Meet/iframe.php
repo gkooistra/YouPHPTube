@@ -8,15 +8,15 @@ if (!isset($global['systemRootPath'])) {
 
 require_once $global['systemRootPath'].'plugin/Meet/validateMeet.php';
 
-if (!Meet::validatePassword($meet_schedule_id, @$_POST['meet_password'])) {
-   header("Location: {$global['webSiteRootURL']}plugin/Meet/confirmMeetPassword.php?meet_schedule_id=$meet_schedule_id");
-   exit;
+if (!Meet::validatePassword($meet_schedule_id, @$_REQUEST['meet_password'])) {
+    header("Location: {$global['webSiteRootURL']}plugin/Meet/confirmMeetPassword.php?meet_schedule_id=$meet_schedule_id");
+    exit;
 }
 
 $objLive = AVideoPlugin::getObjectData("Live");
 Meet_join_log::log($meet_schedule_id);
 
-$apiExecute = array();
+$apiExecute = [];
 $readyToClose = User::getChannelLink($meet->getUsers_id())."?{$userCredentials}";
 if (Meet::isModerator($meet_schedule_id)) {
     $readyToClose = "{$global['webSiteRootURL']}plugin/Meet/?{$userCredentials}";
@@ -28,7 +28,11 @@ if (Meet::isModerator($meet_schedule_id)) {
         mode: 'stream',
         youtubeStreamKey: '" . Live::getRTMPLink($meet->getUsers_id()) . "',
     });";
+    } else {
+        $apiExecute[] = "/* getLive_stream = false */";
     }
+} else {
+    $apiExecute[] = "/* not moderator */";
 }
 
 $domain = Meet::getDomainURL();
@@ -37,7 +41,9 @@ $domain = Meet::getDomainURL();
 //$domain = str_replace('ca2.ypt.me', 'ca1.ypt.me', $domain);
 
 $nameIdentification = '';
-if(User::isLogged()){
+if(!empty($_REQUEST['nameIdentification'])){
+    $nameIdentification = xss_esc($_REQUEST['nameIdentification']);
+}else if (User::isLogged()) {
     $nameIdentification = User::getNameIdentification();
 }
 
@@ -45,14 +51,17 @@ if(User::isLogged()){
 <!DOCTYPE html>
 <html>
     <head>
+        <meta name="viewport" content="width=device-width,initial-scale=1.0">
         <title>Meet::<?php echo $meet->getName(); ?></title>
         <link rel="apple-touch-icon" sizes="180x180" href="<?php echo $config->getFavicon(true); ?>">
         <link rel="icon" type="image/png" href="<?php echo $config->getFavicon(true); ?>">
         <link rel="shortcut icon" href="<?php echo $config->getFavicon(); ?>" sizes="16x16,24x24,32x32,48x48,144x144">
         <meta name="msapplication-TileImage" content="<?php echo $config->getFavicon(true); ?>">
-        <script src="<?php echo getCDN(); ?>view/js/jquery-3.5.1.min.js"></script>
-        <script src="<?php echo getCDN(); ?>view/js/js-cookie/js.cookie.js" type="text/javascript"></script>
-        <script src="<?php echo getCDN(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+        <script src="<?php echo getURL('node_modules/jquery/dist/jquery.min.js'); ?>"></script>
+        <script src="<?php echo getCDN(); ?>node_modules/js-cookie/dist/js.cookie.js" type="text/javascript"></script>
+        <?php
+        include $global['systemRootPath'] . 'view/include/bootstrap.js.php';
+        ?>
         <script src="<?php echo getCDN(); ?>view/js/script.js"></script>
         <script>
             var getRTMPLink = '<?php echo Live::getRTMPLink($meet->getUsers_id()); ?>';

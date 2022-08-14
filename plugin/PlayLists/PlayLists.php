@@ -97,11 +97,11 @@ class PlayLists extends PluginAbstract {
         global $global;
         $obj = $this->getDataObject();
 
-        $css = '<link href="' . getCDN() . 'plugin/PlayLists/style.css" rel="stylesheet" type="text/css"/>';
+        $css = '<link href="' . getURL('plugin/PlayLists/style.css') . '" rel="stylesheet" type="text/css"/>';
         $css .= '<style>.epgProgress.progress-bar-primary{opacity: 0.5;}.epgProgress:hover{opacity: 1.0;}.epgProgressText{border-right: 1px solid #FFF; height:100%;}</style>';
 
         if (!empty(getPlaylists_id())) {
-            $css .= "<link href=\"" . getCDN() . "plugin/PlayLists/playerButton.css\" rel=\"stylesheet\" type=\"text/css\"/>";
+            $css .= "<link href=\"" . getURL('plugin/PlayLists/playerButton.css') . "\" rel=\"stylesheet\" type=\"text/css\"/>";
         }
 
         return $css;
@@ -111,7 +111,7 @@ class PlayLists extends PluginAbstract {
         global $global;
         $obj = $this->getDataObject();
         include $global['systemRootPath'] . 'plugin/PlayLists/footer.php';
-        $js = '<script src="' . getCDN() . 'plugin/PlayLists/script.js" type="text/javascript"></script>';
+        $js = '<script src="' . getURL('plugin/PlayLists/script.js') . '" type="text/javascript"></script>';
 
         if (isEmbed()) {
             if (self::showTVFeatures()) {
@@ -131,7 +131,7 @@ class PlayLists extends PluginAbstract {
         if (!empty(getPlaylists_id())) {
             PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayLists/playerButton.js"));
         }
-
+        
         return $js;
     }
 
@@ -255,18 +255,22 @@ class PlayLists extends PluginAbstract {
         }
     }
 
-    static function getLink($playlists_id, $embed = false) {
+    static function getLink($playlists_id, $embed = false, $playlist_index=null) {
         global $global;
         $obj = AVideoPlugin::getObjectData("PlayLists");
         if ($embed) {
-            return $global['webSiteRootURL'] . "plugin/PlayLists/embed.php?playlists_id=" . $playlists_id;
+            $url = $global['webSiteRootURL'] . "plugin/PlayLists/embed.php?playlists_id=" . $playlists_id;
         } else {
             if (empty($obj->useOldPlayList)) {
-                return $global['webSiteRootURL'] . "plugin/PlayLists/player.php?playlists_id=" . $playlists_id;
+                $url = $global['webSiteRootURL'] . "plugin/PlayLists/player.php?playlists_id=" . $playlists_id;
             } else {
-                return $global['webSiteRootURL'] . "program/" . $playlists_id;
+                $url = $global['webSiteRootURL'] . "program/" . $playlists_id;
             }
         }
+        if(isset($playlist_index)){
+            $url = addQueryStringParameter($url, 'playlist_index', $playlist_index);
+        }
+        return $url;
     }
 
     public function navBarButtons() {
@@ -739,7 +743,7 @@ class PlayLists extends PluginAbstract {
         return $last['key'];
     }
 
-    public function getLivePosterImage($playlists_id) {
+    public static function getLivePosterImage($playlists_id) {
         $live = AVideoPlugin::loadPluginIfEnabled("Live");
         if ($live) {
             $pl = new PlayList($playlists_id);

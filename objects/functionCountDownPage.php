@@ -1,7 +1,7 @@
-<?php 
+<?php
 global $advancedCustom;
 $global['doNotLoadPlayer'] = 1;
-if(!is_numeric($toTime)){
+if (!is_numeric($toTime)) {
     $toTime = strtotime($toTime);
 }
 //$toTime = strtotime('+10 seconds');
@@ -9,7 +9,7 @@ if(!is_numeric($toTime)){
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>Coming Soon 1</title>
+        <title><?php echo htmlentities($title); ?></title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 

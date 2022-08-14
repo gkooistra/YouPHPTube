@@ -63,13 +63,12 @@ if (User::isAdmin()) {
                                                 <?php
                                                 if (!AVideoPlugin::exists('Customize')) {
                                                     ?>
-                                                    <a href="https://youphp.tube/plugins/" class="btn btn-success btn-radio btn-block btn-xs" id=""> <i class="fas fa-palette"></i>  Purchase the Customize Plugin</a>
+                                                    <a href="https://youphp.tube/marketplace/" class="btn btn-success btn-radio btn-block btn-xs" id=""> <i class="fas fa-palette"></i>  Purchase the Customize Plugin</a>
                                                     <?php
                                                 } else {
                                                     ?>
                                                     <a href="<?php echo $global['webSiteRootURL']; ?>admin/?page=design_colors" class="btn btn-success btn-radio btn-block btn-xs" id=""> <i class="fas fa-palette"></i>  Customize Colors</a>
-                                                    <?php
-                                                }
+                                                    <?php }
                                                 ?>
                                             </div>
                                         </div>
@@ -84,12 +83,11 @@ if (User::isAdmin()) {
                                             <script>
                                                 $(document).ready(function () {
                                                     setTimeout(function () {
-                                                        $("#btn<?php echo ($fileEx); ?>").trigger("click");
+                                                        $("#btn<?php echo($fileEx); ?>").trigger("click");
                                                     }, 1000);
                                                 });
                                             </script>
-                                            <?php
-                                        }
+                                            <?php }
                                         ?>
                                         <div class="col-xs-4">
                                             <div class="panel panel-default">
@@ -97,13 +95,12 @@ if (User::isAdmin()) {
                                                 <div class="panel-body">
 
                                                     <img src="<?php echo $global['webSiteRootURL'], "view/css/custom/", $fileEx, ".png"; ?>" class="img-responsive img-radio">
-                                                    <button type="button" class="btn btn-default btn-radio btn-block btn-xs" id="btn<?php echo ($fileEx); ?>"><?php echo ucfirst($fileEx); ?></button>
-                                                    <input type="checkbox" value="<?php echo ($fileEx); ?>"  class="hidden left-item">
+                                                    <button type="button" class="btn btn-default btn-radio btn-block btn-xs" id="btn<?php echo($fileEx); ?>"><?php echo ucfirst($fileEx); ?></button>
+                                                    <input type="checkbox" value="<?php echo($fileEx); ?>"  class="hidden left-item">
                                                 </div>
                                             </div>
                                         </div>
-                                        <?php
-                                    }
+                                        <?php }
                                     ?>
                                 </div>
 
@@ -124,7 +121,6 @@ if (User::isAdmin()) {
                             if (!empty($global['videoStorageLimitMinutes'])) {
                                 $secondsLimit = $global['videoStorageLimitMinutes'] * 60;
                                 if ($secondsLimit > $secondsTotal) {
-
                                     $percent = intval($secondsTotal / $secondsLimit * 100);
                                 } else {
                                     $percent = 100;
@@ -133,12 +129,11 @@ if (User::isAdmin()) {
                                 <div class="progress">
                                     <div class="progress-bar progress-bar-success progress-bar-striped active" role="progressbar"
                                          aria-valuenow="<?php echo $percent; ?>" aria-valuemin="0" aria-valuemax="100" style="width: <?php echo $percent; ?>%">
-                                        <?php echo $percent; ?>% of your storage limit used
+                                <?php echo $percent; ?>% of your storage limit used
                                     </div>
                                 </div>
-                                <?php
-                            }
-                            ?>
+        <?php }
+    ?>
 
                         </div>
                         <?php
@@ -155,27 +150,25 @@ if (User::isAdmin()) {
                                 <span class="glyphicon glyphicon-unchecked"></span>
                                 <strong>Your server is <?php echo $_SERVER['SERVER_SOFTWARE']; ?>, you must install Apache</strong>
                             </div>
-                            <?php
-                        }
-                        ?>
+        <?php }
+    ?>
 
 
                         <?php
-                        if (isPHP("5.6")) {
+                        if (isPHP('7.3')) {
                             ?>
                             <div class="alert alert-success">
                                 <span class="glyphicon glyphicon-check"></span>
-                                <strong>PHP <?php echo PHP_VERSION; ?> is Present</strong>
+                                <strong>PHP <?php echo PHP_VERSION; ?> is present.</strong>
                             </div>
                             <?php
                         } else {
                             ?>
                             <div class="alert alert-danger">
                                 <span class="glyphicon glyphicon-unchecked"></span>
-                                <strong>Your PHP version is <?php echo PHP_VERSION; ?>, you must install PHP 5.6.x or greater</strong>
+                                <strong>Your PHP version is <?php echo PHP_VERSION; ?>. PHP 7.3 or newer is required.</strong>
                             </div>
-                            <?php
-                        }
+                            <?php }
                         ?>
 
                         <?php
@@ -199,9 +192,8 @@ if (User::isAdmin()) {
                                         The video directory does not exists, AVideo had no permition to create it, you must create it manualy!
                                         <br>
                                         <pre><code>sudo mkdir <?php echo $dir; ?></code></pre>
-                                        <?php
-                                    }
-                                    ?>
+            <?php }
+        ?>
                                     <br>
                                     Then you can set the permissions.
                                     <br>
@@ -216,16 +208,16 @@ if (User::isAdmin()) {
                         }
                         ?>
 
-                        <?php
-                        if (check_post_max_size()) {
-                            ?>
+    <?php
+    if (check_post_max_size()) {
+        ?>
                             <div class="alert alert-success">
                                 <span class="glyphicon glyphicon-check"></span>
                                 <strong>Your post_max_size is <?php echo ini_get('post_max_size'); ?></strong>
                             </div>
-                            <?php
-                        } else {
-                            ?>
+        <?php
+    } else {
+        ?>
                             <div class="alert alert-danger">
                                 <span class="glyphicon glyphicon-unchecked"></span>
                                 <strong>Your post_max_size is <?php echo ini_get('post_max_size'); ?>, it must be at least 100M</strong>
@@ -236,20 +228,19 @@ if (User::isAdmin()) {
                                     <pre><code>sudo nano <?php echo $pathToPHPini; ?></code></pre>
                                 </details>
                             </div>
-                            <?php
-                        }
+                            <?php }
                         ?>
 
-                        <?php
-                        if (check_upload_max_filesize()) {
-                            ?>
+    <?php
+    if (check_upload_max_filesize()) {
+        ?>
                             <div class="alert alert-success">
                                 <span class="glyphicon glyphicon-check"></span>
                                 <strong>Your upload_max_filesize is <?php echo ini_get('upload_max_filesize'); ?></strong>
                             </div>
-                            <?php
-                        } else {
-                            ?>
+        <?php
+    } else {
+        ?>
                             <div class="alert alert-danger">
                                 <span class="glyphicon glyphicon-unchecked"></span>
                                 <strong>Your upload_max_filesize is <?php echo ini_get('upload_max_filesize'); ?>, it must be at least 100M</strong>
@@ -260,9 +251,8 @@ if (User::isAdmin()) {
                                     <pre><code>sudo nano <?php echo $pathToPHPini; ?></code></pre>
                                 </details>
                             </div>
-                            <?php
-                        }
-                        ?>
+        <?php }
+    ?>
 
                     </div>
                     <div class="tab-pane  active" id="tabRegular">
@@ -278,9 +268,20 @@ if (User::isAdmin()) {
                                             <div class="col-md-8 inputGroupContainer">
                                                 <div class="input-group">
                                                     <span class="input-group-addon"><i class="glyphicon glyphicon-flag"></i></span>
-                                                    <?php
-                                                    echo Layout::getLangsSelect('inputLanguage', $config->getLanguage(), 'inputLanguage');
+
+                                                    <select class="form-control" id="inputLanguage" name="inputLanguage">
+                                                        <?php
+                                                        $selectedLang = $config->getLanguage();
+                                                        $flags = Layout::getAvilableFlags();
+                                                        //var_dump($selectedLang, $flags);exit;
+                                                        foreach ($flags as $key => $value) {
+                                                            $info = json_decode($value[0]);
+                                                            ?>
+                                                            <option value="<?php echo $key; ?>" <?php echo ($selectedLang == $key) ? "selected" : ""; ?>><?php echo $info->text; ?></option>
+                                                        <?php
+                                                    }
                                                     ?>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
@@ -338,16 +339,16 @@ if (User::isAdmin()) {
 
                                         <div class="form-group">
                                             <label class="col-md-4  control-label">
-                                                <?php echo __("Autoplay Video on Load Page"); ?>
+    <?php echo __("Autoplay Video on Load Page"); ?>
                                                 <a href="https://github.com/WWBN/AVideo/wiki/Autoplay-and-Browser-Policies"><?php echo __("Help"); ?></a>
                                             </label>
                                             <div class="col-md-8">
                                                 <div class="material-switch">
                                                     <input data-toggle="toggle" type="checkbox" name="autoplaySwitch" id="autoplaySwitch" value="1" <?php
-                                                    if (!empty($config->getAutoplay())) {
-                                                        echo "checked";
-                                                    }
-                                                    ?> >
+    if (!empty($config->getAutoplay())) {
+        echo "checked";
+    }
+    ?> >
                                                     <label for="autoplaySwitch" class="label-primary"></label>
                                                 </div>
                                             </div>
@@ -373,7 +374,7 @@ if (User::isAdmin()) {
                                         </div>
                                         <div class="form-group">
                                             <label class="col-md-4 control-label">
-                                                <?php echo __("Your Logo"); ?> (250x70)
+    <?php echo __("Your Logo"); ?> (250x70)
                                             </label>
                                             <div class="col-md-8 ">
                                                 <div id="croppieLogo"></div>
@@ -383,7 +384,7 @@ if (User::isAdmin()) {
                                         </div>
                                         <div class="form-group">
                                             <label class="col-md-4 control-label">
-                                                <?php echo __("Favicon"); ?> (180x180)
+    <?php echo __("Favicon"); ?> (180x180)
                                             </label>
                                             <div class="col-md-8 ">
                                                 <div id="croppieFavicon"></div>
@@ -398,9 +399,9 @@ if (User::isAdmin()) {
                         </div>
                     </div>
                     <div class="tab-pane" id="tabAdvanced">
-                        <?php
-                        if (empty($global['disableAdvancedConfigurations'])) {
-                            ?>
+    <?php
+    if (empty($global['disableAdvancedConfigurations'])) {
+        ?>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="panel panel-default">
@@ -422,8 +423,8 @@ if (User::isAdmin()) {
                                                 <div class="col-md-8">
                                                     <input id="encoder_url" aria-describedby="encoder_urlHelp" class="form-control"  type="url" value="<?php echo $config->_getEncoderURL(); ?>" >
                                                     <small id="encoder_urlHelp" class="form-text text-muted">
-                                                        <?php echo __("You need to set up an encoder server"); ?><br>
-                                                        <?php echo __("You can use our public encoder on"); ?>: https://encoder1.avideo.com/ or
+        <?php echo __("You need to set up an encoder server"); ?><br>
+        <?php echo __("You can use our public encoder on"); ?>: https://encoder1.wwbn.net/ or
                                                         <a href="https://github.com/WWBN/AVideo-Encoder" class="btn btn-default btn-xs" target="_blank" rel="noopener noreferrer"><?php echo __("For faster encode, download your own encoder"); ?></a>
                                                     </small>
                                                 </div>
@@ -442,10 +443,10 @@ if (User::isAdmin()) {
                                                 <div class="col-md-8">
                                                     <div class="material-switch">
                                                         <input data-toggle="toggle" type="checkbox" name="disable_analytics" id="disable_analytics" value="1" <?php
-                                                        if (!empty($config->getDisable_analytics())) {
-                                                            echo "checked";
-                                                        }
-                                                        ?>  aria-describedby="disable_analyticsHelp">
+                                                if (!empty($config->getDisable_analytics())) {
+                                                    echo "checked";
+                                                }
+                                                ?>  aria-describedby="disable_analyticsHelp">
                                                         <label for="disable_analytics" class="label-success"></label>
                                                     </div>
                                                     <small id="disable_analyticsHelp" class="form-text text-muted"><?php echo __("This help us to track and detect errors"); ?></small>
@@ -458,10 +459,10 @@ if (User::isAdmin()) {
 
                                                     <div class="material-switch">
                                                         <input data-toggle="toggle" type="checkbox" name="disable_youtubeupload" id="disable_youtubeupload" value="1" <?php
-                                                        if (!empty($config->getDisable_youtubeupload())) {
-                                                            echo "checked";
-                                                        }
-                                                        ?> >
+                                                if (!empty($config->getDisable_youtubeupload())) {
+                                                    echo "checked";
+                                                }
+                                                ?> >
                                                         <label for="disable_youtubeupload" class="label-success"></label>
                                                     </div>
                                                 </div>
@@ -472,10 +473,10 @@ if (User::isAdmin()) {
                                                 <div class="col-md-8">
                                                     <div class="material-switch">
                                                         <input data-toggle="toggle" type="checkbox" name="disable_rightclick" id="allow_download" value="1" <?php
-                                                        if (!empty($config->getAllow_download())) {
-                                                            echo "checked";
-                                                        }
-                                                        ?> aria-describedby="allow_downloadHelp">
+                                                       if (!empty($config->getAllow_download())) {
+                                                           echo "checked";
+                                                       }
+                                                       ?> aria-describedby="allow_downloadHelp">
                                                         <label for="allow_download" class="label-success"></label>
                                                     </div>
                                                     <small id="allow_downloadHelp" class="form-text text-muted"><?php echo __("This creates a download-button under your video, suggest you title.mp4 as download-name."); ?></small>
@@ -494,8 +495,8 @@ if (User::isAdmin()) {
                                             <div class="alert alert-warning">
                                                 <h3>
                                                     <i class="fas fa-info-circle"></i>
-                                                    <?php echo __('If you are not sure how to configure your email'); ?>,
-                                                    <?php echo __('please try'); ?> <a href="https://github.com/WWBN/AVideo/wiki/Setting-up-AVideo-Platform-to-send-emails" target="_blank" rel="noopener noreferrer" ><?php echo __('this help'); ?></a>
+        <?php echo __('If you are not sure how to configure your email'); ?>,
+        <?php echo __('please try'); ?> <a href="https://github.com/WWBN/AVideo/wiki/Setting-up-AVideo-Platform-to-send-emails" target="_blank" rel="noopener noreferrer" ><?php echo __('this help'); ?></a>
                                                 </h3>
                                             </div>
 
@@ -505,10 +506,10 @@ if (User::isAdmin()) {
                                                 <div class="col-md-8">
                                                     <div class="material-switch">
                                                         <input data-toggle="toggle" type="checkbox" name="enableSmtp" id="enableSmtp" value="1" <?php
-                                                        if (!empty($config->getSmtp())) {
-                                                            echo "checked";
-                                                        }
-                                                        ?> >
+        if (!empty($config->getSmtp())) {
+            echo "checked";
+        }
+        ?> >
                                                         <label for="enableSmtp" class="label-success"></label>
                                                     </div>
                                                 </div>
@@ -518,10 +519,10 @@ if (User::isAdmin()) {
                                                 <div class="col-md-8">
                                                     <div class="material-switch">
                                                         <input data-toggle="toggle" type="checkbox" name="enableSmtpAuth" id="enableSmtpAuth" value="1" <?php
-                                                        if (!empty($config->getSmtpAuth())) {
-                                                            echo "checked";
-                                                        }
-                                                        ?> >
+        if (!empty($config->getSmtpAuth())) {
+            echo "checked";
+        }
+        ?> >
                                                         <label for="enableSmtpAuth" class="label-success"></label>
                                                     </div>
                                                 </div>
@@ -560,9 +561,7 @@ if (User::isAdmin()) {
                                             <div class="form-group">
                                                 <label class="col-md-4 control-label"><?php echo __("SMTP Password"); ?></label>
                                                 <div class="col-md-8">
-                                                    <?php
-                                                    getInputPassword("smtpPassword", 'class="form-control" value="' . $config->getSmtpPassword() . '"', __("SMTP Password"));
-                                                    ?>
+        <?php getInputPassword("smtpPassword", 'class="form-control" value="' . $config->getSmtpPassword() . '"', __("SMTP Password")); ?>
                                                 </div>
                                             </div>
                                             <div class="form-group">
@@ -578,47 +577,46 @@ if (User::isAdmin()) {
                             </div>
 
 
-                            <?php
-                        } else {
-                            ?>
+        <?php
+    } else {
+        ?>
                             <h2 class="alert alert-danger"><?php echo __("Advanced configurations are disabled"); ?></h2>
-                            <?php
-                        }
-                        ?>
+        <?php }
+    ?>
                     </div>
                     <div class="tab-pane" id="tabHead">
                         <div class="form-group">
                             <label class="col-md-2 control-label"><?php echo __("Head Code"); ?></label>
                             <div class="col-md-10">
-                                <link rel="stylesheet" href="<?php echo getCDN(); ?>view/js/codemirror/lib/codemirror.css">
-                                <script src="<?php echo getCDN(); ?>view/js/codemirror/lib/codemirror.js"></script>
-                                <script src="<?php echo getCDN(); ?>view/js/codemirror/mode/xml/xml.js"></script>
-                                <script src="<?php echo getCDN(); ?>view/js/codemirror/mode/css/css.js"></script>
-                                <script src="<?php echo getCDN(); ?>view/js/codemirror/mode/javascript/javascript.js"></script>
-                                <script src="<?php echo getCDN(); ?>view/js/codemirror/mode/htmlmixed/htmlmixed.js"></script>
+                                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/codemirror.min.css"></link>
+                                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/codemirror.min.js"></script>
+                                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/mode/javascript/javascript.min.js"></script>
+                                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/mode/xml/xml.js"></script>
+                                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/mode/css/css.js"></script>
+                                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/mode/htmlmixed/htmlmixed.js"></script>
                                 <script>
-                                    (function($) {
-										$(document).ready(function() {
+                                        (function ($) {
+                                            $(document).ready(function () {
 
-											var editor,
-											    head = document.getElementById("head");
+                                                var editor,
+                                                        head = document.getElementById("head");
 
-											$("li a[href='#tabHead']").on("click", function() {
-												if (!editor && head) {
-													setTimeout(function() {
-														editor = CodeMirror.fromTextArea(head, {
-															lineNumbers: true,
-															mode: "htmlmixed"
-														});
-														editor.on('change', function() {
-															editor.save();
-														});
-													}, 10);
-												}
-											});
+                                                $("li a[href='#tabHead']").on("click", function () {
+                                                    if (!editor && head) {
+                                                        setTimeout(function () {
+                                                            editor = CodeMirror.fromTextArea(head, {
+                                                                lineNumbers: true,
+                                                                mode: "htmlmixed"
+                                                            });
+                                                            editor.on('change', function () {
+                                                                editor.save();
+                                                            });
+                                                        }, 10);
+                                                    }
+                                                });
 
-										});
-                                    })(jQuery);
+                                            });
+                                        })(jQuery);
                                 </script>
                                 <textarea id="head" class="form-control" type="text" rows="20" ><?php echo $config->getHead(); ?></textarea>
                                 <small><?php echo __('For Google Analytics code'); ?>: <a href='https://analytics.google.com'  target="_blank" rel="noopener noreferrer">https://analytics.google.com</a></small><br>
@@ -630,7 +628,7 @@ if (User::isAdmin()) {
                             <div class="col-md-10">
                                 <input type="hidden" value="" id="adsense"/>
                                 <div class="alert alert-info">
-                                    <?php echo __('Google AD Sense and any other Ads provider are moved to the'); ?> <a href='<?php echo $global['webSiteRootURL']; ?>plugins'><?php echo __('ADs plugin'); ?> </a>
+    <?php echo __('Google AD Sense and any other Ads provider are moved to the'); ?> <a href='<?php echo $global['webSiteRootURL']; ?>plugins'><?php echo __('ADs plugin'); ?> </a>
                                 </div>
                             </div>
                         </div>

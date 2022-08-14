@@ -1,10 +1,10 @@
 <?php
-
 require_once $global['systemRootPath'] . 'objects/plugin.php';
 
-class AVideoPlugin {
-
-    static function YPTstart() {
+class AVideoPlugin
+{
+    public static function YPTstart()
+    {
         global $global;
         $time = microtime();
         $time = explode(' ', $time);
@@ -12,7 +12,8 @@ class AVideoPlugin {
         $global['AVideoPluginStart'] = $time;
     }
 
-    static function YPTend($pluginName) {
+    public static function YPTend($pluginName, $timeLimit=0)
+    {
         global $global;
         require_once $global['systemRootPath'] . 'objects/user.php';
         $time = microtime();
@@ -20,13 +21,16 @@ class AVideoPlugin {
         $time = $time[1] + $time[0];
         $finish = $time;
         $total_time = round(($finish - $global['AVideoPluginStart']), 4);
-        $timeLimit = empty($global['noDebug']) ? 0.5 : 1;
+        if(empty($timeLimit)){
+            $timeLimit = empty($global['noDebug']) ? 0.5 : 1;
+        }
         if ($total_time > $timeLimit) {
-            _error_log("The plugin [{$pluginName}] takes {$total_time} seconds to complete. URL: " . getSelfURI() . " IP: " . getRealIpAddr(), AVideoLog::$WARNING);
+            _error_log("The plugin [{$pluginName}] takes {$total_time} seconds to complete. URL: " . getSelfURI() . " IP: " . getRealIpAddr() . ' '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 50)), AVideoLog::$WARNING);
         }
     }
 
-    public static function addRoutes() {
+    public static function addRoutes()
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -39,7 +43,8 @@ class AVideoPlugin {
         return false;
     }
 
-    public static function addView($videos_id, $total) {
+    public static function addView($videos_id, $total)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -52,21 +57,26 @@ class AVideoPlugin {
         return false;
     }
 
-    public static function getHeadCode() {
+    public static function getHeadCode()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
+                //echo $value['dirName'].PHP_EOL;
+                //_error_log('getHeadCode start 1'.$value['dirName']);
                 $str .= $p->getHeadCode();
+                //_error_log('getHeadCode end '.$value['dirName']);
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
         return $str;
     }
 
-    public static function getChartTabs() {
+    public static function getChartTabs()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -87,7 +97,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getChartContent() {
+    public static function getChartContent()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -104,7 +115,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getGallerySection() {
+    public static function getGallerySection()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -118,7 +130,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getHelpToc() {
+    public static function getHelpToc()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "<h4>" . __("Table of content") . "</h4><ul>";
         foreach ($plugins as $value) {
@@ -135,7 +148,8 @@ class AVideoPlugin {
         return $str . "</ul>";
     }
 
-    public static function getHelp() {
+    public static function getHelp()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -153,7 +167,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getFooterCode() {
+    public static function getFooterCode()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -169,9 +184,10 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getJSFiles() {
+    public static function getJSFiles()
+    {
         $plugins = Plugin::getAllEnabled();
-        $allFiles = array();
+        $allFiles = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -186,9 +202,10 @@ class AVideoPlugin {
         return $allFiles;
     }
 
-    public static function getCSSFiles() {
+    public static function getCSSFiles()
+    {
         $plugins = Plugin::getAllEnabled();
-        $allFiles = array();
+        $allFiles = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -200,7 +217,8 @@ class AVideoPlugin {
         return $allFiles;
     }
 
-    public static function getHTMLBody() {
+    public static function getHTMLBody()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -214,7 +232,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getHTMLMenuLeft() {
+    public static function getHTMLMenuLeft()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -228,7 +247,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getHTMLMenuRight() {
+    public static function getHTMLMenuRight()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -242,11 +262,13 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getFirstPage() {
+    public static function getFirstPage()
+    {
         return static::getEnabledFirstPage();
     }
 
-    public static function getEnabledFirstPage() {
+    public static function getEnabledFirstPage()
+    {
         $plugins = Plugin::getAllEnabled();
         $firstPage = false;
         foreach ($plugins as $value) {
@@ -264,10 +286,11 @@ class AVideoPlugin {
         return $firstPage;
     }
 
-    static function loadPlugin($name, $forceReload = false) {
+    public static function loadPlugin($name, $forceReload = false)
+    {
         global $global, $pluginIsLoaded;
         if (empty($pluginIsLoaded)) {
-            $pluginIsLoaded = array();
+            $pluginIsLoaded = [];
         }
         $loadPluginFile = "{$global['systemRootPath']}plugin/{$name}/{$name}.php";
         // need to add dechex because some times it return an negative value and make it fails on javascript playlists
@@ -289,7 +312,8 @@ class AVideoPlugin {
         return $pluginIsLoaded[$name];
     }
 
-    static function loadPluginIfEnabled($name) {
+    public static function loadPluginIfEnabled($name)
+    {
         $p = static::loadPlugin($name);
         if ($p) {
             $uuid = $p->getUUID();
@@ -300,7 +324,8 @@ class AVideoPlugin {
         return false;
     }
 
-    static function isPluginTablesInstalled($name, $installIt = false) {
+    public static function isPluginTablesInstalled($name, $installIt = false)
+    {
         global $global, $isPluginTablesInstalled;
         $name = self::fixName($name);
         $installSQLFile = "{$global['systemRootPath']}plugin/{$name}/install/install.sql";
@@ -333,7 +358,7 @@ class AVideoPlugin {
                         //_error_log("isPluginTablesInstalled: ({$matches[1]}) is installed");
                     }
                 }
-            } else if (preg_match($pattern2, $line, $matches)) {
+            } elseif (preg_match($pattern2, $line, $matches)) {
                 if (!empty($matches[1])) {
                     if (!ObjectYPT::isTableInstalled($matches[1])) {
                         _error_log("You need to install table {$matches[1]} for the plugin ({$name})", AVideoLog::$ERROR);
@@ -348,14 +373,32 @@ class AVideoPlugin {
         return $isPluginTablesInstalled[$installSQLFile];
     }
 
-    static function getObjectData($name) {
+    public static function getObjectData($name)
+    {
         return self::getDataObject($name);
     }
+    
+    public static function setObjectData($name, $object){
+        $p = static::loadPlugin($name);
+        if ($p) {
+            return $p->setDataObject($object);
+        }
+        return false;
+    }
+    
+    public static function setObjectDataParameter($name, $parameterName, $value){
+        $p = static::loadPlugin($name);
+        if ($p) {
+            return $p->setDataObjectParameter($parameterName, $value);
+        }
+        return false;
+    }
 
-    static function getDataObject($name) {
+    public static function getDataObject($name)
+    {
         global $pluginGetDataObject;
         if (!isset($pluginGetDataObject)) {
-            $pluginGetDataObject = array();
+            $pluginGetDataObject = [];
         }
         if (!empty($pluginGetDataObject[$name])) {
             return $pluginGetDataObject[$name];
@@ -368,14 +411,16 @@ class AVideoPlugin {
         return false;
     }
 
-    static function getObjectDataIfEnabled($name) {
+    public static function getObjectDataIfEnabled($name)
+    {
         return self::getDataObjectIfEnabled($name);
     }
 
-    static function getDataObjectIfEnabled($name) {
+    public static function getDataObjectIfEnabled($name)
+    {
         global $_getDataObjectIfEnabled;
         if (!isset($_getDataObjectIfEnabled)) {
-            $_getDataObjectIfEnabled = array();
+            $_getDataObjectIfEnabled = [];
         }
         if (isset($_getDataObjectIfEnabled[$name])) {
             return $_getDataObjectIfEnabled[$name];
@@ -392,7 +437,8 @@ class AVideoPlugin {
         return $_getDataObjectIfEnabled[$name];
     }
 
-    static function xsendfilePreVideoPlay() {
+    public static function xsendfilePreVideoPlay()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -407,7 +453,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    static function getVideosManagerListButton() {
+    public static function getVideosManagerListButton()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -422,7 +469,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    static function getVideosManagerListButtonTitle() {
+    public static function getVideosManagerListButtonTitle()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -437,7 +485,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    static function getUsersManagerListButton() {
+    public static function getUsersManagerListButton()
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -452,7 +501,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    static function getWatchActionButton($videos_id) {
+    public static function getWatchActionButton($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -467,7 +517,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    static function getNetflixActionButton($videos_id) {
+    public static function getNetflixActionButton($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -482,7 +533,8 @@ class AVideoPlugin {
         return $str;
     }
 
-    static function getGalleryActionButton($videos_id) {
+    public static function getGalleryActionButton($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -497,21 +549,24 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function isEnabled($uuid) {
+    public static function isEnabled($uuid)
+    {
         return !empty(Plugin::getEnabled($uuid));
     }
 
-    public static function exists($name) {
+    public static function exists($name)
+    {
         global $global;
         $name = self::fixName($name);
         $filename = "{$global['systemRootPath']}plugin/{$name}/{$name}.php";
         return file_exists($filename);
     }
 
-    static function isEnabledByName($name, $minVersion = '') {
+    public static function isEnabledByName($name, $minVersion = '')
+    {
         global $isPluginEnabledByName;
         if (empty($isPluginEnabledByName)) {
-            $isPluginEnabledByName = array();
+            $isPluginEnabledByName = [];
         }
         $index = "{$name}_{$minVersion}";
         if (!isset($isPluginEnabledByName[$index])) {
@@ -532,19 +587,29 @@ class AVideoPlugin {
         return $isPluginEnabledByName[$index];
     }
 
-    static function getLogin() {
+    public static function getLogin()
+    {
         $plugins = Plugin::getAllEnabled();
-        $logins = array();
+        $logins = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
+            $dataObject = self::getDataObject($value['dirName']);
 
             if (is_object($p)) {
                 $l = $p->getLogin();
                 if (is_string($l) && file_exists($l)) { // it is a login form
                     $logins[] = $l;
-                } else if (!empty($l->type)) { // it is a hybridauth
-                    $logins[] = array('parameters' => $l, 'loginObject' => $p);
+                } elseif (!empty($l->type)) { // it is a hybridauth
+                    $logins[] = ['parameters' => $l, 'loginObject' => $p, 'dirName' => $value['dirName'], 'dataObject'=>$dataObject];
+                } elseif (is_array($l)) { // it is a hybridauth
+                    foreach ($l as $value2) {
+                        if (is_string($value2) && file_exists($value2)) { // it is a login form
+                            $logins[] = $value2;
+                        } elseif (!empty($value2->type)) { // it is a hybridauth
+                            $logins[] = ['parameters' => $value2, 'loginObject' => $p, 'dirName' => $value['dirName'], 'dataObject'=>$dataObject];
+                        }
+                    }
                 }
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
@@ -552,24 +617,32 @@ class AVideoPlugin {
         return $logins;
     }
 
-    public static function getStart() {
+    public static function getStart()
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             //self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
+                //echo $value['dirName'].PHP_EOL;
+                //_error_log('AVideoPlugin::getStart: '.$value['dirName']);
                 $p->getStart();
             }
             //self::YPTend("{$value['dirName']}::".__FUNCTION__);
         }
     }
 
-    public static function getEnd() {
+    public static function getEnd()
+    {
         $plugins = Plugin::getAllEnabled();
-        usort($plugins, function($a, $b) {
+        usort($plugins, function ($a, $b) {
             if ($a['name'] == 'Cache') {
                 return 1;
-            } else if ($b['name'] == 'Cache') {
+            } elseif ($b['name'] == 'Cache') {
+                return -1;
+            }else if ($a['name'] == 'Layout') {
+                return 1;
+            } elseif ($b['name'] == 'Layout') {
                 return -1;
             }
             return 0;
@@ -579,13 +652,17 @@ class AVideoPlugin {
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 //_error_log("{$value['dirName']}::" . __FUNCTION__);
+                if(!empty($_REQUEST['debug'])){
+                    echo "<!-- {$value['dirName']} getEnd -->".PHP_EOL;
+                }
                 $p->getEnd();
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
     }
 
-    public static function afterVideoJS() {
+    public static function afterVideoJS()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -599,7 +676,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function afterNewVideo($videos_id) {
+    public static function afterNewVideo($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -611,7 +689,38 @@ class AVideoPlugin {
         }
     }
         
-    public static function onEncoderReceiveImage($videos_id) {
+    public static function onNewVideo($videos_id){
+        if(empty($videos_id)){
+            return false;
+        }
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onNewVideo($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+    
+    public static function onUpdateVideo($videos_id){
+        if(empty($videos_id)){
+            return false;
+        }
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onUpdateVideo($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+
+    public static function onEncoderReceiveImage($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -624,7 +733,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function onEncoderNotifyIsDone($videos_id) {
+    public static function onEncoderNotifyIsDone($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -637,7 +747,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function onUploadIsDone($videos_id) {
+    public static function onUploadIsDone($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -650,19 +761,21 @@ class AVideoPlugin {
         }
     }
 
-    public static function afterDonation($from_users_id, $how_much, $videos_id, $users_id) {
+    public static function afterDonation($from_users_id, $how_much, $videos_id, $users_id, $extraParameters)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $p->afterDonation($from_users_id, $how_much, $videos_id, $users_id);
+                $p->afterDonation($from_users_id, $how_much, $videos_id, $users_id, $extraParameters);
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
     }
 
-    public static function afterNewComment($comments_id) {
+    public static function afterNewComment($comments_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -674,7 +787,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function afterNewResponse($comments_id) {
+    public static function afterNewResponse($comments_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -686,7 +800,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getChannelButton() {
+    public static function getChannelButton()
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -698,7 +813,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getVideoManagerButton() {
+    public static function getVideoManagerButton()
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -710,7 +826,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getLivePanel() {
+    public static function getLivePanel()
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -722,7 +839,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getModeYouTube($videos_id) {
+    public static function getModeYouTube($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -734,7 +852,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getModeLive($key) {
+    public static function getModeLive($key)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -746,7 +865,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getModeLiveLink($liveLink_id) {
+    public static function getModeLiveLink($liveLink_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -758,7 +878,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getModeYouTubeLive($users_id) {
+    public static function getModeYouTubeLive($users_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -770,7 +891,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getEmbed($videos_id) {
+    public static function getEmbed($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -782,7 +904,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function getChannel($user_id, $user) {
+    public static function getChannel($user_id, $user)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -794,30 +917,41 @@ class AVideoPlugin {
         }
     }
 
-    public static function getLiveApplicationArray() {
-        $plugins = Plugin::getAllEnabled();
-        $array = array();
-        foreach ($plugins as $value) {
-            self::YPTstart();
-            $p = static::loadPlugin($value['dirName']);
-            if (is_object($p)) {
-                $appArray = $p->getLiveApplicationArray();
-                if (is_array($appArray)) {
-                    if (!is_array($array)) {
-                        $array = $appArray;
-                    } else {
-                        $array = array_merge($array, $appArray);
+    public static function getLiveApplicationArray()
+    {
+        global $_getLiveApplicationArrayPlugin;
+        if(!isset($_getLiveApplicationArrayPlugin)){
+            $_getLiveApplicationArrayPlugin = array();
+            $plugins = Plugin::getAllEnabled();
+            $array = [];
+            foreach ($plugins as $value) {
+                self::YPTstart();
+                $p = static::loadPlugin($value['dirName']);
+                if (is_object($p)) {
+                    $appArray = $p->getLiveApplicationArray();
+                    if (is_array($appArray)) {
+                        if (!is_array($array)) {
+                            $array = $appArray;
+                        } else {
+                            $array = array_merge($array, $appArray);
+                        }
                     }
                 }
+                self::YPTend("{$value['dirName']}::" . __FUNCTION__);
             }
-            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+            $_getLiveApplicationArrayPlugin = $array;
         }
-        return $array;
+
+        usort($_getLiveApplicationArrayPlugin, "getLiveApplicationArrayCMP");
+        
+        return $_getLiveApplicationArrayPlugin;
     }
 
-    public static function getPlayListButtons($playlist_id = "") {
-        if (empty($playlist_id))
+    public static function getPlayListButtons($playlist_id = "")
+    {
+        if (empty($playlist_id)) {
             return "";
+        }
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -831,9 +965,11 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getMyAccount($users_id = "") {
-        if (empty($users_id))
+    public static function getMyAccount($users_id = "")
+    {
+        if (empty($users_id)) {
             return "";
+        }
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -847,9 +983,10 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function getPluginUserOptions() {
+    public static function getPluginUserOptions()
+    {
         $plugins = Plugin::getAllEnabled();
-        $userOptions = array();
+        $userOptions = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -862,17 +999,19 @@ class AVideoPlugin {
     }
 
     /**
-     * 
+     *
      * @return type return a list of IDs of the user groups
      */
-    public static function getDynamicUserGroupsId($users_id) {
+    public static function getDynamicUserGroupsId($users_id)
+    {
         $plugins = Plugin::getAllEnabled();
-        $array = array();
+        $array = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $appArray = $p->getDynamicUserGroupsId($users_id);
+                //echo $value['dirName']." - {$users_id} - ". json_encode($appArray).PHP_EOL;
                 $array = array_merge($array, $appArray);
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
@@ -880,9 +1019,10 @@ class AVideoPlugin {
         return $array;
     }
 
-    public static function getDynamicUsersId($users_groups_id) {
+    public static function getDynamicUsersId($users_groups_id)
+    {
         $plugins = Plugin::getAllEnabled();
-        $array = array();
+        $array = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -895,7 +1035,8 @@ class AVideoPlugin {
         return $array;
     }
 
-    public static function getUserOptions() {
+    public static function getUserOptions()
+    {
         $userOptions = static::getPluginUserOptions();
         $str = "";
         foreach ($userOptions as $userOption => $id) {
@@ -911,9 +1052,10 @@ class AVideoPlugin {
         return $str;
     }
 
-    public static function addUserBtnJS() {
+    public static function addUserBtnJS()
+    {
         $userOptions = static::getPluginUserOptions();
-        $userOptions = array();
+        $userOptions = [];
         $js = "";
         foreach ($userOptions as $userOption => $id) {
             $js .= "                    $('#$id').prop('checked', false);\n";
@@ -921,7 +1063,8 @@ class AVideoPlugin {
         return $js;
     }
 
-    public static function updateUserFormJS() {
+    public static function updateUserFormJS()
+    {
         $userOptions = static::getPluginUserOptions();
         $js = "";
         foreach ($userOptions as $userOption => $id) {
@@ -930,7 +1073,8 @@ class AVideoPlugin {
         return $js;
     }
 
-    public static function loadUsersFormJS() {
+    public static function loadUsersFormJS()
+    {
         $userOptions = static::getPluginUserOptions();
         $js = "";
         foreach ($userOptions as $userOption => $id) {
@@ -940,9 +1084,10 @@ class AVideoPlugin {
         return $js;
     }
 
-    public static function navBarButtons() {
+    public static function navBarButtons()
+    {
         $plugins = Plugin::getAllEnabled();
-        $userOptions = array();
+        $userOptions = [];
         $navBarButtons = "";
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -955,9 +1100,10 @@ class AVideoPlugin {
         return $navBarButtons;
     }
 
-    public static function navBarProfileButtons() {
+    public static function navBarProfileButtons()
+    {
         $plugins = Plugin::getAllEnabled();
-        $userOptions = array();
+        $userOptions = [];
         $navBarButtons = "";
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -970,10 +1116,11 @@ class AVideoPlugin {
         return $navBarButtons;
     }
 
-    public static function navBar() {
+    public static function navBar()
+    {
         $plugins = Plugin::getAllEnabled();
-        $userOptions = array();
-        $navBarButtons = "";
+        $userOptions = [];
+        $navBarButtons = "<!-- Plugin::navBar Start -->";
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -982,12 +1129,14 @@ class AVideoPlugin {
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
+        $navBarButtons .= "<!-- Plugin::navBar END -->";
         return $navBarButtons;
     }
 
-    public static function navBarAfter() {
+    public static function navBarAfter()
+    {
         $plugins = Plugin::getAllEnabled();
-        $userOptions = array();
+        $userOptions = [];
         $navBarButtons = "";
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1001,10 +1150,11 @@ class AVideoPlugin {
     }
 
     /**
-     * excecute update function at plugin and 
-     * update plugin version at database 
+     * Execute update function at plugin and
+     * update plugin version at database
      */
-    public static function updatePlugin($name) {
+    public static function updatePlugin($name)
+    {
         $p = static::loadPlugin($name);
         if (empty($p)) {
             return false;
@@ -1014,10 +1164,11 @@ class AVideoPlugin {
         _error_log("AVideoPlugin::updatePlugin name=($name) uuid=($uuid) ");
         if (method_exists($p, 'updateScript')) {
             _error_log("AVideoPlugin::updatePlugin method_exists ", AVideoLog::$WARNING);
-            if ($p->updateScript())
+            if ($p->updateScript()) {
                 Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
-            else
+            } else {
                 return false;
+            }
         } else {
             _error_log("AVideoPlugin::updatePlugin method NOT exists ", AVideoLog::$WARNING);
             Plugin::setCurrentVersionByUuid($uuid, $currentVersion);
@@ -1025,14 +1176,15 @@ class AVideoPlugin {
         return true;
     }
 
-    public static function getCurrentVersion($name) {
+    public static function getCurrentVersion($name)
+    {
         $p = static::loadPlugin($name);
         $uuid = $p->getUUID();
         return Plugin::getCurrentVersionByUuid($uuid);
     }
 
     /**
-     * 
+     *
      * @param type $name
      * @param type $version
      * @return type
@@ -1040,12 +1192,14 @@ class AVideoPlugin {
      * 0 if they are equal, and
      * 1 if your plugin is greater.
      */
-    public static function compareVersion($name, $version) {
+    public static function compareVersion($name, $version)
+    {
         $currentVersion = self::getCurrentVersion($name);
         return version_compare($currentVersion, $version);
     }
 
-    public static function getSwitchButton($name) {
+    public static function getSwitchButton($name)
+    {
         global $global;
         $p = static::loadPlugin($name);
         $btn = "";
@@ -1072,9 +1226,10 @@ class AVideoPlugin {
         return $btn;
     }
 
-    public static function getAllVideosExcludeVideosIDArray() {
+    public static function getAllVideosExcludeVideosIDArray()
+    {
         $plugins = Plugin::getAllEnabled();
-        $array = array();
+        $array = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -1086,7 +1241,8 @@ class AVideoPlugin {
         return $array;
     }
 
-    public static function userCanUpload($users_id) {
+    public static function userCanUpload($users_id)
+    {
         if (empty($users_id)) {
             return false;
         }
@@ -1099,12 +1255,15 @@ class AVideoPlugin {
                 $can = $p->userCanUpload($users_id);
                 if (!empty($can)) {
                     if ($can < 0) {
-                        _error_log("userCanUpload: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT upload a video ");
-
+                        if (!empty($users_id)) {
+                            _error_log("userCanUpload: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT upload a video ");
+                        }
                         $resp = false;
                     }
                     if ($can > 0) {
-                        _error_log("userCanUpload: SUCCESS The plugin {$value['dirName']} said the user ({$users_id}) can upload a video ");
+                        if (!empty($users_id)) {
+                            _error_log("userCanUpload: SUCCESS The plugin {$value['dirName']} said the user ({$users_id}) can upload a video ");
+                        }
                         return true;
                     }
                 }
@@ -1114,14 +1273,15 @@ class AVideoPlugin {
         return $resp;
     }
 
-    public static function userCanWatchVideo($users_id, $videos_id) {
+    public static function userCanWatchVideo($users_id, $videos_id)
+    {
         global $userCanWatchVideoFunction;
 
         if (!isset($userCanWatchVideoFunction)) {
-            $userCanWatchVideoFunction = array();
+            $userCanWatchVideoFunction = [];
         }
         if (!isset($userCanWatchVideoFunction[$users_id])) {
-            $userCanWatchVideoFunction[$users_id] = array();
+            $userCanWatchVideoFunction[$users_id] = [];
         }
         if (isset($userCanWatchVideoFunction[$users_id][$videos_id])) {
             return $userCanWatchVideoFunction[$users_id][$videos_id];
@@ -1154,11 +1314,15 @@ class AVideoPlugin {
                 $can = $p->userCanWatchVideo($users_id, $videos_id);
                 if (!empty($can)) {
                     if ($can < 0) {
-                        _error_log("userCanWatchVideo: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT watch the video ({$videos_id})");
+                        if (!empty($users_id)) {
+                            _error_log("userCanWatchVideo: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT watch the video ({$videos_id})");
+                        }
                         $resp = false;
                     }
                     if ($can > 0) {
-                        _error_log("userCanWatchVideo: SUCCESS The plugin {$value['dirName']} said the user ({$users_id}) can watch the video ({$videos_id})");
+                        if (!empty($users_id)) {
+                            _error_log("userCanWatchVideo: SUCCESS The plugin {$value['dirName']} said the user ({$users_id}) can watch the video ({$videos_id})");
+                        }
                         $userCanWatchVideoFunction[$users_id][$videos_id] = true;
                         ObjectYPT::setSessionCache($cacheName, true);
                         return true;
@@ -1175,14 +1339,15 @@ class AVideoPlugin {
         return $resp;
     }
 
-    public static function userCanWatchVideoWithAds($users_id, $videos_id) {
+    public static function userCanWatchVideoWithAds($users_id, $videos_id)
+    {
         global $userCanWatchVideoWithAdsFunction;
         $users_id = intval($users_id);
         if (!isset($userCanWatchVideoWithAdsFunction)) {
-            $userCanWatchVideoWithAdsFunction = array();
+            $userCanWatchVideoWithAdsFunction = [];
         }
         if (!isset($userCanWatchVideoWithAdsFunction[$users_id])) {
-            $userCanWatchVideoWithAdsFunction[$users_id] = array();
+            $userCanWatchVideoWithAdsFunction[$users_id] = [];
         }
         if (isset($userCanWatchVideoWithAdsFunction[$users_id][$videos_id])) {
             return $userCanWatchVideoWithAdsFunction[$users_id][$videos_id];
@@ -1197,7 +1362,7 @@ class AVideoPlugin {
                 if (!empty($can)) {
                     $resp = $can > 0 ? true : false;
                     if ($resp) {
-                        if(!empty($users_id)){
+                        if (!empty($users_id)) {
                             _error_log("userCanWatchVideoWithAds the plugin ({$value['dirName']}) said user ({$users_id}) can watch");
                         }
                         $userCanWatchVideoWithAdsFunction[$users_id][$videos_id] = true;
@@ -1213,10 +1378,14 @@ class AVideoPlugin {
         return $resp;
     }
 
-    public static function showAds($videos_id) {
+    public static function showAds($videos_id)
+    {
         global $_showAds;
+        if(isBot()){
+            return false;
+        }
         if (!isset($_showAds)) {
-            $_showAds = array();
+            $_showAds = [];
         }
         if (isset($_showAds[$videos_id])) {
             return $_showAds[$videos_id];
@@ -1240,10 +1409,11 @@ class AVideoPlugin {
         return $resp;
     }
 
-    public static function isPaidUser($users_id) {
+    public static function isPaidUser($users_id)
+    {
         global $_isPaidUser;
         if (!isset($_isPaidUser)) {
-            $_isPaidUser = array();
+            $_isPaidUser = [];
         }
         if (isset($_isPaidUser[$users_id])) {
             return $_isPaidUser[$users_id];
@@ -1272,7 +1442,8 @@ class AVideoPlugin {
      * A plugin can replace the getVideo method from the youtubeMode page
      * @return type
      */
-    public static function getVideo() {
+    public static function getVideo()
+    {
         $plugins = Plugin::getAllEnabled();
         $resp = null;
         foreach ($plugins as $value) {
@@ -1289,7 +1460,8 @@ class AVideoPlugin {
         return $resp;
     }
 
-    public static function onUserSignIn($users_id) {
+    public static function onUserSignIn($users_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1301,7 +1473,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function onUserSignup($users_id) {
+    public static function onUserSignup($users_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1313,7 +1486,8 @@ class AVideoPlugin {
         }
     }
 
-    public static function onLiveStream($users_id, $live_servers_id) {
+    public static function onLiveStream($users_id, $live_servers_id)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1324,8 +1498,21 @@ class AVideoPlugin {
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
     }
+    
+    public static function on_publish_done($live_transmitions_history_id, $users_id, $key, $live_servers_id){
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onLiveStream($live_transmitions_history_id, $users_id, $key, $live_servers_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
 
-    public static function onUserSocketConnect() {
+    public static function onUserSocketConnect()
+    {
         _mysql_connect();
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
@@ -1339,7 +1526,8 @@ class AVideoPlugin {
         _mysql_close();
     }
 
-    public static function onUserSocketDisconnect() {
+    public static function onUserSocketDisconnect()
+    {
         _mysql_connect();
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
@@ -1353,7 +1541,8 @@ class AVideoPlugin {
         _mysql_close();
     }
 
-    public static function thumbsOverlay($videos_id) {
+    public static function thumbsOverlay($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1367,7 +1556,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function profileTabName($users_id) {
+    public static function profileTabName($users_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1381,7 +1571,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function profileTabContent($users_id) {
+    public static function profileTabContent($users_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1395,15 +1586,16 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getVideoTags($videos_id) {
+    public static function getVideoTags($videos_id)
+    {
         global $global, $advancedCustom;
         if (empty($videos_id) || !empty($global['disableVideoTags']) || !empty($advancedCustom->disableVideoTags)) {
-            return array();
+            return [];
         }
 
         global $_getVideoTags;
         if (empty($_getVideoTags)) {
-            $_getVideoTags = array();
+            $_getVideoTags = [];
         }
 
         if (isset($_getVideoTags[$videos_id])) {
@@ -1415,7 +1607,7 @@ class AVideoPlugin {
             if (empty($array)) {
                 TimeLogStart("AVideoPlugin::getVideoTags($videos_id)");
                 $plugins = Plugin::getAllEnabled();
-                $array = array();
+                $array = [];
                 foreach ($plugins as $value) {
                     $TimeLog = "AVideoPlugin::getVideoTags($videos_id) {$value['dirName']} ";
                     TimeLogStart($TimeLog);
@@ -1435,17 +1627,18 @@ class AVideoPlugin {
         return $array;
     }
 
-    public static function deleteVideoTags($videos_id) {
+    public static function deleteVideoTags($videos_id)
+    {
         if (empty($videos_id)) {
             return false;
         }
         $name = "getVideoTags{$videos_id}";
-        _error_log("deleteVideoTags {$name}");
-        ObjectYPT::deleteSessionCache($name);
-        return ObjectYPT::deleteCache($name);
+        //_error_log("deleteVideoTags {$name}");
+        return Cache::deleteCache($name);
     }
 
-    public static function getVideoWhereClause() {
+    public static function getVideoWhereClause()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1459,7 +1652,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getManagerVideosAddNew() {
+    public static function getManagerVideosAddNew()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1473,7 +1667,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function saveVideosAddNew($post, $videos_id) {
+    public static function saveVideosAddNew($post, $videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
         $r = true;
         foreach ($plugins as $value) {
@@ -1487,7 +1682,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getManagerVideosReset() {
+    public static function getManagerVideosReset()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1501,7 +1697,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getManagerVideosEdit() {
+    public static function getManagerVideosEdit()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1515,21 +1712,23 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getManagerVideosEditField() {
+    public static function getManagerVideosEditField($type='Advanced')
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                $r .= $p->getManagerVideosEditField();
+                $r .= $p->getManagerVideosEditField($type);
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
         return $r;
     }
 
-    public static function getManagerVideosJavaScripts() {
+    public static function getManagerVideosJavaScripts()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1543,7 +1742,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getManagerVideosTab() {
+    public static function getManagerVideosTab()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1557,7 +1757,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getManagerVideosBody() {
+    public static function getManagerVideosBody()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1571,9 +1772,10 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getAllVideosArray($videos_id) {
+    public static function getAllVideosArray($videos_id)
+    {
         $plugins = Plugin::getAllEnabled();
-        $r = array();
+        $r = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -1585,7 +1787,8 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function getUploadMenuButton() {
+    public static function getUploadMenuButton()
+    {
         $plugins = Plugin::getAllEnabled();
         $r = "";
         foreach ($plugins as $value) {
@@ -1603,9 +1806,10 @@ class AVideoPlugin {
         return $r;
     }
 
-    public static function dataSetup() {
+    public static function dataSetup()
+    {
         $plugins = Plugin::getAllEnabled();
-        $r = array();
+        $r = [];
         foreach ($plugins as $value) {
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
@@ -1622,7 +1826,8 @@ class AVideoPlugin {
 
     /* Video properties hooks */
 
-    public static function onVideoSetLive_transmitions_history_id($video_id, $oldValue, $newValue) {
+    public static function onVideoSetLive_transmitions_history_id($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1635,7 +1840,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetEncoderURL($video_id, $oldValue, $newValue) {
+    public static function onVideoSetEncoderURL($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1648,7 +1854,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetFilepath($video_id, $oldValue, $newValue) {
+    public static function onVideoSetFilepath($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1661,7 +1868,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetFilesize($video_id, $oldValue, $newValue) {
+    public static function onVideoSetFilesize($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1674,7 +1882,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetUsers_id($video_id, $oldValue, $newValue) {
+    public static function onVideoSetUsers_id($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1687,7 +1896,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetSites_id($video_id, $oldValue, $newValue) {
+    public static function onVideoSetSites_id($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1700,7 +1910,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetVideo_password($video_id, $oldValue, $newValue) {
+    public static function onVideoSetVideo_password($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1713,7 +1924,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetClean_title($video_id, $oldValue, $newValue) {
+    public static function onVideoSetClean_title($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1726,7 +1938,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetDuration($video_id, $oldValue, $newValue) {
+    public static function onVideoSetDuration($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1739,7 +1952,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetIsSuggested($video_id, $oldValue, $newValue) {
+    public static function onVideoSetIsSuggested($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1752,7 +1966,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetStatus($video_id, $oldValue, $newValue) {
+    public static function onVideoSetStatus($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1765,7 +1980,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetType($video_id, $oldValue, $newValue, $force) {
+    public static function onVideoSetType($video_id, $oldValue, $newValue, $force)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1778,7 +1994,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetRotation($video_id, $oldValue, $newValue) {
+    public static function onVideoSetRotation($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1791,7 +2008,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetZoom($video_id, $oldValue, $newValue) {
+    public static function onVideoSetZoom($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1804,7 +2022,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetDescription($video_id, $oldValue, $newValue) {
+    public static function onVideoSetDescription($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1817,7 +2036,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetCategories_id($video_id, $oldValue, $newValue) {
+    public static function onVideoSetCategories_id($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1830,7 +2050,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetVideoDownloadedLink($video_id, $oldValue, $newValue) {
+    public static function onVideoSetVideoDownloadedLink($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1843,7 +2064,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetVideoGroups($video_id, $oldValue, $newValue) {
+    public static function onVideoSetVideoGroups($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1856,7 +2078,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetTrailer1($video_id, $oldValue, $newValue) {
+    public static function onVideoSetTrailer1($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1869,7 +2092,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetTrailer2($video_id, $oldValue, $newValue) {
+    public static function onVideoSetTrailer2($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1882,7 +2106,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetTrailer3($video_id, $oldValue, $newValue) {
+    public static function onVideoSetTrailer3($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1895,7 +2120,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetRate($video_id, $oldValue, $newValue) {
+    public static function onVideoSetRate($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1908,7 +2134,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetYoutubeId($video_id, $oldValue, $newValue) {
+    public static function onVideoSetYoutubeId($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1921,7 +2148,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetTitle($video_id, $oldValue, $newValue) {
+    public static function onVideoSetTitle($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1934,7 +2162,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetFilename($video_id, $oldValue, $newValue, $force) {
+    public static function onVideoSetFilename($video_id, $oldValue, $newValue, $force)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1947,7 +2176,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetNext_videos_id($video_id, $oldValue, $newValue) {
+    public static function onVideoSetNext_videos_id($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1960,7 +2190,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetVideoLink($video_id, $oldValue, $newValue) {
+    public static function onVideoSetVideoLink($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1973,7 +2204,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetCan_download($video_id, $oldValue, $newValue) {
+    public static function onVideoSetCan_download($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1986,7 +2218,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetCan_share($video_id, $oldValue, $newValue) {
+    public static function onVideoSetCan_share($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -1999,7 +2232,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function getWalletConfigurationHTML($users_id, $wallet, $walletDataObject) {
+    public static function getWalletConfigurationHTML($users_id, $wallet, $walletDataObject)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -2012,7 +2246,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetOnly_for_paid($video_id, $oldValue, $newValue) {
+    public static function onVideoSetOnly_for_paid($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -2025,7 +2260,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetRrating($video_id, $oldValue, $newValue) {
+    public static function onVideoSetRrating($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -2038,7 +2274,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetExternalOptions($video_id, $oldValue, $newValue) {
+    public static function onVideoSetExternalOptions($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -2051,7 +2288,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetVideoStartSeconds($video_id, $oldValue, $newValue) {
+    public static function onVideoSetVideoStartSeconds($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -2064,7 +2302,8 @@ class AVideoPlugin {
         return;
     }
 
-    public static function onVideoSetSerie_playlists_id($video_id, $oldValue, $newValue) {
+    public static function onVideoSetSerie_playlists_id($video_id, $oldValue, $newValue)
+    {
         $plugins = Plugin::getAllEnabled();
         foreach ($plugins as $value) {
             self::YPTstart();
@@ -2077,29 +2316,31 @@ class AVideoPlugin {
         return;
     }
 
-    public static function getPluginsOnByDefault($getUUID = true) {
+    public static function getPluginsOnByDefault($getUUID = true)
+    {
         if (empty($getUUID)) {
-            return array(
+            return [
                 'CustomizeUser', // CustomizeUser
                 'CustomizeAdvanced', // CustomizeAdvanced
                 'Layout', // Layout
                 'PlayerSkins', // PlayerSkins
                 'Permissions', // Permissions
                 'Scheduler', // Permissions
-            );
+            ];
         } else {
-            return array(
+            return [
                 '55a4fa56-8a30-48d4-a0fb-8aa6b3fuser3', // CustomizeUser
                 '55a4fa56-8a30-48d4-a0fb-8aa6b3f69033', // CustomizeAdvanced
                 'layout84-8f5a-4d1b-b912-172c608bf9e3', // Layout
                 'e9a568e6-ef61-4dcc-aad0-0109e9be8e36', // PlayerSkins
                 'Permissions-5ee8405eaaa16', // Permissions
                 'Scheduler-5ee8405eaaa16', // Permissions
-            );
+            ];
         }
     }
 
-    public static function getPluginsNameOnByDefaultFromUUID($UUID) {
+    public static function getPluginsNameOnByDefaultFromUUID($UUID)
+    {
         $UUIDs = self::getPluginsOnByDefault();
         $key = array_search($UUID, $UUIDs);
         if ($key === false) {
@@ -2112,20 +2353,26 @@ class AVideoPlugin {
         return $names[$key];
     }
 
-    public static function isPluginOnByDefault($UUID) {
+    public static function isPluginOnByDefault($UUID)
+    {
         $UUIDs = self::getPluginsOnByDefault();
         return in_array($UUID, $UUIDs);
     }
 
-    static function fixName($name) {
+    public static function fixName($name)
+    {
         if ($name === 'Programs') {
             return 'PlayLists';
         }
         return $name;
     }
-
 }
 
-class YouPHPTubePlugin extends AVideoPlugin {
-    
+class YouPHPTubePlugin extends AVideoPlugin
+{
+}     
+
+function getLiveApplicationArrayCMP($a, $b) {
+    //var_dump($a['title'],$a['comingsoon'], $b['title'],$b['comingsoon'], $a['comingsoon'] - $b['comingsoon']);
+    return $a['comingsoon'] - $b['comingsoon'];
 }

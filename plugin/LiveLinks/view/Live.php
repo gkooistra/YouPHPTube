@@ -14,7 +14,6 @@ if (empty($plugin)) {
 }
 
 $_GET['link'] = intval($_GET['link']);
-
 if (!empty($_GET['link'])) {
     $liveLink = new LiveLinksTable($_GET['link']);
 
@@ -31,7 +30,8 @@ if (!empty($_GET['link'])) {
     $t['description'] = $liveLink->getDescription();
 
     AVideoPlugin::getModeLiveLink($liveLink->getId());
-    $toTime = strtotime($liveLink->getStart_date());
+    $date = convertFromDefaultTimezoneTimeToMyTimezone($liveLink->getStart_date());
+    $toTime = strtotime($date);
 } else {
     $isLiveLink = uniqid();
     $uuid = $isLiveLink;
@@ -47,7 +47,8 @@ if ($toTime > time()) {
     $message = "<strong>{$t['title']}</strong><br>{$t['description']}";
     $image = User::getPhoto($t['users_id']);
     $bgImage = LiveLinks::getImage($t['id']);
-    countDownPage($toTime, $message, $image, $bgImage);
+    $title = $t['title'];
+    countDownPage($toTime, $message, $image, $bgImage, $title);
 }
 
 $u = new User($t['users_id']);
@@ -66,6 +67,9 @@ $poster = $img = LiveLinks::getImage($t['id']);
 $imgw = 400;
 $imgh = 255;
 
+if (isAVideoMobileApp()) {
+    $_GET['embed'] = 1;
+}
 
 if (!empty($_GET['embed'])) {
     $video['videoLink'] = LiveLinks::getSourceLink($t['id']);
@@ -79,7 +83,8 @@ $sideAd = getAdsSideRectangle();
 
 $modeYoutubeBottomClass1 = "col-sm-7 col-md-7 col-lg-6";
 $modeYoutubeBottomClass2 = "col-sm-5 col-md-5 col-lg-4 ";
-if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
+
+if (isHTMLEmpty($sideAd)) {
     $modeYoutubeBottomClass1 = "col-sm-12 col-md-12 col-lg-10";
     $modeYoutubeBottomClass2 = "hidden ";
 }
@@ -88,9 +93,8 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo $t['title'] . $config->getPageTitleSeparator() . __("Live Links") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/videojs-contrib-ads/dist/videojs.ads.min.js'); ?>" rel="stylesheet" type="text/css"/>
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
@@ -98,8 +102,8 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
         <meta property="fb:app_id"             content="774958212660408" />
         <meta property="og:url"                content="<?php echo LiveLinks::getLinkToLiveFromId($_GET['link']); ?>" />
         <meta property="og:type"               content="video.other" />
-        <meta property="og:title"              content="<?php echo str_replace('"', '', $t['title']); ?> - <?php echo $config->getWebSiteTitle(); ?>" />
-        <meta property="og:description"        content="<?php echo str_replace('"', '', $t['title']); ?>" />
+        <meta property="og:title"              content="<?php echo getSEOTitle($t['title']); ?>" />
+        <meta property="og:description"        content="<?php echo getSEODescription($t['title']); ?>" />
         <meta property="og:image"              content="<?php echo $img; ?>" />
         <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
         <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
@@ -109,7 +113,8 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
         <?php
         include $global['systemRootPath'] . 'view/include/navbar.php';
         ?>
-        <div class="container-fluid principalContainer" style="padding: 0;" id="modeYoutubePrincipal">
+        <!-- LiveLinks Live.php -->
+        <div class="container-fluid principalContainer" style="padding: 0;overflow: hidden;" id="modeYoutubePrincipal">
             <?php
             if (!$isCompressed) {
                 ?>
@@ -163,21 +168,42 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
                     ?>
                     <div class="panel">
                         <div class="panel-body">
-                            <h1 itemprop="name">
-                                <i class="fas fa-video"></i> <?php echo $t['title']; ?>
-                            </h1>
-                            <p><?php echo nl2br(textToLink($t['description'])); ?></p>
+                            <h1 itemprop="name"><i class="fas fa-video"></i> <?php echo getSEOTitle($t['title']); ?></h1>
                             <div class="col-xs-12 col-sm-12 col-lg-12"><?php echo $video['creator']; ?></div>
-                            <?php
-                            $link = LiveLinks::getLinkToLiveFromId($_GET['link']);
-                            $linkEmbed = LiveLinks::getLinkToLiveFromId($_GET['link'], true);
-                            getShareMenu($t['title'], $link, $link, $linkEmbed, $img, "row");
-                            ?>
-                            <div class="col-md-12 watch8-action-buttons text-muted">
+                            <p><?php echo nl2br(textToLink($t['description'])); ?></p>
 
-                                <?php echo AVideoPlugin::getWatchActionButton(0); ?>
+                            <div class="row">
+                                <div class="col-md-12 watch8-action-buttons text-muted">
+                                    <?php if (empty($advancedCustom->disableShareAndPlaylist) && empty($advancedCustom->disableShareOnly)) { ?>
+                                        <a href="#" class="btn btn-default no-outline" id="shareBtn">
+                                            <span class="fa fa-share"></span> <?php echo __("Share"); ?>
+                                        </a>
+                                        <?php
+                                    }
+                                    ?>
+                                    <script>
+                                        $(document).ready(function () {
+                                            $("#shareDiv").slideUp();
+                                            $("#shareBtn").click(function () {
+                                                $(".menusDiv").not("#shareDiv").slideUp();
+                                                $("#shareDiv").slideToggle();
+                                                return false;
+                                            });
+                                        });
+                                    </script>
+                                    <?php echo AVideoPlugin::getWatchActionButton(0); ?>
+                                </div>
                             </div>
-                            <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
+                            <?php
+                            if (empty($advancedCustom->disableShareAndPlaylist) && empty($advancedCustom->disableShareOnly)) {
+                                $link = LiveLinks::getLinkToLiveFromId($_GET['link']);
+                                $linkEmbed = LiveLinks::getLinkToLiveFromId($_GET['link'], true);
+                                getShareMenu($t['title'], $link, $link, $linkEmbed, $img, "row");
+                            }
+                            ?>
+                            <div class="row">
+                                <div class="col-lg-12 col-sm-12 col-xs-12 extraVideos nopadding"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -204,9 +230,6 @@ if (empty($sideAd) && !AVideoPlugin::loadPluginIfEnabled("Chat2")) {
             $p->getChat($uuid);
         }
         ?>
-        <script src="<?php echo getCDN(); ?>js/webui-popover/jquery.webui-popover.min.js" type="text/javascript"></script>
-        <script src="<?php echo getCDN(); ?>js/bootstrap-list-filter/bootstrap-list-filter.min.js" type="text/javascript"></script>
-
     </body>
 </html>
 

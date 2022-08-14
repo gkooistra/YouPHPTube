@@ -19,15 +19,49 @@ namespace Google\Service\GKEHub;
 
 class MembershipEndpoint extends \Google\Model
 {
+  protected $applianceClusterType = ApplianceCluster::class;
+  protected $applianceClusterDataType = '';
+  protected $edgeClusterType = EdgeCluster::class;
+  protected $edgeClusterDataType = '';
   protected $gkeClusterType = GkeCluster::class;
   protected $gkeClusterDataType = '';
   protected $kubernetesMetadataType = KubernetesMetadata::class;
   protected $kubernetesMetadataDataType = '';
+  protected $kubernetesResourceType = KubernetesResource::class;
+  protected $kubernetesResourceDataType = '';
   protected $multiCloudClusterType = MultiCloudCluster::class;
   protected $multiCloudClusterDataType = '';
   protected $onPremClusterType = OnPremCluster::class;
   protected $onPremClusterDataType = '';
 
+  /**
+   * @param ApplianceCluster
+   */
+  public function setApplianceCluster(ApplianceCluster $applianceCluster)
+  {
+    $this->applianceCluster = $applianceCluster;
+  }
+  /**
+   * @return ApplianceCluster
+   */
+  public function getApplianceCluster()
+  {
+    return $this->applianceCluster;
+  }
+  /**
+   * @param EdgeCluster
+   */
+  public function setEdgeCluster(EdgeCluster $edgeCluster)
+  {
+    $this->edgeCluster = $edgeCluster;
+  }
+  /**
+   * @return EdgeCluster
+   */
+  public function getEdgeCluster()
+  {
+    return $this->edgeCluster;
+  }
   /**
    * @param GkeCluster
    */
@@ -55,6 +89,20 @@ class MembershipEndpoint extends \Google\Model
   public function getKubernetesMetadata()
   {
     return $this->kubernetesMetadata;
+  }
+  /**
+   * @param KubernetesResource
+   */
+  public function setKubernetesResource(KubernetesResource $kubernetesResource)
+  {
+    $this->kubernetesResource = $kubernetesResource;
+  }
+  /**
+   * @return KubernetesResource
+   */
+  public function getKubernetesResource()
+  {
+    return $this->kubernetesResource;
   }
   /**
    * @param MultiCloudCluster

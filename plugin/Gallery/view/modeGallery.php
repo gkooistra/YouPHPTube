@@ -2,6 +2,7 @@
 $isFirstPage = 1;
 include $global['systemRootPath'] . 'plugin/Gallery/view/topLogic.php';
 $leaderBoardTop = getAdsLeaderBoardTop();
+_ob_start();
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -17,12 +18,14 @@ $leaderBoardTop = getAdsLeaderBoardTop();
         <div class="container-fluid gallery">
             <?php
             if(!empty($leaderBoardTop)){
-                echo '<div class="row text-center" style="padding: 10px;">'.$leaderBoardTop.'</div>';
+                echo '<!-- leaderBoardTop start --><div class="row text-center" style="padding: 10px;">'.$leaderBoardTop.'</div><!-- leaderBoardTop end -->';
+            }else{
+                echo '<!-- getAdsLeaderBoardTop is empty -->';
             }
             ?>
-            <div class="col-lg-10 col-lg-offset-1 addWidthOnMenuOpen">
+            <div class="col-lg-10 col-lg-offset-1">
                 <div class="panel panel-default">
-                    <div class="panel-body">
+                    <div class="panel-body" style="overflow: hidden;">
                         <?php
                     include $global['systemRootPath'] . 'view/include/categoryTop.php';
                     include $global['systemRootPath'] . 'plugin/Gallery/view/mainArea.php';

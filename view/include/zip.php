@@ -25,10 +25,17 @@ $sources = getVideosURLZIP($video['filename']);
                             $za->open($sources['zip']["path"]);
                             for ($i = 0; $i < $za->numFiles; $i++) {
                                 $stat = $za->statIndex($i);
-                                $fname = basename($stat['name']);
-                                ?>
+                                $fname = basename($stat['name']); ?>
                             <li class="list-group-item" style="text-align: left;"><i class="<?php echo fontAwesomeClassName($fname) ?>"></i> <?php echo $fname; ?></li>
                                 <?php
+                                if($i==15){
+                                    if($za->numFiles>15){
+                                        ?>
+                                        <li class="list-group-item" style="text-align: left;"><?php echo __('Total'), ' ', $za->numFiles, ' ', __('Files'); ?>...</li>
+                                        <?php
+                                    }
+                                    break;
+                                }
                             }
                             ?>
                         </ul>

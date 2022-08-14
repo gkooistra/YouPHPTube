@@ -1,5 +1,4 @@
 <?php
-
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
@@ -21,6 +20,8 @@ if (!empty($input)) {
     }
 }
 $obj = new stdClass();
+$obj->error = true;
+$obj->msg = '';
 if (empty($ignoreCaptcha)) {
     if (empty($_POST['captcha'])) {
         $obj->error = __("The captcha is empty");
@@ -57,6 +58,10 @@ if (!empty($advancedCustomUser->emailMustBeUnique)) {
     }
 }
 
+if(empty($_POST['pass']) && !empty($_POST['inputPassword'])){
+    $_POST['pass'] = $_POST['inputPassword'];
+}
+
 if (empty($_POST['user']) || empty($_POST['pass']) || empty($_POST['email']) || empty($_POST['name'])) {
     $obj->error = __("You must fill all fields");
     die(json_encode($obj));
@@ -72,6 +77,8 @@ $user->setUser($_POST['user']);
 $user->setPassword($_POST['pass']);
 $user->setEmail($_POST['email']);
 $user->setName($_POST['name']);
+$user->setPhone(@$_POST['phone']);
+$user->setIs_company($_POST['is_company']);
 
 $user->setCanUpload($config->getAuthCanUploadVideos());
 
@@ -83,9 +90,18 @@ if (!empty($users_id)) {
         CustomizeUser::setCanShareVideosFromUser($users_id, true);
     }
     if (!empty($advancedCustomUser->userDefaultUserGroup->value)) { // for new users use the default usergroup
-        UserGroups::updateUserGroups($users_id, array($advancedCustomUser->userDefaultUserGroup->value), true);
+        UserGroups::updateUserGroups($users_id, [$advancedCustomUser->userDefaultUserGroup->value], true);
     }
     AVideoPlugin::onUserSignup($users_id);
+    $obj->status = $users_id;
+    $obj->error = false;
+    $obj->msg = __("Your user account has been created!");
+    if(!empty($advancedCustomUser->unverifiedEmailsCanNOTLogin)){
+        $obj->msg .= '<br>'.__("Sign in to your email to verify your account!");
+    }
+    if (!empty($_POST['usersExtraInfo'])) {
+        User::saveExtraInfo(json_encode($_POST['usersExtraInfo']), $users_id);
+    }
 }
 
-echo '{"status":"' . $users_id . '"}';
+die(json_encode($obj));

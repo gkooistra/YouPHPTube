@@ -96,6 +96,15 @@ class VideoTags extends PluginAbstract {
     static function getAllFromVideosId($videos_id) {
         return TagsHasVideos::getAllFromVideosId($videos_id);
     }
+    
+    static function getArrayFromVideosId($videos_id) {
+        $rows = TagsHasVideos::getAllFromVideosId($videos_id);
+        $array = array();
+        foreach ($rows as $value) {
+            $array[] = $value['name'];
+        }
+        return $array;
+    }
 
     static function getAllVideosIdFromTagsId($tags_id) {
         return TagsHasVideos::getAllVideosIdFromTagsId($tags_id);
@@ -240,8 +249,10 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
         return self::getManagerVideosReset().$js;
     }
     
-    public static function getManagerVideosEditField(){
-        return self::getTagsInputs();
+    public static function getManagerVideosEditField($type='Advanced'){
+        if($type == 'SEO'){
+            return self::getTagsInputs();
+        }
     }
     
     public static function getManagerVideosJavaScripts(){

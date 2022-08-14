@@ -1,27 +1,15 @@
 
-.gallery .duration {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.6)!important;
-    padding: 3px;
-    color: #FFF;
-    top: 5px;
-    left: 25px;
-    font-size: 0.9em;
-    border-radius: 5px;
-}
 .gallery .title,
 .videosDetails .title {
     font-size: 1em;
     margin: 0;
-    padding: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    line-height: 16px; /* fallback */
+    line-height: 1em; /* fallback */
     max-height: 32px; /* fallback */
     min-height: 32px; /* fallback */
     -webkit-line-clamp: 2; /* number of lines to show */
-
     -webkit-box-orient: vertical;
 }
 .gallery .watch-view-count {
@@ -80,9 +68,6 @@ h3.galleryTitle{
 
 .galeryDetails div{
     float: left;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
     padding-right: 5px;
     margin: 2px 0;
 }
@@ -161,16 +146,31 @@ a.h6{
     top: 5px; 
     z-index: 1025;
     display: none;
+    
 }
 .galleryVideo  .galleryVideoButtons button{
     opacity: 0.5;
+    display: inline-grid;
+    padding: 2px;
+    justify-content: center;
+    width: 24px;
 } 
-.galleryVideo:hover  .galleryVideoButtons{
+.galleryVideo:hover  .galleryVideoButtons,
+.thumbsImageContainer:hover  .galleryVideoButtons {
     display: block !important;
 } 
 .galleryVideo  .galleryVideoButtons  button:hover{
     opacity: 1;
-} 
+}
+.galleryVideo  .galleryVideoButtons div.dropdown .dropdown-menu{
+    margin: -20px auto auto -160px;
+}
+.galleryVideo div.galleryVideoButtons > div > ul > li > button{
+    opacity: 1;
+    display: inline-block;
+    width: 100%;
+}
+
 
 .gallerySerieOverlay{
     position: absolute; 
@@ -209,4 +209,12 @@ a.h6{
 }
 .galleryTags{
    margin: 0 !important;
+}
+
+.isChannelToGallery .addChannelToGallery, .removeChannelFromGallery{
+    display: none;
+}
+
+.isChannelToGallery .removeChannelFromGallery {
+    display: inline-block;
 }

@@ -46,7 +46,7 @@ class LiveLinks extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "4.0";
+        return "4.1";
     }
 
     public function canAddLinks() {
@@ -96,6 +96,7 @@ class LiveLinks extends PluginAbstract {
         $rows = array();
         if ($res) {
             while ($row = $res->fetch_assoc()) {
+                $row['link'] = str_replace('&amp;', '&', $row['link']);
                 $rows[] = $row;
             }
         } else {
@@ -122,9 +123,9 @@ class LiveLinks extends PluginAbstract {
         global $global;
         
         $liveUsers = AVideoPlugin::isEnabledByName('LiveUsers');        
-        $row = LiveLinks::getAllActive(true, true);
+        $rows = LiveLinks::getAllActive(true, true);
         $array = array();
-        foreach ($row as $value) {
+        foreach ($rows as $value) {
 
             if ($value['type'] == 'unlisted') {
                 continue;
@@ -137,7 +138,7 @@ class LiveLinks extends PluginAbstract {
                         
             $label = ($liveUsers ? getLiveUsersLabelLiveLinks($value['id']) : '');
             //var_dump( self::getPosterToLiveFromId($value['id']),$value['id'] );exit;
-            $array[] = Live::getLiveApplicationModelArray(
+            $row = Live::getLiveApplicationModelArray(
                     $value['users_id'], 
                     $value['title'], 
                     self::getLinkToLiveFromId($value['id']), 
@@ -147,10 +148,17 @@ class LiveLinks extends PluginAbstract {
                     $label, 
                     'liveLink_'.$value['id'], 
                     '', 
-                    $value['start_date']);
+                    convertFromDefaultTimezoneTimeToMyTimezone($value['start_date']));
+            $row['categories_id'] = $value['categories_id'];
+            $row['liveLinks_id'] = $value['id'];
+            $row['start_date'] = $value['start_date'];
+            $row['end_date'] = $value['end_date'];
+            $row['end_date_my_timezone'] = convertFromDefaultTimezoneTimeToMyTimezone($value['end_date']);
+            $row['expires'] = strtotime($row['end_date_my_timezone']);
+            $array[] = $row;
             
         }
-
+        //var_dump($rows, $array);exit;
         return $array;
     }
 
@@ -170,6 +178,13 @@ class LiveLinks extends PluginAbstract {
                 sqlDal::writeSql(trim($value));
             }
         }
+        if (AVideoPlugin::compareVersion($this->getName(), "4.1") < 0) {
+            $sqls = file_get_contents($global['systemRootPath'] . 'plugin/LiveLinks/install/updateV4.1.sql');
+            $sqlParts = explode(";", $sqls);
+            foreach ($sqlParts as $value) {
+                sqlDal::writeSql(trim($value));
+            }
+        }
 
         return true;
     }
@@ -182,6 +197,9 @@ class LiveLinks extends PluginAbstract {
         $css = '';
         if (!empty($obj->doNotShowLiveLinksLabel)) {
             $css .= '<style>.livelinksLabel{display: none;}</style>';
+        }
+        if(isLiveLink()){
+            $js .= '<link href="'.getURL('plugin/Live/view/live.css').'" rel="stylesheet" type="text/css"/>';
         }
 
         return $js . $css;
@@ -268,7 +286,7 @@ class LiveLinks extends PluginAbstract {
         }
         $status = str_replace("'", "", $status);
 
-        $sql = "SELECT u.*, v.*, c.iconClass, c.name as category, c.clean_name as clean_category,c.description as category_description, v.created as videoCreation, v.modified as videoModified "
+        $sql = "SELECT STRAIGHT_JOIN  u.*, v.*, c.iconClass, c.name as category, c.clean_name as clean_category,c.description as category_description, v.created as videoCreation, v.modified as videoModified "
                 . " FROM LiveLinks as v "
                 . " LEFT JOIN categories c ON categories_id = c.id "
                 . " LEFT JOIN users u ON v.users_id = u.id "
@@ -297,7 +315,7 @@ class LiveLinks extends PluginAbstract {
         }
 
         if (!empty($_GET['catName'])) {
-            $catName = $global['mysqli']->real_escape_string($_GET['catName']);
+            $catName = ($_GET['catName']);
             $sql .= " AND (c.clean_name = '{$catName}' OR c.parentId IN (SELECT cs.id from categories cs where cs.clean_name =  '{$catName}' ))";
         }
 
@@ -338,10 +356,11 @@ class LiveLinks extends PluginAbstract {
         if ($res != false) {
             foreach ($fullData as $row) {
                 $row = cleanUpRowFromDatabase($row);
+                $row['link'] = str_replace('&amp;', '&', $row['link']);
                 if (empty($otherInfo)) {
                     $otherInfo = array();
                     $otherInfo['category'] = xss_esc_back($row['category']);
-                    //$otherInfo['groups'] = UserGroups::getVideoGroups($row['id']);
+                    //$otherInfo['groups'] = UserGroups::getVideosAndCategoriesUserGroups($row['id']);
                     //$otherInfo['title'] = UTF8encode($row['title']);
                     $otherInfo['description'] = UTF8encode($row['description']);
                     $otherInfo['descriptionHTML'] = Video::htmlDescription($otherInfo['description']);
@@ -387,7 +406,7 @@ class LiveLinks extends PluginAbstract {
     }
 
     static function userCanWatch($users_id, $livelinks_id) {
-        if (empty($users_id) || empty($livelinks_id)) {
+        if (empty($livelinks_id)) {
             return false;
         }
 
@@ -403,6 +422,10 @@ class LiveLinks extends PluginAbstract {
         $user_groups_ids = LiveLinksTable::getUserGorupsIds($livelinks_id);
         if (empty($user_groups_ids)) {
             return true;
+        }
+        
+        if (empty($users_id)) {
+            return false;
         }
 
         return LiveLinksTable::userGroupsMatch($livelinks_id, $users_id);
@@ -436,6 +459,23 @@ class LiveLinks extends PluginAbstract {
         $t['link'] = $video->videoLink;
         $t['description'] = @$video->description;
         return $t;
+    }
+    
+    public static function getMediaSession($id) {
+        $ll = new LiveLinks($id);
+        $posters = array();
+        //var_dump($posters);exit;
+        $category = Category::getCategory($lt['categories_id']);
+        $MediaMetadata = new stdClass();
+
+        $MediaMetadata->title = $lt['title'];
+        $MediaMetadata->artist = User::getNameIdentificationById($lt['users_id']);
+        $MediaMetadata->album = $category['name'];
+        $MediaMetadata->artwork = array();
+        foreach ($posters as $key => $value) {
+            $MediaMetadata->artwork[] = array('src' => $value['url'], 'sizes' => "{$key}x{$key}", 'type' => 'image/jpg');
+        }
+        return $MediaMetadata;
     }
 
 }

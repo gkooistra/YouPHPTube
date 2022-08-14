@@ -64,6 +64,8 @@ class YPTWallet extends PluginAbstract
         $obj->currency_symbol = "$";
         $obj->addFundsOptions = "[5,10,20,50]";
         $obj->showWalletOnlyToAdmin = false;
+        $obj->showWalletOnProfile = true;
+        $obj->showWalletOnTopMenu = true;
         $obj->CryptoWalletName = "Bitcoin Wallet Address";
         $obj->CryptoWalletEnabled = false;
         $obj->hideConfiguration = false;
@@ -127,13 +129,15 @@ class YPTWallet extends PluginAbstract
         return number_format($balance, $obj->decimalPrecision);
     }
 
-    public static function formatCurrency($value, $addHTML=false, $doNotUseVirtualCurrency = false)
+    public static function formatCurrency($value, $addHTML=false, $doNotUseVirtualCurrency = false, $currency=false)
     {
         $value = floatval($value);
         $obj = AVideoPlugin::getObjectData('YPTWallet');
         $currency_symbol = $obj->currency_symbol;
         $decimalPrecision = $obj->decimalPrecision;
-        $currency = $obj->currency;
+        if($currency===false){
+            $currency = $obj->currency;
+        }
         if (empty($doNotUseVirtualCurrency) && $obj->virtual_currency_enable) {
             $currency_symbol = $obj->virtual_currency_symbol;
             $decimalPrecision = $obj->virtual_currency_decimalPrecision;
@@ -427,10 +431,19 @@ class YPTWallet extends PluginAbstract
             return "";
         }
         $obj = $this->getDataObject();
-        if ($obj->showWalletOnlyToAdmin && !User::isAdmin()) {
-            return "";
+        if (empty($obj->showWalletOnTopMenu) || ($obj->showWalletOnlyToAdmin && !User::isAdmin())) {
+            return '';
         }
         include $global['systemRootPath'] . 'plugin/YPTWallet/view/menuRight.php';
+    }
+    
+    public static function profileTabName($users_id) {
+        global $global;
+        $obj = AVideoPlugin::getDataObject('YPTWallet');
+        if (empty($obj->showWalletOnProfile) || ($obj->showWalletOnlyToAdmin && !User::isAdmin())) {
+            return '';
+        }
+        return getIncludeFileContent($global['systemRootPath'] . 'plugin/YPTWallet/view/menuRight.php', array('profileTab'=>1));
     }
 
     public static function getAvailablePayments(){

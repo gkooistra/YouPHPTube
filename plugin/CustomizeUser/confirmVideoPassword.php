@@ -8,6 +8,7 @@ if (!empty($images->posterPortrait) && strpos($images->posterPortrait, 'notfound
 }
 $imgw = 1280;
 $imgh = 720;
+$ogURL = Video::getLinkToVideo($video['id'], $video['clean_title'], false,false);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -18,10 +19,10 @@ $imgh = 720;
         ?>
         <link rel="image_src" href="<?php echo $img; ?>" />
         <meta property="fb:app_id"             content="774958212660408" />
-        <meta property="og:url"                content="<?php echo $global['webSiteRootURL'], "video/", $video['clean_title']; ?>" />
+        <meta property="og:url"                content="<?php echo $ogURL; ?>" />
         <meta property="og:type"               content="video.other" />
-        <meta property="og:title"              content="<?php echo str_replace('"', '', $video['title']); ?> - <?php echo $config->getWebSiteTitle(); ?>" />
-        <meta property="og:description"        content="<?php echo!empty($custom) ? $custom : str_replace('"', '', $video['title']); ?>" />
+        <meta property="og:title"              content="<?php echo getSEOTitle($video['title']); ?>" />
+        <meta property="og:description"        content="<?php echo getSEODescription($video['title']); ?>" />
         <meta property="og:image"              content="<?php echo $img; ?>" />
         <meta property="og:image:width"        content="<?php echo $imgw; ?>" />
         <meta property="og:image:height"       content="<?php echo $imgh; ?>" />
@@ -81,7 +82,9 @@ $imgh = 720;
                                         ?>
                                         <div class="form-group">
                                             <label for="video_password"><?php echo __("This Video Requires a Password"); ?></label>
-                                            <input type="text" class="form-control" id="video_password" name="video_password" placeholder="<?php echo __("Password"); ?>" required>
+                                            <?php
+                                            echo getInputPassword('video_password', 'class="form-control"', __("Password"));
+                                            ?>
                                         </div>
                                         <div class="row"> 
                                             <div class="col-md-6">

@@ -6,10 +6,10 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 class API extends PluginAbstract {
 
     public function getTags() {
-        return array(
+        return [
             PluginTags::$FREE,
-            PluginTags::$MOBILE
-        );
+            PluginTags::$MOBILE,
+        ];
     }
 
     public function getDescription() {
@@ -93,7 +93,7 @@ class API extends PluginAbstract {
             $index = intval($parameters['order'][0]['column']);
             $parameters['sort'][$parameters['columns'][$index]['data']] = $_GET['order'][0]['dir'];
         }
-        $array = array('sort', 'rowCount', 'current', 'searchPhrase');
+        $array = ['sort', 'rowCount', 'current', 'searchPhrase'];
         foreach ($array as $value) {
             if (!empty($parameters[$value])) {
                 $obj->$value = $parameters[$value];
@@ -111,8 +111,8 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
-     * 'plugin_name' The plugin name that you want to retreive the parameters
+     * @param type $parameters
+     * 'plugin_name' The plugin name that you want to retrieve the parameters
      * 'APISecret' to list all videos
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&rowCount=3&APISecret={APISecret}
      * @return \ApiObject
@@ -123,9 +123,8 @@ class API extends PluginAbstract {
         $obj = ObjectYPT::getCache($name, 3600);
         if (empty($obj)) {
             $obj = $this->startResponseObject($parameters);
-            $dataObj = $this->getDataObject();
             if (!empty($parameters['plugin_name'])) {
-                if ($dataObj->APISecret === @$_GET['APISecret']) {
+                if (self::isAPISecretValid()) {
                     $obj->response = AVideoPlugin::getDataObject($parameters['plugin_name']);
                 } else {
                     return new ApiObject("APISecret is required");
@@ -139,7 +138,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * This will check if the provided UserAgent/Headers comes from a mobile
      * Returns true if any type of mobile device detected, including special ones
      * PHP Sample code: "plugin/API/{getOrSet}.json.php?APIName={APIName}&userAgent=".urlencode($_SERVER["HTTP_USER_AGENT"])."&httpHeaders=".urlencode(json_encode(getallheaders()))
@@ -156,7 +155,7 @@ class API extends PluginAbstract {
             if (!empty($json)) {
                 $_REQUEST['httpHeaders'] = $json;
             } else {
-                $_REQUEST['httpHeaders'] = array($_REQUEST['httpHeaders']);
+                $_REQUEST['httpHeaders'] = [$_REQUEST['httpHeaders']];
             }
         }
         $obj->userAgent = @$_REQUEST['userAgent'];
@@ -166,7 +165,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * ['sort' database sort column]
      * ['rowCount' max numbers of rows]
      * ['current' current page]
@@ -188,7 +187,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * 'APISecret' to list all videos
      * 'playlists_id' the program id
      * 'index' the position of the video
@@ -239,7 +238,6 @@ class API extends PluginAbstract {
         $parameters['totalPlaylistDuration'] = 0;
         $parameters['currentPlaylistTime'] = 0;
         foreach ($parameters['videos'] as $key => $value) {
-
             $parameters['videos'][$key]['path'] = Video::getHigherVideoPathFromID($value['id']);
             if ($key && $key <= $parameters['index']) {
                 $parameters['currentPlaylistTime'] += durationToSeconds($parameters['videos'][$key - 1]['duration']);
@@ -264,7 +262,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * 'APISecret' to list all videos
      * 'videos_id' the video id
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&APISecret={APISecret}
@@ -274,8 +272,7 @@ class API extends PluginAbstract {
         global $global;
         $obj = $this->startResponseObject($parameters);
         $obj->videos_id = $parameters['videos_id'];
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret !== @$parameters['APISecret']) {
+        if (self::isAPISecretValid()) {
             if (!User::canWatchVideoWithAds($obj->videos_id)) {
                 return new ApiObject("You cannot watch this video");
             }
@@ -289,7 +286,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * ['APISecret' to list all videos]
      * ['sort' database sort column]
      * ['videos_id' the video id (will return only 1 or 0 video)]
@@ -300,12 +297,12 @@ class API extends PluginAbstract {
      * ['tags_id' the ID of the tag you want to filter]
      * ['catName' the clean_APIName of the category you want to filter]
      * ['channelName' the channelName of the videos you want to filter]
+     * ['videoType' the type of the video, the valid options are 'audio', 'video', 'embed', 'linkVideo', 'linkAudio', 'torrent', 'pdf', 'image', 'gallery', 'article', 'serie', 'image', 'zip', 'notfound', 'blockedUser']
      * ['is_serie' if is 0 return only videos, if is 1 return only series, if is not set, return all]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&catName=default&rowCount=10
      * @return \ApiObject
      */
     public function get_api_video($parameters) {
-
         $rowCount = getRowCount();
         if ($rowCount > 100) {
             // use 1 hour cache
@@ -319,26 +316,37 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
         if (!empty($parameters['videos_id'])) {
             $status = "viewable";
             $ignoreGroup = false;
-            if ($dataObj->APISecret === @$_GET['APISecret']) {
+            if (self::isAPISecretValid()) {
                 $status = "";
                 $ignoreGroup = true;
             }
-            $rows = array(Video::getVideo($parameters['videos_id'], $status, $ignoreGroup));
+            $rows = [Video::getVideo($parameters['videos_id'], $status, $ignoreGroup)];
             $totalRows = empty($rows) ? 0 : 1;
-        } else if ($dataObj->APISecret === @$_GET['APISecret']) {
+        } elseif (self::isAPISecretValid()) {
             $rows = Video::getAllVideos("viewable", false, true);
             $totalRows = Video::getTotalVideos("viewable", false, true);
-        } else if (!empty($parameters['clean_title'])) {
+        } elseif (!empty($parameters['clean_title'])) {
             $rows = Video::getVideoFromCleanTitle($parameters['clean_title']);
             $totalRows = empty($rows) ? 0 : 1;
         } else {
             $rows = Video::getAllVideos();
             $totalRows = Video::getTotalVideos();
         }
+
+        if (!empty($_REQUEST['catName'])) {
+            $currentCat = Category::getCategoryByName($_REQUEST['catName']);
+            if (!empty($currentCat)) {
+                $liveVideos = getLiveVideosFromCategory($currentCat['id']);
+                if (!empty($liveVideos)) {
+                    $rows = array_merge($liveVideos, $rows);
+                    $totalRows += count($liveVideos);
+                }
+            }
+        }
+
         unsetSearch();
         $objMob = AVideoPlugin::getObjectData("MobileManager");
         $SubtitleSwitcher = AVideoPlugin::loadPluginIfEnabled("SubtitleSwitcher");
@@ -355,7 +363,27 @@ class API extends PluginAbstract {
             }
             $images = Video::getImageFromFilename($rows[$key]['filename'], $rows[$key]['type']);
             $rows[$key]['images'] = $images;
-            $rows[$key]['videos'] = Video::getVideosPaths($value['filename'], true);
+            if ($rows[$key]['type'] !== 'linkVideo') {
+                $rows[$key]['videos'] = Video::getVideosPaths($value['filename'], true);
+            } else {
+                $extension = getExtension($rows[$key]['videoLink']);
+                if ($extension == 'mp4') {
+                    $rows[$key]['videos'] = array(
+                        'mp4' => array(
+                            '720' => $rows[$key]['videoLink']
+                        )
+                    );
+                } else if ($extension == 'm3u8') {
+                    $rows[$key]['videos'] = array('m3u8' => array(
+                            'url' => $rows[$key]['videoLink'],
+                            'url_noCDN' => $rows[$key]['videoLink'],
+                            'type' => 'video',
+                            'format' => 'm3u8',
+                            'resolution' => 'auto',
+                        )
+                    );
+                }
+            }
             if (empty($rows[$key]['videos'])) {
                 $rows[$key]['videos'] = new stdClass();
             }
@@ -418,7 +446,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * ['APISecret' to list all videos]
      * ['searchPhrase' to search on the categories]
      * ['tags_id' the ID of the tag you want to filter]
@@ -431,8 +459,7 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret === @$_GET['APISecret']) {
+        if (self::isAPISecretValid()) {
             $totalRows = Video::getTotalVideos("viewable", false, true);
         } else {
             $totalRows = Video::getTotalVideos();
@@ -444,10 +471,10 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * 'videos_id' the video id that will be deleted
      * ['APISecret' if passed will not require user and pass]
-     * ['user' usename of the user that will like the video]
+     * ['user' username of the user that will like the video]
      * ['pass' password  of the user that will like the video]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123&APISecret={APISecret}
      * @return \ApiObject
@@ -456,12 +483,11 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
         if (!empty($parameters['videos_id'])) {
             if (!User::canUpload()) {
                 return new ApiObject("Access denied");
             }
-            if (!empty($_GET['APISecret']) && $dataObj->APISecret !== $_GET['APISecret']) {
+            if (!empty($_REQUEST['APISecret']) && !self::isAPISecretValid()) {
                 return new ApiObject("Secret does not match");
             }
             $obj = new Video("", "", $parameters['videos_id']);
@@ -476,12 +502,12 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * 'comment' String with the comment
      * 'videos_id' the video that will receive the comment
      * ['id' the comment id if you will edit some]
      * ['APISecret' if passed will not require user and pass]
-     * ['user' usename of the user that will like the video]
+     * ['user' username of the user that will like the video]
      * ['pass' password  of the user that will like the video]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123&APISecret={APISecret}
      * @return \ApiObject
@@ -489,11 +515,10 @@ class API extends PluginAbstract {
     public function set_api_comment($parameters) {
         global $global;
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
         if (!empty($parameters['videos_id'])) {
-            if (!empty($_GET['APISecret']) && $dataObj->APISecret !== $_GET['APISecret']) {
+            if (!empty($_REQUEST['APISecret']) && !self::isAPISecretValid()) {
                 return new ApiObject("Secret does not match");
-            } else if (!User::canComment()) {
+            } elseif (!User::canComment()) {
                 return new ApiObject("Access denied");
             }
             $parameters['comments_id'] = intval(@$parameters['comments_id']);
@@ -508,20 +533,59 @@ class API extends PluginAbstract {
                 $obj = new Comment($parameters['comment'], $parameters['videos_id']);
                 $obj->setComments_id_pai($parameters['comments_id']);
             }
-            $id = $obj->save();
-            return new ApiObject("", !$id, $id);
+            $objResponse = new stdClass();
+            $objResponse->comments_id = $obj->save();
+            $objResponse->videos_id = $parameters['videos_id'];
+            return new ApiObject("", !$objResponse->comments_id, $objResponse);
         } else {
             return new ApiObject("Video ID is required");
         }
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
+     * 'comment' String with the comment
+     * 'videos_id' the video that will retreive the comments
+     * ['APISecret' if passed will not require user and pass]
+     * ['user' username of the user that will like the video]
+     * ['pass' password  of the user that will like the video]
+     * ['rowCount' max numbers of rows]
+     * ['current' current page]
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123&APISecret={APISecret}
+     * @return \ApiObject
+     */
+    public function get_api_comment($parameters) {
+        global $global;
+        $obj = $this->startResponseObject($parameters);
+        if (!empty($parameters['videos_id'])) {
+            if (!empty($_REQUEST['APISecret']) && !self::isAPISecretValid()) {
+                return new ApiObject("Secret does not match");
+            } elseif (!User::canComment()) {
+                return new ApiObject("Access denied");
+            }
+
+            if (!User::canWatchVideo($parameters['videos_id'])) {
+                return new ApiObject("Cannot watch video");
+            }
+
+            require_once $global['systemRootPath'] . 'objects/comment.php';
+
+            $_POST['sort']['created'] = "desc";
+            $obj = Comment::getAllComments($parameters['videos_id']);
+            $obj = Comment::addExtraInfo($obj);
+            return new ApiObject("", false, $obj);
+        } else {
+            return new ApiObject("Video ID is required");
+        }
+    }
+
+    /**
+     * @param type $parameters
      * 'videos_id' the video id that will be deleted
      * 'title' the video title
      * 'status' the video status
      * ['APISecret' if passed will not require user and pass]
-     * ['user' usename of the user that will like the video]
+     * ['user' username of the user that will like the video]
      * ['pass' password  of the user that will like the video]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123&APISecret={APISecret}
      * @return \ApiObject
@@ -530,12 +594,11 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
         if (!empty($parameters['videos_id'])) {
             if (!User::canUpload()) {
                 return new ApiObject("Access denied");
             }
-            if (!empty($_GET['APISecret']) && $dataObj->APISecret !== $_GET['APISecret']) {
+            if (!empty($_REQUEST['APISecret']) && !self::isAPISecretValid()) {
                 return new ApiObject("Secret does not match");
             }
             $obj = new Video("", "", $parameters['videos_id']);
@@ -557,7 +620,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}
      * @return \ApiObject
      */
@@ -569,12 +632,12 @@ class API extends PluginAbstract {
 
     /**
      * Return a user livestream information
-     * @param type $parameters 
+     * @param type $parameters
      * ['title' Livestream title]
      * ['public' 1 = live is listed; 0 = not listed]
      * ['APISecret' if passed will not require user and pass]
      * ['users_id' the user ID]
-     * ['user' usename if does not have the APISecret]
+     * ['user' username if does not have the APISecret]
      * ['pass' password  if does not have the APISecret]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}&users_id=1
      * @return \ApiObject
@@ -586,10 +649,9 @@ class API extends PluginAbstract {
         if (empty($parameters['title']) && !isset($parameters['public'])) {
             return new ApiObject("Invalid parameters");
         }
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret === @$_GET['APISecret'] || User::isLogged()) {
+        if (self::isAPISecretValid() || User::isLogged()) {
             if (!empty($parameters['users_id'])) {
-                if ($dataObj->APISecret !== @$_GET['APISecret']) {
+                if (!self::isAPISecretValid()) {
                     $parameters['users_id'] = User::getId();
                 }
             } else {
@@ -618,10 +680,10 @@ class API extends PluginAbstract {
 
     /**
      * Return a user livestream information
-     * @param type $parameters 
+     * @param type $parameters
      * ['APISecret' if passed will not require user and pass]
      * ['users_id' the user ID]
-     * ['user' usename if does not have the APISecret]
+     * ['user' username if does not have the APISecret]
      * ['pass' password  if does not have the APISecret]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}&users_id=1
      * @return \ApiObject
@@ -630,11 +692,9 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret === @$_GET['APISecret'] || User::isLogged()) {
-
+        if (self::isAPISecretValid() || User::isLogged()) {
             if (!empty($parameters['users_id'])) {
-                if ($dataObj->APISecret !== @$_GET['APISecret']) {
+                if (!self::isAPISecretValid()) {
                     $parameters['users_id'] = User::getId();
                 }
             } else {
@@ -648,11 +708,45 @@ class API extends PluginAbstract {
             $p = AVideoPlugin::loadPlugin("Live");
 
             $obj->user = User::getUserFromID($user->getBdId());
+
+            unset($obj->user['externalOptions']);
+            unset($obj->user['extra_info']);
+
+            $obj->user['DonationButtons'] = _json_decode($obj->user['DonationButtons']);
+
             $obj->livestream = LiveTransmition::getFromDbByUser($user->getBdId());
             $obj->livestream["live_servers_id"] = Live::getCurrentLiveServersId();
             $obj->livestream["server"] = $p->getServer($obj->livestream["live_servers_id"]) . "?p=" . $user->getPassword();
             $obj->livestream["poster"] = $global['webSiteRootURL'] . $p->getPosterImage($user->getBdId(), $obj->livestream["live_servers_id"]);
             $obj->livestream["joinURL"] = Live::getLinkToLiveFromUsers_idAndLiveServer($user->getBdId(), $obj->livestream["live_servers_id"]);
+
+            $obj->livestream["activeLives"] = array();
+            $obj->livestream["latestLives"] = array();
+            $obj->livestream["scheduledLives"] = array();
+
+            $rows = LiveTransmitionHistory::getActiveLiveFromUser($parameters['users_id'], '', '', 100);
+
+            foreach ($rows as $value) {
+                $value['live_transmitions_history_id'] = $value['id'];
+                $value['joinURL'] = LiveTransmitionHistory::getLinkToLive($value['id']);
+                $value['isPrivate'] = LiveTransmitionHistory::isPrivate($value['id']);
+                $value['isPasswordProtected'] = LiveTransmitionHistory::isPasswordProtected($value['id']);
+                $obj->livestream["activeLives"][] = $value;
+            }
+
+            $rows = LiveTransmitionHistory::getLastsLiveHistoriesFromUser($parameters['users_id'], 5, true);
+
+            foreach ($rows as $value) {
+                $value['live_transmitions_history_id'] = $value['id'];
+                $value['joinURL'] = LiveTransmitionHistory::getLinkToLive($value['id']);
+                $obj->livestream["latestLives"][] = $value;
+            }
+
+            $rows = Live_schedule::getAllActiveLimit($parameters['users_id']);
+
+            foreach ($rows as $value) {
+                $obj->livestream["scheduledLives"][] = $value;
+            }
 
             return new ApiObject("", false, $obj);
         } else {
@@ -662,7 +756,7 @@ class API extends PluginAbstract {
 
     /**
      * Return a users list
-     * @param type $parameters 
+     * @param type $parameters
      * 'APISecret' is required for this call
      * ['rowCount' max numbers of rows]
      * ['current' current page]
@@ -674,9 +768,7 @@ class API extends PluginAbstract {
     public function get_api_users_list($parameters) {
         global $global;
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret === $_GET['APISecret']) {
-
+        if (self::isAPISecretValid()) {
             $status = '';
             if (!empty($_GET['status'])) {
                 if ($_GET['status'] === 'i') {
@@ -686,7 +778,7 @@ class API extends PluginAbstract {
                 }
             }
 
-            $rows = User::getAllUsers(true, array('user', 'name'), $status);
+            $rows = User::getAllUsers(true, ['user', 'name'], $status);
 
             return new ApiObject("", false, $rows);
         } else {
@@ -695,7 +787,7 @@ class API extends PluginAbstract {
     }
 
     /**
-     * @param type $parameters 
+     * @param type $parameters
      * ['APISecret' to list all videos]
      * ['sort' database sort column]
      * ['videos_id' the video id (will return only 1 or 0 video)]
@@ -713,14 +805,13 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
         $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret === @$_GET['APISecret']) {
+        if (self::isAPISecretValid()) {
             $rows = Video::getAllVideos("viewable", false, true);
             $totalRows = Video::getTotalVideos("viewable", false, true);
-        } else if (!empty($parameters['videos_id'])) {
-            $rows = array(Video::getVideo($parameters['videos_id']));
+        } elseif (!empty($parameters['videos_id'])) {
+            $rows = [Video::getVideo($parameters['videos_id'])];
             $totalRows = empty($rows) ? 0 : 1;
-        } else if (!empty($parameters['clean_title'])) {
+        } elseif (!empty($parameters['clean_title'])) {
             $rows = Video::getVideoFromCleanTitle($parameters['clean_title']);
             $totalRows = empty($rows) ? 0 : 1;
         } else {
@@ -750,13 +841,14 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/Channel.php';
         $channels = Channel::getChannels();
-        $list = array();
+        $list = [];
         foreach ($channels as $value) {
             $obj = new stdClass();
             $obj->id = $value['id'];
             $obj->photo = User::getPhoto($value['id']);
             $obj->channelLink = User::getChannelLink($value['id']);
             $obj->name = User::getNameIdentificationById($value['id']);
+            $obj->channelName = $value['channelName'];
 
             $list[] = $obj;
         }
@@ -773,7 +865,7 @@ class API extends PluginAbstract {
         global $global;
         require_once $global['systemRootPath'] . 'objects/playlist.php';
         $playlists = PlayList::getAll();
-        $list = array();
+        $list = [];
         foreach ($playlists as $value) {
             $videosArrayId = PlayList::getVideosIdFromPlaylist($value['id']);
             if (empty($videosArrayId) || $value['status'] == "favorite" || $value['status'] == "watch_later") {
@@ -805,8 +897,7 @@ class API extends PluginAbstract {
         $subscribers = ObjectYPT::getCache($name, 3600);
         if (empty($subscribers)) {
             $obj = $this->startResponseObject($parameters);
-            $dataObj = $this->getDataObject();
-            if ($dataObj->APISecret !== @$_GET['APISecret']) {
+            if (self::isAPISecretValid()) {
                 return new ApiObject("Invalid APISecret");
             }
             if (empty($parameters['users_id'])) {
@@ -830,7 +921,7 @@ class API extends PluginAbstract {
         require_once $global['systemRootPath'] . 'objects/category.php';
         $categories = Category::getAllCategories();
         array_multisort(array_column($categories, 'hierarchyAndName'), SORT_ASC, $categories);
-        $list = array();
+        $list = [];
         foreach ($categories as $value) {
             $obj = new stdClass();
             $obj->id = $value['id'];
@@ -846,7 +937,7 @@ class API extends PluginAbstract {
 
     /**
      * @param type $parameters
-     * 'videos_id' the video ID what you want to get the likes 
+     * 'videos_id' the video ID what you want to get the likes
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1
      * @return \ApiObject
      */
@@ -862,7 +953,7 @@ class API extends PluginAbstract {
     /**
      * @param type $parameters (all parameters are mandatories)
      * 'videos_id' the video ID what you want to send the like
-     * 'user' usename of the user that will like the video
+     * 'user' username of the user that will like the video
      * 'pass' password  of the user that will like the video
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123
      * @return \ApiObject
@@ -874,7 +965,7 @@ class API extends PluginAbstract {
     /**
      * @param type $parameters (all parameters are mandatories)
      * 'videos_id' the video ID what you want to send the like
-     * 'user' usename of the user that will like the video
+     * 'user' username of the user that will like the video
      * 'pass' password  of the user that will like the video
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123
      * @return \ApiObject
@@ -886,7 +977,7 @@ class API extends PluginAbstract {
     /**
      * @param type $parameters (all parameters are mandatories)
      * 'videos_id' the video ID what you want to send the like
-     * 'user' usename of the user that will like the video
+     * 'user' username of the user that will like the video
      * 'pass' password  of the user that will like the video
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=1&user=admin&pass=123
      * @return \ApiObject
@@ -896,11 +987,11 @@ class API extends PluginAbstract {
     }
 
     /**
-     * 
+     *
      * @param type $parameters
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * ['encodedPass' tell the script id the password submited is raw or encrypted]
+     * ['encodedPass' tell the script id the password submitted  is raw or encrypted]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -912,12 +1003,16 @@ class API extends PluginAbstract {
     }
 
     /**
-     * 
+     *
      * @param type $parameters
-     * 'user' usename of the user 
+     * 'user' username of the user
      * 'pass' password  of the user
      * 'email' email of the user
      * 'name' real name of the user
+     * ['emailVerified' 1 = email verified]
+     * ['canCreateMeet' 1 = Can create meetings]
+     * ['canStream' 1 = Can make live streams]
+     * ['canUpload' 1 = Can upload files]
      * 'APISecret' mandatory for security reasons
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}&user=admin&pass=123&email=me@mysite.com&name=Yeshua
      * @return type
@@ -930,6 +1025,18 @@ class API extends PluginAbstract {
             return new ApiObject("APISecret Not valid");
         }
         $ignoreCaptcha = 1;
+        if (isset($_REQUEST['emailVerified'])) {
+            $global['emailVerified'] = intval($_REQUEST['emailVerified']);
+        }
+        if (isset($_REQUEST['canCreateMeet'])) {
+            $global['canCreateMeet'] = intval($_REQUEST['canCreateMeet']);
+        }
+        if (isset($_REQUEST['canStream'])) {
+            $global['canStream'] = intval($_REQUEST['canStream']);
+        }
+        if (isset($_REQUEST['canUpload'])) {
+            $global['canUpload'] = intval($_REQUEST['canUpload']);
+        }
         require_once $global['systemRootPath'] . 'objects/userCreate.json.php';
         exit;
     }
@@ -952,9 +1059,9 @@ class API extends PluginAbstract {
      * @param type $parameters
      * 'videos_id' the video id to calculate the ads length
      * ['optionalAdTagUrl' a tag number 1 or 2 or 3 or 4 to use another tag, if do not pass it will use the default tag]
-     * ['user' usename of the user]
+     * ['user' username of the user]
      * ['pass' password  of the user]
-     * ['encodedPass' tell the script id the password submited is raw or encrypted]
+     * ['encodedPass' tell the script id the password submitted  is raw or encrypted]
      * @example for XML response: {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2
      * @example for JSON response: {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2&json=1
      * @return type
@@ -971,9 +1078,9 @@ class API extends PluginAbstract {
      * @param type $parameters
      * 'videos_id' the video id to calculate the ads length
      * ['optionalAdTagUrl' a tag number 1 or 2 or 3 or 4 to use another tag, if do not pass it will use the default tag]
-     * ['user' usename of the user]
+     * ['user' username of the user]
      * ['pass' password  of the user]
-     * ['encodedPass' tell the script id the password submited is raw or encrypted]
+     * ['encodedPass' tell the script id the password submitted  is raw or encrypted]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&optionalAdTagUrl=2
      * @return type
      */
@@ -1013,9 +1120,9 @@ class API extends PluginAbstract {
     /**
      * Return all favorites from a user
      * @param type $parameters
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1047,9 +1154,9 @@ class API extends PluginAbstract {
      * add a video into a user favorite play list
      * @param type $parameters
      * 'videos_id' the video id that you want to add
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1060,9 +1167,9 @@ class API extends PluginAbstract {
     /**
      * @param type $parameters
      * 'videos_id' the video id that you want to remove
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1089,9 +1196,9 @@ class API extends PluginAbstract {
     /**
      * Return all watch_later from a user
      * @param type $parameters
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1128,9 +1235,9 @@ class API extends PluginAbstract {
      * add a video into a user watch_later play list
      * @param type $parameters
      * 'videos_id' the video id that you want to add
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1141,9 +1248,9 @@ class API extends PluginAbstract {
     /**
      * @param type $parameters
      * 'videos_id' the video id that you want to remove
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&videos_id=3&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1174,9 +1281,9 @@ class API extends PluginAbstract {
      * ['users_id'] User's ID to what this message will be sent to (send the users_id or room_users_id)
      * ['room_users_id'] User's ID from the channel where this message will be sent to (send the users_id or room_users_id)
      * 'message' URL encoded message
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&message=HelloWorld&users_id=2&room_users_id=4&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1204,9 +1311,9 @@ class API extends PluginAbstract {
      * ['lower_then_id'] Chat message ID to filter the message search. will only return messages before that chat id
      * ['greater_then_id'] Chat message ID to filter the message search. will only return messages after that chat id
      * 'message' URL encoded message
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&greater_then_id=88&lower_then_id=98&to_users_id=2&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1224,10 +1331,10 @@ class API extends PluginAbstract {
 
         if (!empty($parameters['greater_then_id'])) {
             if (empty($_SESSION['chatLog'])) {
-                $_SESSION['chatLog'] = array();
+                $_SESSION['chatLog'] = [];
             }
             if (empty($_SESSION['chatLog'][$_GET['to_users_id']])) {
-                $_SESSION['chatLog'][$_GET['to_users_id']] = array();
+                $_SESSION['chatLog'][$_GET['to_users_id']] = [];
             }
             $_SESSION['chatLog'][$_GET['to_users_id']][0]['id'] = $parameters['greater_then_id'];
         }
@@ -1244,9 +1351,9 @@ class API extends PluginAbstract {
      * ['lower_then_id'] Chat message ID to filter the message search. will only return messages before that chat id
      * ['greater_then_id'] Chat message ID to filter the message search. will only return messages after that chat id
      * 'message' URL encoded message
-     * 'user' usename of the user
+     * 'user' username of the user
      * 'pass' password  of the user
-     * 'encodedPass' tell the script id the password submited is raw or encrypted
+     * 'encodedPass' tell the script id the password submitted  is raw or encrypted
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&greater_then_id=88&lower_then_id=98&room_users_id=2&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
      * @return type
      */
@@ -1264,10 +1371,10 @@ class API extends PluginAbstract {
 
         if (!empty($parameters['greater_then_id'])) {
             if (empty($_SESSION['chatLog'])) {
-                $_SESSION['chatLog'] = array();
+                $_SESSION['chatLog'] = [];
             }
             if (empty($_SESSION['chatLog'][$_GET['to_users_id']])) {
-                $_SESSION['chatLog'][$_GET['to_users_id']] = array();
+                $_SESSION['chatLog'][$_GET['to_users_id']] = [];
             }
             $_SESSION['chatLog'][$_GET['to_users_id']][0]['id'] = $parameters['greater_then_id'];
         }
@@ -1276,7 +1383,7 @@ class API extends PluginAbstract {
         exit;
     }
 
-    static function getAPISecret() {
+    public static function getAPISecret() {
         $obj = AVideoPlugin::getDataObject("API");
         return $obj->APISecret;
     }
@@ -1326,7 +1433,7 @@ class API extends PluginAbstract {
     /**
      * @param type $parameters
      * ['APISecret' mandatory for security reasons - required]
-     * ['user' usename of the user - required]
+     * ['user' username of the user - required]
      * ['backgroundImg' URL path of the image - optional]
      * ['profileImg' URL path of the image - optional]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&APISecret={APISecret}&user=admin
@@ -1335,10 +1442,7 @@ class API extends PluginAbstract {
     public function set_api_userImages($parameters) {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
-        // $obj = $this->startResponseObject($parameters);
-        $dataObj = $this->getDataObject();
-        if ($dataObj->APISecret === @$_GET['APISecret']) {
-
+        if (self::isAPISecretValid()) {
             $user = new User("", $parameters['user'], false);
             if (empty($user->getUser())) {
                 return new ApiObject("User Not defined");
@@ -1353,6 +1457,94 @@ class API extends PluginAbstract {
         }
     }
 
+    /**
+     *
+     * @param type $parameters
+     * 'user' username of the user
+     * 'pass' password  of the user
+     * ['encodedPass' tell the script id the password submitted  is raw or encrypted]
+     * ['time' default is today but the options are [today|upcoming|past]]
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true
+     * @return type
+     */
+    public function get_api_meet($parameters) {
+        global $global;
+        $meet = AVideoPlugin::loadPluginIfEnabled('Meet');
+        if ($meet) {
+            $time = 'today';
+
+            if (!empty($_REQUEST['time'])) {
+                $time = $_REQUEST['time'];
+            }
+
+            $meets = Meet_schedule::getAllFromUsersId(User::getId(), $time, true, false);
+
+            foreach ($meets as $key => $value) {
+                $RoomPassword = '';
+                if (self::isAPISecretValid() || Meet::isModerator($value['id']) || Meet::canJoinMeet($value['id'])) {
+                    $RoomPassword = $value['password'];
+                }
+
+                $meets[$key] = cleanUpRowFromDatabase($value);
+                $meets[$key]['RoomPassword'] = $RoomPassword;
+            }
+            if (empty($meets)) {
+                $message = _('You do not have any meetings available. you should set one first');
+            } else {
+                $message = '';
+            }
+            //var_dump($meets);
+            return new ApiObject($message, false, $meets);
+        } else {
+            return new ApiObject("Meet Plugin disabled");
+        }
+        exit;
+    }
+
+    /**
+     *
+     * @param type $parameters
+     * 'user' username of the user
+     * 'pass' password  of the user
+     * 'RoomTopic' The meet title
+     * ['id' the meet_schedule_id to delete]
+     * ['starts' when the meet will start, the default is now]
+     * ['status' a= active | i = inactive]
+     * ['public' 2 = public, 1 = (Private) Logged Users Only, 0 = (Private) Specific User Groups [default value is 2]]
+     * ['userGroups' user groups array]
+     * ['RoomPasswordNew' the meet password]
+     * ['encodedPass' tell the script id the password submitted  is raw or encrypted]
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&user=admin&pass=f321d14cdeeb7cded7489f504fa8862b&encodedPass=true&RoomTopic=APITestMeet
+     * @return type
+     */
+    public function set_api_meet($parameters) {
+        global $global;
+        $meet = AVideoPlugin::loadPluginIfEnabled('Meet');
+        if ($meet) {
+            if (!User::canCreateMeet()) {
+                return new ApiObject("You cannot create a meet");
+            } else {
+                include $global['systemRootPath'] . 'plugin/Meet/saveMeet.json.php';
+                exit;
+            }
+        } else {
+            return new ApiObject("Meet Plugin disabled");
+        }
+        exit;
+    }
+    
+    private static function isAPISecretValid(){
+        global $global;
+        if(!empty($_REQUEST['APISecret'])){
+            $dataObj = AVideoPlugin::getDataObject('API');
+            if(trim($dataObj->APISecret) === trim($_REQUEST['APISecret'])){
+                $global['bypassSameDomainCheck'] = 1;
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
 
 class ApiObject {
@@ -1361,10 +1553,11 @@ class ApiObject {
     public $message;
     public $response;
 
-    function __construct($message = "api not started or not found", $error = true, $response = array()) {
+    public function __construct($message = "api not started or not found", $error = true, $response = []) {
         $this->error = $error;
         $this->message = $message;
         $this->response = $response;
+        $this->users_id = User::getId();
     }
 
 }

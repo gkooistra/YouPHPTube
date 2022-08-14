@@ -12,15 +12,15 @@ if (empty($video) && !empty($_GET['videos_id'])) {
         $data = getimgsize($source['path']);
         $imgw = $data[0];
         $imgh = $data[1];
-    } else if ($video['type'] == "audio") {
+    } elseif ($video['type'] == "audio") {
         $img = "" . getCDN() . "view/img/audio_wave.jpg";
     }
     $type = 'video';
     if ($video['type'] === 'pdf') {
         $type = 'pdf';
-    } else if ($video['type'] === 'zip') {
+    } elseif ($video['type'] === 'zip') {
         $type = 'zip';
-    } else if ($video['type'] === 'article') {
+    } elseif ($video['type'] === 'article') {
         $type = 'article';
     }
     $images = Video::getImageFromFilename($video['filename'], $type);
@@ -38,55 +38,61 @@ if (empty($video['created'])) {
 if (User::hasBlockedUser($video['users_id'])) {
     return false;
 }
+
+$cdnObj = AVideoPlugin::getDataObjectIfEnabled('CDN');
+$cdnStorageEnabled = !empty($cdnObj) && $cdnObj->enable_storage;
+
+$description = getSEODescription(emptyHTML($video['description']) ? $video['title'] : $video['description']);
 ?>
 
 
 <div class="row bgWhite list-group-item">
     <div class="row divMainVideo">
         <div class="col-xs-4 col-sm-4 col-md-4">
-            <img src="<?php echo $img; ?>" alt="<?php echo str_replace('"', '', $video['title']); ?>" class="img img-responsive <?php echo $img_portrait; ?> rotate<?php echo $video['rotation']; ?>" height="130" itemprop="thumbnail" />
             <?php
-            if (isToShowDuration($video['type'])) {
-                ?>
-                <time class="duration" itemprop="duration" datetime="<?php echo Video::getItemPropDuration($video['duration']); ?>" ><?php echo Video::getCleanDuration($video['duration']); ?></time>
-                <?php
-            }
+            echo Video::getVideoImagewithHoverAnimationFromVideosId($video, true, false);
             ?>
-            <span itemprop="thumbnailUrl" content="<?php echo $img; ?>" />
-            <span itemprop="contentURL" content="<?php echo Video::getLink($video['id'], $video['clean_title']); ?>" />
-            <span itemprop="embedURL" content="<?php echo Video::getLink($video['id'], $video['clean_title'], true); ?>" />
-            <span itemprop="uploadDate" content="<?php echo $video['created']; ?>" />
-            <span itemprop="description" content="<?php echo str_replace('"', '', $video['title']); ?> - <?php echo htmlentities($video['description']); ?>" />
-
         </div>
         <div class="col-xs-8 col-sm-8 col-md-8">
-            <h1 itemprop="name">
-                <?php
-                echo $video['title'];
-                if (!empty($video['id']) && Video::showYoutubeModeOptions() && Video::canEdit($video['id'])) {
-                    ?>
-                    <a href="#" onclick="avideoModalIframeFull(webSiteRootURL + 'mvideos?video_id=<?php echo $video['id']; ?>');return false;" class="btn btn-primary btn-xs" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>"><i class="fa fa-edit"></i> <?php echo __("Edit Video"); ?></a>
-                <?php } ?>
-                <small>
+            <?php
+            
+            $tags = Video::getSeoTags($video['id']);
+            echo $tags['body'];
+            if (!empty($video['id']) && Video::showYoutubeModeOptions() && Video::canEdit($video['id'])) {
+                ?>
+                <div class="btn-group" role="group" aria-label="Basic example">
+                    <button type="button" class="btn btn-primary btn-xs"  onclick="avideoModalIframe(webSiteRootURL + 'view/managerVideosLight.php?avideoIframe=1&videos_id=<?php echo $video['id']; ?>');return false;" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>">
+                        <i class="fa fa-edit"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Edit Video"); ?></span>
+                    </button>
+                    <button type="button" class="btn btn-default btn-xs" onclick="avideoModalIframeFull(webSiteRootURL + 'view/videoViewsInfo.php?videos_id=<?php echo $video['id']; ?>');
+                            return false;">
+                        <i class="fa fa-eye"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Views Info"); ?></span>
+                    </button>
                     <?php
-                    if (!empty($video['id'])) {
-                        $video['tags'] = Video::getTags($video['id']);
-                    } else {
-                        $video['tags'] = array();
-                    }
-                    foreach ($video['tags'] as $value) {
-                        if (is_array($value)) {
-                            $value = (object) $value;
-                        }
-                        if ($value->label === __("Group")) {
-                            ?>
-                            <span class="label label-<?php echo $value->type; ?>"><?php echo $value->text; ?></span>
-                            <?php
-                        }
-                    }
+                        echo Layout::getSuggestedButton($video['id']);
                     ?>
-                </small>
-            </h1>
+                </div>
+            <?php }
+            ?>
+            <small>
+                <?php
+                if (!empty($video['id'])) {
+                    $video['tags'] = Video::getTags($video['id']);
+                } else {
+                    $video['tags'] = [];
+                }
+                foreach ($video['tags'] as $value) {
+                    if (is_array($value)) {
+                        $value = (object) $value;
+                    }
+                    if ($value->label === __("Group")) {
+                        ?>
+                        <span class="label label-<?php echo $value->type; ?>"><?php echo $value->text; ?></span>
+                        <?php
+                    }
+                }
+                ?>
+            </small>
             <div class="col-xs-12 col-sm-12 col-md-12">
                 <?php echo $video['creator']; ?>
             </div>
@@ -113,23 +119,29 @@ if (User::hasBlockedUser($video['users_id'])) {
                 <?php if (empty($advancedCustom->disableShareAndPlaylist)) { ?>
                     <?php if (CustomizeUser::canShareVideosFromVideo($video['id'])) { ?>
                         <a href="#" class="btn btn-default no-outline" id="shareBtn">
-                            <span class="fa fa-share"></span> 
+                            <span class="fa fa-share"></span>
                             <span class="hidden-sm hidden-xs"><?php echo __("Share"); ?></span>
                         </a>
                         <?php
                     }
-                    $filesToDownload = array();
-                    if (CustomizeUser::canDownloadVideosFromVideo($video['id'])) {
-                        if ($video['type'] == "zip") {
-                            $files = getVideosURLZIP($video['filename']);
-                        } else {
-                            $files = getVideosURL($video['filename']);
-                        }//var_dump($files);exit;
+                    $filesToDownload = [];
+                    $files = array();
+                    $canDownloadFiles = CustomizeUser::canDownloadVideosFromVideo($video['id']);
+                    if ($video['type'] == "zip") {
+                        $files = getVideosURLZIP($video['filename']);
+                    } else if ($video['type'] == "pdf") {
+                        $files = getVideosURLPDF($video['filename']);;
+                    } else if($canDownloadFiles) {
+                        $files = getVideosURL($video['filename']);
+                    }
+                    if (!empty($files)) {
+                        $downloadMP3Link = array();
+                        $downloadMP4Link = array();
                         foreach ($files as $key => $theLink) {
                             //$notAllowedKeys = array('m3u8');
-                            $notAllowedKeys = array();
+                            $notAllowedKeys = [];
                             if (empty($advancedCustom->showImageDownloadOption)) {
-                                $notAllowedKeys = array_merge($notAllowedKeys, array('jpg', 'gif', 'webp', 'pjpg'));
+                                $notAllowedKeys = array_merge($notAllowedKeys, ['jpg', 'gif', 'webp', 'pjpg']);
                             }
                             $keyFound = false;
                             foreach ($notAllowedKeys as $notAllowedKey) {
@@ -142,26 +154,38 @@ if (User::hasBlockedUser($video['users_id'])) {
                                 continue;
                             }
 
-                            $theLink['url'] = addQueryStringParameter($theLink['url'], "download", 1);
-                            $theLink['url'] = addQueryStringParameter($theLink['url'], "title", $video['title'] . "_{$key}_." . ($video['type'] === 'audio' ? 'mp3' : 'mp4'));
+                            if (!$cdnStorageEnabled || !preg_match('/cdn\.ypt\.me(.*)\.m3u8/i', $theLink['url'])) {
+                                $theLink['url'] = addQueryStringParameter($theLink['url'], "download", 1);
+                                $theLink['url'] = addQueryStringParameter($theLink['url'], "title", getSEOTitle($video['title']) . "_{$key}_." . ($video['type'] === 'audio' ? 'mp3' : 'mp4'));
 
-                            $parts = explode("_", $key);
-                            $name = $key;
-                            if (count($parts) > 1) {
-                                $name = strtoupper($parts[0]);
-                                if (is_numeric($parts[1])) {
-                                    $name .= " <div class='label label-primary'>{$parts[1]}p</div> " . getResolutionLabel($parts[1]);
+                                if (!$cdnStorageEnabled && $key == 'm3u8') {
+                                    $name = 'MP4';
                                 } else {
-                                    $name .= " <div class='label label-primary'>" . strtoupper($parts[1]) . "</div> ";
+                                    $parts = explode("_", $key);
+                                    $name = $key;
+                                    if (count($parts) > 1) {
+                                        $name = strtoupper($parts[0]);
+                                        if (is_numeric($parts[1])) {
+                                            $name .= " <div class='label label-primary'>{$parts[1]}p</div> " . getResolutionLabel($parts[1]);
+                                        } else {
+                                            $name .= " <div class='label label-primary'>" . strtoupper($parts[1]) . "</div> ";
+                                        }
+                                    }
                                 }
-                            }
 
-                            $filesToDownload[] = array('name' => $name, 'url' => $theLink['url']);
+
+                                $filesToDownload[] = ['name' => $name, 'url' => $theLink['url']];
+                            }
                         }
+                        
+                        if($canDownloadFiles){
+                            $filesToDownload = array_merge($filesToDownload, getMP3ANDMP4DownloadLinksFromHLS($videos_id, $video['type']));
+                        }
+
                         if (!empty($filesToDownload)) {
                             ?>
                             <a href="#" class="btn btn-default no-outline" id="downloadBtn">
-                                <span class="fa fa-download"></span> 
+                                <span class="fa fa-download"></span>
                                 <span class="hidden-sm hidden-xs"><?php echo __("Download"); ?></span>
                             </a>
                             <?php
@@ -218,8 +242,7 @@ if (User::hasBlockedUser($video['users_id'])) {
                         });
                     </script>
 
-                    <?php
-                }
+                <?php }
                 ?>
             </div>
         </div>
@@ -228,17 +251,29 @@ if (User::hasBlockedUser($video['users_id'])) {
     ?>
 </div>
 
-<?php if (!empty($filesToDownload) && CustomizeUser::canDownloadVideosFromVideo($video['id'])) { ?>
+<?php if (!empty($filesToDownload)) { ?>
     <div class="row bgWhite list-group-item menusDiv" id="downloadDiv">
         <div class="tabbable-panel">
             <div class="list-group list-group-horizontal">
                 <?php
                 foreach ($filesToDownload as $theLink) {
-                    ?>
-                    <a href="<?php echo $theLink['url']; ?>" class="list-group-item list-group-item-action" target="_blank">
-                        <i class="fas fa-download"></i> <?php echo $theLink['name']; ?>
-                    </a>
-                    <?php
+                    if (empty($theLink)) {
+                        continue;
+                    }
+                    if (preg_match('/\.json/i', $theLink['url'])) {
+                        ?>
+                        <button type="button" onclick="downloadURLOrAlertError('<?php echo $theLink['url']; ?>', {}, '<?php echo $video['clean_title']; ?>.<?php echo strtolower($theLink['name']); ?>', '<?php echo $theLink['progress']; ?>');" 
+                                class="btn btn-default" target="_blank">
+                            <i class="fas fa-download"></i> <?php echo $theLink['name']; ?>
+                        </button>
+                        <?php
+                    } else {
+                        ?>
+                        <a href="<?php echo $theLink['url']; ?>" class="list-group-item list-group-item-action" target="_blank">
+                            <i class="fas fa-download"></i> <?php echo $theLink['name']; ?>
+                        </a>
+                        <?php
+                    }
                 }
                 ?>
             </div>
@@ -258,7 +293,12 @@ if (User::hasBlockedUser($video['users_id'])) {
 }
 
 if ($video['type'] !== 'notfound' && CustomizeUser::canShareVideosFromVideo($video['id'])) {
-    getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true), $img, "row bgWhite list-group-item menusDiv", parseDurationToSeconds($video['duration']));
+    $bitLyLink = false;
+    if (AVideoPlugin::isEnabledByName('BitLy')) {
+        $bitLyLink = BitLy::getLink($video['id']);
+    }
+
+    getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true), $img, "row bgWhite list-group-item menusDiv", parseDurationToSeconds($video['duration']), $bitLyLink);
 }
 ?>
 <div class="row bgWhite list-group-item" id="modeYoutubeBottomContentDetails">
@@ -271,27 +311,31 @@ if ($video['type'] !== 'notfound' && CustomizeUser::canShareVideosFromVideo($vid
                 ?>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Rating"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10">
-                    <?php
-                    include $global['systemRootPath'] . 'view/rrating/rating-' . $video['rrating'] . '.php';
-                    ?>
+                    <?php include $global['systemRootPath'] . 'view/rrating/rating-' . $video['rrating'] . '.php'; ?>
                 </div>
                 <?php
             }
-            if ($video['type'] !== 'notfound' && $video['type'] !== 'article') {
+            if ($video['type'] !== 'notfound' && $video['type'] !== 'article' && !isHTMLEmpty($video['description'])) {
                 ?>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10 descriptionArea" itemprop="description">
-                    <div class="descriptionAreaPreContent">
-                        <div class="descriptionAreaContent">
-                            <?php
-                            echo Video::htmlDescription($video['description']);
-                            ?>
+                    <?php
+                    if (empty($advancedCustom->disableShowMOreLessDescription)) {
+                        ?>
+                        <div class="descriptionAreaPreContent">
+                            <div class="descriptionAreaContent">
+                                <?php echo Video::htmlDescription($video['description']); ?>
+                            </div>
                         </div>
-                    </div>
-                    <button onclick="$(this).closest('.descriptionArea').toggleClass('expanded');" class="btn btn-xs btn-default descriptionAreaShowMoreBtn" style="display: none; ">
-                        <span class="showMore"><i class="fas fa-caret-down"></i> <?php echo __("Show More"); ?></span>
-                        <span class="showLess"><i class="fas fa-caret-up"></i> <?php echo __("Show Less"); ?></span>
-                    </button>
+                        <button onclick="$(this).closest('.descriptionArea').toggleClass('expanded');" class="btn btn-xs btn-default descriptionAreaShowMoreBtn" style="display: none; ">
+                            <span class="showMore"><i class="fas fa-caret-down"></i> <?php echo __("Show More"); ?></span>
+                            <span class="showLess"><i class="fas fa-caret-up"></i> <?php echo __("Show Less"); ?></span>
+                        </button>
+                        <?php
+                    } else {
+                        echo Video::htmlDescription($video['description']);
+                    }
+                    ?>
                 </div>
                 <?php
             }

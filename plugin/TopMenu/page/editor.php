@@ -22,8 +22,6 @@ $groups = UserGroups::getAllUsersGroups();
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
         <link rel="stylesheet" type="text/css" href="<?php echo getCDN(); ?>view/css/DataTables/datatables.min.css"/>
-        <link href="<?php echo getCDN(); ?>js/Croppie/croppie.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>js/bootstrap3-wysiwyg/bootstrap3-wysihtml5.min.css" rel="stylesheet" type="text/css"/>
         <style>
             #sortable li{
                 list-style: none;
@@ -199,7 +197,7 @@ $groups = UserGroups::getAllUsersGroups();
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-md-6" id="menuItemIconDiv">
                                                 <div class="form-group">
                                                     <label>Icon:</label><br>
                                                     <div>
@@ -207,6 +205,13 @@ $groups = UserGroups::getAllUsersGroups();
                                                         echo Layout::getIconsSelect(__("Select an icon for the menu"), "", "menuItemIcon");
                                                         ?>
                                                     </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6" id="menuItemIconMobileDiv">
+                                                <div class="form-group">
+                                                    <label>Icon:</label><br>
+                                                    <input type="text" class="form-control" id="menuItemIconMobile">
+                                                    Get the icon name from <a href="https://ionicframework.com/docs/v3/ionicons/" target="_blank">here</a>
                                                 </div>
                                             </div>
                                             <hr>
@@ -226,7 +231,10 @@ $groups = UserGroups::getAllUsersGroups();
                                                 <div id="divText" class="divType"  style="display: none;">
                                                     <div class="form-group">
                                                         <label for="text">text:</label>
-                                                        <textarea type="text" class="form-control" id="text"></textarea>
+                                                        <textarea type="text" class="form-control" id="pageText"></textarea>
+                                                        <?php
+                                                        echo getTinyMCE("pageText");
+                                                        ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -264,8 +272,6 @@ $groups = UserGroups::getAllUsersGroups();
     include $global['systemRootPath'] . 'view/include/footer.php';
     ?>
     <script type="text/javascript" src="<?php echo getCDN(); ?>view/css/DataTables/datatables.min.js"></script>
-    <script src="<?php echo getCDN(); ?>js/Croppie/croppie.min.js" type="text/javascript"></script>
-    <script src="<?php echo getCDN(); ?>js/bootstrap3-wysiwyg/bootstrap3-wysihtml5.all.js" type="text/javascript"></script>  
     <script>
             var currentItem = [];
 
@@ -305,8 +311,9 @@ $groups = UserGroups::getAllUsersGroups();
                 $('#item_order').val("");
                 $('#item_status').val("");
                 $('#menuSeoUrlItem').val("");
-                $('iframe').contents().find('.wysihtml5-editor').html('');
+                $(tinymce.get('pageText').getBody()).html('');
                 $("#menuItemIcon").val("");
+                $("#menuItemIconMobile").val("");
                 $("#menuItemIcon").trigger('change');
             }
 
@@ -342,7 +349,7 @@ $groups = UserGroups::getAllUsersGroups();
                 clearMenuItemForm();
                 $('#sortable').sortable("destroy");
                 $.ajax({
-                    url: '<?php echo $global['webSiteRootURL']; ?>plugin/TopMenu/menuItems.json.php',
+                    url: webSiteRootURL+'plugin/TopMenu/menuItems.json.php',
                     data: {
                         "menuId": menu_id
                     },
@@ -374,7 +381,7 @@ $groups = UserGroups::getAllUsersGroups();
                 id = $(t).parent('li').attr('itemid');
                 modal.showPleaseWait();
                 $.ajax({
-                    url: '<?php echo $global['webSiteRootURL']; ?>plugin/TopMenu/menuItemDelete.json.php',
+                    url: webSiteRootURL+'plugin/TopMenu/menuItemDelete.json.php',
                     data: {
                         "menuItemId": id
                     },
@@ -412,11 +419,12 @@ $groups = UserGroups::getAllUsersGroups();
                     $('#style').val(item.style);
                     $('#item_order').val(item.item_order);
                     $('#item_status').val(item.status);
-                    $('#text').val(item.text);
+                    $(tinymce.get('pageText').getBody()).html(item.text);
                     $('#menuSeoUrlItem').val(item.menuSeoUrlItem);
                     $("#menuItemIcon").val(item.icon);
+                    $("#menuItemIconMobile").val(item.icon);
                     $("#menuItemIcon").trigger('change');
-                    $('iframe').contents().find('.wysihtml5-editor').html(item.text);
+                    $(tinymce.get('pageText').getBody()).html(item.text);
                     if (item.url.length > 0) {
                         $('#pageType').val('url');
                     } else {
@@ -455,7 +463,7 @@ $groups = UserGroups::getAllUsersGroups();
                 $('#pageType').trigger('change');
 
                 var table = $('#example').DataTable({
-                    "ajax": "<?php echo $global['webSiteRootURL']; ?>plugin/TopMenu/menus.json.php",
+                    "ajax": webSiteRootURL+"plugin/TopMenu/menus.json.php",
                     "columns": [
                         {"data": "menuName"},
                         {"data": "status"}
@@ -471,12 +479,6 @@ $groups = UserGroups::getAllUsersGroups();
                     clearMenuItemForm();
                 });
 
-                $('#text').wysihtml5({toolbar: {
-                        "html": true,
-                        "color": true
-                    }
-                });
-
                 $('#example tbody').on('click', 'tr', function () {
                     var data = table.row(this).data();
                     console.log(data);
@@ -490,6 +492,13 @@ $groups = UserGroups::getAllUsersGroups();
                     $('#users_groups_id').val(data.users_groups_id);
                     $("#menuIcon").val(data.icon);
                     $("#menuIcon").trigger('change');
+                    if(data.type == 8){
+                       $("#menuItemIconDiv").hide();
+                       $("#menuItemIconMobileDiv").show();
+                    }else{
+                       $("#menuItemIconDiv").show();
+                       $("#menuItemIconMobileDiv").hide();
+                    }
                     checkIfHasId();
                     loadItems(data.id);
                 });
@@ -535,8 +544,9 @@ $groups = UserGroups::getAllUsersGroups();
                             "style": $('#style').val(),
                             "item_order": $('#item_order').val(),
                             "item_status": $('#item_status').val(),
-                            "text": $('#pageType').val() == 'page' ? $('#text').val() : '',
-                            "icon": $("#menuItemIcon").val()
+                            "text": $('#pageType').val() == 'page' ? $(tinymce.get('pageText').getBody()).html() : '',
+                            "icon": $("#menuItemIcon").val(),
+                            "mobileicon": $("#menuItemIconMobile").val()
                         },
                         type: 'post',
                         success: function (response) {

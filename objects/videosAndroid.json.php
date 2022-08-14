@@ -1,5 +1,4 @@
 <?php
-
 global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
@@ -29,14 +28,14 @@ if (!empty($_GET['user']) && !empty($_GET['pass'])) {
 }
 
 $objMob = AVideoPlugin::getObjectData("MobileManager");
-if(!empty($random)){
+if (!empty($random)) {
     $video = Video::getVideo("", "viewableNotUnlisted", true, false, true);
     if (empty($video)) {
         $video = Video::getVideo("", "viewableNotUnlisted", true, true);
     }
-    $videos = array($video);
+    $videos = [$video];
     $total = 1;
-}else if ($objMob->netflixStyle) {
+} elseif ($objMob->netflixStyle) {
     $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
     $total = Video::getTotalVideos("viewableNotUnlisted", false, true);
 } else {
@@ -60,14 +59,10 @@ foreach ($videos as $key => $value) {
     $_POST['sort']['created'] = "desc";
     $videos[$key]['comments'] = Comment::getAllComments($videos[$key]['id']);
     $videos[$key]['commentsTotal'] = Comment::getTotalComments($videos[$key]['id']);
-    foreach ($videos[$key]['comments'] as $key2 => $value2) {
-        $user = new User($value2['users_id']);
-        $videos[$key]['comments'][$key2]['userPhotoURL'] = User::getPhoto($videos[$key]['comments'][$key2]['users_id']);
-        $videos[$key]['comments'][$key2]['userName'] = $user->getNameIdentificationBd();
-    }
+    $videos[$key]['comments'] = Comment::addExtraInfo($videos[$key]['comments']);
     $videos[$key]['subscribers'] = Subscribe::getTotalSubscribes($videos[$key]['users_id']);
 
-    $videos[$key]['firstVideo'] = "";
+    $videos[$key]['firstVideo'] = '';
     foreach ($videos[$key]['VideoUrl'] as $value2) {
         if ($value2["type"] === 'video') {
             $videos[$key]['firstVideo'] = $value2["url"];

@@ -56,3 +56,17 @@ th a, .select2-container--default span{
 th:hover, .select2-dropdown{
     background-color: #111 !important;
 }
+
+.progress {
+    height: 27px;
+}
+
+.hamburger svg *{
+    stroke: #FFF;
+}
+span.selection > span.select2-selection--single{
+    color: #ffffff;
+    background-color: #464545;
+    border-color: #464545;
+    border: none;
+}

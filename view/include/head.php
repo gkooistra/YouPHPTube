@@ -1,15 +1,20 @@
 <?php
+$timeLogHead = TimeLogStart("include/head.php");
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
+TimeLogEnd($timeLogHead, __LINE__);
 $head = AVideoPlugin::getHeadCode();
-$custom = "Video's over ICT onderwerpen / Videos with ICT subjects.";
+TimeLogEnd($timeLogHead, __LINE__);
+$custom = "The Best YouTube Clone Ever - AVideo";
 $extraPluginFile = $global['systemRootPath'] . 'plugin/Customize/Objects/ExtraConfig.php';
 if (empty($advancedCustom)) {
     $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
 }
+TimeLogEnd($timeLogHead, __LINE__);
 if (is_object($video)) {
     $video = Video::getVideoLight($video->getId());
 }
-$custom = array();
+TimeLogEnd($timeLogHead, __LINE__);
+$custom = [];
 
 $customizePluginDescription = '';
 if (file_exists($extraPluginFile) && AVideoPlugin::isEnabledByName("Customize")) {
@@ -19,23 +24,26 @@ if (file_exists($extraPluginFile) && AVideoPlugin::isEnabledByName("Customize"))
     $custom[] = $customizePluginDescription;
 }
 
+TimeLogEnd($timeLogHead, __LINE__);
 if (!empty($poster)) {
-    $subTitle = str_replace(array('"', "\n", "\r"), array("", "", ""), strip_tags($video['description']));
-    $custom = array();
+    $subTitle = str_replace(['"', "\n", "\r"], ["", "", ""], strip_tags($video['description']));
+    $custom = [];
     $custom[] = $subTitle;
     if (!empty($video["category"])) {
         $custom[] = $video["category"];
     }
 }
 
+TimeLogEnd($timeLogHead, __LINE__);
 if (!empty($_GET['catName'])) {
     $category = Category::getCategoryByName($_GET['catName']);
-    $description = str_replace(array('"', "\n", "\r"), array("", "", ""), strip_tags($category['description']));
-    $custom = array();
+    $description = str_replace(['"', "\n", "\r"], ["", "", ""], strip_tags($category['description']));
+    $custom = [];
     $custom[] = $description;
     $custom[] = $category['name'];
 }
 
+TimeLogEnd($timeLogHead, __LINE__);
 foreach ($custom as $key => $value) {
     if (empty($value)) {
         unset($custom[$key]);
@@ -48,56 +56,72 @@ if (!empty($metaDescription)) {
     $metaDescription = implode(" - ", $custom);
 }
 // for SEO to not rise an error of duplicated title or description of same pages with and without last slash
-$metaDescription .= getSEOComplement(array("addAutoPrefix" => false));
+$metaDescription .= getSEOComplement(["addAutoPrefix" => false]);
+
+$metaDescription = getSEODescription($metaDescription);
+
 $theme = getCurrentTheme();
 
 if (empty($config)) {
     $config = new Configuration();
 }
+TimeLogEnd($timeLogHead, __LINE__);
+//$content = _ob_get_clean();
+_ob_start();
+echo $content;
+
+$keywords = strip_tags($advancedCustom->keywords);
+$head_videos_id = getVideos_id();
+if(!empty($head_videos_id)){
+    $tags = Video::getSeoTags($head_videos_id);
+    echo $tags['head'];
+}
+
 ?>
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="<?php echo $metaDescription; ?>">
 <meta name="device_id" content="<?php echo getDeviceID(); ?>">
-<meta name="keywords" content="<?php echo str_replace('"', "", strip_tags($advancedCustom->keywords)); ?>">
+<meta name="keywords" content=<?php printJSString($keywords); ?>>
 <link rel="manifest" href="<?php echo $global['webSiteRootURL']; ?>manifest.json">
 <link rel="apple-touch-icon" sizes="180x180" href="<?php echo $config->getFavicon(true); ?>">
 <link rel="icon" type="image/png" href="<?php echo $config->getFavicon(true); ?>">
 <link rel="shortcut icon" href="<?php echo $config->getFavicon(); ?>" sizes="16x16,24x24,32x32,48x48,144x144">
 <meta name="msapplication-TileImage" content="<?php echo $config->getFavicon(true); ?>">
-<!--
-<meta name="newCache" content="<?php echo ObjectYPT::checkSessionCacheBasedOnLastDeleteALLCacheTime() ? "yes" : "No" ?>">
-<meta name="sessionCache" content="<?php echo humanTimingAgo(@$_SESSION['user']['sessionCache']['time']), " ", @$_SESSION['user']['sessionCache']['time']; ?>">
-<meta name="systemCache" content="<?php echo humanTimingAgo(ObjectYPT::getLastDeleteALLCacheTime()), " ", ObjectYPT::getLastDeleteALLCacheTime(); ?>">
-<meta name="sessionCache-systemCache" content="<?php $dif = @$_SESSION['user']['sessionCache']['time'] - ObjectYPT::getLastDeleteALLCacheTime();
-echo $dif, " Seconds ";
-?>">
--->
-<!-- <link rel="stylesheet" type="text/css" media="only screen and (max-device-width: 768px)" href="view/css/mobile.css" /> -->
-<link href="<?php echo getCDN(); ?>view/js/jquery-ui/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
-<link href="<?php echo getCDN(); ?>view/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+<link href="<?php echo getURL('node_modules/jquery-ui-dist/jquery-ui.min.css'); ?>" rel="stylesheet" type="text/css"/>
+<?php
+include $global['systemRootPath'] . 'view/include/bootstrap.css.php';
+if (empty($advancedCustom->disableAnimations)) {
+    ?>
+    <link href="<?php echo getURL('node_modules/animate.css/animate.min.css'); ?>" rel="stylesheet"  type="text/css" />
+    <?php
+}
+?>
 <link href="<?php echo getCDN(); ?>view/js/webui-popover/jquery.webui-popover.min.css" rel="stylesheet" type="text/css"/>
-<link href="<?php echo getCDN(); ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
+<link href="<?php echo getURL('node_modules/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
 <link href="<?php echo getCDN(); ?>view/css/font-awesome-animation.min.css" rel="stylesheet" type="text/css"/>
 <link href="<?php echo getCDN(); ?>view/css/flagstrap/css/flags.css" rel="stylesheet" type="text/css"/>
 <?php
-$cssFiles = array();
+$cssFiles = [];
 //$cssFiles[] = "view/js/seetalert/sweetalert.css";
 $cssFiles[] = "view/bootstrap/bootstrapSelectPicker/css/bootstrap-select.min.css";
 $cssFiles[] = "view/js/bootgrid/jquery.bootgrid.css";
-$cssFiles[] = "view/js/jquery-toast/jquery.toast.min.css";
+$cssFiles[] = "node_modules/jquery-toast-plugin/dist/jquery.toast.min.css";
 $cssFiles[] = "view/bootstrap/jquery-bootstrap-scrolling-tabs/jquery.scrolling-tabs.min.css";
 //$cssFiles[] = "view/css/custom/{$theme}.css";
 $cssFiles = array_merge($cssFiles);
 echo combineFilesHTML($cssFiles, "css");
+TimeLogEnd($timeLogHead, __LINE__);
 ?>
 <link href="<?php echo $cssURL; ?>" rel="stylesheet" type="text/css"/>
-<link href="<?php echo getCDN(); ?>view/css/custom/<?php echo $theme; ?>.css" rel="stylesheet" type="text/css" id="customCSS"/>
+<link href="<?php echo getURL('view/css/custom/' . $theme . '.css'); ?>" rel="stylesheet" type="text/css" id="customCSS"/>
 <?php
-$filename = Video::getStoragePath() . "cache/custom.css";
+if (empty($global['userBootstrapLatest'])) {
+    $filename = Video::getStoragePath() . "cache/custom.css";
+}
 if ($theme === "default" && !empty($customizePlugin->showCustomCSS) && file_exists($filename)) {
-    echo '<link href="' . getCDN() . 'videos/cache/custom.css?' . filectime($filename) . filemtime($filename) . '" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
+    echo '<link href="' . getURL('videos/cache/custom.css') . '" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
 } else {
     if ($theme !== "default") {
         echo "<!-- theme is not default -->";
@@ -108,16 +132,22 @@ if ($theme === "default" && !empty($customizePlugin->showCustomCSS) && file_exis
     if (!file_exists($filename)) {
         echo "<!-- css file does not exist -->";
     }
+    if (!empty($global['userBootstrapLatest'])) {
+        echo "<!-- Using Bootstrap latest -->";
+    }
     echo '<link href="" rel="stylesheet" type="text/css" id="pluginCustomCss" />';
 }
-$cssFiles = array();
+$cssFiles = [];
 $cssFiles[] = "view/css/main.css";
 $cssFiles = array_merge($cssFiles, AVideoPlugin::getCSSFiles());
 echo combineFilesHTML($cssFiles, "css");
+TimeLogEnd($timeLogHead, __LINE__);
 if (isRTL()) {
     ?>
+
     <style>
-        .principalContainer, #mainContainer, #bigVideo, .mainArea, .galleryVideo, #sidebar, .navbar-header li{
+        .principalContainer, #mainContainer, #bigVideo, .mainArea, .galleryVideo, #sidebar, .navbar-header li,
+        .panel-heading, th, td, a, .panel-footer, .label {
             direction:rtl;
             unicode-bidi:embed;
         }
@@ -137,13 +167,25 @@ if (isRTL()) {
             border-width: 1px;
             border-right-width: 0;
         }
-    </style>
+        .pull-left {
+            float: right!important;
+        }
+        .pull-right {
+            float: left!important;
+        }
+        .material-switch{
+            direction: initial;
+        }
+    </style>    
     <?php
 }
 ?>
-<script src="<?php echo getCDN(); ?>view/js/jquery-3.5.1.min.js"></script>
+<script src="<?php echo getURL('node_modules/jquery/dist/jquery.min.js'); ?>"></script>
 <script>
     var webSiteRootURL = '<?php echo $global['webSiteRootURL']; ?>';
+    var my_users_id = <?php echo intval(User::getId()); ?>;
+    var my_identification = <?php echo json_encode(User::getNameIdentification()); ?>;
+    var mediaId = <?php echo json_encode(getVideos_id()); ?>;
     var player;
 </script>
 
@@ -153,10 +195,12 @@ if (isRTL()) {
     var _serverTimeString = "<?php echo date('Y-m-d H:i:s'); ?>";
     var _serverDBTimeString = "<?php echo date('Y-m-d H:i:s', getDatabaseTime()); ?>";
     var _serverTimezone = "<?php echo date_default_timezone_get(); ?>";
+    var avideoModalIframeFullScreenCloseButton = <?php echo json_encode(getHamburgerButton('avideoModalIframeFullScreenCloseButton', 2, 'class="btn btn-default pull-left hamburger " onclick="avideoModalIframeFullScreenClose();"', true)); ?>;
+    var avideoModalIframeFullScreenCloseButtonSmall = <?php echo json_encode(getHamburgerButton('avideoModalIframeFullScreenCloseButton', 4, 'class="btn btn-default btn-sm pull-left hamburger " onclick="avideoModalIframeFullScreenClose();"', true)); ?>;
     var PHPSESSID = "<?php echo session_id(); ?>";
 </script>
 <?php
-if (!$config->getDisable_analytics()) {
+if (!isOffline() && !$config->getDisable_analytics()) {
     ?>
     <script>
         // AVideo Analytics
@@ -177,7 +221,11 @@ if (!$config->getDisable_analytics()) {
     </script>
     <?php
 }
-echo $config->getHead();
+TimeLogEnd($timeLogHead, __LINE__);
+if(!isBot()){
+    echo $config->getHead();
+}
+TimeLogEnd($timeLogHead, __LINE__);
 echo $head;
 if (!empty($video)) {
     if (!empty($video['users_id'])) {
@@ -186,5 +234,7 @@ if (!empty($video)) {
         unset($userAnalytics);
     }
 }
+TimeLogEnd($timeLogHead, __LINE__);
 ogSite();
+TimeLogEnd($timeLogHead, __LINE__);
 ?>

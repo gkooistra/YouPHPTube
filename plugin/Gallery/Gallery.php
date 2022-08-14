@@ -2,6 +2,7 @@
 
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
+require_once $global['systemRootPath'] . 'objects/Channel.php';
 
 class Gallery extends PluginAbstract {
 
@@ -78,6 +79,11 @@ class Gallery extends PluginAbstract {
         $obj->DateAddedCustomTitle = "";
         $obj->DateAddedRowCount = 12;
         $obj->DateAddedOrder = 3;
+        
+        $obj->PrivateContent = true;
+        $obj->PrivateContentCustomTitle = "";
+        $obj->PrivateContentRowCount = 12;
+        $obj->PrivateContentOrder = 4;
         
         $obj->MostWatched = true;
         $obj->MostWatchedCustomTitle = "";
@@ -160,7 +166,7 @@ class Gallery extends PluginAbstract {
 
     public function getFirstPage() {
         global $global;
-        if (!AVideoPlugin::isEnabledByName("YouPHPFlix2") && !AVideoPlugin::isEnabledByName("CombineSites")) {
+        if (!AVideoPlugin::isEnabledByName("YouPHPFlix2")) {
             return $global['systemRootPath'] . 'plugin/Gallery/view/modeGallery.php';
         }
     }
@@ -171,19 +177,20 @@ class Gallery extends PluginAbstract {
 
         $js = '';
         if (!empty($obj->playVideoOnFullscreenOnIframe)) {
-            $js = '<script src="' . getCDN() . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
+            $js = '<script src="' . getURL('plugin/YouPHPFlix2/view/js/fullscreen.js') . '"></script>';
             $js .= '<script>$(function () { if(typeof linksToFullscreen === \'function\'){ linksToFullscreen(\'a.galleryLink\'); } });</script>';
         } else
         if (!empty($obj->playVideoOnFullscreen)) {
-            $js = '<script src="' . getCDN() . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
+            $js = '<script src="' . getURL('plugin/YouPHPFlix2/view/js/fullscreen.js') . '"></script>';
             $js .= '<script>$(function () { if(typeof linksToEmbed === \'function\'){ linksToEmbed(\'a.galleryLink\'); } });</script>';
         } else
         if (!empty($obj->playVideoOnBrowserFullscreen)) {
-            $js = '<script src="' . getCDN() . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
+            $js = '<script src="' . getURL('plugin/YouPHPFlix2/view/js/fullscreen.js') . '"></script>';
             $js .= '<script>$(function () { if(typeof linksToEmbed === \'function\'){ linksToEmbed(\'a.galleryLink\'); } });</script>';
-            $js .= '<script src="' . getCDN() . 'plugin/Gallery/fullscreen.js"></script>';
+            $js .= '<script src="' . getURL('plugin/Gallery/fullscreen.js') . '"></script>';
             $js .= '<script>var playVideoOnBrowserFullscreen = 1;</script>';
         }
+        $js .= '<script src="'.getURL('plugin/Gallery/script.js').'" type="text/javascript"></script>';
         return $js;
     }
     
@@ -225,6 +232,52 @@ class Gallery extends PluginAbstract {
     public function getPluginMenu() {
         global $global;
         return '<button onclick="avideoModalIframeSmall(webSiteRootURL+\'plugin/Gallery/view/sections.php\')" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fas fa-sort-numeric-down"></i> ' . __('Sort Sections') . '</button>';
+    }
+    
+    public static function getAddChannelToGalleryButton($users_id){
+        global $global, $config;
+        $filePath = $global['systemRootPath'] . 'plugin/Gallery/buttonChannelToGallery.php';
+        $varsArray=array('users_id'=>$users_id);
+        $button = getIncludeFileContent($filePath, $varsArray);
+        return $button;
+    }
+    
+    public static function setAddChannelToGallery($users_id, $add){
+        global $global, $config;
+        $users_id = intval($users_id);
+        $add = intval($add);
+        
+        $obj = AVideoPlugin::getObjectData('Gallery');
+        
+        $parameterName = "Channel_{$users_id}_";
+        
+        if(!empty($add)){
+            $obj->{$parameterName} = true;
+            $obj->{"{$parameterName}CustomTitle"} = User::getNameIdentificationById($users_id);
+            $obj->{"{$parameterName}RowCount"} = 12;
+            $obj->{"{$parameterName}Order"} = 1;
+        }else{
+            unset($obj->{$parameterName});
+            unset($obj->{"{$parameterName}CustomTitle"});
+            unset($obj->{"{$parameterName}RowCount"});
+            unset($obj->{"{$parameterName}Order"});
+        }
+        return AVideoPlugin::setObjectData('Gallery', $obj);
+    }
+    
+    public static function isChannelToGallery($users_id){
+        $obj = AVideoPlugin::getObjectData('Gallery');
+        
+        $parameterName = "Channel_{$users_id}_";
+        
+        return !empty($obj->{$parameterName});
+    }
+
+    static function getVideoDropdownMenu($videos_id) {
+        global $global;
+        $varsArray = array('videos_id' => $videos_id);
+        $filePath = $global['systemRootPath'] . 'plugin/Gallery/view/videoDropDownMenu.php';
+        return getIncludeFileContent($filePath, $varsArray);
     }
 
 }

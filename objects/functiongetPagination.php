@@ -6,15 +6,15 @@
 <center>
     <button class="btn btn-xs btn-default" style="border: none; background: transparent;" id="loadInfiniteScrollButton$uid"> More </button>
 </center>
-<script src="$webSiteRootURLview/js/infinite-scroll.pkgd.min.js" type="text/javascript"></script>
+<script src="$webSiteRootURLnode_modules/infinite-scroll/dist/infinite-scroll.pkgd.min.js" type="text/javascript"></script>
 <script>
     var $container$uid;
     $(function () {
         loadInfiniteScrool$uid();
     });
     /*
-     * 
-     
+     *
+
     document.addEventListener('scroll', function (e) {
         var scrollPosition = window.pageYOffset;
         var windowSize = window.innerHeight;
@@ -27,7 +27,7 @@
     });*/
     var append_infiniteScroll_timout;
     function loadInfiniteScrool$uid() {
-        if (typeof $('$infinityScrollAppendIntoSelector').infiniteScroll !== 'funciton') {
+        if (typeof $('$infinityScrollAppendIntoSelector').infiniteScroll == 'function') {
             $container$uid = $('$infinityScrollAppendIntoSelector').infiniteScroll({
                 path: '.pagination__next$uid',
                 append: '$infinityScrollGetFromSelector',
@@ -65,7 +65,7 @@
             });
             $container$uid.on('history.infiniteScroll', function (event, title, path) {
                 //console.log(`infiniteScroll History changed to: ${path}`);
-            });            
+            });
         }
     }
 

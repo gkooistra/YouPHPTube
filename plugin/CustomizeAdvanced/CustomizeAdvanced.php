@@ -5,13 +5,13 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class CustomizeAdvanced extends PluginAbstract {
 
-
     public function getTags() {
         return array(
             PluginTags::$RECOMMENDED,
             PluginTags::$FREE
         );
     }
+
     public function getDescription() {
         $txt = "Fine Tuning your AVideo";
         $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/Advanced-Customization-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
@@ -34,7 +34,7 @@ class CustomizeAdvanced extends PluginAbstract {
         global $global;
         $obj = new stdClass();
         $obj->logoMenuBarURL = "";
-        $obj->encoderNetwork = "https://network.avideo.com/";
+        $obj->encoderNetwork = "https://network.wwbn.net/";
         $obj->useEncoderNetworkRecomendation = false;
         $obj->doNotShowEncoderNetwork = true;
         $obj->doNotShowUploadButton = false;
@@ -58,8 +58,8 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->embedCodeTemplate = '<div class="embed-responsive embed-responsive-16by9"><iframe width="640" height="360" style="max-width: 100%;max-height: 100%; border:none;" src="{embedURL}" frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay" scrolling="no" videoLengthInSeconds="{videoLengthInSeconds}">iFrame is not supported!</iframe></div>';
         $obj->embedCodeTemplateObject = '<div class="embed-responsive embed-responsive-16by9"><object width="640" height="360"><param name="movie" value="{embedURL}"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed src="{embedURL}" allowscriptaccess="always" allowfullscreen="true" width="640" height="360"></embed></object></div>';
         $obj->htmlCodeTemplate = '<a href="{permaLink}"><img src="{imgSRC}">{title}</a>';
-        $obj->BBCodeTemplate = '[url={permaLink}][img]{imgSRC}[/img]{title}[/url]';        
-        
+        $obj->BBCodeTemplate = '[url={permaLink}][img]{imgSRC}[/img]{title}[/url]';
+
         $o = new stdClass();
         $o->type = array(-1 => __("Basic Controls"), 0 => __("No Controls"), 1 => __("All controls"));
         $o->value = 1;
@@ -68,7 +68,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->embedLoop = false;
         $obj->embedStartMuted = false;
         $obj->embedShowinfo = true;
-        
+
         $obj->doNotShowEncoderHLS = false;
         $obj->doNotShowEncoderResolutionLow = false;
         $obj->doNotShowEncoderResolutionSD = false;
@@ -132,10 +132,12 @@ class CustomizeAdvanced extends PluginAbstract {
             }
         }
 
+        $obj->disableInstallPWAButton = false;
         $obj->disablePlayLink = false;
         $obj->disableHelpLeftMenu = false;
         $obj->disableAboutLeftMenu = false;
         $obj->disableContactLeftMenu = false;
+        $obj->disableAnimations = false;
         $obj->disableNavbar = false;
         $obj->disableNavBarInsideIframe = true;
         $obj->autoHideNavbar = true;
@@ -156,6 +158,11 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotDisplayPluginsTags = false;
         $obj->showNotRatedLabel = false;
         $obj->showShareMenuOpenByDefault = false;
+
+        foreach ($global['social_medias'] as $key => $value) {
+            eval("\$obj->showShareButton_{$key} = true;");
+        }
+
         $obj->askRRatingConfirmationBeforePlay_G = false;
         $obj->askRRatingConfirmationBeforePlay_PG = false;
         $obj->askRRatingConfirmationBeforePlay_PG13 = false;
@@ -164,13 +171,13 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->askRRatingConfirmationBeforePlay_MA = true;
         $obj->filterRRating = false;
 
-
         $obj->doNotShowLeftHomeButton = false;
         $obj->doNotShowLeftTrendingButton = false;
 
         $obj->CategoryLabel = "Categories";
         $obj->ShowAllVideosOnCategory = false;
         $obj->hideCategoryVideosCount = false;
+        $obj->hideEditAdvancedFromVideosManager = false;
 
         //ver 7.1
         $obj->paidOnlyUsersTellWhatVideoIs = false;
@@ -189,12 +196,14 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->showPrivateVideosOnSitemap = false;
         $obj->enableOldPassHashCheck = true;
         $obj->disableHTMLDescription = false;
+        $obj->disableShowMOreLessDescription = false;
         $obj->disableVideoSwap = false;
         $obj->makeSwapVideosOnlyForAdmin = false;
         $obj->disableCopyEmbed = false;
         $obj->disableDownloadVideosList = false;
         $obj->videosManegerRowCount = "[10, 25, 50, -1]"; //An Array of Integer which will be shown in the dropdown box to choose the row count. Default value is [10, 25, 50, -1]. -1 means all. When passing an Integer value the dropdown box will disapear.
         $obj->videosListRowCount = "[10, 20, 30, 40, 50]"; //An Array of Integer which will be shown in the dropdown box to choose the row count. Default value is [10, 25, 50, -1]. -1 means all. When passing an Integer value the dropdown box will disapear.
+        $obj->videosManegerBulkActionButtons = true;
 
         $parse = parse_url($global['webSiteRootURL']);
         $domain = str_replace(".", "", $parse['host']);
@@ -207,18 +216,15 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotAllowUpdateVideoId = false;
         $obj->makeVideosIDHarderToGuess = false;
         self::addDataObjectHelper('makeVideosIDHarderToGuess', 'Make the videos ID harder to guess', 'This will change the videos_id on the URL to a crypted value. this crypt user your $global[salt] (configuration.php), so make sure you keep it save in case you need to restore your site, otherwise all the shared links will be lost');
-        
-        
-        
+
         $o = new stdClass();
         $o->type = DateTimeZone::listIdentifiers(DateTimeZone::ALL);
         $o->value = 0;
         $obj->timeZone = $o;
-        
-        
+
         $obj->keywords = "AVideo, videos, live, movies";
-        
-        
+        $obj->doNotSaveCacheOnFilesystem = false;
+
         $o = new stdClass();
         $o->type = "textarea";
         $o->value = "Allow: /plugin/Live/?*
@@ -268,8 +274,46 @@ Allow: .css";
         $obj->robotsTXT = $o;
         self::addDataObjectHelper('robotsTXT', 'robots.txt file content', 'robots.txt is a plain text file that follows the Robots Exclusion Standard. A robots.txt file consists of one or more rules. Each rule blocks (or allows) access for a given crawler to a specified file path in that website.');
         
+        $o = new stdClass();
+        $o->type = "textarea";
+        $o->value = "";
+        $obj->beforeNavbar = $o;
+        self::addDataObjectHelper('beforeNavbar', 'Add some code before the navbar HTML');
+        
+        
+        $o = new stdClass();
+        $o->type = array(1 => __("1 Day"), 10 => __("10 Days"), 15 => __("15 Days"), 20 => __("20 Days"), 25 => __("25 Days"), 30 => __("30 Days"), 60 => __("60 Days"));
+        $o->value = 30;
+        $obj->trendingOnLastDays = $o;
+        self::addDataObjectHelper('trendingOnLastDays', 'Trending Days', 'For the result of trending videos, use the statistics contained in the last few days');
+
+        
+        $obj->removeVideoList = false;
+        $o = new stdClass();
+        $o->type = array(
+            'titleAZ' => __("Title (A-Z)"), 
+            'titleZA' => __("Title (Z-A)"), 
+            'newest' => __("Date added (newest)"), 
+            'oldest' => __("Date added (oldest)"), 
+            'popular' => __("Most popular"), 
+            'views_count' => __("Most watched"), 
+            'suggested' => __("Suggested"), 
+            'trending' => __("Trending")
+            );
+        $o->value = 'newest';
+        $obj->sortVideoListByDefault = $o;
+        self::addDataObjectHelper('sortVideoListByDefault', 'Sort Video List By Default');
         
         return $obj;
+    }
+    
+    public function navBar() {
+        $obj = $this->getDataObject();
+        $str = '';
+        if(!emptyHTML($obj->beforeNavbar->value)){
+            $str .= $obj->beforeNavbar->value;
+        }
+        return $str;
     }
 
     public function getHelp() {
@@ -278,9 +322,17 @@ Allow: .css";
         }
         return "";
     }
-    
+
     public function getModeYouTube($videos_id) {
         global $global, $config;
+        
+        $redirectVideo = self::getRedirectVideo($videos_id);
+        //var_dump($redirectVideo);exit;
+        if(!empty($redirectVideo) && !empty($redirectVideo->code) && isValidURL($redirectVideo->url) && getSelfURI() !== $redirectVideo->url){
+            header("Location: {$redirectVideo->url}", true, $redirectVideo->code);
+            exit;
+        }
+        
         $obj = $this->getDataObject();
         $video = Video::getVideo($videos_id, "viewable", true);
         if (!empty($video['rrating']) && empty($_GET['rrating'])) {
@@ -292,7 +344,7 @@ Allow: .css";
             }
         }
     }
-    
+
     public function getEmbed($videos_id) {
         return $this->getModeYouTube($videos_id);
     }
@@ -304,22 +356,30 @@ Allow: .css";
         $content = '';
         if ($obj->autoHideNavbar && !isEmbed()) {
             $content .= '<script>$(function () {setTimeout(function(){if(typeof $("#mainNavBar").autoHidingNavbar == "function"){$("#mainNavBar").autoHidingNavbar();}},5000);});</script>';
-            $content .= '<script>'. file_get_contents($global['systemRootPath'] . 'plugin/CustomizeAdvanced/autoHideNavbar.js').'</script>';
+            $content .= '<script>' . file_get_contents($global['systemRootPath'] . 'plugin/CustomizeAdvanced/autoHideNavbar.js') . '</script>';
         }
         if ($obj->autoHideNavbarInSeconds && !isEmbed()) {
             $content .= '<script>'
-                    . 'var autoHidingNavbarTimeoutMiliseconds = '.intval($obj->autoHideNavbarInSeconds*1000).';'
-                    .file_get_contents($global['systemRootPath'] . 'plugin/CustomizeAdvanced/autoHideNavbarInSeconds.js')
+                    . 'var autoHidingNavbarTimeoutMiliseconds = ' . intval($obj->autoHideNavbarInSeconds * 1000) . ';'
+                    . file_get_contents($global['systemRootPath'] . 'plugin/CustomizeAdvanced/autoHideNavbarInSeconds.js')
                     . '</script>';
         }
         return $content;
     }
 
     public function getHTMLMenuRight() {
-        global $global;
+        global $global, $config,$advancedCustom;
         $obj = $this->getDataObject();
+        if (!empty($obj->menuBarHTMLCode->value)) {
+            echo $obj->menuBarHTMLCode->value;
+        }
         if ($obj->filterRRating) {
             include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/menuRight.php';
+        }
+        if (User::canUpload() && empty($obj->doNotShowUploadButton)) {
+            include $global['systemRootPath'] . 'view/include/navbarUpload.php';
+        } else {
+            include $global['systemRootPath'] . 'view/include/navbarNotUpload.php';
         }
     }
 
@@ -347,8 +407,8 @@ Allow: .css";
     public function getVideosManagerListButton() {
         $btn = "";
         if (User::isAdmin()) {
-            $btn = '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="updateDiskUsage(\' + row.id + \');" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="'. __("Update disk usage for this media") .'"><i class="fas fa-chart-line"></i> '. __("Update Disk Usage") .'</button>';
-            $btn .= '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="removeThumbs(\' + row.id + \');" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="'. __("Remove thumbs for this media") .'"><i class="fas fa-images"></i> '. __("Remove Thumbs") .'</button>';
+            $btn = '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="updateDiskUsage(\' + row.id + \');" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="' . __("Update disk usage for this media") . '"><i class="fas fa-chart-line"></i> ' . __("Update Disk Usage") . '</button>';
+            $btn .= '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block " onclick="removeThumbs(\' + row.id + \');" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="' . __("Remove thumbs for this media") . '"><i class="fas fa-images"></i> ' . __("Remove Thumbs") . '</button>';
         }
         return $btn;
     }
@@ -356,22 +416,22 @@ Allow: .css";
     public function getHeadCode() {
         global $global;
         $obj = $this->getDataObject();
-        
-        if($obj->makeVideosIDHarderToGuess){
-            if(isVideo()){
-                if(!empty($global['makeVideosIDHarderToGuessNotDecrypted'])){
+
+        if ($obj->makeVideosIDHarderToGuess) {
+            if (isVideo()) {
+                if (!empty($global['makeVideosIDHarderToGuessNotDecrypted'])) {
                     unset($global['makeVideosIDHarderToGuessNotDecrypted']);
                     forbiddenPage(__('Invalid ID'));
                 }
             }
         }
-        
+
         $baseName = basename($_SERVER['REQUEST_URI']);
-        
+
         $js = "";
-        if(empty($obj->autoPlayAjax)){
+        if (empty($obj->autoPlayAjax)) {
             $js .= "<script>var autoPlayAjax=false;</script>";
-        }else{
+        } else {
             $js .= "<script>var autoPlayAjax=true;</script>";
         }
         if ($baseName === 'mvideos') {
@@ -423,10 +483,170 @@ Allow: .css";
         }
         return $js;
     }
-    
+
     public function onReceiveFile($videos_id) {
         Video::updateFilesize($videos_id);
         return true;
     }
+    
+    public static function getManagerVideosAddNew() {
+        global $global;
+        $filename = $global['systemRootPath'] . 'plugin/CustomizeAdvanced/getManagerVideosAddNew.js';
+        return file_get_contents($filename);
+    }
+
+    public static function getManagerVideosEdit() {
+        global $global;
+        $filename = $global['systemRootPath'] . 'plugin/CustomizeAdvanced/getManagerVideosEdit.js';
+        return file_get_contents($filename);
+    }
+
+    public static function getManagerVideosEditField($type='Advanced') {
+        global $global;
+        if($type == 'Advanced'){
+            include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/managerVideosEdit.php';
+        }else if($type == 'SEO'){
+            include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/managerVideosEditSEO.php';
+        }
+        return '';
+    }
+
+    public static function saveVideosAddNew($post, $videos_id) {
+        self::setDoNotShowAds($videos_id, !_empty($post['doNotShowAdsOnThisVideo']));
+        self::setRedirectVideo($videos_id, @$post['redirectVideoCode'], @$post['redirectVideoURL']);
+        self::setShortSummaryAndMetaDescriptionVideo($videos_id,@$post['ShortSummary'], @$post['MetaDescription']);
+    }
+    
+    public static function setDoNotShowAds($videos_id, $doNotShowAdsOnThisVideo) {
+        if (!Permissions::canAdminVideos()) {
+            return false;
+        }
+        $video = new Video('', '', $videos_id);
+        $externalOptions = _json_decode($video->getExternalOptions());
+        $externalOptions->doNotShowAdsOnThisVideo = $doNotShowAdsOnThisVideo;
+        $video->setExternalOptions(json_encode($externalOptions));
+        return $video->save();
+    }
+
+    public static function getDoNotShowAds($videos_id): bool {
+        $video = new Video('', '', $videos_id);
+        $externalOptions = _json_decode($video->getExternalOptions());
+        return !empty($externalOptions->doNotShowAdsOnThisVideo);
+    }
+    
+    public static function setRedirectVideo($videos_id, $code, $url) {
+        if (!Permissions::canAdminVideos()) {
+            return false;
+        }
+        $video = new Video('', '', $videos_id);
+        $externalOptions = _json_decode($video->getExternalOptions());
+        $externalOptions->redirectVideo = array('code'=>$code, 'url'=>$url);
+        $video->setExternalOptions(json_encode($externalOptions));
+        return $video->save();
+    }
+
+    public static function getRedirectVideo($videos_id) {
+        $video = new Video('', '', $videos_id);
+        $externalOptions = _json_decode($video->getExternalOptions());
+        return @$externalOptions->redirectVideo;
+    }
+    
+     public static function setShortSummaryAndMetaDescriptionVideo($videos_id, $ShortSummary, $MetaDescription) {
+        if (!Video::canEdit($videos_id)) {
+            return false;
+        }
+        $video = new Video('', '', $videos_id);
+        $externalOptions = _json_decode($video->getExternalOptions());
+        $externalOptions->SEO = array('ShortSummary'=>$ShortSummary, 'MetaDescription'=>$MetaDescription);
+        $video->setExternalOptions(json_encode($externalOptions));
+        return $video->save();
+    }
+
+    public static function getShortSummaryAndMetaDescriptionVideo($videos_id) {
+        $video = new Video('', '', $videos_id);
+        $externalOptions = _json_decode($video->getExternalOptions());
+        return @$externalOptions->SEO;
+    }
+    
+    public function showAds($videos_id): bool {
+        return !self::getDoNotShowAds($videos_id);
+    }
 
 }
+
+class SocialMedias {
+
+    public $href;
+    public $class;
+    public $title;
+    public $iclass;
+    public $img;
+    public $onclick;
+
+    function __construct($iclass, $img = '') {
+        $this->iclass = $iclass;
+        $this->img = $img;
+    }
+
+    function getHref() {
+        return $this->href;
+    }
+
+    function getClass() {
+        return $this->class;
+    }
+
+    function getTitle() {
+        return $this->title;
+    }
+
+    function getIclass() {
+        return $this->iclass;
+    }
+
+    function getImg() {
+        return $this->img;
+    }
+
+    function getOnclick() {
+        return $this->onclick;
+    }
+
+    function setHref($href): void {
+        $this->href = $href;
+    }
+
+    function setClass($class): void {
+        $this->class = $class;
+    }
+
+    function setTitle($title): void {
+        $this->title = $title;
+    }
+
+    function setIclass($iclass): void {
+        $this->iclass = $iclass;
+    }
+
+    function setImg($img): void {
+        $this->img = $img;
+    }
+
+    function setOnclick($onclick): void {
+        $this->onclick = $onclick;
+    }
+    
+}
+
+$global['social_medias'] = array(
+    'Facebook' => new SocialMedias('fab fa-facebook-square', ''),
+    'Twitter' => new SocialMedias('fab fa-twitter', ''),
+    'Tumblr' => new SocialMedias('fab fa-tumblr', ''),
+    'Pinterest' => new SocialMedias('fab fa-pinterest-p', ''),
+    'Reddit' => new SocialMedias('fab fa-reddit-alien', ''),
+    'LinkedIn' => new SocialMedias('fab fa-linkedin-in', ''),
+    'Wordpress' => new SocialMedias('fab fa-wordpress-simple', ''),
+    'Pinboard' => new SocialMedias('fas fa-thumbtack', ''),
+    'Gab' => new SocialMedias('', getURL('view/img/gab.png')),
+    'CloutHub' => new SocialMedias('', getURL('view/img/cloutHub.png')),
+);

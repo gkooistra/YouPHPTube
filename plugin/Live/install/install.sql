@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `live_transmitions` (
   `users_id` INT(11) NOT NULL,
   `categories_id` INT(11) NOT NULL,
   `showOnTV` TINYINT NULL,
+  `password` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_live_transmitions_users1_idx` (`users_id` ASC),
   INDEX `fk_live_transmitions_categories1_idx` (`categories_id` ASC),
@@ -77,12 +78,26 @@ CREATE TABLE IF NOT EXISTS `live_transmitions_history` (
   `finished` DATETIME NULL DEFAULT NULL,
   `domain` VARCHAR(255) NULL DEFAULT NULL,
   `json` TEXT NULL DEFAULT NULL,
+  `max_viewers_sametime` INT(10) UNSIGNED NULL DEFAULT NULL,
+  `total_viewers` INT(10) UNSIGNED NULL DEFAULT NULL,
+  `users_id_company` INT(11) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
+  INDEX `fk_live_transmitions_history_users1_idx` (`users_id_company` ASC),
   INDEX `fk_live_transmitions_history_users_idx` (`users_id` ASC),
   INDEX `fk_live_transmitions_history_live_servers1_idx` (`live_servers_id` ASC),
   CONSTRAINT `fk_live_transmitions_history_users`
     FOREIGN KEY (`users_id`)
     REFERENCES  `users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_live_transmitions_history_live_servers1`
+    FOREIGN KEY (`live_servers_id`)
+    REFERENCES `live_servers` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_live_transmitions_history_users1`
+    FOREIGN KEY (`users_id_company`)
+    REFERENCES `users` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
@@ -149,7 +164,7 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `live_schedule` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `title` VARCHAR(255) NULL,
-  `description` VARCHAR(255) NULL,
+  `description` TEXT NULL,
   `key` VARCHAR(255) NULL,
   `users_id` INT(11) NOT NULL,
   `live_servers_id` INT(11) NULL,
@@ -162,7 +177,10 @@ CREATE TABLE IF NOT EXISTS `live_schedule` (
   `public` TINYINT(1) NULL,
   `saveTransmition` TINYINT(1) NULL,
   `showOnTV` TINYINT(4) NULL,
+  `scheduled_password` VARCHAR(255) NULL,
+  `users_id_company` INT(11) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
+  INDEX `fk_live_schedule_users2_idx` (`users_id_company` ASC),
   INDEX `fk_live_schedule_users1_idx` (`users_id` ASC),
   INDEX `fk_live_schedule_live_servers1_idx` (`live_servers_id` ASC),
   CONSTRAINT `fk_live_schedule_users1`
@@ -173,8 +191,26 @@ CREATE TABLE IF NOT EXISTS `live_schedule` (
   CONSTRAINT `fk_live_schedule_live_servers1`
     FOREIGN KEY (`live_servers_id`)
     REFERENCES `live_servers` (`id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_live_schedule_users2`
+    FOREIGN KEY (`users_id_company`)
+    REFERENCES `users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS `live_restreams_logs` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `restreamer` VARCHAR(255) NOT NULL,
+  `m3u8` VARCHAR(400) NULL,
+  `destinations` TEXT NULL,
+  `logFile` VARCHAR(255) NULL,
+  `users_id` INT(11) NULL,
+  `json` TEXT NULL,
+  `created` DATETIME NULL,
+  `modified` DATETIME NULL,
+  PRIMARY KEY (`id`))
 ENGINE = InnoDB;
 
 SET SQL_MODE=@OLD_SQL_MODE;

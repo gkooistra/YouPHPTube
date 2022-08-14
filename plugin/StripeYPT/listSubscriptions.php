@@ -1,10 +1,20 @@
 <?php
 require_once '../../videos/configuration.php';
-if (!User::isAdmin()) {
-    header("Location: {$global['webSiteRootURL']}?error=" . __("You can not manage this plugin"));
-    exit;
+
+if(!User::isLogged()){
+    gotToLoginAndComeBackHere('Please login first');
 }
+
+$filter_users_id = User::getId();
+
 $stripe = AVideoPlugin::loadPlugin("StripeYPT");
+if (User::isAdmin()) {
+    $filter_users_id = 0;
+    $subs = $stripe->getAllSubscriptions();
+}else{
+    $_REQUEST['users_id'] = $filter_users_id;
+    $subs = $stripe->getAllSubscriptionsSearch($filter_users_id, 0);
+}
 
 if (!empty($_GET['subscription_tid'])) {
     $response = $stripe->cancelSubscriptions($_GET['subscription_tid']);
@@ -18,6 +28,8 @@ if (!empty($_GET['subscription_tid'])) {
         _error_log('listSubscription::cancel plans_id or user not found');
     }
 }
+
+$SubscriptionIsEnabled = AVideoPlugin::isEnabledByName("Subscription");
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $_SESSION['language']; ?>">
@@ -45,11 +57,16 @@ if (!empty($_GET['subscription_tid'])) {
                         <div id="active" class="tab-pane fade in active">
                             <div class="row">   
                                 <?php
-                                $subs = $stripe->getAllSubscriptions();
+                                $count = 0;
                                 foreach ($subs->data as $value) {
+                                    $count++;
                                     $users_id = $value->metadata->users_id;
                                     $plans_id = $value->metadata->plans_id;
-
+                                    $message = array();
+                                    if(!empty($filter_users_id) && $filter_users_id !=$users_id){
+                                        continue;
+                                    }
+                                    
                                     $title = "";
                                     $body = "";
                                     $buttonClass = "danger";
@@ -57,12 +74,12 @@ if (!empty($_GET['subscription_tid'])) {
                                     if (!empty($users_id)) {
                                         $user = new User($users_id);
                                         if (!empty($user)) {
-                                            $title .= $user->getName() . " (" . $user->getEmail() . ")";
+                                            $title .= $user->getNameIdentificationBd() . " (" . $user->getEmail() . ")";
                                         }
                                     } else {
                                         $title .= "User ID Not found";
                                     }
-                                    if (AVideoPlugin::isEnabledByName("Subscription")) {
+                                    if ($SubscriptionIsEnabled) {
                                         if (!empty($plans_id)) {
                                             $plan = new SubscriptionPlansTable($plans_id);
                                             if (!empty($plan)) {
@@ -70,6 +87,8 @@ if (!empty($_GET['subscription_tid'])) {
                                                 $row = SubscriptionTable::getSubscription($users_id, $plans_id);
                                                 if (!empty($row)) {
                                                     $buttonClass = "success";
+                                                }else{
+                                                    $message[] = "Could not find a subscription for user {$users_id},{$plans_id} ";
                                                 }
                                             }
                                         } else {
@@ -77,6 +96,8 @@ if (!empty($_GET['subscription_tid'])) {
                                         }
                                     }
                                     $body .= "<b>Created in:</b> " . date("Y-m-d", $value->created);
+                                    $body .= "<br><b>users_id:</b> " . $users_id;
+                                    $body .= "<br><b>plans_id:</b> " . $plans_id;
                                     foreach ($value->items->data as $value2) {
                                         $body .= "<br><b>Plan:</b> " . $value2->plan->nickname;
                                         $body .= "<br><b>Value:</b> " . StripeYPT::addDot($value2->plan->amount) . " " . $value2->plan->currency;
@@ -85,14 +106,25 @@ if (!empty($_GET['subscription_tid'])) {
                                     ?>
                                     <div class="col-sm-3">
                                         <div class="panel panel-default">
-                                            <div class="panel-heading"><?php echo $title; ?></div>
+                                            <div class="panel-heading"><?php echo $count; ?> <?php echo $title; ?></div>
                                             <div class="panel-body"><?php echo $body; ?></div>
                                             <div class="panel-footer"> 
                                                 <a class="btn btn-sm btn-xs btn-<?php echo $buttonClass; ?> btn-block" 
-                                                   href="<?php echo $global['webSiteRootURL']; ?>plugin/StripeYPT/listSubscriptions.php?subscription_tid=<?php echo $value->id; ?>&plans_id=<?php echo $plans_id; ?>&users_id=<?php echo $users_id; ?>" >Cancel</a></div>
+                                                   href="<?php echo $global['webSiteRootURL']; ?>plugin/StripeYPT/listSubscriptions.php?subscription_tid=<?php echo $value->id; ?>&plans_id=<?php echo $plans_id; ?>&users_id=<?php echo $users_id; ?>" >Cancel</a>
+                                            </div>
+                                            <div class="panel-footer"> 
+                                                <?php
+                                                foreach ($value->metadata as $key => $value) {
+                                                    echo "<b>{$key}</b>: ". json_encode($value)."<br>";
+                                                }
+                                                ?>
+                                            </div>
                                         </div>
                                     </div>    
                                     <?php
+                                    if($count%4===0){
+                                        echo '<div class="clearfix visible-sm visible-md visible-lg"></div>';
+                                    }
                                 }
                                 ?>
                             </div>
@@ -100,11 +132,17 @@ if (!empty($_GET['subscription_tid'])) {
                         <div id="trial" class="tab-pane fade">
                             <div class="row">  
                                 <?php
+                                $count = 0;
                                 $subs = $stripe->getAllSubscriptions('trialing');
                                 foreach ($subs->data as $value) {
+                                    $count++;
                                     $users_id = $value->metadata->users_id;
                                     $plans_id = $value->metadata->plans_id;
 
+                                    if(!empty($filter_users_id) && $filter_users_id !=$users_id){
+                                        continue;
+                                    }
+                                    
                                     $title = "";
                                     $body = "";
                                     $buttonClass = "danger";
@@ -112,12 +150,12 @@ if (!empty($_GET['subscription_tid'])) {
                                     if (!empty($users_id)) {
                                         $user = new User($users_id);
                                         if (!empty($user)) {
-                                            $title .= $user->getName() . " (" . $user->getEmail() . ")";
+                                            $title .= $user->getNameIdentificationBd() . " (" . $user->getEmail() . ")";
                                         }
                                     } else {
                                         $title .= "User ID Not found";
                                     }
-                                    if (AVideoPlugin::isEnabledByName("Subscription")) {
+                                    if ($SubscriptionIsEnabled) {
                                         if (!empty($plans_id)) {
                                             $plan = new SubscriptionPlansTable($plans_id);
                                             if (!empty($plan)) {
@@ -140,12 +178,24 @@ if (!empty($_GET['subscription_tid'])) {
                                     ?>
                                     <div class="col-sm-3">
                                         <div class="panel panel-default">
-                                            <div class="panel-heading"><?php echo $title; ?></div>
+                                            <div class="panel-heading"><?php echo $count; ?> <?php echo $title; ?></div>
                                             <div class="panel-body"><?php echo $body; ?></div>
-                                            <div class="panel-footer"> <a class="btn btn-sm btn-xs btn-<?php echo $buttonClass; ?> btn-block" href="<?php echo $global['webSiteRootURL']; ?>plugin/StripeYPT/listSubscriptions.php?subscription_tid=<?php echo $value->id; ?>" >Cancel</a></div>
+                                            <div class="panel-footer"> 
+                                                <a class="btn btn-sm btn-xs btn-<?php echo $buttonClass; ?> btn-block" href="<?php echo $global['webSiteRootURL']; ?>plugin/StripeYPT/listSubscriptions.php?subscription_tid=<?php echo $value->id; ?>" >Cancel</a>
+                                            </div>
+                                            <div class="panel-footer"> 
+                                                <?php
+                                                foreach ($value->metadata as $key => $value) {
+                                                    echo "<b>{$key}</b>: ". json_encode($value)."<br>";
+                                                }
+                                                ?>
+                                            </div>
                                         </div>
                                     </div>    
                                     <?php
+                                    if($count%4===0){
+                                        echo '<div class="clearfix visible-sm visible-md visible-lg"></div>';
+                                    }
                                 }
                                 ?>
                             </div>

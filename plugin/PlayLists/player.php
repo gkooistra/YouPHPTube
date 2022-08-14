@@ -80,7 +80,7 @@ if(empty($playListData)){
 <html lang="<?php echo $_SESSION['language']; ?>">
     <head>
         <title><?php echo $playListObj->getName() . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getCDN(); ?>view/css/social.css" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.css" rel="stylesheet">
@@ -121,7 +121,7 @@ if(empty($playListData)){
             <?php
         }
         ?>
-        <div class="container-fluid principalContainer">
+        <div class="container-fluid principalContainer" style="overflow: hidden;">
             <?php
             if (!empty($playListObj)) {
                 if (!empty($advancedCustom->showAdsenseBannerOnTop)) {
@@ -212,7 +212,7 @@ if(empty($playListData)){
                                             var playerPlaylist = <?php echo json_encode($playListData); ?>;
                                             var originalPlayerPlaylist = playerPlaylist;
 
-                                            if (typeof player === 'undefined') {
+                                            if (typeof player === 'undefined' && $('#mainVideo').length) {
                                                 player = videojs('mainVideo'<?php echo PlayerSkins::getDataSetup(); ?>);
                                             }
 

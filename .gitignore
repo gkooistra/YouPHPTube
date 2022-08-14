@@ -11,7 +11,6 @@
 /plugin/AutoShare/
 /plugin/Backup/
 /plugin/Blackblaze_B2/
-/plugin/Bookmark/
 /plugin/Chat2/
 /plugin/CountryRedirect/
 /plugin/CreateUserManager/
@@ -73,3 +72,10 @@ sitemap.xml
 /plugin/WebRTCLiveCam/
 /plugin/Wix/
 /plugin/Live/standAloneFiles/WebRTCServer/configuration.php
+/plugin/Fishr/
+/plugin/JoshWho/
+.DS_Store
+/.project
+objects/ezyang/
+/plugin/Conspyre/
+/plugin/VideoOffline/

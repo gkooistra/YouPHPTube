@@ -150,7 +150,7 @@ abstract class PluginAbstract {
                 if($teo !== $to){ // this will make sure the type is the same
                     if(!is_numeric($value) || !is_numeric($o->$key)){
                         if(!(is_int($value) && is_bool($o->$key)) && !(is_bool($value) && is_int($o->$key))){
-                            _error_log("getDataObject - type is different $teo !== $to uuid = $uuid");
+                            //_error_log("getDataObject - type is different $teo !== $to uuid = $uuid");
                             $o->$key = $value;
                         }
                     }
@@ -227,7 +227,15 @@ abstract class PluginAbstract {
         return false;
     }
     
-    public function afterDonation($from_users_id, $how_much, $videos_id, $users_id) {
+    public function onNewVideo($videos_id) {
+        return false;
+    }
+    
+    public function onUpdateVideo($videos_id) {
+        return false;
+    }
+    
+    public function afterDonation($from_users_id, $how_much, $videos_id, $users_id, $extraParameters) {
         return false;
     }
 
@@ -480,6 +488,10 @@ abstract class PluginAbstract {
     public function onLiveStream($users_id, $live_servers_id) {
         return null;
     }
+    
+    public function on_publish_done($live_transmitions_history_id, $users_id, $key, $live_servers_id) {
+        return null;
+    }
 
     public function thumbsOverlay($videos_id) {
         return "";
@@ -513,7 +525,7 @@ abstract class PluginAbstract {
         return "";
     }
 
-    public static function getManagerVideosEditField() {
+    public static function getManagerVideosEditField($type='Advanced') {
         return "";
     }
 

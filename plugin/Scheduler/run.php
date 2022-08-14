@@ -12,11 +12,15 @@ if(!AVideoPlugin::isEnabledByName('Scheduler')){
 }
 
 $rowActive = Scheduler_commands::getAllActiveOrToRepeat();
-$total = count($rowActive);
-_log("There are {$total} active requests"); 
+$total1 = count($rowActive);
 
 $rows = Scheduler_commands::getAllActiveAndReady();
-_log("getAllActiveAndReady found ".count($rows)); 
+$total2 = count($rows);
+
+$rows2 = Scheduler_commands::getAllScheduledTORepeat();
+$total3 = count($rows2);
+_log("There are {$total1} active requests; getAllActiveAndReady={$total2} getAllScheduledTORepeat={$total3} on time ". json_encode(Scheduler_commands::getTimesNow())); 
+
 foreach ($rows as $value) {
     _log("getAllActiveAndReady run ". json_encode($value)); 
     $id = Scheduler::run($value['id']);
@@ -25,10 +29,7 @@ foreach ($rows as $value) {
     }
 }
 
-
-$rows = Scheduler_commands::getAllScheduledTORepeat();
-_log("getAllScheduledTORepeat found ".count($rows) . ' on time '. json_encode(Scheduler_commands::getTimesNow())); 
-foreach ($rows as $value) {
+foreach ($rows2 as $value) {
     _log("getAllScheduledTORepeat run ". json_encode($value)); 
     $id = Scheduler::run($value['id']);
     if(empty($id)){

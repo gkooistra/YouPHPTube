@@ -5,6 +5,8 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
 class Layout extends PluginAbstract {
 
+    static private $tags = array();
+
     public function getTags() {
         return array(
             PluginTags::$RECOMMENDED,
@@ -46,6 +48,7 @@ class Layout extends PluginAbstract {
         $obj->categoriesTopButtonsShowOnlyOnFirstPage = true;
         $obj->categoriesTopButtonsShowVideosCount = false;
         $obj->categoriesTopButtonsFluid = true;
+        $obj->enableAccessibility = false;
 
         $o = new stdClass();
         $o->type = array(0 => '-- ' . __("Random")) + self::getLoadersArray();
@@ -118,7 +121,7 @@ class Layout extends PluginAbstract {
         $response = array();
         foreach ($files as $key => $value) {
             $name = basename($value);
-            if($name === 'index.php'){
+            if ($name === 'index.php') {
                 continue;
             }
             $name = str_replace('.php', '', $name);
@@ -165,7 +168,7 @@ class Layout extends PluginAbstract {
         global $global;
         include $global['systemRootPath'] . 'plugin/Layout/fontAwesomeFAB.php';
         // Fetch variables scss file in variable
-        $font_vars = file_get_contents($global['systemRootPath'] . 'view/css/fontawesome-free-5.5.0-web/scss/_variables.scss');
+        $font_vars = file_get_contents($global['systemRootPath'] . 'node_modules/fontawesome-free/scss/_variables.scss');
 
         // Find the position of first $fa-var , as all icon class names start after that
         $pos = strpos($font_vars, '$fa-var');
@@ -175,7 +178,6 @@ class Layout extends PluginAbstract {
 
         // Create an array of lines
         $lines = explode("\n", $font_vars);
-
 
         $fonts_list = array();
         foreach ($lines as $line) {
@@ -197,17 +199,17 @@ class Layout extends PluginAbstract {
         return $fonts_list;
     }
 
-    static function getSelectSearchable($optionsArray, $name, $selected, $id = "", $class = "", $placeholder = false, $templatePlaceholder='') {
+    static function getSelectSearchable($optionsArray, $name, $selected, $id = "", $class = "", $placeholder = false, $templatePlaceholder = '') {
         global $global;
+        if (empty($id)) {
+            $id = $name;
+        }
         $html = "";
         if (empty($global['getSelectSearchable'])) {
-            $html .= '<link href="'.getCDN().'view/js/select2/select2.min.css" rel="stylesheet" />';
+            $html .= '<link href="' . getURL('view/js/select2/select2.min.css') . '" rel="stylesheet" />';
             $html .= '<style>
                 .select2-selection__rendered {line-height: 32px !important;}
-                .select2-selection {min-height: 34px !important;}
-                .select2-container--default .select2-selection--single {
-                    background-color: transparent !important;
-                }</style>';
+                .select2-selection {min-height: 34px !important;}</style>';
         }
         if (empty($class)) {
             $class = "js-select-search";
@@ -220,28 +222,51 @@ class Layout extends PluginAbstract {
             $selectedString = "";
             if (is_array($value)) { // need this because of the category icons
                 $_value = $value[1];
+                $_parameters = @$value[2];
                 $_text = $value[0];
             } else {
+                $_parameters = '';
                 $_value = $key;
                 $_text = $value;
             }
             if ($_value == $selected) {
                 $selectedString = "selected";
             }
-            $html .= '<option value="' . $_value . '" ' . 
-                    $selectedString . '>' . 
+            $html .= '<option value="' . $_value . '" ' .
+                    $selectedString . ' ' . $_parameters . '>' .
                     $_text . '</option>';
         }
         $html .= '</select>';
         // this is just to display something before load the select2
-        if(empty($templatePlaceholder)){
+        if (empty($templatePlaceholder)) {
             $html .= '<select class="form-control" id="deleteSelect_' . $id . '" ><option></option></select>';
-        }else{
+        } else {
             $html .= $templatePlaceholder;
         }
         $html .= '<script>$(document).ready(function() {$(\'#deleteSelect_' . $id . '\').remove();});</script>';
-        
+
         $global['getSelectSearchable'] = 1;
+        return $html;
+    }
+
+    static function getSelectSearchableHTML($optionsArray, $name, $selected, $id = "", $class = "", $placeholder = false, $templatePlaceholder = '') {
+        global $global;
+        if (empty($id)) {
+            $id = $name;
+        }
+        $html = self::getSelectSearchable($optionsArray, $name, $selected, $id, $class, $placeholder, $templatePlaceholder);
+
+        $html .= "<script>function getSelectformatStateResult{$name} (state) {
+                                    if (!state.id) {
+                                      return state.text;
+                                    }
+                                    var \$state = $(
+                                      '<span><i class=\"' + state.id + '\"></i>'+
+                                      state.text + '</span>'
+                                    );
+                                    return \$state;
+                                  };";
+        $html .= '$(document).ready(function() {$(\'#' . $id . '\').select2({templateSelection: getSelectformatStateResult' . $name . ', templateResult: getSelectformatStateResult' . $name . ',width: \'100%\'});});</script>';
         return $html;
     }
 
@@ -271,108 +296,103 @@ class Layout extends PluginAbstract {
     static function getAvilableFlags() {
         global $global;
         $flags = array();
-        include_once $global['systemRootPath'].'objects/bcp47.php'; 
+        include_once $global['systemRootPath'] . 'objects/bcp47.php';
         $files = _glob("{$global['systemRootPath']}locale", '/^[a-z]{2}(_.*)?.php$/');
         foreach ($files as $filename) {
             $filename = basename($filename);
             $fileEx = basename($filename, ".php");
-            
+
             $name = $global['bcp47'][$fileEx]['label'];
             $flag = $global['bcp47'][$fileEx]['flag'];
-            
-            $flags[$fileEx] = array(json_encode(array('text'=>$name, 'icon'=>"flagstrap-icon flagstrap-{$flag}")), $fileEx, 'val3-'.$name);
-        }
-        return $flags;
-    }
-    
-    static function getAllFlags() {
-        global $global;
-        $flags = array();
-        include_once $global['systemRootPath'].'objects/bcp47.php'; 
-        foreach ($global['bcp47'] as $key => $filename) {
-            
-            $name = $filename['label'];
-            $flag = $filename['flag'];
-            
-            $flags[$key] = array(json_encode(array('text'=>$name, 'icon'=>"flagstrap-icon flagstrap-{$flag}")), $key, 'val3-'.$name);
+
+            $flags[$fileEx] = array(json_encode(array('text' => $name, 'icon' => "flagstrap-icon flagstrap-{$flag}")), $fileEx, 'val3-' . $name);
         }
         return $flags;
     }
 
-    static function getLangsSelect($name, $selected = "", $id = "", $class = "", $flagsOnly=false, $getAll=false) {
+    static function getAllFlags() {
+        global $global;
+        $flags = array();
+        include_once $global['systemRootPath'] . 'objects/bcp47.php';
+        foreach ($global['bcp47'] as $key => $filename) {
+
+            $name = $filename['label'];
+            $flag = $filename['flag'];
+
+            $flags[$key] = array(json_encode(array('text' => $name, 'icon' => "flagstrap-icon flagstrap-{$flag}")), $key, 'val3-' . $name);
+        }
+        return $flags;
+    }
+
+    static function getLangsSelect($name, $selected = "", $id = "", $class = "", $flagsOnly = false, $getAll = false) {
         global $getLangsSelect;
         $getLangsSelect = 1;
-        if($getAll){
+        if ($getAll) {
             $flags = self::getAllFlags();
-        }else{
+        } else {
             $flags = self::getAvilableFlags();
         }
         if (empty($id)) {
             $id = uniqid();
         }
-        if($selected=='us'){
+        if ($selected == 'us') {
             $selected = 'en_US';
         }
-        
-        if(!empty($flags[$selected])){
+
+        if (!empty($flags[$selected])) {
             $selectedJson = _json_decode($flags[$selected][0]);
             $selectedJsonIcon = $selectedJson->icon;
-        }else{
+        } else {
             $selectedJsonIcon = '';
         }
-        $code = "<script>/*selected={$selected}*/function getLangSelectformatStateResult (state) {
+
+        $html = '<div class="btn-group">
+            <button type="button" class="btn btn-default  dropdown-toggle navbar-btn" data-toggle="dropdown" aria-expanded="true">
+                <i class="selectedflagicon ' . $selectedJsonIcon . '"></i> <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right" role="menu">';
+
+        $selfURI = getSelfURI();
+        foreach ($flags as $key => $value) {
+            $info = json_decode($value[0]);
+            $url = addQueryStringParameter($selfURI, 'lang', $key);
+            $html .= '<li class="dropdown-submenu">
+                    <a tabindex="-1" href="' . $url . '">
+                        <i class="' . $info->icon . '" aria-hidden="true"></i> ' . $info->text . '</a>
+                    </li>';
+        }
+
+        $html .= '</ul></div>';
+        return $html;
+    }
+
+    static function getUserSelect($name, $users_id_list, $selected = "", $id = "", $class = "") {
+        $elements = array();
+        foreach ($users_id_list as $users_id) {
+            $name = User::getNameIdentificationById($users_id);
+            $photo = User::getPhoto($users_id);
+            $elements[$users_id] = htmlentities("<img src='{$photo}' class='img img-responsive pull-left' style='max-height:20px;margin-top: 2px;'> {$name}");
+            if ($users_id == User::getId()) {
+                $elements[$users_id] .= " (Me)";
+            }
+        }
+        if (empty($id)) {
+            $id = uniqid();
+        }
+        $methodName = __FUNCTION__;
+        $code = "<script>function {$methodName}formatStateResult (state) {
                                     if (!state.id) {
                                       return state.text;
                                     }
-                                    
-                                    if(state.text!==' -- '){
-                                       json = JSON.parse(state.text); 
-                                        var \$state = $(
-                                          '<span><i class=\"' + json.icon + '\"></i>'+
-                                          ' - ' + json.text + '</span>'
-                                        );
-                                        return \$state;
-                                    }
-                                    return state.text;
-                                  };function getLangFlagsOnlySelectformatStateResult (state) {
-                                    if (!state.id) {
-                                      return state.text;
-                                    }
-                                    
-                                    if(state.text!==' -- '){
-                                       json = JSON.parse(state.text); 
-                                        var \$state = $(
-                                          '<span data-toggle=\"tooltip\" title=\"' + json.text + '\" ><i class=\"' + json.icon + '\"></i></span>'
-                                        );
-                                        return \$state;
-                                    }
-                                    return state.text;
+                                    var \$state = $(
+                                      '<span>' + state.text + '</span>'
+                                    );
+                                    return \$state;
                                   };</script>";
         self::addFooterCode($code);
-        if($flagsOnly){
-            $code = '<script>$(document).ready(function() {$(\'#' . $id . '\').select2({templateSelection: getLangFlagsOnlySelectformatStateResult, templateResult: getLangFlagsOnlySelectformatStateResult,width: \'100%\'});});</script>';
-        }else{
-            $code = '<script>$(document).ready(function() {$(\'#' . $id . '\').select2({templateSelection: getLangSelectformatStateResult, templateResult: getLangSelectformatStateResult,width: \'100%\'});});</script>';
-        }
-        
+        $code = '<script>$(document).ready(function() {$(\'#' . $id . '\').select2({templateSelection: ' . $methodName . 'formatStateResult, templateResult: ' . $methodName . 'formatStateResult,width: \'100%\'});});</script>';
         self::addFooterCode($code);
-        
-        $templatePlaceholder = '<span class="select2 select2-container select2-container--default select2-container--focus" style="width: 100%;"  id="deleteSelect_' . $id . '">'
-                . '<span class="selection">'
-                . '<span class="select2-selection select2-selection--single">'
-                . '<span class="select2-selection__rendered" id="select2-navBarFlag-container" >'
-                . '<span><i class="'.$selectedJsonIcon.'"></i></span>'
-                . '</span>'
-                . '<span class="select2-selection__arrow" >'
-                . '<b></b>'
-                . '</span>'
-                . '</span>'
-                . '</span>'
-                . '<span class="dropdown-wrapper" aria-hidden="true"></span>'
-                . '</span>';
-        
-        
-        return self::getSelectSearchable($flags, $name, $selected, $id, $class . " flagSelect", true, $templatePlaceholder);
+        return self::getSelectSearchable($elements, $name, $selected, $id, $class, true);
     }
 
     static function getCategorySelect($name, $selected = "", $id = "", $class = "") {
@@ -428,9 +448,16 @@ class Layout extends PluginAbstract {
         $obj = $this->getDataObject();
         $content = '';
         if (!empty($global['getSelectSearchable'])) {
-            $content .= '<script src="'.getCDN().'view/js/select2/select2.min.js"></script>';
-           // $content .= '<script>$(document).ready(function() {$(\'.js-select-search\').select2();});</script>';
+            $content .= '<script src="' . getURL('view/js/select2/select2.min.js') . '"></script>';
+            // $content .= '<script>$(document).ready(function() {$(\'.js-select-search\').select2();});</script>';
         }
+
+        if (!empty($obj->enableAccessibility)) {
+
+            $file = $global['systemRootPath'] . 'plugin/Layout/accessibility/accessibility.php';
+            $content .= getIncludeFileContent($file);
+        }
+
 
         $content .= self::_getFooterCode();
         return $content;
@@ -461,16 +488,319 @@ class Layout extends PluginAbstract {
         }
         include $global['systemRootPath'] . 'plugin/Layout/menuRight.php';
     }
-    
+
     public function navBarAfter() {
         global $global;
         $obj = $this->getDataObject();
-        if(!empty($obj->categoriesTopButtons)){
-            if(!empty($obj->categoriesTopButtonsShowOnlyOnFirstPage) && !isFirstPage()){
+        if (!AVideoPlugin::isEnabledByName('YouPHPFlix2') && !empty($obj->categoriesTopButtons)) {
+            if (!empty($obj->categoriesTopButtonsShowOnlyOnFirstPage) && !isFirstPage()) {
                 return '';
             }
             include $global['systemRootPath'] . 'plugin/Layout/categoriesTopButtons.php';
         }
     }
 
+    static function getUserAutocomplete($default_users_id = 0, $id = '', $parameters = array()) {
+        global $global;
+        $default_users_id = intval($default_users_id);
+        if (empty($id)) {
+            $id = 'getUserAutocomplete_' . uniqid();
+        }
+        include $global['systemRootPath'] . 'plugin/Layout/userAutocomplete.php';
+        return "updateUserAutocomplete{$id}();";
+    }
+
+    static function organizeHTML($html) {
+        global $global; // add socket twice on live page
+        //return $html;
+        if (!empty($global['doNOTOrganizeHTML'])) {
+            return $html;
+        }
+        self::$tags = array();
+        //return $html;
+        //var_dump($html);exit;
+        $html = self::getTagsLinkCSS($html);
+        $html = self::getTagsScript($html);
+        $html = self::separeteTag($html, 'style');
+        $html = self::separeteTag($html, 'script');
+        //$html = preg_replace('/<script.*><\/script>/i', '', $html);
+        //return $html;
+        //var_dump(self::$tags['script']);exit;
+        if (!empty(self::$tags['tagcss'])) {
+            self::$tags['tagcss'] = self::removeDuplicated(self::$tags['tagcss']);
+            $html = str_replace('</head>', PHP_EOL.implode(PHP_EOL, array_unique(self::$tags['tagcss'])) . '</head>', $html);
+        }
+        //return $html;
+        if (!empty(self::$tags['style'])) {
+            $html = str_replace('</head>', '<style>' . PHP_EOL.implode(PHP_EOL, array_unique(self::$tags['style'])) . '</style></head>', $html);
+        }
+        if (!empty(self::$tags['tagscript'])) {
+            self::$tags['tagscript'] = self::removeDuplicated(self::$tags['tagscript']);
+            usort(self::$tags['tagscript'], "_sortJS"); 
+            $html = str_replace('</body>', PHP_EOL.implode(PHP_EOL, array_unique(self::$tags['tagscript'])) . '</body>', $html);
+        }
+        if (!empty(self::$tags['script'])) {
+            $html = str_replace('</body>', '<script>' . PHP_EOL.implode(PHP_EOL, array_unique(self::$tags['script'])) . '</script></body>', $html);
+        }
+        $html = self::removeExtraSpacesFromHead($html);
+        $html = self::removeExtraSpacesFromScript($html);
+        //echo $html;exit;
+        return $html;
+    }
+
+    private static function tryToReplace($search, $replace, $subject) {
+        if(true || self::codeIsValid($subject)){
+            $newSubject = str_replace($search, $replace, $subject, $count);
+            return ['newSubject' => $newSubject, 'success' => $count];
+        }else{
+            _error_log('organizeHTML: Invalid code: '.$subject);
+            return ['newSubject' => $subject, 'success' => false];
+        }
+    }
+
+    private static function codeIsValid($string) {
+        $len = strlen($string);
+        $stack = array();
+        for ($i = 0; $i < $len; $i++) {
+            switch ($string[$i]) {
+                case '{': array_push($stack, 0);
+                    break;
+                case '}':
+                    if (array_pop($stack) !== 0)
+                        return false;
+                    break;
+                case '(': array_push($stack, 0);
+                    break;
+                case ')':
+                    if (array_pop($stack) !== 0)
+                        return false;
+                    break;
+                case '[': array_push($stack, 1);
+                    break;
+                case ']':
+                    if (array_pop($stack) !== 1)
+                        return false;
+                    break;
+                default: break;
+            }
+        }
+        return (empty($stack));
+    }
+
+    static function removeExtraSpacesFromHead($html) {
+        preg_match('/(<head.+<\/head>)/Usi', $html, $matches);
+        $str = preg_replace('/[ \t]+/', ' ', $matches[0]);
+        $str = preg_replace('/\n\s*\n+/', PHP_EOL, $matches[0]);
+        //var_dump($str);exit;
+        $html = str_replace($matches[0], $str, $html);
+        return $html;
+    }
+
+    static function removeExtraSpacesFromScript($html) {
+        preg_match_all('/(<script[^>]*>.+<\/script>)/Usi', $html, $matches);
+        foreach ($matches as $value) {
+            $str = preg_replace('/ +/', ' ', $value);
+            $html = str_replace($value, $str, $html);
+        }
+        return $html;
+    }
+
+    static function getTagsLinkCSS($html) {
+        preg_match_all('/<link[^>]+href=[^>]+css[^>]+>/Usi', $html, $matches);
+        if (!empty($matches)) {
+            foreach ($matches[0] as $value) {
+                $response = self::tryToReplace($value, '', $html);
+                if ($response['success']) {
+                    self::addTag('tagcss', $value);
+                    $html = $response['newSubject'];
+                }
+            }
+        }
+        return $html;
+    }
+
+    static function getTagsScript($html) {
+        preg_match_all('/<script[^<]* src=[^<]+<\/script>/Usi', $html, $matches);
+        if (!empty($matches)) {
+            foreach ($matches[0] as $key => $value) {
+                // ignore google analitics
+                if (!self::shouldIgnoreJS($value)) {
+                    $response = self::tryToReplace($value, '', $html);
+                    if ($response['success']) {
+                        self::addTag('tagscript', $value);
+                        $html = $response['newSubject'];
+                    }
+                }
+            }
+        }
+        return $html;
+    }
+
+    static function separeteTag($html, $tag) {
+        $reg = '/<' . $tag . '[^>]*>(.*)<\/' . $tag . '>/Usi';
+        //var_dump($reg, $html);
+        preg_match_all($reg, $html, $matches);
+        //var_dump($matches);exit;
+        if (!empty($matches)) {
+            foreach ($matches[0] as $key => $value) {
+                if (!self::shouldIgnoreJS($value)) {
+                    $response = self::tryToReplace($value, '', $html);
+                    if ($response['success']) {
+                        self::addTag($tag, $matches[1][$key]);
+                        $html = $response['newSubject'];
+                    }
+                }
+            }
+        }
+        return $html;
+    }
+    
+    static function shouldIgnoreJS($tag) {
+        if (
+                preg_match('/application.+json/i', $tag) ||
+                preg_match('/function gtag\(/i', $tag) || 
+                preg_match('/<script async/i', $tag)) {
+            return true;
+        }
+        return false;
+    }
+
+    static public function addTag($tag, $value) {
+        if (empty($value)) {
+            return false;
+        }
+        if (!isset(self::$tags[$tag])) {
+            self::$tags[$tag] = array();
+        }
+        self::$tags[$tag][] = $value;
+        return true;
+    }
+
+    public function getEnd() {
+        global $global;
+        $html = _ob_get_clean();
+        $html = self::organizeHTML($html);
+        _ob_start();
+        echo $html;
+    }
+
+    static private function removeDuplicated($list) {
+        $cleanList = array();
+        $srcList = array();
+        foreach ($list as $key => $value) {
+            preg_match('/<script.+src=["\']([^"\']+)["\']/i', $value, $matches);
+            if(!empty($matches[1])){
+                if(!in_array($matches[1], $srcList)){
+                    $cleanList[] = $value;
+                    $srcList[] = $matches[1];
+                }
+            }else{
+                preg_match('/<link.+href=["\']([^"\']+)["\']/i', $value, $matches);
+                if(!empty($matches[1])){
+                    if(!in_array($matches[1], $srcList)){
+                        $cleanList[] = $value;
+                        $srcList[] = $matches[1];
+                    }
+                }
+            }
+        }
+        //var_dump($srcList);exit;
+        return $cleanList;
+        
+    }
+    
+    static function getSuggestedButton($videos_id, $class='btn btn-xs'){
+        global $global;
+        if(empty($videos_id)){
+            return '';
+        }
+        if(!Permissions::canAdminVideos()){
+            return '';
+        }
+        $varsArray = array('videos_id'=>$videos_id, 'class'=>$class);
+        $filePath = $global['systemRootPath'] . 'plugin/Layout/suggestedButton.php';
+        return getIncludeFileContent($filePath, $varsArray);
+    }
+
+}
+
+function _sortJS($a, $b){   
+    // make it first
+    if (preg_match('/jquery(.min)?.js/i', $a)) {
+        return -1;
+    }
+    if (preg_match('/jquery(.min)?.js/i', $b)) {
+        return 1;
+    }
+    if (preg_match('/jquery-ui/i', $a)) {
+        return -1;
+    }
+    if (preg_match('/jquery-ui/i', $b)) {
+        return 1;
+    }
+    if (preg_match('/\/js\/bootstrap\.min\.js/', $a)) {
+        return -1;
+    }
+    if (preg_match('/\/js\/bootstrap\.min\.js/', $b)) {
+        return 1;
+    }
+    
+    // videojs
+    if (preg_match('/video\.?js/i', $a) || preg_match('/video\.?js/i', $b)) {
+        if (preg_match('/node_modules.video.js.dist.video/i', $a)) {
+        return -1;
+        }
+        if (preg_match('/node_modules.video.js.dist.video/i', $b)) {
+            return 1;
+        }
+        // must come right after video js
+        if (preg_match('/videojs-contrib-ads/i', $a)) {
+            return -1;
+        }
+        if (preg_match('/videojs-contrib-ads/i', $b)) {
+            return 1;
+        }
+        if (preg_match('/videojs-ima/i', $a)) {
+            return -1;
+        }
+        if (preg_match('/videojs-ima/i', $b)) {
+            return 1;
+        }
+        return 1;
+    }
+    
+    
+    // make it last
+    if (preg_match('/js.script.js/i', $a)) {
+        return 1;
+    }
+    if (preg_match('/js.script.js/i', $b)) {
+        return -1;
+    }
+    if (preg_match('/\/plugin\//', $a)) {
+        return 1;
+    }
+    if (preg_match('/\/plugin\//', $b)) {
+        return -1;
+    }
+    
+    // moment timezone must be after moment
+    if (preg_match('/\/moment-timezone\//', $a) && preg_match('/\/moment\//', $b)) {
+        return 1;
+    }
+    if (preg_match('/\/moment\//', $b) && preg_match('/\/moment-timezone\//', $a)) {
+        return -1;
+    }    
+    // lazy plugin must be after lazy
+    if(preg_match('/jquery\.lazy/', $a) || preg_match('/\/jquery\.lazy/', $b)){
+        if (preg_match('/\/jquery\.lazy\.plugins\.min\.js/', $a) && preg_match('/\/jquery\.lazy\.min\.js/', $b)) {
+            return 1;
+        }
+        if (preg_match('/\/jquery\.lazy\.min\.js/', $a) && preg_match('/\/jquery\.lazy\.plugins\.min\.js/', $b)) {
+            return -1;
+        }
+        return 1;
+    }
+    
+    return 0;
 }

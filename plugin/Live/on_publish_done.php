@@ -20,12 +20,12 @@ _error_log("NGINX ON Publish Done  parse_str: " . json_encode($_GET));
 
 $_GET = object_to_array($_GET);
 
-if(!empty($_GET['e']) && empty($_GET['p'])){
+if (!empty($_GET['e']) && empty($_GET['p'])) {
     $obj = json_decode(decryptString($_GET['e']));
-    if(empty($objE)){
+    if (empty($objE)) {
         $objE = json_decode(decryptString(base64_decode($_GET['e'])));
     }
-    if(!empty($obj->users_id)){
+    if (!empty($obj->users_id)) {
         $user = new User($obj->users_id);
         $_GET['p'] = $user->getPassword();
     }
@@ -51,19 +51,20 @@ if (strpos($_GET['p'], '/') !== false) {
     $parts = explode("/", $_GET['p']);
     if (!empty($parts[1])) {
         $_GET['p'] = $parts[0];
-        if(empty($_POST['name'])){
+        if (empty($_POST['name'])) {
             $_POST['name'] = $parts[1];
         }
     }
 }
 
 Live::deleteStatsCache(true);
-$row = LiveTransmitionHistory::getLatest($_POST['name']);
-_error_log("NGINX ON Publish Done finishFromTransmitionHistoryId {$_POST['name']} {$row['id']} {$row['key']} {$row['live_servers_id']}");
-LiveTransmitionHistory::finishFromTransmitionHistoryId($row['id']);
+$row = LiveTransmitionHistory::getLatest($_POST['name'], $row['live_servers_id'], true);
+$insert_row = LiveTransmitionHistory::finishFromTransmitionHistoryId($row['id']);
+_error_log("NGINX ON Publish Done finishFromTransmitionHistoryId {$_POST['name']} id={$row['id']} key={$row['key']} live_servers_id={$row['live_servers_id']} insert_row={$insert_row}");
+Live::killIfIsRunning($row['key']);
 $array = setLiveKey($row['key'], $row['live_servers_id']);
 $parameters = Live::getLiveParametersFromKey($array['key']);
 $array['cleanKey'] = $parameters['cleanKey'];
 $array['stats'] = LiveTransmitionHistory::getStatsAndRemoveApplication($row['id']);
 $socketObj = Live::notifySocketStats("socketLiveOFFCallback", $array);
-
+AVideoPlugin::on_publish_done($row['id'], $row['users_id'], $row['key'], $row['live_servers_id']);

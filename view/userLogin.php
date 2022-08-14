@@ -24,22 +24,22 @@ if (empty($_COOKIE) && get_browser_name() !== 'Other (Unknown)') {
         <div class="alert alert-warning">
             <h1><i class="fas fa-exclamation-circle"></i> <?php echo __("Login Alert"); ?></h1>
             <h2><?php echo __("Please Login in the window pop up"); ?></h2>
-            <button class="btn btn-block btn-warning" onclick="openLoginWindow()"><i class="fas fa-sign-in-alt"></i> <?php echo __("Open pop-up Login window"); ?></button><br>      
-            <?php echo __("In case the login window does not open, check how do I disable the pop-up blocker in your browser"); ?>:<br>        
+            <button class="btn btn-block btn-warning" onclick="openLoginWindow()"><i class="fas fa-sign-in-alt"></i> <?php echo __("Open pop-up Login window"); ?></button><br>
+            <?php echo __("In case the login window does not open, check how do I disable the pop-up blocker in your browser"); ?>:<br>
             <a href="https://support.mozilla.org/en-US/kb/pop-blocker-settings-exceptions-troubleshooting" target="_blank">Mozilla Firefox</a><br>
             <a href="https://support.google.com/chrome/answer/95472" target="_blank">Google Chrome</a>
         </div>
     </div>
     <script>
         function openLoginWindow() {
-            win = window.open('<?php echo $global['webSiteRootURL']; ?>user?redirectUri=<?php print isset($_GET['redirectUri']) ? $_GET['redirectUri'] : ""; ?>', 'Login Page', "width=640,height=480,scrollbars=no");
+            win = window.open('<?php echo $global['webSiteRootURL']; ?>user?redirectUri=<?php print $_GET['redirectUri'] ?? ""; ?>', 'Login Page', "width=640,height=480,scrollbars=no");
                 }
                 var win;
                 openLoginWindow();
                 var logintimer = setInterval(function () {
                     if (win.closed) {
                         clearInterval(logintimer);
-                        document.location = "<?php print isset($_GET['redirectUri']) ? $_GET['redirectUri'] : $global['webSiteRootURL']; ?>";
+                        document.location = "<?php print $_GET['redirectUri'] ?? $global['webSiteRootURL']; ?>";
                     }
                 }, 1000);
                 $(document).ready(function () {
@@ -54,35 +54,46 @@ if (empty($_COOKIE) && get_browser_name() !== 'Other (Unknown)') {
 ?>
 <div class="row loginPage">
     <div class="hidden-xs col-sm-2 col-md-3 "></div>
-    <div class="col-xs-12 col-sm-8  col-md-6 addWidthOnMenuOpen">
+    <div class="col-xs-12 col-sm-8  col-md-6">
 
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <h2>
-                    <?php echo __('Welcome back!'); ?>
-                </h2>
-                <div class="">
+        <?php
+        if (empty($advancedCustomUser->disableNativeSignIn)) {
+            ?>
+            <div class="panel panel-default <?php
+            echo getCSSAnimationClassAndStyle();
+            getCSSAnimationClassAndStyleAddWait(0.5);
+            ?>">
+                <div class="panel-heading">
                     <?php
-                    if (!empty($advancedCustomUser->userMustBeLoggedInCloseButtonURL)) {
+                    if (emptyHTML($advancedCustomUser->messageReplaceWelcomeBackLoginBox->value)) {
                         ?>
-                        <div class="pull-right">
-                            <a id="buttonMyNavbar" class=" btn btn-default navbar-btn" style="padding: 6px 12px; margin-right: 40px;" href="<?php echo $advancedCustomUser->userMustBeLoggedInCloseButtonURL; ?>">
-                                <i class="fas fa-times"></i>
-                            </a>
+                        <h2 class="<?php echo getCSSAnimationClassAndStyle(); ?>">
+                            <?php echo __('Welcome back!'); ?>
+                        </h2>
+                        <div class="">
+                            <?php
+                            if (!empty($advancedCustomUser->userMustBeLoggedInCloseButtonURL)) {
+                                ?>
+                                <div class="pull-right">
+                                    <a id="buttonMyNavbar" class=" btn btn-default navbar-btn" style="padding: 6px 12px; margin-right: 40px;" href="<?php echo $advancedCustomUser->userMustBeLoggedInCloseButtonURL; ?>">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                                <?php
+                            }
+                            ?>
                         </div>
                         <?php
+                    }else{
+                        echo $advancedCustomUser->messageReplaceWelcomeBackLoginBox->value;
                     }
                     ?>
                 </div>
-            </div>
-            <div class="panel-body">
-                <?php
-                if (empty($advancedCustomUser->disableNativeSignIn)) {
-                    ?>
+                <div class="panel-body">
                     <form class="form-horizontal"  id="loginForm">
                         <input type="hidden" name="redirectUri" value=""/>
-                        <div class="form-group">
-                            <label class="col-sm-4 control-label"><?php echo __("User"); ?></label>
+                        <div class="form-group <?php echo getCSSAnimationClassAndStyle(); ?>" >
+                            <label class="col-sm-4 control-label"><?php echo!empty($advancedCustomUser->forceLoginToBeTheEmail) ? __("E-mail") : __("User"); ?></label>
                             <div class="col-sm-8 inputGroupContainer">
                                 <div class="input-group">
                                     <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
@@ -92,22 +103,18 @@ if (empty($_COOKIE) && get_browser_name() !== 'Other (Unknown)') {
                         </div>
 
 
-                        <div class="form-group">
+                        <div class="form-group <?php echo getCSSAnimationClassAndStyle(); ?>" >
                             <label class="col-sm-4 control-label"><?php echo __("Password"); ?></label>
                             <div class="col-sm-8 inputGroupContainer">
-                                <?php
-                                getInputPassword("inputPassword");
-                                ?>
+                                <?php getInputPassword("inputPassword"); ?>
                             </div>
                         </div>
 
-                        <?php
-                        $captcha = User::getCaptchaForm();
-                        ?>
+                        <?php $captcha = User::getCaptchaForm(); ?>
                         <div class="form-group captcha" style="<?php echo User::isCaptchaNeed() ? "" : "display: none;" ?>" id="captchaForm">
                             <?php echo $captcha; ?>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group <?php echo getCSSAnimationClassAndStyle(); ?>" >
                             <div class="col-xs-4 text-right">
                                 <label for="inputRememberMe" ><?php echo __("Remember me"); ?></label>
                             </div>
@@ -119,57 +126,61 @@ if (empty($_COOKIE) && get_browser_name() !== 'Other (Unknown)') {
                             </div>
                         </div>
                         <!-- Button -->
-                        <div class="form-group">
+                        <div class="form-group <?php echo getCSSAnimationClassAndStyle(); ?>" >
                             <div class="col-md-12">
-                                <button type="submit" class="btn btn-success  btn-block" id="mainButton" ><span class="fas fa-sign-in-alt"></span> <?php echo __("Sign in"); ?></button>
+                                <button type="submit" class="btn btn-success  btn-block <?php echo getCSSAnimationClassAndStyle(); ?>" id="mainButton" ><span class="fas fa-sign-in-alt"></span> <?php echo __("Sign in"); ?></button>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group <?php echo getCSSAnimationClassAndStyle(); ?>" >
                             <div class="col-xs-12 inputGroupContainer text-center">
-                                <?php
-                                if (empty($advancedCustomUser->disableNativeSignUp)) {
-                                    ?>
-                                    <a href="#" class="btn btn-default btn-xs" id="forgotPassword" data-toggle="tooltip" title="<?php echo __("Use this to recover your password"); ?>"><i class="fas fa-redo-alt"></i> <?php echo __("I forgot my password"); ?></a>
-                                    <?php
-                                }
-                                ?>
+                                <button type="button" class="btn btn-default btn-xs <?php echo getCSSAnimationClassAndStyle(); ?>"  id="forgotPassword" data-toggle="tooltip" title="<?php echo __("Use this to recover your password"); ?>"><i class="fas fa-redo-alt"></i> <?php echo __("I forgot my password"); ?></button>
                             </div>
                         </div>
 
                     </form>
+                </div>
+                <div class="panel-footer">
                     <?php
-                }
-                ?>
-            </div>
-            <div class="panel-footer">
-                <?php
-                if (empty($advancedCustomUser->disableNativeSignUp)) {
-                    ?>
-                    <div class="row" data-toggle="tooltip" title="<?php echo __("Are you new here?"); ?>">
-                        <div class="col-md-12">
-                            <a href="<?php echo $global['webSiteRootURL']; ?>signUp?redirectUri=<?php print isset($_GET['redirectUri']) ? $_GET['redirectUri'] : ""; ?>" 
-                               class="btn btn-default btn-block"><span class="fa fa-user-plus"></span> <?php echo __("Sign up"); ?></a>
+                    if (empty($advancedCustomUser->disableNativeSignUp)) {
+                        ?>
+                        <div class="row <?php echo getCSSAnimationClassAndStyle(); ?>" data-toggle="tooltip" title="<?php echo __("Are you new here?"); ?>">
+                            <div class="col-md-12">
+                                <a href="<?php echo $global['webSiteRootURL']; ?>signUp?redirectUri=<?php print $_GET['redirectUri'] ?? ""; ?>"
+                                   class="btn btn-primary btn-block"><i class="fas fa-plus"></i> <?php echo __("Sign up"); ?></a>
+                            </div>
                         </div>
-                    </div>
-                    <?php
-                }
-                ?>
+                        <?php
+                    }
+                    if (!empty($_REQUEST['cancelUri']) && isValidURL($_REQUEST['cancelUri'])) {
+                        ?>
+                        <div class="row <?php echo getCSSAnimationClassAndStyle(); ?>">
+                            <div class="col-md-12">
+                                <a href="<?php echo $_REQUEST['cancelUri']; ?>"
+                                   class="btn btn-link btn-block"><i class="fas fa-arrow-left"></i> <?php echo __("Cancel"); ?></a>
+                            </div>
+                        </div>
+                        <?php
+                    }
+                    ?>
+                </div>
             </div>
-        </div>
+            <?php
+        }
+        ?>
 
 
         <?php
         $login = AVideoPlugin::getLogin();
-
         $totalLogins = 0;
         foreach ($login as $value) {
             if (is_string($value) && file_exists($value)) { // it is a include path for a form
                 include $value;
-            } else if (is_array($value)) {
+            } elseif (is_array($value)) {
                 $totalLogins++;
             }
         }
 
+        //var_dump($totalLogins, $login);exit;
         $columSize = 12;
         if ($totalLogins > 1) {
             switch ($totalLogins) {
@@ -190,16 +201,21 @@ if (empty($_COOKIE) && get_browser_name() !== 'Other (Unknown)') {
                     break;
             }
         }
-
+        $loginCount = 0;
         foreach ($login as $value) {
             if (is_string($value) && file_exists($value)) {
                 //include $value;
-            } else if (is_array($value)) {
+            } elseif (is_array($value)) {
+                $loginCount++;
                 $uid = uniqid();
-                $oauthURL = "{$global['webSiteRootURL']}login?type={$value['parameters']->type}&redirectUri=" . (isset($_GET['redirectUri']) ? $_GET['redirectUri'] : "");
+                $oauthURL = "{$global['webSiteRootURL']}login?type={$value['parameters']->type}&redirectUri=" . ($_GET['redirectUri'] ?? "");
+                $loginBtnLabel = "<span class=\"{$value['parameters']->icon}\"></span> {$value['parameters']->type}";
+                if (!empty($value['dataObject']->buttonLabel)) {
+                    $loginBtnLabel = $value['dataObject']->buttonLabel;
+                }
                 ?>
-                <div class="col-md-<?php echo $columSize; ?>">
-                    <button id="login<?php echo $uid; ?>" class="<?php echo $value['parameters']->class; ?>" ><span class="<?php echo $value['parameters']->icon; ?>"></span> <?php echo $value['parameters']->type; ?></button>
+                <div class="col-md-<?php echo $columSize; ?> <?php echo getCSSAnimationClassAndStyle('animate__fadeInUp'); ?>" >
+                    <button id="login<?php echo $uid; ?>" class="<?php echo $value['parameters']->class; ?>" ><?php echo $loginBtnLabel; ?></button>
                 </div>
                 <script>
                     $(document).ready(function () {
@@ -237,7 +253,7 @@ if (empty($_COOKIE) && get_browser_name() !== 'Other (Unknown)') {
 <script>
 
     function loginFormActive() {
-        
+
     }
     function loginFormReset() {
 
@@ -277,7 +293,7 @@ if (!empty($advancedCustomUser->forceLoginToBeTheEmail)) {
             loginFormActive();
             $.ajax({
                 url: '<?php echo $global['webSiteRootURL']; ?>objects/login.json.php',
-                data: {"user": $('#inputUser').val(), "pass": $('#inputPassword').val(), "rememberme": $('#inputRememberMe').is(":checked"), "captcha": $('#captchaText').val(), "redirectUri": "<?php print isset($_GET['redirectUri']) ? $_GET['redirectUri'] : ""; ?>"},
+                data: {"user": $('#inputUser').val(), "pass": $('#inputPassword').val(), "rememberme": $('#inputRememberMe').is(":checked"), "captcha": $('#captchaText').val(), "redirectUri": "<?php print $_GET['redirectUri'] ?? ""; ?>"},
                 type: 'post',
                 success: function (response) {
                     if (!response.isLogged) {
@@ -294,7 +310,7 @@ if (!empty($advancedCustomUser->forceLoginToBeTheEmail)) {
                         loginFormReset();
                     } else {
                         var url = response.redirectUri;
-                        if(inIframe()){
+                        if (inIframe()) {
                             url = addGetParam(url, 'PHPSESSID', response.PHPSESSID);
                         }
                         console.log('Login success', url);
@@ -304,45 +320,46 @@ if (!empty($advancedCustomUser->forceLoginToBeTheEmail)) {
             });
         });
         $('#forgotPassword').click(function () {
-            var user = $('#inputUser').val();
-            if (!user) {
-                avideoAlert("<?php echo __("Sorry!"); ?>", "<?php echo __("You need to inform what is your user!"); ?>", "error");
-                return false;
-            }
-            var capcha = '<span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha?<?php echo time(); ?>" id="captcha"></span><span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha"><span class="glyphicon glyphicon-refresh"></span></span></span><input name="captcha" placeholder="<?php echo __("Type the code"); ?>" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText2">';
-            var span = document.createElement("span");
-            span.innerHTML = "<?php echo __("We will send you a link, to your e-mail, to recover your password!"); ?>" + capcha;
-            swal({
-                title: "<?php echo __("Are you sure?"); ?>",
-                content: span,
-                icon: "warning",
-                buttons: true,
-                dangerMode: true,
-            })
-                    .then(function (willDelete) {
-                        if (willDelete) {
-
-                            modal.showPleaseWait();
-                            $.ajax({
-                                url: '<?php echo $global['webSiteRootURL']; ?>objects/userRecoverPass.php',
-                                data: {"user": $('#inputUser').val(), "captcha": $('#captchaText2').val()},
-                                type: 'post',
-                                success: function (response) {
-                                    if (response.error) {
-                                        avideoAlert("<?php echo __("Error"); ?>", response.error, "error");
-                                    } else {
-                                        avideoAlert("<?php echo __("E-mail sent"); ?>", "<?php echo __("We sent you an e-mail with instructions"); ?>", "success");
-                                    }
-                                    modal.hidePleaseWait();
-                                }
-                            });
-                        }
-                    });
-            $('#btnReloadCapcha').click(function () {
-                $('#captcha').attr('src', '<?php echo $global['webSiteRootURL']; ?>captcha?' + Math.random());
-                $('#captchaText').val('');
-            });
+            _forgotPass();
         });
     });
-
+    function _forgotPass() {
+        var user = $('#inputUser').val();
+        if (!user) {
+            avideoAlert("<?php echo __("Sorry!"); ?>", "<?php echo __("You need to inform what is your user!"); ?>", "error");
+            return false;
+        }
+        var capcha = '<span class="input-group-addon"><img src="<?php echo $global['webSiteRootURL']; ?>captcha?<?php echo time(); ?>" id="captcha"></span><span class="input-group-addon"><span class="btn btn-xs btn-success" id="btnReloadCapcha"><span class="glyphicon glyphicon-refresh"></span></span></span><input name="captcha" placeholder="<?php echo __("Type the code"); ?>" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText2">';
+        var span = document.createElement("span");
+        span.innerHTML = "<?php echo __("We will send you a link, to your e-mail, to recover your password!"); ?>" + capcha;
+        swal({
+            title: "<?php echo __("Are you sure?"); ?>",
+            content: span,
+            icon: "warning",
+            buttons: true,
+            dangerMode: true,
+        }).then(function (willDelete) {
+            console.log('forgotPassword', willDelete);
+            if (willDelete) {
+                modal.showPleaseWait();
+                $.ajax({
+                    url: '<?php echo $global['webSiteRootURL']; ?>objects/userRecoverPass.php',
+                    data: {"user": $('#inputUser').val(), "captcha": $('#captchaText2').val()},
+                    type: 'post',
+                    success: function (response) {
+                        if (response.error) {
+                            avideoAlert("<?php echo __("Error"); ?>", response.error, "error");
+                        } else {
+                            avideoAlert("<?php echo __("E-mail sent"); ?>", "<?php echo __("We sent you an e-mail with instructions"); ?>", "success");
+                        }
+                        modal.hidePleaseWait();
+                    }
+                });
+            }
+        });
+        $('#btnReloadCapcha').click(function () {
+            $('#captcha').attr('src', '<?php echo $global['webSiteRootURL']; ?>captcha?' + Math.random());
+            $('#captchaText').val('');
+        });
+    }
 </script>

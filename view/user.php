@@ -9,7 +9,7 @@ if (User::isLogged()) {
     redirectIfRedirectUriIsSet();
 }
 $tags = User::getTags(User::getId());
-$tagsStr = "";
+$tagsStr = '';
 foreach ($tags as $value) {
     $tagsStr .= "<span class=\"label label-{$value->type} fix-width\">{$value->text}</span>";
 }
@@ -24,8 +24,8 @@ foreach ($tags as $value) {
         <?php
         include $global['systemRootPath'] . 'view/include/head.php';
         ?>
-        <link href="<?php echo getCDN(); ?>view/js/Croppie/croppie.css" rel="stylesheet" type="text/css"/>
-        <script src="<?php echo getCDN(); ?>view/js/Croppie/croppie.min.js" type="text/javascript"></script>
+        <link href="<?php echo getCDN(); ?>node_modules/croppie/croppie.css" rel="stylesheet" type="text/css"/>
+        <script src="<?php echo getCDN(); ?>node_modules/croppie/croppie.min.js" type="text/javascript"></script>
         <link href="<?php echo getCDN(); ?>view/js/bootstrap-fileinput/css/fileinput.min.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo getCDN(); ?>view/js/bootstrap-fileinput/js/fileinput.min.js" type="text/javascript"></script>
         <link href="<?php echo getCDN(); ?>view/css/bodyFadein.css" rel="stylesheet" type="text/css"/>
@@ -39,29 +39,30 @@ foreach ($tags as $value) {
             if (User::isLogged()) {
                 $user = new User("");
                 $user->loadSelfUser();
-                ?>
-                <div class="row">
-                    <div>
-                        <div class="panel panel-default">
-                            <div class="panel-heading tabbable-line">
-                                <div class="pull-right">
-                                    <?php echo $tagsStr; ?>
-                                </div>
-                                <ul class="nav nav-tabs">
-                                    <li class="active"><a data-toggle="tab" href="#basicInfo" id="aBasicInfo"><?php echo __("Basic Info") ?></a></li>
+                if (!empty($_REQUEST['basicInfoOnly'])) {
+                    include $global['systemRootPath'] . './view/userBasicInfo.php';
+                } else {
+                    ?>
+                    <div class="row">
+                        <div>
+                            <div class="panel panel-default" id="userTabsPanel">
+                                <div class="panel-heading tabbable-line">
+                                    <div class="pull-right">
+                                        <?php echo $tagsStr; ?>
+                                    </div>
+                                    <ul class="nav nav-tabs">
+                                        <li class="active"><a data-toggle="tab" href="#basicInfo" id="aBasicInfo"><?php echo __("Basic Info") ?></a></li>
 
-                                    <?php if (empty($advancedCustomUser->disablePersonalInfo)) { ?>
-                                        <li><a data-toggle="tab" href="#personalInfo" id="aPersonalInfo"><?php echo __("Personal Info") ?></a></li>
-                                    <?php } ?>
-                                    <?php echo AVideoPlugin::profileTabName($user->getId()); ?>
-                                </ul>
-                            </div>
-                            <div class="panel-body">
-                                <div class="tab-content">
+                                        <?php if (empty($advancedCustomUser->disablePersonalInfo)) { ?>
+                                            <li><a data-toggle="tab" href="#personalInfo" id="aPersonalInfo"><?php echo __("Personal Info") ?></a></li>
+                                        <?php } ?>
+                                        <?php echo AVideoPlugin::profileTabName($user->getId()); ?>
+                                    </ul>
+                                </div>
+                                <div class="panel-body">
+                                    <div class="tab-content">
                                         <div id="basicInfo" class="tab-pane fade in active" style="padding: 10px 0;">
-                                            <?php
-                                            include $global['systemRootPath'] . './view/userBasicInfo.php';
-                                            ?>
+                                            <?php include $global['systemRootPath'] . './view/userBasicInfo.php'; ?>
                                         </div>
 
                                         <?php if (empty($advancedCustomUser->disablePersonalInfo)) { ?>
@@ -71,15 +72,16 @@ foreach ($tags as $value) {
                                                 ?>
                                             </div>
                                         <?php } ?>
-                                    <?php echo AVideoPlugin::profileTabContent($user->getId()); ?>
+                                        <?php echo AVideoPlugin::profileTabContent($user->getId()); ?>
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
-
                     </div>
-                </div>
 
-                <?php
+                    <?php
+                }
             } else {
                 include $global['systemRootPath'] . './view/userLogin.php';
             }
@@ -90,5 +92,17 @@ foreach ($tags as $value) {
         <?php
         include $global['systemRootPath'] . 'view/include/footer.php';
         ?>
+        <script>
+            $(document).ready(function () {
+<?php
+if (!empty($_REQUEST['tab'])) {
+    $tab = preg_replace('/[^a-z0-9_-]/i', '', $_REQUEST['tab']);
+    ?>
+                    $('#userTabsPanel a[href="#<?php echo $tab; ?>"]').trigger('click');
+    <?php
+}
+?>
+            });
+        </script>
     </body>
 </html>

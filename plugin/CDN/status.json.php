@@ -9,7 +9,7 @@ $resp->error = true;
 $resp->msg = '';
 $obj = AVideoPlugin::getDataObjectIfEnabled('CDN');
 if (empty($obj)) {
-    $resp->msg = 'CDN Plugin disabled';
+    $resp->msg = 'Status: CDN Plugin disabled, please enable it and clear the cache';
     die(json_encode($resp));
 }
 
@@ -34,43 +34,27 @@ foreach ($_REQUEST['par'] as $key => $value) {
 // Update S3 CDN
 if (AVideoPlugin::isEnabledByName('AWS_S3')) {
     $resp->CDN_S3 = CDN::getCDN_S3URL();
-}else{
+} else {
     $resp->CDN_S3 = '';
 }
 
 // Update B2 CDN
 if (AVideoPlugin::isEnabledByName('Blackblaze_B2')) {
     $resp->CDN_B2 = CDN::getCDN_B2URL();
-}else{
+} else {
     $resp->CDN_B2 = '';
 }
 
 // Update FTP CDN
 if (AVideoPlugin::isEnabledByName('FTP_Storage')) {
     $resp->CDN_FTP = CDN::getCDN_FTPURL();
-}else{
+} else {
     $resp->CDN_FTP = '';
-}
-
-// Update YPT Storage CDN
-$resp->CDN_YPTStorage = array();
-$plugin = AVideoPlugin::getDataObjectIfEnabled('YPTStorage');
-if (!empty($plugin)) {
-    $rows = Sites::getAllActive();
-    foreach ($rows as $value) {
-        if (empty($value['url'])) {
-            continue;
-        }
-        $resp->CDN_YPTStorage[] = array(
-            'id' => $value['id'],
-            'url' => addLastSlash($value['url'])
-        );
-    }
 }
 
 // Update Live CDN
 $resp->CDN_Live = '';
-$resp->CDN_LiveServers = array();
+$resp->CDN_LiveServers = [];
 $plugin = AVideoPlugin::getDataObjectIfEnabled('Live');
 if (!empty($plugin)) {
     if ($plugin->useLiveServers) {
@@ -79,13 +63,30 @@ if (!empty($plugin)) {
             if (empty($value['playerServer'])) {
                 continue;
             }
-            $resp->CDN_LiveServers[] = array(
+            $resp->CDN_LiveServers[] = [
                 'id' => $value['id'],
-                'url' => addLastSlash($value['playerServer'])
-            );
+                'url' => addLastSlash($value['playerServer']),
+            ];
         }
     } else {
         $resp->CDN_Live = addLastSlash($plugin->playerServer);
+    }
+}
+
+
+// Update YPT Storage CDN
+$resp->CDN_YPTStorage = [];
+$plugin = AVideoPlugin::getDataObjectIfEnabled('YPTStorage');
+if (!empty($plugin)) {
+    $rows = Sites::getAllActive();
+    foreach ($rows as $value) {
+        if (empty($value['url'])) {
+            continue;
+        }
+        $resp->CDN_YPTStorage[] = [
+            'id' => $value['id'],
+            'url' => addLastSlash($value['url']),
+        ];
     }
 }
 

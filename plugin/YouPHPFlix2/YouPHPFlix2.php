@@ -66,6 +66,7 @@ class YouPHPFlix2 extends PluginAbstract {
         $obj->titleLabelOverPoster = false;
         $obj->titleLabelCSS = "";
         $obj->hidePlayButtonIfCannotWatch = false;
+        $obj->doNotShowSeriesInfoOnMainPage = false;
         return $obj;
     }
 
@@ -79,9 +80,7 @@ class YouPHPFlix2 extends PluginAbstract {
     public function getFirstPage(){
         global $global;
 
-        if(!AVideoPlugin::isEnabledByName("CombineSites")){
-            return $global['systemRootPath'].'plugin/YouPHPFlix2/view/modeFlix.php';
-        }
+        return $global['systemRootPath'].'plugin/YouPHPFlix2/view/modeFlix.php';
     }
 
     public function getHeadCode() {
@@ -93,7 +92,7 @@ class YouPHPFlix2 extends PluginAbstract {
         }
         $css = "";
         //$css .= "<link href=\"".getCDN()."view/css/custom/".$obj->theme.".css\" rel=\"stylesheet\" type=\"text/css\"/>";
-        $css .= "<link href=\"".getCDN()."plugin/YouPHPFlix2/view/css/style.css?".  filectime("{$global['systemRootPath']}plugin/YouPHPFlix2/view/css/style.css")."\" rel=\"stylesheet\" type=\"text/css\"/>";
+        $css .= "<link href=\"".getURL("plugin/YouPHPFlix2/view/css/style.css")."\" rel=\"stylesheet\" type=\"text/css\"/>";
         if(!empty($obj->youtubeModeOnFullscreen) && canFullScreen()){
             $isEmbed = 1;
             $css .= '<link href="' .getCDN() . 'plugin/YouPHPFlix2/view/css/fullscreen.css" rel="stylesheet" type="text/css"/>';
@@ -122,15 +121,15 @@ class YouPHPFlix2 extends PluginAbstract {
         
         if (!empty($obj->playVideoOnFullscreenOnIframe) && !isSerie()) {
             $js .= '<script>$(function () { if(typeof linksToFullscreen === \'function\'){ linksToFullscreen(\'a.galleryLink\'); } });</script>';
-            $js .= '<script>var playVideoOnFullscreen = 1</script>';
+            $js .= '<script>var playVideoOnFullscreen = 1;</script>';
         } else
         if (!empty($obj->playVideoOnFullscreen) && !isSerie()) {
             $js .= '<script>$(function () { if(typeof linksToEmbed === \'function\'){ linksToEmbed(\'a.galleryLink\'); } });</script>';
-            $js .= '<script>var playVideoOnFullscreen = 2</script>';
+            $js .= '<script>var playVideoOnFullscreen = 2;</script>';
         } else{
-            $js .= '<script>var playVideoOnFullscreen = false</script>';
+            $js .= '<script>var playVideoOnFullscreen = false;</script>';
         }
-        $js .= '<script src="' .getCDN() . 'plugin/YouPHPFlix2/view/js/fullscreen.js"></script>';
+        $js .= '<script src="' .getURL('plugin/YouPHPFlix2/view/js/fullscreen.js') . '"></script>';
         return $js;
     }
 

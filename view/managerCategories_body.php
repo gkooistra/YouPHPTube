@@ -14,7 +14,8 @@
                         <th data-column-id="id" data-type="numeric" data-identifier="true" data-width="5%"><?php echo __("ID"); ?></th>
                         <th data-column-id="iconHtml" data-sortable="false" data-width="5%"><?php echo __("Icon"); ?></th>
                         <th data-column-id="name" data-order="desc"  data-formatter="name"  data-width="40%"><?php echo __("Name"); ?></th>
-                        <th data-column-id="private" data-formatter="private"><?php echo __("Private"); ?></th>
+                        <th data-column-id="private" data-formatter="private"><?php echo __("Type"); ?></th>
+                        <th data-column-id="total_users_groups" data-sortable="false"><?php echo __("Groups"); ?></th>
                         <th data-column-id="owner"><?php echo __("Owner"); ?></th>
                         <th data-column-id="fullTotal_videos" data-sortable="false"><?php echo __("Videos"); ?></th>
                         <th data-column-id="fullTotal_lives" data-sortable="false"><?php echo __("Lives"); ?></th>
@@ -40,6 +41,13 @@
                         <ul class="nav nav-tabs">
                             <li class="active"><a data-toggle="tab" href="#images"><?php echo __("Images"); ?></a></li>
                             <li><a data-toggle="tab" href="#metaData"><?php echo __("Meta Data"); ?></a></li>
+                            <?php
+                            if (empty($advancedCustomUser->userCanNotChangeUserGroup) || Permissions::canAdminVideos()) {
+                                ?>
+                                <li><a data-toggle="tab" href="#catUserGroups"><?php echo __("User Groups"); ?></a></li>
+                                <?php
+                            }
+                            ?>
                         </ul>
 
                         <div class="tab-content">
@@ -47,7 +55,7 @@
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <label><?php echo __("Image"); ?></label>                        
+                                            <label><?php echo __("Image"); ?></label>
                                             <?php
                                             $croppie1 = getCroppie(__("Upload Image"), "setImage1", 144, 192);
                                             echo $croppie1['html'];
@@ -56,7 +64,7 @@
                                     </div>
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <label><?php echo __("Background"); ?></label>                        
+                                            <label><?php echo __("Background"); ?></label>
                                             <?php
                                             $croppie2 = getCroppie(__("Upload Image"), "setImage2", 1280, 180, 400);
                                             echo $croppie2['html'];
@@ -88,13 +96,13 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label><?php echo __("Order"); ?></label>                        
+                                            <label><?php echo __("Order"); ?></label>
                                             <input type="number" id="order" class="form-control" placeholder="<?php echo __("Order"); ?>">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label><?php echo __("Privacy"); ?> <i class="fas fa-question-circle" data-toggle="tooltip" title="<?php echo htmlentities(__('This option will not make your videos private, this option is for other users not to be able to include their videos in this category. to make your videos private use the user groups feature')); ?>" ></i></label>                        
+                                            <label><?php echo __("Privacy"); ?> <i class="fas fa-question-circle" data-toggle="tooltip" title="<?php echo htmlentities(__('This option will not make your videos private, this option is for other users not to be able to include their videos in this category. to make your videos private use the user groups feature')); ?>" ></i></label>
                                             <select class="form-control" id="inputPrivate">
                                                 <option value="0"><?php echo __("Public"); ?></option>
                                                 <option value="1"><?php echo __("Private"); ?></option>
@@ -104,7 +112,7 @@
                                     <div class="clearfix"></div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label><?php echo __("Allow Download"); ?></label>                        
+                                            <label><?php echo __("Allow Download"); ?></label>
                                             <select class="form-control" id="allow_download">
                                                 <option value="1"><?php echo __("Yes"); ?></option>
                                                 <option value="0"><?php echo __("No"); ?></option>
@@ -113,7 +121,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label><?php echo __("Suggested"); ?></label>                        
+                                            <label><?php echo __("Suggested"); ?></label>
                                             <select class="form-control" id="inputSuggested">
                                                 <option value="0"><?php echo __("No"); ?></option>
                                                 <option value="1"><?php echo __("Yes"); ?></option>
@@ -130,7 +138,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label><?php echo __("Category Icon"); ?></label>                        
+                                            <label><?php echo __("Category Icon"); ?></label>
                                             <?php
                                             echo Layout::getIconsSelect("iconCat");
                                             ?>
@@ -138,6 +146,45 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <?php
+                            if (empty($advancedCustomUser->userCanNotChangeUserGroup) || Permissions::canAdminVideos()) {
+                                ?>
+                                <div id="catUserGroups" class="tab-pane" style="padding: 5px;">
+                                    <div class="alert alert-info">
+                                        <?php
+                                        echo __('All the videos on this category will be restricted to the user groups below');
+                                        ?>
+                                        <br>
+                                        <?php
+                                        echo __('Uncheck all to make it public');
+                                        ?>
+                                    </div>
+                                    <div class="form-group">
+                                        <input type="text" id="categorySearch" class="form-control" placeholder="<?php echo __('Search'); ?>">
+                                    </div>
+                                    <ul class="list-group">
+                                        <?php
+                                        $userGroups = UserGroups::getAllUsersGroups();
+                                        foreach ($userGroups as $value) {
+                                            ?>
+                                            <li class="list-group-item">
+                                                <span class="fa fa-lock"></span>
+                                                <?php echo $value['group_name']; ?>
+                                                <span class="label label-info"><?php echo $value['total_users'] . " " . __("Users linked"); ?></span>
+                                                <div class="material-switch pull-right">
+                                                    <input id="catGroups<?php echo $value['id']; ?>" type="checkbox" value="<?php echo $value['id']; ?>" class="catGroups"/>
+                                                    <label for="catGroups<?php echo $value['id']; ?>" class="label-warning"></label>
+                                                </div>
+                                            </li>
+                                            <?php
+                                        }
+                                        ?>
+                                    </ul>
+                                </div>
+                                <?php
+                            }
+                            ?>
                         </div>
                     </form>
                 </div>
@@ -162,7 +209,9 @@ echo $croppie2['getCroppieFunction'];
     function setImage2(resp) {
         image2 = resp;
         $('.nav-tabs a[href="#images"]').tab('show');
-        setTimeout(function(){saveCategory(image1, image2);},500);
+        setTimeout(function () {
+            saveCategory(image1, image2);
+        }, 500);
     }
 
 
@@ -182,8 +231,26 @@ echo $croppie2['getCroppieFunction'];
         return webSiteRootURL + $dir;
     }
 
-
+    var categorySearchKeyUpTimeout;
     $(document).ready(function () {
+
+        $('#categorySearch').keyup(function () {
+            clearTimeout(categorySearchKeyUpTimeout);
+            categorySearchKeyUpTimeout = setTimeout(function () {
+
+                var searchString = $('#categorySearch').val();
+
+                $("#catUserGroups ul li").each(function (index, value) {
+                    currentName = $(value).text()
+                    if (currentName.toUpperCase().indexOf(searchString.toUpperCase()) > -1) {
+                        $(value).slideDown();
+                    } else {
+                        $(value).slideUp();
+                    }
+
+                });
+            }, 500);
+        });
 
         function refreshSubCategoryList() {
             $.ajax({
@@ -201,7 +268,7 @@ echo $croppie2['getCroppieFunction'];
         }
 
         $('#categoryFormModal').on('hidden.bs.modal', function () {
-            // when modal is closed in any way, get the new list - show old entry again (hidden by edit) + if a name was changed, it's corrected with this reload. 
+            // when modal is closed in any way, get the new list - show old entry again (hidden by edit) + if a name was changed, it's corrected with this reload.
             refreshSubCategoryList();
         })
 
@@ -265,8 +332,8 @@ echo $croppie2['getCroppieFunction'];
                     rssBtn += '<a class="btn btn-info btn-xs" data-toggle="tooltip" title="<?php echo __("Roku Json"); ?>" target="_blank" href="<?php echo $global['webSiteRootURL']; ?>roku.json?catName=' + row.clean_name + '" >ROKU</a>';
 
                     if (!row.canEdit) {
-                        editBtn = "";
-                        deleteBtn = "";
+                        editBtn = '';
+                        deleteBtn = '';
                     }
 
                     return editBtn + deleteBtn + rssBtn;
@@ -291,6 +358,17 @@ echo $croppie2['getCroppieFunction'];
                 //$('#inputType').val(row.type);
                 $("select[name='iconCat']").val(row.iconClass);
                 $("select[name='iconCat']").trigger('change');
+
+                $(".catGroups").prop("checked", false);
+
+                for (var prop in row.users_groups_ids_array) {
+                    var users_groups_id = row.users_groups_ids_array[prop];
+                    if (typeof users_groups_id !== 'number') {
+                        continue;
+                    }
+                    console.log(users_groups_id);
+                    $("#catGroups" + users_groups_id).prop("checked", true);
+                }
 
                 $('#categoryFormModal').modal();
                 console.log("restartCroppie");
@@ -366,14 +444,14 @@ echo $croppie2['restartCroppie'] . "(getCategoryBackgroundPath(0));";
 
         $('#updateCategoryForm').submit(function (evt) {
             //$('#updateCategoryForm a[href="#images"]').trigger("click");
-            
+
             evt.preventDefault();
-            setTimeout(function(){
-                <?php
+            setTimeout(function () {
+<?php
 echo $croppie1['getCroppieFunction'];
 ?>
-                
-            },500);
+
+            }, 500);
 
             return false;
         });
@@ -381,6 +459,10 @@ echo $croppie1['getCroppieFunction'];
 
     function saveCategory(image1, image2) {
         modal.showPleaseWait();
+        var usergroups_ids_array = new Array();
+        $("input:checkbox.catGroups:checked").each(function () {
+            usergroups_ids_array.push($(this).val());
+        });
         $.ajax({
             url: '<?php echo $global['webSiteRootURL'] . "objects/categoryAddNew.json.php"; ?>',
             data: {
@@ -394,6 +476,7 @@ echo $croppie1['getCroppieFunction'];
                 "order": $('#order').val(),
                 "parentId": $('#inputParentId').val(),
                 "iconClass": $("select[name='iconCat']").val(),
+                "usergroups_ids_array": usergroups_ids_array,
                 "image1": image1,
                 "image2": image2
             },

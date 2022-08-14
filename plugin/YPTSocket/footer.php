@@ -1,5 +1,7 @@
 <?php
+global $global;
 if (isBot()) {
+    echo '<!-- isBot socket_info_container -->';
     return false;
 }
 $refl = new ReflectionClass('SocketMessageType');
@@ -132,18 +134,21 @@ if (!empty($obj->debugAllUsersSocket) || (User::isAdmin() && !empty($obj->debugS
             display: inline-block;
         }
     </style>
-    <div id="socket_info_container" class="socket_info <?php echo $socket_info_container_class; ?>" >
-        <div class="socketHeader">
+    <div id="socket_info_container" class="socket_info <?php echo $socket_info_container_class; ?> <?php echo getCSSAnimationClassAndStyle('animate__bounceIn', 'socket_info'); ?>" >
+        <div class="socketHeader ">
             <?php
             echo getSocketConnectionLabel();
             ?>
         </div>
-        <div class="socketItem hideNotDisconnected" ><button class="btn btn-xs btn-block btn-default" onclick="copyToClipboard('<?php echo addcslashes($command,'\\'); ?>')">Copy code to run on terminal</button></div>
-        <div class="socketItem hideNotConected" ><i class="fas fa-user"></i> Your User ID <span class="socket_users_id">0</span></div>
-        <div class="socketItem hideNotConected" ><i class="fas fa-id-card"></i> Socket ResourceId <span class="socket_resourceId">0</span></div>
-        <div class="socketItem hideNotConected" ><i class="fas fa-network-wired"></i> Total Different Devices <span class="total_devices_online">0</span></div>
-        <div class="socketItem hideNotConected" ><i class="fas fa-users"></i> Total Users Online <span class="total_users_online">0</span></div>
-        <div class="socketItem hideNotConected" id="socketUsersURI">    
+        <div class="socketItem hideNotDisconnected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" >
+            <button class="btn btn-xs btn-block btn-default" onclick="copyToClipboard('<?php echo addcslashes($command,'\\'); ?>')">Copy code to run on terminal</button>
+            <button class="btn btn-xs btn-block btn-primary" onclick="socketConnect()">Try again</button>
+        </div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-user"></i> Your User ID <span class="socket_users_id">0</span></div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-id-card"></i> Socket ResourceId <span class="socket_resourceId">0</span></div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-network-wired"></i> Total Different Devices <span class="total_devices_online">0</span></div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-users"></i> Total Users Online <span class="total_users_online">0</span></div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInY', 'socket'); ?>" id="socketUsersURI">    
         </div>
     </div>
     <script>

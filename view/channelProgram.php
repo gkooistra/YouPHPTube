@@ -78,8 +78,8 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                 if (empty($videosArrayId) && ($program['status'] == "favorite" || $program['status'] == "watch_later")) {
                     unset($programs[$key]);
                     continue;
-                } else if (empty($videosArrayId)) {
-                    $videosP = array();
+                } elseif (empty($videosArrayId)) {
+                    $videosP = [];
                 } else {
                     $videosP = Video::getAllVideos("viewable", false, true, $videosArrayId, false, true);
                 }//var_dump($videosArrayId, $videosP);exit;
@@ -141,15 +141,13 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                 </ul>
                             </div>
                             <div class="pull-right btn-group"  style="display: inline-flex;">
-                                <?php
-                                echo PlayLists::getShowOnTVSwitch($program['id']);
-                                ?>
+                                <?php echo PlayLists::getShowOnTVSwitch($program['id']); ?>
                                 <?php
                                 if ($program['status'] != "favorite" && $program['status'] != "watch_later") {
                                     if (AVideoPlugin::isEnabledByName("PlayLists")) {
                                         ?>
                                         <button class="btn btn-xs btn-default" onclick="copyToClipboard($('#playListEmbedCode<?php echo $program['id']; ?>').val());setTextEmbedCopied();"  data-toggle="tooltip" title="<?php echo __('Copy embed code'); ?>" >
-                                            <span class="fa fa-copy"></span> 
+                                            <span class="fa fa-copy"></span>
                                             <span id="btnEmbedText" class="hidden-xs hidden-sm"><?php echo __("Copy embed code"); ?></span></button>
                                         <input type="hidden" id="playListEmbedCode<?php echo $program['id']; ?>" value='<iframe width="640" height="480" style="max-width: 100%;max-height: 100%;" src="<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/embed.php?playlists_id=<?php echo $program['id']; ?>" frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay"></iframe>'/>
                                         <?php
@@ -183,8 +181,7 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                             });
                                         </script>
 
-                                        <?php
-                                    }
+                                    <?php }
                                     ?>
                                     <button class="btn btn-xs btn-danger deletePlaylist" playlist_id="<?php echo $program['id']; ?>"  data-toggle="tooltip" title="<?php echo __('Delete'); ?>" ><i class="fas fa-trash"></i> <span class="hidden-xs hidden-sm"><?php echo __("Delete"); ?></span></button>
                                     <button class="btn btn-xs btn-primary renamePlaylist" playlist_id="<?php echo $program['id']; ?>"  data-toggle="tooltip" title="<?php echo __('Rename'); ?>" ><i class="fas fa-edit"></i> <span class="hidden-xs hidden-sm"><?php echo __("Rename"); ?></span></button>
@@ -194,24 +191,22 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                         if ($program['status'] !== 'private') {
                                             echo ' display: none;';
                                         }
-                                        ?> "  data-toggle="tooltip" title="<?php echo __('This playlist is private, click to make it public'); ?>"  ></span> 
+                                        ?> "  data-toggle="tooltip" title="<?php echo __('This playlist is private, click to make it public'); ?>"  ></span>
                                         <span class="fa fa-globe" id="statusPublic<?php echo $program['id']; ?>" style="color: green; <?php
                                         if ($program['status'] !== 'public') {
                                             echo ' display: none;';
                                         }
-                                        ?>"  data-toggle="tooltip" title="<?php echo __('This playlist is public, click to make it unlisted'); ?>" ></span> 
+                                        ?>"  data-toggle="tooltip" title="<?php echo __('This playlist is public, click to make it unlisted'); ?>" ></span>
                                         <span class="fa fa-eye-slash" id="statusUnlisted<?php echo $program['id']; ?>" style="color: gray;   <?php
                                         if ($program['status'] !== 'unlisted') {
                                             echo ' display: none;';
                                         }
                                         ?>"  data-toggle="tooltip" title="<?php echo __('This playlist is unlisted, click to make it private'); ?>" ></span>
                                     </button>
-                                    <?php
-                                }
+                                <?php }
                                 ?>
                             </div>
-                            <?php
-                        }
+                        <?php }
                         ?>
                     </div>
 
@@ -237,11 +232,8 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                     $img_portrait = ($value['rotation'] === "90" || $value['rotation'] === "270") ? "img-portrait" : "";
                                     $name = User::getNameIdentificationById($value['users_id']);
 
-                                    $images = Video::getImageFromFilename($value['filename'], $value['type'], true);
-                                    $imgGif = $images->thumbsGif;
-                                    $poster = $images->thumbsJpg;
-                                    $class = "";
-                                    $style = "";
+                                    $class = '';
+                                    $style = '';
                                     if ($count > 6) {
                                         $class = "showMoreLess{$program['id']}";
                                         $style = "display: none;";
@@ -250,21 +242,11 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                     <li class="col-lg-2 col-md-4 col-sm-4 col-xs-6 galleryVideo showMoreLess <?php echo $class; ?> " id="<?php echo $value['id']; ?>" style="padding: 1px;  <?php echo $style; ?>">
                                         <div class="panel panel-default" playListId="<?php echo $program['id']; ?>" style="min-height: 215px;">
                                             <div class="panel-body" style="overflow: hidden;">
-                                                <a class="aspectRatio16_9" href="<?php echo $episodeLink; ?>" title="<?php echo $value['title']; ?>" style="margin: 15px 0; overflow: visible;" >
-                                                    <img src="<?php echo $poster; ?>" alt="<?php echo $value['title']; ?>" class="img img-responsive <?php echo $img_portrait; ?>  rotate<?php echo $value['rotation']; ?>" />
-                                                    <?php
-                                                    if ($value['type'] !== 'pdf' && $value['type'] !== 'article' && $value['type'] !== 'serie') {
-                                                        ?>
-                                                        <span class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></span>
-                                                        <div class="progress" style="height: 3px; margin-bottom: 2px;">
-                                                            <div class="progress-bar progress-bar-danger" role="progressbar" style="width: <?php echo $value['progress']['percent'] ?>%;" aria-valuenow="<?php echo $value['progress']['percent'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                                                        </div> 
-                                                        <?php
-                                                    }
+                                                <?php
+                                                    echo Video::getVideoImagewithHoverAnimationFromVideosId($value);
                                                     ?>
-                                                </a>
-                                                <a class="h6 galleryLink hrefLink" href="<?php echo $episodeLink; ?>" title="<?php echo $value['title']; ?>">
-                                                    <strong class="title"><?php echo $value['title']; ?></strong>
+                                                <a class="h6 galleryLink hrefLink" href="<?php echo $episodeLink; ?>" title="<?php echo getSEOTitle($value['title']); ?>">
+                                                    <strong class="title"><?php echo getSEOTitle($value['title']); ?></strong>
                                                 </a>
                                                 <div class="galeryDetails" style="min-height: 60px;">
                                                     <div class="galleryTags">
@@ -284,28 +266,23 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                                     </div>
                                                     <?php
                                                     if (empty($advancedCustom->doNotDisplayViews)) {
-                                                        ?> 
+                                                        ?>
                                                         <div>
                                                             <i class="fa fa-eye"></i>
                                                             <span itemprop="interactionCount">
                                                                 <?php echo number_format($value['views_count'], 0); ?> <?php echo __("Views"); ?>
                                                             </span>
                                                         </div>
-                                                        <?php
-                                                    }
+                                                    <?php }
                                                     ?>
 
                                                     <div>
                                                         <i class="far fa-clock"></i>
-                                                        <?php
-                                                        echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago');
-                                                        ?>
+                                                        <?php echo humanTiming(strtotime($value['videoCreation'])), " ", __('ago'); ?>
                                                     </div>
                                                     <div>
                                                         <i class="fa fa-user"></i>
-                                                        <?php
-                                                        echo $name;
-                                                        ?>
+                                                        <?php echo $name; ?>
                                                     </div>
                                                     <?php
                                                     if (Video::canEdit($value['id'])) {
@@ -315,8 +292,7 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
 
 
                                                         </div>
-                                                        <?php
-                                                    }
+                                                    <?php }
                                                     ?>
                                                     <?php
                                                     if ($isMyChannel) {
@@ -328,13 +304,12 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                                         </div>
                                                         <div>
                                                             <span playlist_id="<?php echo $program['id']; ?>" video_id="<?php echo $value['id']; ?>">
-                                                                <i class="fas fa-sort-numeric-down"></i> <?php echo __("Sort"); ?> 
+                                                                <i class="fas fa-sort-numeric-down"></i> <?php echo __("Sort"); ?>
                                                                 <input type="number" step="1" class="video_order" value="<?php echo intval($program['videos'][$count - 1]['video_order']); ?>" style="max-width: 50px;">
                                                                 <button class="btn btn-sm btn-xs sortNow"><i class="fas fa-check-square"></i></button>
                                                             </span>
                                                         </div>
-                                                        <?php
-                                                    }
+                                                    <?php }
                                                     ?>
                                                 </div>
                                             </div>
@@ -368,12 +343,10 @@ $playListsObj = AVideoPlugin::getObjectData("PlayLists");
                                     if ($isMyChannel && !empty($videosArrayId)) {
                                         ?>
                                 <span class="label label-info" ><i class="fa fa-info-circle"></i> <?php echo __("Drag and drop to sort"); ?></span>
-                                <?php
-                            }
+                            <?php }
                             ?>
-                        </div>  
-                        <?php
-                    }
+                        </div>
+                    <?php }
                     ?>
 
                 </div>

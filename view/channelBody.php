@@ -24,8 +24,41 @@ $current = $_POST['current'];
 $rowCount = 25;
 $_REQUEST['rowCount'] = $rowCount;
 
-$uploadedVideos = Video::getAllVideos("a", $user_id, !isToHidePrivateVideos());
-$uploadedTotalVideos = Video::getTotalVideos("a", $user_id, !isToHidePrivateVideos());
+if (empty($channelPassword) && !$isMyChannel) {
+    $status = 'a';
+    $showUnlisted = false;
+} else {
+    $status = 'viewable';
+    $showUnlisted = true;
+}
+
+
+$type = '';
+if($advancedCustomUser->showArticlesTab && AVideoPlugin::isEnabledByName('Articles')){
+    $uploadedTotalArticles = Video::getTotalVideos($status, $user_id, !isToHidePrivateVideos(), $showUnlisted, true, false, 'article');
+    if(!empty($uploadedTotalArticles)){
+        $uploadedArticles = Video::getAllVideos($status, $user_id, !isToHidePrivateVideos(), array(), false, $showUnlisted, true, false, null, 'article');
+    }
+    $type = 'notArticle';
+}
+if($advancedCustomUser->showAudioTab){
+    $uploadedTotalAudio = Video::getTotalVideos($status, $user_id, !isToHidePrivateVideos(), $showUnlisted, true, false, 'audio');
+    if(!empty($uploadedTotalAudio)){
+        $uploadedAudio = Video::getAllVideos($status, $user_id, !isToHidePrivateVideos(), array(), false, $showUnlisted, true, false, null, 'audio');
+    }
+    //var_dump($uploadedAudio);exit;
+    if(empty($type)){
+        $type = 'notAudio';
+    }else{
+        $type = 'notArticleOrAudio';
+    }
+}
+//var_dump($uploadedArticles);exit;
+$uploadedVideos = array();
+$uploadedTotalVideos = Video::getTotalVideos($status, $user_id, !isToHidePrivateVideos(), $showUnlisted, true, false, $type);
+if(!empty($uploadedTotalVideos)){
+    $uploadedVideos = Video::getAllVideos($status, $user_id, !isToHidePrivateVideos(), array(), false, $showUnlisted, true, false, null, $type);
+}
 TimeLogEnd($timeLog, __LINE__);
 $totalPages = ceil($uploadedTotalVideos / $rowCount);
 
@@ -33,7 +66,7 @@ unset($_POST['sort']);
 unset($_POST['rowCount']);
 unset($_POST['current']);
 
-$get = array('channelName' => $_GET['channelName']);
+$get = ['channelName' => $_GET['channelName']];
 $palyListsObj = AVideoPlugin::getObjectDataIfEnabled('PlayLists');
 TimeLogEnd($timeLog, __LINE__);
 $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
@@ -72,7 +105,7 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
     }
     #channelHome{
         background-color: rgb(<?php echo $obj->backgroundRGB; ?>);
-        position: relative; 
+        position: relative;
         overflow: hidden;
     }
 </style>
@@ -81,7 +114,7 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
 <div class="panel panel-default">
     <div class="panel-body">
         <div class="gallery" >
-            <div class="row">
+            <div class="row clearfix">
                 <div class="col-lg-12 col-sm-12 col-xs-12">
                     <center style="margin:5px;">
                         <?php
@@ -92,10 +125,19 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
             </div>
             <?php
             if (empty($advancedCustomUser->doNotShowTopBannerOnChannel)) {
+                if (isMobile()) {
+                    $relativePath = $user->getBackgroundURL(User::$channel_artDesktopMin);
+                } else {
+                    $relativePath = $user->getBackgroundURL(User::$channel_artDesktopMax);
+                }
                 ?>
-                <div class="row bg-info profileBg" style="margin: 20px -10px; background: url('<?php echo $global['webSiteRootURL'], $user->getBackgroundURL(), "?", @filemtime($global['systemRootPath'] . $user->getBackgroundURL()); ?>')  no-repeat 50% 50%;">
+                <div class="clearfix" style="clear: both;"></div>
+                <div class="row bg-info profileBg" style="margin: 20px -10px; background: url('<?php echo getURL($relativePath); ?>')  no-repeat 50% 50%; -webkit-background-size: cover;
+                     -moz-background-size: cover;
+                     -o-background-size: cover;
+                     background-size: cover;">
                     <img src="<?php echo User::getPhoto($user_id); ?>" alt="<?php echo $user->_getName(); ?>" class="img img-responsive img-thumbnail" style="max-width: 100px;"/>
-                </div>    
+                </div>
                 <?php
             }
             ?>
@@ -109,7 +151,11 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                         echo User::getEmailVerifiedIcon($user_id)
                         ?></h2>
                     <span class="pull-right">
+                    <?php
+                    echo getUserOnlineLabel($user_id, 'pull-right', 'padding: 0 5px;');
+                    ?>
                         <?php
+                        echo User::getAddChannelToGalleryButton($user_id);
                         echo User::getBlockUserButton($user_id);
                         echo Subscribe::getButton($user_id);
                         ?>
@@ -120,7 +166,10 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
             <div class="col-md-12" id="aboutArea">
                 <div id="aboutAreaPreContent">
                     <div id="aboutAreaContent">
-                        <?php echo nl2br(textToLink($user->getAbout())); ?>
+                        <?php
+                        $about =  html_entity_decode($user->getAbout());
+                        echo $about;
+                        ?>
                     </div>
                 </div>
                 <button onclick="$('#aboutArea').toggleClass('expanded');" class="btn btn-xs btn-default" id="aboutAreaShowMoreBtn" style="display: none; ">
@@ -146,16 +195,16 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                             $active = "active";
                             if ($advancedCustomUser->showChannelHomeTab) {
                                 if (!empty($_GET['current'])) { // means you are paging the Videos tab
-                                    $active = "";
+                                    $active = '';
                                 }
                                 ?>
                                 <li class="nav-item <?php echo $active; ?>">
                                     <a class="nav-link " href="#channelHome" data-toggle="tab" aria-expanded="false">
-                                        <?php echo strtoupper(__("Home")); ?>
+                                        <i class="fas fa-home"></i> <?php echo strtoupper(__("Home")); ?>
                                     </a>
                                 </li>
                                 <?php
-                                $active = "";
+                                $active = '';
                             }
                             if ($advancedCustomUser->showChannelVideosTab) {
                                 if (!empty($_GET['current'])) { // means you are paging the Videos tab
@@ -164,23 +213,49 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                                 ?>
                                 <li class="nav-item <?php echo $active; ?>">
                                     <a class="nav-link " href="#channelVideos" data-toggle="tab" aria-expanded="false">
-                                        <?php echo strtoupper(__("Videos")); ?> <span class="badge"><?php echo $uploadedTotalVideos; ?></span>
+                                        <i class="fas fa-file-video"></i> <?php echo strtoupper(__("Videos")); ?> <span class="badge"><?php echo $uploadedTotalVideos; ?></span>
                                     </a>
                                 </li>
                                 <?php
-                                $active = "";
+                                $active = '';
+                            }
+                            if (!empty($uploadedTotalArticles)) {
+                                if (!empty($_GET['current'])) { // means you are paging the Videos tab
+                                    $active = "";
+                                }
+                                ?>
+                                <li class="nav-item <?php echo $active; ?>">
+                                    <a class="nav-link " href="#channelArticles" data-toggle="tab" aria-expanded="false">
+                                        <i class="far fa-file-alt"></i> <?php echo strtoupper(__("Articles")); ?> <span class="badge"><?php echo $uploadedTotalArticles; ?></span>
+                                    </a>
+                                </li>
+                                <?php
+                                $active = '';
+                            }
+                            if (!empty($uploadedTotalAudio)) {
+                                if (!empty($_GET['current'])) { // means you are paging the Videos tab
+                                    $active = "";
+                                }
+                                ?>
+                                <li class="nav-item <?php echo $active; ?>">
+                                    <a class="nav-link " href="#channelAudio" data-toggle="tab" aria-expanded="false">
+                                        <i class="fas fa-file-audio"></i> <?php echo strtoupper(__("Audio")); ?> <span class="badge"><?php echo $uploadedTotalAudio; ?></span>
+                                    </a>
+                                </li>
+                                <?php
+                                $active = '';
                             }
                             if ($advancedCustomUser->showChannelProgramsTab && !empty($palyListsObj)) {
-                                $totalPrograms = PlayList::getAllFromUserLight($user_id, true, false, 0, true);
+                                $totalPrograms = PlayList::getAllFromUserLight($user_id, true, false, 0, true, true);
                                 if ($totalPrograms) {
                                     ?>
                                     <li class="nav-item <?php echo $active; ?>" id="channelPlayListsLi">
                                         <a class="nav-link " href="#channelPlayLists" data-toggle="tab" aria-expanded="true">
-                                            <?php echo strtoupper(__($palyListsObj->name)); ?> <span class="badge"><?php echo count($totalPrograms); ?></span>
+                                            <i class="fas fa-list"></i> <?php echo strtoupper(__($palyListsObj->name)); ?> <span class="badge"><?php echo count($totalPrograms); ?></span>
                                         </a>
                                     </li>
                                     <?php
-                                    $active = "";
+                                    $active = '';
                                 }
                             }
                             ?>
@@ -190,23 +265,26 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                             $active = "active fade in";
                             if ($advancedCustomUser->showChannelHomeTab) {
                                 if (!empty($_GET['current'])) { // means you are paging the Videos tab
-                                    $active = "";
+                                    $active = '';
                                 }
                                 $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                                 ?>
-                                <style>#bigVideo{top: 0 !important;}</style>
+                                <style>#bigVideo{
+                                        top: 0 !important;
+                                    }</style>
                                 <div class="tab-pane  <?php echo $active; ?>" id="channelHome" >
                                     <?php
                                     $obj->BigVideo = true;
                                     $obj->PlayList = false;
                                     $obj->Channels = false;
-                                    $obj->Trending = true;
+                                    $obj->Trending = false;
                                     $obj->pageDots = false;
-                                    $obj->TrendingAutoPlay = true;
+                                    $obj->TrendingAutoPlay = false;
                                     $obj->maxVideos = 12;
                                     $obj->Suggested = false;
                                     $obj->paidOnlyLabelOverPoster = false;
-                                    $obj->DateAdded = false;
+                                    $obj->DateAdded = true;
+                                    $obj->DateAddedAutoPlay = true;
                                     $obj->MostPopular = false;
                                     $obj->MostWatched = false;
                                     $obj->SortByName = false;
@@ -248,6 +326,7 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                                         </div>
                                         <div class="panel-body">
                                             <?php
+                                            $video = false;
                                             if ($advancedCustomUser->showBigVideoOnChannelVideosTab && !empty($uploadedVideos[0])) {
                                                 $video = $uploadedVideos[0];
                                                 $obj = new stdClass();
@@ -267,9 +346,92 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                                         </div>
 
                                         <div class="panel-footer">
+                                            <?php echo getPagination($totalPages, $current, "{$global['webSiteRootURL']}channel/{$_GET['channelName']}?current={page}"); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php
+                                $active = "fade";
+                            }
+                            if (!empty($uploadedTotalArticles)) {
+                                if (!empty($_GET['current'])) { // means you are paging the Videos tab
+                                    $active = "";
+                                }
+                                ?>
+
+                                <div class="tab-pane <?php echo $active; ?>" id="channelArticles">
+
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading">
                                             <?php
-                                            echo getPagination($totalPages, $current, "{$global['webSiteRootURL']}channel/{$_GET['channelName']}?current={page}");
+                                            if ($isMyChannel) {
+                                                ?>
+                                                <a href="<?php echo $global['webSiteRootURL']; ?>mvideos" class="btn btn-success ">
+                                                    <i class="far fa-newspaper"></i>
+                                                    <?php echo __("Articles"); ?>
+                                                </a>
+                                                <?php
+                                            } else {
+                                                echo __("Articles");
+                                            }
+                                            echo AVideoPlugin::getChannelButton();
                                             ?>
+                                        </div>
+                                        <div class="panel-body">
+                                            <div class="row">
+                                                <?php
+                                                TimeLogEnd($timeLog, __LINE__);
+                                                createGallerySection($uploadedArticles, "", $get);
+                                                TimeLogEnd($timeLog, __LINE__);
+                                                ?>
+                                            </div>
+                                        </div>
+
+                                        <div class="panel-footer">
+                                            <?php echo getPagination($totalPages, $current, "{$global['webSiteRootURL']}channel/{$_GET['channelName']}?current={page}"); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php
+                                $active = "fade";
+                            }
+                            
+                            if (!empty($uploadedTotalAudio)) {
+                                if (!empty($_GET['current'])) { // means you are paging the Videos tab
+                                    $active = "";
+                                }
+                                ?>
+
+                                <div class="tab-pane <?php echo $active; ?>" id="channelAudio">
+
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading">
+                                            <?php
+                                            if ($isMyChannel) {
+                                                ?>
+                                                <a href="<?php echo $global['webSiteRootURL']; ?>mvideos" class="btn btn-success ">
+                                                    <i class="far fa-newspaper"></i>
+                                                    <?php echo __("Audio"); ?>
+                                                </a>
+                                                <?php
+                                            } else {
+                                                echo __("Audio");
+                                            }
+                                            echo AVideoPlugin::getChannelButton();
+                                            ?>
+                                        </div>
+                                        <div class="panel-body">
+                                            <div class="row">
+                                                <?php
+                                                TimeLogEnd($timeLog, __LINE__);
+                                                createGallerySection($uploadedAudio, "", $get);
+                                                TimeLogEnd($timeLog, __LINE__);
+                                                ?>
+                                            </div>
+                                        </div>
+
+                                        <div class="panel-footer">
+                                            <?php echo getPagination($totalPages, $current, "{$global['webSiteRootURL']}channel/{$_GET['channelName']}?current={page}"); ?>
                                         </div>
                                     </div>
                                 </div>
@@ -285,16 +447,13 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
                                             if ($isMyChannel) {
                                                 ?>
                                                 <a class="btn btn-default btn-xs " href="<?php echo $global['webSiteRootURL']; ?>plugin/PlayLists/managerPlaylists.php">
-                                                    <i class="fas fa-edit"></i> <?php echo __('Organize') . ' ' . $palyListsObj->name; ?>
+                                                    <i class="fas fa-edit"></i> <?php echo __('Organize') . ' ' . __($palyListsObj->name); ?>
                                                 </a>
-                                                <?php
-                                            }
+                                            <?php }
                                             ?>
                                         </div>
                                         <div class="panel-body">
-                                            <?php
-                                            include $global['systemRootPath'] . 'view/channelPlaylist.php';
-                                            ?>
+                                            <?php include $global['systemRootPath'] . 'view/channelPlaylist.php'; ?>
                                         </div>
                                         <div class="panel-footer">
 
@@ -316,4 +475,4 @@ $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
     </div>
 </div>
 <script src="<?php echo getCDN(); ?>plugin/Gallery/script.js" type="text/javascript"></script>
-<script src="<?php echo getCDN(); ?>view/js/infinite-scroll.pkgd.min.js" type="text/javascript"></script>
+<script src="<?php echo getCDN(); ?>node_modules/infinite-scroll/dist/infinite-scroll.pkgd.min.js" type="text/javascript"></script>

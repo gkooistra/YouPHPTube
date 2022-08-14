@@ -1,14 +1,21 @@
 <?php
-if(!empty($doNotIncludeConfig)){
+if (!empty($doNotIncludeConfig)) {
     error_log('AVideo includeconfig ignored');
     return false;
 }
+/*
+if($_SERVER["HTTP_HOST"] === 'localhost' || $_SERVER["HTTP_HOST"] === '127.0.0.1'){
+    $global["webSiteRootURL"] = $_SERVER["REQUEST_SCHEME"].'://'.$_SERVER["HTTP_HOST"].$global["webSiteRootPath"];
+}
+ * 
+ */
 
+//var_dump($_SERVER, $global);exit;
 //$global['stopBotsList'] = array('bot','spider','rouwler','Nuclei','MegaIndex','NetSystemsResearch','CensysInspect','slurp','crawler','curl','fetch','loader');
 //$global['stopBotsWhiteList'] = array('google','bing','yahoo','yandex','twitter');
 if (!empty($global['stopBotsList']) && is_array($global['stopBotsList'])) {
     foreach ($global['stopBotsList'] as $value) {
-        if(empty($_SERVER['HTTP_USER_AGENT'])){
+        if (empty($_SERVER['HTTP_USER_AGENT'])) {
             continue;
         }
         if (stripos($_SERVER['HTTP_USER_AGENT'], $value) !== false) {
@@ -52,20 +59,10 @@ if (empty($global['logfile'])) {
 ini_set('error_log', $global['logfile']);
 global $global, $config, $advancedCustom, $advancedCustomUser;
 
-if(empty($doNotConnectDatabaseIncludeConfig)){
-    $global['mysqli'] = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, @$mysqlPort);
-
-    if ($global['mysqli'] === false || !empty($global['mysqli']->connect_errno)) {
-        error_log("MySQL connect_errno[{$global['mysqli']->connect_errno}] {$global['mysqli']->connect_error}");
-        include $global['systemRootPath'] . 'view/include/offlinePage.php';
-        exit;
-    }
-
-    // if you set it on configuration file it will help you to encode
-    if (!empty($global['mysqli_charset'])) {
-        $global['mysqli']->set_charset($global['mysqli_charset']);
-    }
-}else{
+require_once $global['systemRootPath'] . 'objects/functions.php';
+if (empty($doNotConnectDatabaseIncludeConfig)) {
+    _mysql_connect();
+} else {
     $mysql_connect_was_closed = 1;
 }
 require_once $global['systemRootPath'] . 'objects/mysql_dal.php';
@@ -80,7 +77,7 @@ if (empty($global['webSiteRootPath']) || $global['configurationVersion'] < 3.1) 
 $global['dont_show_us_flag'] = false;
 // this is for old versions
 
-if(empty($doNotStartSessionbaseIncludeConfig)){
+if (empty($doNotStartSessionbaseIncludeConfig)) {
     $config = new Configuration();
     session_write_close();
 
@@ -110,8 +107,8 @@ $url1['host'] = '';
 $global['HTTP_REFERER'] = '';
 if (!empty($_SERVER['HTTP_REFERER'])) {
     if ((
-            strpos($_SERVER['HTTP_REFERER'], '/video/') !== false || strpos($_SERVER['HTTP_REFERER'], '/v/') !== false
-            ) &&
+        strpos($_SERVER['HTTP_REFERER'], '/video/') !== false || strpos($_SERVER['HTTP_REFERER'], '/v/') !== false
+    ) &&
             !empty($_SESSION['LAST_HTTP_REFERER'])) {
         if (strpos($_SESSION['LAST_HTTP_REFERER'], 'cache/css/') !== false ||
                 strpos($_SESSION['LAST_HTTP_REFERER'], 'cache/js/') !== false ||
@@ -144,9 +141,11 @@ if (!empty($url1['host']) && !empty($url2['host']) && $url1['host'] !== $url2['h
 $_SESSION['LAST_HTTP_REFERER'] = $global['HTTP_REFERER'];
 //var_dump($global['HTTP_REFERER'], $url1);exit;
 
-$output = ob_get_clean();
-ob_start('ob_gzhandler');
-echo $output;
+_ob_end_clean();
+//$output = _ob_get_clean();
+_ob_start(true);
+//echo $output;
+
 $_SESSION['lastUpdate'] = time();
 $_SESSION['savedQuerys'] = 0;
 require_once $global['systemRootPath'] . 'objects/Object.php';
@@ -155,6 +154,9 @@ require_once $global['systemRootPath'] . 'objects/plugin.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
+
+adminSecurityCheck();
+setSiteLang();
 fixSystemPath();
 ObjectYPT::checkSessionCacheBasedOnLastDeleteALLCacheTime();
 getDeviceID();
@@ -169,14 +171,14 @@ if (empty($doNotConnectDatabaseIncludeConfig) && $baseName !== 'xsendfile.php' &
 if (empty($global['bodyClass'])) {
     $global['bodyClass'] = '';
 }
-$global['allowedExtension'] = array('gif', 'jpg', 'mp4', 'webm', 'mp3', 'm4a', 'ogg', 'zip', 'm3u8');
+$global['allowedExtension'] = ['gif', 'jpg', 'mp4', 'webm', 'mp3', 'm4a', 'ogg', 'zip', 'm3u8'];
 
 if (empty($global['avideo_resolutions'])) {
-    $global['avideo_resolutions'] = array(240, 360, 480, 540, 720, 1080, 1440, 2160);
+    $global['avideo_resolutions'] = [240, 360, 480, 540, 720, 1080, 1440, 2160];
 }
 
 sort($global['avideo_resolutions']);
-if(!empty($doNotConnectDatabaseIncludeConfig)){
+if (!empty($doNotConnectDatabaseIncludeConfig)) {
     return false;
 }
 $advancedCustom = AVideoPlugin::getObjectData('CustomizeAdvanced');
@@ -192,7 +194,7 @@ if (empty($global['disableTimeFix'])) {
       $offset = sprintf('%+d:%02d', $hrs * $sgn, $mins);
       $global['mysqli']->query("SET time_zone='$offset';");
      */
-    ObjectYPT::setTimeZone();
+    ObjectYPT::setGlobalTimeZone();
 }
 
 $avideoLayout = AVideoPlugin::getObjectData('Layout');

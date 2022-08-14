@@ -1,4 +1,5 @@
 <?php
+
 global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
@@ -39,8 +40,10 @@ if ($obj->sortReverseable) {
     $orderString = str_replace("//", "/", $orderString);
 }
 $video = Video::getVideo("", "viewable", !$obj->hidePrivateVideos, false, true);
+$debugLastGetVideoSQL = $lastGetVideoSQL;
 if (empty($video)) {
     $video = Video::getVideo("", "viewable", !$obj->hidePrivateVideos, true);
+    $debugLastGetVideoSQL = $lastGetVideoSQL;
 }
 if (empty($_GET['page'])) {
     $_GET['page'] = 1;
@@ -52,7 +55,7 @@ $totalPages = 0;
 $url = '';
 $args = '';
 $metaDescription = "";
-if(!empty($video)){
+if (!empty($video)) {
     if (strpos($_SERVER['REQUEST_URI'], "?") != false) {
         $args = substr($_SERVER['REQUEST_URI'], strpos($_SERVER['REQUEST_URI'], "?"), strlen($_SERVER['REQUEST_URI']));
     }
@@ -61,25 +64,26 @@ if(!empty($video)){
     } else {
         $url = $global['webSiteRootURL'] . "cat/" . $video['clean_category'] . "/page/";
     }
-    $contentSearchFound = false;
-	
-	//array_push($siteTitle, __("Home"));
-	
-	// don't add a prefix for SEO, it's already handled here below by the implode() func	
-	$seoComplement = getSEOComplement(array(
-		"addAutoPrefix" => false,
-		"addCategory" => false
-	));
-	if (!empty($seoComplement)) {
-		array_push($siteTitle, $seoComplement);
-	}
+    global $contentSearchFound;
+    if (empty($contentSearchFound)) {
+        $contentSearchFound = !empty($videos);
+    }
+    //array_push($siteTitle, __("Home"));
+    // don't add a prefix for SEO, it's already handled here below by the implode() func	
+    $seoComplement = getSEOComplement(array(
+        "addAutoPrefix" => false,
+        "addCategory" => false
+    ));
+    if (!empty($seoComplement)) {
+        array_push($siteTitle, $seoComplement);
+    }
 
-	$metaDescription = $video['id'];
+    $metaDescription = $video['id'];
 } else {
-	array_push($siteTitle, __("Video Not Available"));
-	//array_push($siteTitle, __("Home"));
-	
-	$metaDescription = __("Video Not Available");
+    array_push($siteTitle, __("Video Not Available"));
+    //array_push($siteTitle, __("Home"));
+
+    $metaDescription = __("Video Not Available");
 }
 array_push($siteTitle, $config->getWebSiteTitle());
 $metaDescription .= $config->getPageTitleSeparator();

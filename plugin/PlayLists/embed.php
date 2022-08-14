@@ -25,10 +25,13 @@ $pl = new PlayList($_GET['playlists_id']);
 $playList = PlayList::getVideosFromPlaylist($_GET['playlists_id']);
 
 $playListData = array();
+$playListData_videos_id = array();
 $collectionsList = PlayList::showPlayListSelector($playList);
 $videoStartSeconds = array();
 
 $users_id = User::getId();
+
+$new_playlist_index = 0;
 
 foreach ($playList as $key => $value) {
     $oldValue = $value;
@@ -36,6 +39,10 @@ foreach ($playList as $key => $value) {
     if (!User::isAdmin() && !Video::userGroupAndVideoGroupMatch($users_id, $value['videos_id'])) {
         unset($playList[$key]);
         continue;
+    }
+    
+    if($key == $playlist_index){
+        $new_playlist_index = count($playListData);
     }
 
     if ($oldValue['type'] === 'serie' && !empty($oldValue['serie_playlists_id'])) {
@@ -69,6 +76,7 @@ foreach ($playList as $key => $value) {
             }
 
             $playListData[] = new PlayListElement($value['title'], $value['description'], $value['duration'], $playListSources, $thumbnail, $images->poster, $videoStartSeconds, $value['cre'], $value['likes'], $value['views_count'], $value['videos_id'], "embedPlayList subPlaylistCollection-{$oldValue['serie_playlists_id']}");
+            $playListData_videos_id[] = $value['id'];
         }
     } else {
         $sources = getVideosURL($value['filename']);
@@ -104,6 +112,7 @@ foreach ($playList as $key => $value) {
             $videoStartSeconds = parseDurationToSeconds(@$externalOptions->videoStartSeconds);
         }
         $playListData[] = new PlayListElement($value['title'], $value['description'], $value['duration'], $playListSources, $thumbnail, $images->poster, $videoStartSeconds, $value['cre'], $value['likes'], $value['views_count'], $value['videos_id'], "embedPlayList ", $subtitleTracks);
+        $playListData_videos_id[] = $value['id'];
     }
 }
 
@@ -116,9 +125,10 @@ $title = $pl->getName();
 
 if ($serie = PlayLists::isPlayListASerie($pl->getId())) {
     setVideos_id($serie['id']);
-} else if (!empty($playList[$playlist_index])) {
-    setVideos_id($playList[$playlist_index]['id']);
+} else if (!empty($playListData_videos_id[$new_playlist_index])) {
+    setVideos_id($playListData_videos_id[$new_playlist_index]['id']);
 }
+$_REQUEST['hideAutoplaySwitch'] = 1;
 //var_dump($playListData);exit;
 ?>
 
@@ -136,14 +146,16 @@ if ($serie = PlayLists::isPlayListASerie($pl->getId())) {
         <title><?php echo $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getCDN(); ?>view/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css"/>
 
-        <link href="<?php echo getCDN(); ?>view/js/video.js/video-js.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getCDN(); ?>view/css/social.css" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.css" rel="stylesheet">
 
-        <script src="<?php echo getCDN(); ?>view/js/jquery-3.5.1.min.js" type="text/javascript"></script>
-        <script src="<?php echo getCDN(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+        <script src="<?php echo getURL('node_modules/jquery/dist/jquery.min.js'); ?>" type="text/javascript"></script>
+        <?php
+        include $global['systemRootPath'] . 'view/include/bootstrap.js.php';
+        ?>
 
         <?php
         echo AVideoPlugin::getHeadCode();
@@ -247,34 +259,37 @@ if ($serie = PlayLists::isPlayListASerie($pl->getId())) {
             </div>
         </div>
 
-        <script src="<?php echo getCDN(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+        <?php
+        include $global['systemRootPath'] . 'view/include/bootstrap.js.php';
+        ?>
         <?php
         $jsFiles = array();
         $jsFiles[] = "view/js/BootstrapMenu.min.js";
-        $jsFiles[] = "view/js/seetalert/sweetalert.min.js";
-        $jsFiles[] = "view/js/bootpag/jquery.bootpag.min.js";
-        $jsFiles[] = "view/js/bootgrid/jquery.bootgrid.js";
+        $jsFiles[] = "node_modules/sweetalert/dist/sweetalert.min.js";
+        //$jsFiles[] = "view/js/bootgrid/jquery.bootgrid.js";
         $jsFiles[] = "view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js";
         $jsFiles[] = "view/js/script.js";
-        $jsFiles[] = "view/js/js-cookie/js.cookie.js";
-        $jsFiles[] = "view/css/flagstrap/js/jquery.flagstrap.min.js";
-        $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.min.js";
-        $jsFiles[] = "view/js/jquery.lazy/jquery.lazy.plugins.min.js";
-        $jsFiles[] = "view/js/jquery-ui/jquery-ui.min.js";
-        $jsFiles[] = "view/js/jquery-toast/jquery.toast.min.js";
-        $jsFiles[] = "view/bootstrap/js/bootstrap.min.js";
+        $jsFiles[] = "node_modules/js-cookie/dist/js.cookie.js";
+        //$jsFiles[] = "view/css/flagstrap/js/jquery.flagstrap.min.js";
+        $jsFiles[] = "node_modules/jquery-lazy/jquery.lazy.min.js";
+        $jsFiles[] = "node_modules/jquery-lazy/jquery.lazy.plugins.min.js";
+        $jsFiles[] = "node_modules/jquery-toast-plugin/dist/jquery.toast.min.js";
         ?>
-        <script src="<?php echo getCDN(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+        <?php
+        include $global['systemRootPath'] . 'view/include/bootstrap.js.php';
+        ?>
         <?php
         echo combineFilesHTML($jsFiles);
         include $global['systemRootPath'] . 'view/include/video.min.js.php';
         ?>
+        <script src="<?php echo getURL('node_modules/jquery-ui-dist/jquery-ui.min.js'); ?>" type="text/javascript"></script>
         <script src="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
         <script src="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.js"></script>
         <script>
             var embed_playerPlaylist = <?php echo json_encode($playListData); ?>;
             var originalPlayerPlaylist = embed_playerPlaylist;
             var updatePLSourcesTimeout;
+            var isPlayListPlaying = 0;
             function updatePLSources(_index) {
                 if (_index < 0) {
                     _index = 0;
@@ -293,7 +308,12 @@ if ($serie = PlayLists::isPlayListASerie($pl->getId())) {
 
                     if (typeof embed_playerPlaylist[_index] !== 'undefined') {
                         updatePLSourcesTimeout = setTimeout(function () {
-                            playerPlay(embed_playerPlaylist[_index].videoStartSeconds);
+                            if(!isPlayListPlaying){
+                                playerPlayIfAutoPlay(embed_playerPlaylist[_index].videoStartSeconds);
+                            }else{
+                                playerPlay(embed_playerPlaylist[_index].videoStartSeconds);
+                            }
+                            isPlayListPlaying = 1;
                             if(embed_playerPlaylist[_index].tracks && embed_playerPlaylist[_index].tracks.length){
                                 var _tracks = embed_playerPlaylist[_index].tracks;
                                 setTimeout(function () {
@@ -346,11 +366,11 @@ $str = "
                 updatePLSources(index);
             });
             player.playlistUi();";
-if (!empty($playlist_index)) {
-    $str .= 'player.playlist.currentItem(' . $playlist_index . ');';
+if (!empty($new_playlist_index)) {
+    $str .= 'player.playlist.currentItem(' . $new_playlist_index . ');';
 }
 $str .= "if (typeof embed_playerPlaylist[0] !== 'undefined') {
-                    updatePLSources({$playlist_index});
+                    updatePLSources({$new_playlist_index});
                 }
                 $('.vjs-playlist-item ').click(function () {
                     var index = player.playlist.currentIndex();

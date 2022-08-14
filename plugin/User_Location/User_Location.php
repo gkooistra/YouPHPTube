@@ -86,48 +86,20 @@ class User_Location extends PluginAbstract {
         return str_replace('-', '_', $parts[0]);
     }
 
-    static function setLanguage($lang) {
-        global $global;
-        if (!empty($_SESSION['language'])) {
-            $file = "{$global['systemRootPath']}locale/{$_SESSION['language']}.php";
-            if (file_exists($file)) {
-                include_once $file;
-                return true;
-            }
-        }
-
-        $file = "{$global['systemRootPath']}locale/{$lang}.php";
-        _session_start();
-        if (file_exists($file)) {
-            $_SESSION['language'] = $lang;
-            include_once $file;
-            return true;
-        } else {
-            $lang = strtolower($lang);
-            $file = "{$global['systemRootPath']}locale/{$lang}.php";
-            if (file_exists($file)) {
-                $_SESSION['language'] = $lang;
-                include_once $file;
-                return true;
-            }
-        }
-        return false;
-    }
-
     static function setLanguageFromBrowser() {
-        return self::setLanguage(self::getLanguageFromBrowser());
+        return setLanguage(self::getLanguageFromBrowser());
     }
 
     static function setLanguageFromIP() {
         $User_Location = self::getThisUserLocation();
-        return self::setLanguage($User_Location['country_code']);
+        return setLanguage($User_Location['country_code']);
     }
 
     public function getStart() {
         global $global, $config;
         $obj = $this->getDataObject();
         $User_Location = self::getThisUserLocation();
-        if ($obj->autoChangeLanguage) {
+        if ($obj->autoChangeLanguage && empty($_SESSION['language'])) {
             if ($obj->useLanguageFrom->value == 'browser') {
                 $changed = self::setLanguageFromBrowser();
                 if (!$changed) {
@@ -140,6 +112,7 @@ class User_Location extends PluginAbstract {
                 }
             }
             if (!$changed) {
+                //_error_log('getStart language: got from config ' . $file);
                 $_SESSION['language'] = $config->getLanguage();
             }
         }

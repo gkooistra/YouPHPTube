@@ -1,4 +1,5 @@
 <?php
+global $config,$advancedCustom;
 if (empty($advancedCustom->openEncoderInIFrame) || !isSameDomainAsMyAVideo($config->getEncoderURL())) {
     if (!empty($advancedCustom->encoderNetwork) && empty($advancedCustom->doNotShowEncoderNetwork)) {
         ?>
@@ -34,17 +35,16 @@ if (empty($advancedCustom->openEncoderInIFrame) || !isSameDomainAsMyAVideo($conf
         } else {
             ?>
             <li>
-                <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations" ><span class="fa fa-cogs"></span> <?php echo __("Configure an Encoder URL"); ?></a>
+                <a href="#" onclick="avideoModalIframeFull(webSiteRootURL+'siteConfigurations');return false;" ><span class="fa fa-cogs"></span> <?php echo __("Configure an Encoder URL"); ?></a>
             </li>
             <?php
         }
     }
-}else{
-    
+} else {
     if (!empty($advancedCustom->encoderNetwork) && empty($advancedCustom->doNotShowEncoderNetwork)) {
         ?>
         <li>
-            <a href="<?php echo $global['webSiteRootURL']; ?>i/network"  data-toggle="tooltip" title="<?php echo __("Choose one of our encoders to upload a file or download it from the Internet"); ?>" data-placement="left" >
+            <a href="#" onclick="avideoModalIframeFull(webSiteRootURL+'i/network');return false;" data-toggle="tooltip" title="<?php echo __("Choose one of our encoders to upload a file or download it from the Internet"); ?>" data-placement="left" >
                 <span class="fa fa-cogs"></span> <?php echo empty($advancedCustom->encoderNetworkLabel) ? __("Encoder Network") : __($advancedCustom->encoderNetworkLabel); ?>
             </a>
         </li>
@@ -54,15 +54,15 @@ if (empty($advancedCustom->openEncoderInIFrame) || !isSameDomainAsMyAVideo($conf
         if (!empty($config->getEncoderURL())) {
             ?>
             <li>
-                <a href="<?php echo $global['webSiteRootURL']; ?>i/upload"  data-toggle="tooltip" title="<?php echo __("Upload a file or download it from the Internet"); ?>" data-placement="left" >
-                    <span class="fa fa-cog"></span> <?php echo empty($advancedCustom->encoderButtonLabel) ? __("Encode video and audio") : __($advancedCustom->encoderButtonLabel); ?>
+                <a class="faa-parent animated-hover" href="#" onclick="avideoModalIframeFull(webSiteRootURL+'i/upload');return false;" data-toggle="tooltip" title="<?php echo __("Upload a file or download it from the Internet"); ?>" data-placement="left" >
+                    <span class="fa fa-cog faa-spin"></span> <?php echo empty($advancedCustom->encoderButtonLabel) ? __("Encode video and audio") : __($advancedCustom->encoderButtonLabel); ?>
                 </a>
             </li>
             <?php
         } else {
             ?>
             <li>
-                <a href="<?php echo $global['webSiteRootURL']; ?>siteConfigurations"><span class="fa fa-cogs"></span> <?php echo __("Configure an Encoder URL"); ?></a>
+                <a href="#" onclick="avideoModalIframeFull(webSiteRootURL+'siteConfigurations');return false;"><span class="fa fa-cogs"></span> <?php echo __("Configure an Encoder URL"); ?></a>
             </li>
             <?php
         }

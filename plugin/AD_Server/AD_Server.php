@@ -13,12 +13,12 @@ require_once $global['systemRootPath'] . 'plugin/AD_Server/Objects/VastCampaigns
 class AD_Server extends PluginAbstract {
 
     public function getTags() {
-        return array(
+        return [
             PluginTags::$MONETIZATION,
             PluginTags::$ADS,
             PluginTags::$FREE,
             PluginTags::$PLAYER,
-        );
+        ];
     }
 
     public function getDescription() {
@@ -34,7 +34,7 @@ class AD_Server extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "1.0";
+        return "2.0";
     }
 
     public function getEmptyDataObject() {
@@ -51,7 +51,7 @@ class AD_Server extends PluginAbstract {
         self::addDataObjectHelper('end', 'Show Post-Roll ads');
 
         $o = new stdClass();
-        $o->type = array();
+        $o->type = [];
         for ($i = 0; $i <= 100; $i++) {
             $o->type[$i . '%'] = "The skip button will appear when you watch {$i}% of the video";
         }
@@ -63,7 +63,7 @@ class AD_Server extends PluginAbstract {
         self::addDataObjectHelper('showMarkers', 'Show Markers', 'Check it if you want to show the yellow markers on the video, where the advertising should appear');
 
         $o = new stdClass();
-        $o->type = array(1 => 'Every video');
+        $o->type = [1 => 'Every video'];
         for ($i = 2; $i < 10; $i++) {
             $o->type[$i] = "Show ads on each {$i} videos";
         }
@@ -72,7 +72,7 @@ class AD_Server extends PluginAbstract {
         self::addDataObjectHelper('showAdsOnEachVideoView', 'Show Ads on', 'This defines how often advertisements will appear, for example: if it is set to 2, you will see ads each 2 videos, but if it is set to 1 you will see ads on every video');
 
         $o = new stdClass();
-        $o->type = array(0 => 'All positions');
+        $o->type = [0 => 'All positions'];
         for ($i = 1; $i < 5; $i++) {
             $o->type[$i] = "Show ads on {$i} random positions";
         }
@@ -80,12 +80,10 @@ class AD_Server extends PluginAbstract {
         $obj->showAdsOnRandomPositions = $o;
         self::addDataObjectHelper('showAdsOnRandomPositions', 'Show Ads On Positions', 'This will pick random positions to display the ads, but it will pic only the positions you have checked above. For example, if you want to have 2 random positions, but do not want to have videos on the start position, you must uncheck the start video position checkbox;');
 
-
-
         $o = new stdClass();
-        $o->type = array(0 => 'Do not auto add new videos on campaign');
+        $o->type = [0 => 'Do not auto add new videos on campaign'];
         $rows = VastCampaigns::getAllActive();
-        if(!is_array($rows)){
+        if (!is_array($rows)) {
             $o->value = 0;
             $obj->autoAddNewVideosInCampaignId = $o;
             return $obj;
@@ -100,33 +98,38 @@ class AD_Server extends PluginAbstract {
         return $obj;
     }
 
-    public function afterNewVideo($videos_id) {
-        _error_log("AD_Server:afterNewVideo start");
-        $obj = $this->getDataObject();
-        if (!empty($obj->autoAddNewVideosInCampaignId)) {
-            $vc = new VastCampaigns($obj->autoAddNewVideosInCampaignId);
+    static function addVideoIdIntoCampaignId($videos_id, $vast_campaigns_id) {
+        if (!empty($vast_campaigns_id)) {
+            $vc = new VastCampaigns($vast_campaigns_id);
             if (!empty($vc->getName())) {
                 $video = new Video("", "", $videos_id);
-                if (!empty($video->getTitle()) && !empty($obj->autoAddNewVideosInCampaignId)) {
+                if (!empty($video->getTitle()) && !empty($vast_campaigns_id)) {
                     _error_log("AD_Server:afterNewVideo saving");
                     $o = new VastCampaignsVideos(0);
-                    $o->setVast_campaigns_id($obj->autoAddNewVideosInCampaignId);
+                    $o->setVast_campaigns_id($vast_campaigns_id);
                     $o->setVideos_id($videos_id);
                     $o->setLink("");
                     $o->setAd_title($video->getTitle());
                     $o->setStatus('a');
                     $id = $o->save();
-                    _error_log("AD_Server:afterNewVideo saved {$id}");
+                    _error_log("AD_Server:addVideoIdIntoCampaignId saved {$id}");
+                    return $id;
                 } else {
-                    _error_log("AD_Server:afterNewVideo videos_id NOT found {$videos_id}");
+                    _error_log("AD_Server:addVideoIdIntoCampaignId videos_id NOT found {$videos_id}");
                 }
             } else {
-                _error_log("AD_Server:afterNewVideo autoAddNewVideosInCampaignId NOT found {$obj->autoAddNewVideosInCampaignId}");
+                _error_log("AD_Server:addVideoIdIntoCampaignId autoAddNewVideosInCampaignId NOT found " . json_encode($obj->autoAddNewVideosInCampaignId));
             }
         } else {
-            _error_log("AD_Server:afterNewVideo is disabled");
+            _error_log("AD_Server:addVideoIdIntoCampaignId is disabled");
         }
-        return true;
+        return false;
+    }
+
+    public function afterNewVideo($videos_id) {
+        _error_log("AD_Server:afterNewVideo start");
+        $obj = $this->getDataObject();
+        return self::addVideoIdIntoCampaignId($videos_id, @$obj->autoAddNewVideosInCampaignId->value);
     }
 
     public function canLoadAds() {
@@ -169,12 +172,9 @@ class AD_Server extends PluginAbstract {
         global $global;
         $_GET['vmap_id'] = session_id();
 
-        $css = '<link href="' . getCDN() . 'js/videojs-contrib-ads/videojs.ads.css" rel="stylesheet" type="text/css"/>'
-                . '<link href="' . getCDN() . 'plugin/AD_Server/videojs-ima/videojs.ima.css" rel="stylesheet" type="text/css"/>';
+        $css = '<link href="' . getURL('node_modules/videojs-contrib-ads/dist/videojs.ads.css') . '" rel="stylesheet" type="text/css"/>'
+                . '<link href="' . getURL('node_modules/videojs-ima/dist/videojs.ima.css') . '" rel="stylesheet" type="text/css"/>';
 
-        if (!empty($obj->showMarkers)) {
-            $css .= '<link href="' . getCDN() . 'plugin/AD_Server/videojs-markers/videojs.markers.css" rel="stylesheet" type="text/css"/>';
-        }
         $css .= '<style>.ima-ad-container{z-index:1000 !important;}</style>';
         return $css;
     }
@@ -190,7 +190,7 @@ class AD_Server extends PluginAbstract {
         return $video_length;
     }
 
-    static function getVMAPSFromRequest() {
+    public static function getVMAPSFromRequest() {
         if (!empty($_REQUEST['vmaps'])) {
             $vmaps = _json_decode(base64_decode($_REQUEST['vmaps']));
         } else {
@@ -201,7 +201,7 @@ class AD_Server extends PluginAbstract {
         return object_to_array($vmaps);
     }
 
-    static function addVMAPS($url, $vmaps) {
+    public static function addVMAPS($url, $vmaps) {
         if (empty($vmaps)) {
             $vmaps = self::getVMAPSFromRequest();
         }
@@ -211,13 +211,15 @@ class AD_Server extends PluginAbstract {
     }
 
     public function afterVideoJS() {
-
         $obj = $this->getDataObject();
-        if (!$this->canLoadAds() || empty($_GET['vmap_id'])) {
-            return "";
+        if (!$this->canLoadAds()) {
+            return "<!-- AD_Server canNOTLoadAds -->";
+        }
+        if (empty($_GET['vmap_id'])) {
+            return "<!-- AD_Server empty vmap_id -->";
         }
         global $global;
-        $vmap_id = @$_GET['vmap_id'];
+        $vmap_id = $_GET['vmap_id'] ?? '';
         $vmaps = self::getVMAPSFromRequest();
         $video_length = self::getVideoLength();
         $vmapURL = "{$global['webSiteRootURL']}plugin/AD_Server/VMAP.php";
@@ -227,49 +229,30 @@ class AD_Server extends PluginAbstract {
         $vmapURL = self::addVMAPS($vmapURL, $vmaps);
         //var_dump($vmapURL, $vmaps);exit;
         PlayerSkins::setIMAADTag($vmapURL);
-        $onPlayerReady = "";
 
         if (!empty($obj->showMarkers)) {
-            $onPlayerReady .= "
-                    player.markers({
-                        markerStyle: {
-                            'width': '5px',
-                            'background-color': 'yellow'
-                        },
-                        markerTip: {
-                            display: true,
-                            text: function (marker) {
-                                return marker.text;
-                            }
-                        },
-                        markers: [";
+            $rows = array();
             foreach ($vmaps as $value) {
                 $vastCampaingVideos = new VastCampaignsVideos($value['VAST']['campaing']);
                 $video = new Video("", "", $vastCampaingVideos->getVideos_id());
-                if(!empty($video_length) && $value['timeOffsetSeconds'] >= $video_length){
-                    $value['timeOffsetSeconds'] = $video_length-5;
+                if (!empty($video_length) && $value['timeOffsetSeconds'] >= $video_length) {
+                    $value['timeOffsetSeconds'] = $video_length - 5;
                 }
-                
-                $onPlayerReady .= "{time: {$value['timeOffsetSeconds']}, text: \"" . addcslashes($video->getTitle(), '"') . "\"},";
+                $rows[] = array('timeInSeconds' => $value['timeOffsetSeconds'], 'name' => $video->getTitle());
             }
-            $onPlayerReady .= "]});";
+
+            PlayerSkins::createMarker($rows);
         }
 
-
-        PlayerSkins::getStartPlayerJS($onPlayerReady);
         $js = '';
         $js .= '<script src="//imasdk.googleapis.com/js/sdkloader/ima3.js"></script>';
-        $js .= '<script src="' . getCDN() . 'js/videojs-contrib-ads/videojs.ads.js" type="text/javascript"></script>';
-        $js .= '<script src="' . getCDN() . 'plugin/AD_Server/videojs-ima/videojs.ima.js" type="text/javascript"></script>';
+        $js .= '<script src="' . getURL('node_modules/videojs-contrib-ads/dist/videojs.ads.min.js') . '" type="text/javascript"></script>';
+        $js .= '<script src="' . getURL('node_modules/videojs-ima/dist/videojs.ima.min.js') . '" type="text/javascript"></script>';
 
-        if (!empty($obj->showMarkers)) {
-            $js .= '<script src="' . getCDN() . 'plugin/AD_Server/videojs-markers/videojs-markers.js"></script>';
-        }
         return $js;
     }
 
     private function getRandomPositions() {
-
         if (empty($_GET['vmap_id'])) {
             return "";
         }
@@ -282,7 +265,7 @@ class AD_Server extends PluginAbstract {
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }
-        $options = array();
+        $options = [];
 
         if (!empty($obj->start)) {
             $options[] = 1;
@@ -300,10 +283,9 @@ class AD_Server extends PluginAbstract {
             $options[] = 5;
         }
 
-        $selectedOptions = array();
+        $selectedOptions = [];
         if (empty($_SESSION['lastAdRandomPositions']) || $_SESSION['lastAdRandomPositions'] + 20 <= time()) {
             $_SESSION['lastAdRandomPositions'] = time();
-
 
             if (empty($obj->showAdsOnRandomPositions->value)) {
                 $selectedOptions = $options;
@@ -328,7 +310,7 @@ class AD_Server extends PluginAbstract {
     }
 
     public function getVMAPs($video_length) {
-        $vmaps = array();
+        $vmaps = [];
 
         $obj = $this->getDataObject();
 
@@ -373,26 +355,26 @@ class AD_Server extends PluginAbstract {
         }
     }
 
-    static public function getVideos() {
+    public static function getVideos() {
         $campaings = VastCampaigns::getValidCampaigns();
         //var_dump($campaings);
-        $videos = array();
+        $videos = [];
         foreach ($campaings as $key => $value) {
             $v = VastCampaignsVideos::getValidVideos($value['id']);
             $videos = array_merge($videos, $v);
             $campaings[$key]['videos'] = $v;
         }
-        return array('campaigns' => $campaings, 'videos' => $videos);
+        return ['campaigns' => $campaings, 'videos' => $videos];
     }
 
-    static public function getRandomVideo() {
+    public static function getRandomVideo() {
         $result = static::getVideos();
         $videos = $result['videos'];
         shuffle($videos);
         return array_pop($videos);
     }
 
-    static public function getRandomCampaign() {
+    public static function getRandomCampaign() {
         $result = static::getVideos();
         $campaing = $result['campaigns'];
         shuffle($campaing);
@@ -409,6 +391,19 @@ class AD_Server extends PluginAbstract {
         return VastCampaigns::getValidCampaignsFromVideo($videos_id);
     }
 
+    public function onNewVideo($videos_id) {
+        if (!empty($_REQUEST['return_vars'])) {
+            $json = json_decode($_REQUEST['return_vars']);
+            if (!empty($json) && !empty($json->callback)) {
+                $callback = json_decode(base64_decode($json->callback));
+                if (!empty($callback) && !empty($callback->vast_campaigns_id)) {
+                    return self::addVideoIdIntoCampaignId($videos_id, $callback->vast_campaigns_id);
+                }
+            }
+        }
+        return false;
+    }
+
 }
 
 class VMAP {
@@ -418,10 +413,10 @@ class VMAP {
     public $VAST;
     public $idTag = "preroll-ad";
 
-    function __construct($time, VAST $VAST, $video_length = 0) {
+    public function __construct($time, VAST $VAST, $video_length = 0) {
         if ($time === 'start') {
             $this->timeOffsetSeconds = 0;
-        } else if ($time === 'end') {
+        } elseif ($time === 'end') {
             $this->timeOffsetSeconds = $video_length;
         } else {
             $this->timeOffsetSeconds = $time;
@@ -430,16 +425,16 @@ class VMAP {
         $this->setTimeOffset($time);
     }
 
-    function setTimeOffset($time) {
+    public function setTimeOffset($time) {
         if (empty($time)) {
             //$time = "start";
         }
-        // if is longer then the video lenght will be END
+        // if is longer then the video length will be END
         if (empty($time) || $time == "start") {
             $this->idTag = "preroll-ad-" . $this->VAST->id;
-        } else if ($time == "end") {
+        } elseif ($time == "end") {
             $this->idTag = "postroll-ad-" . $this->VAST->id;
-        } else if (is_numeric($time)) {
+        } elseif (is_numeric($time)) {
             $time = $this->format($time);
             $this->idTag = "midroll-" . $this->VAST->id;
         }
@@ -461,7 +456,7 @@ class VAST {
     public $id;
     public $campaing;
 
-    function __construct($id) {
+    public function __construct($id) {
         $this->id = $id;
         $row = AD_Server::getRandomVideo();
         if (!empty($row)) {

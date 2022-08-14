@@ -1,6 +1,6 @@
 <?php
 $uuids = AVideoPlugin::getPluginsOnByDefault();
-$rowId = array();
+$rowId = [];
 foreach ($uuids as $value) {
     $rowId[] = " row.uuid != '{$value}' ";
 }
@@ -61,9 +61,9 @@ $uuidJSCondition = implode(" && ", $rowId);
                             $staticProperties = $class->getStaticProperties();
                             foreach ($staticProperties as $key => $value) {
                                 ?>
-                                <button class="label label-<?php echo $value[0]; ?> unchecked PluginTags" 
-                                        id="PluginTags<?php echo $value[3]; ?>" 
-                                        pluginTag="<?php echo $value[3]; ?>" 
+                                <button class="label label-<?php echo $value[0]; ?> unchecked PluginTags"
+                                        id="PluginTags<?php echo $value[3]; ?>"
+                                        pluginTag="<?php echo $value[3]; ?>"
                                         onclick="PluginTagsToggle('<?php echo $value[3]; ?>')"
                                         data-toggle="tooltip" title="<?php echo __($value[1]); ?>">
                                     <?php echo $value[2]; ?> <span class="hidden-md hidden-sm hidden-xs"><?php echo __($value[1]); ?></span>
@@ -141,7 +141,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                                     ?>
                                     <div class="alert alert-danger">
                                         <?php echo __("You need to make the plugin dir writable before upload, run this command and refresh this page"); ?>
-                                        <pre><code>chown www-data:www-data <?php echo $dir; ?> && chmod 755 <?php echo $dir; ?></code></pre>
+                                        <pre><code>sudo chown www-data:www-data <?php echo $dir; ?> && sudo chmod 755 <?php echo $dir; ?></code></pre>
                                     </div>
                                     <?php
                                 }
@@ -185,7 +185,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                         </table>
                     </div>
                     <div class="panel-footer">
-                        <a href="https://youphp.tube/plugins/?tab=plugin" class="btn btn-success btn-xs" role="button"><i class="fa fa-cart-plus"></i> <?php echo __("Buy This Plugin"); ?> </a>
+                        <a href="https://youphp.tube/marketplace/?tab=plugin" class="btn btn-success btn-xs" role="button"><i class="fa fa-cart-plus"></i> <?php echo __("Buy This Plugin"); ?> </a>
                     </div>
                 </div>
             </li>
@@ -441,7 +441,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                     return  editBtn + sqlBtn + menu;
                 },
                 "name": function (column, row) {
-                    var checked = "";
+                    var checked = '';
                     var switchBtn = '';
                     if (<?php echo $uuidJSCondition; ?>) {
                         if(row.isPluginTablesInstalled || !row.databaseScript || (row.hasOwnProperty("installedPlugin") && row.installedPlugin.hasOwnProperty("pluginversion"))){
@@ -450,7 +450,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                             }
                             switchBtn = '<div class="material-small material-switch pull-left"><input name="enable' + row.uuid + '" id="enable' + row.uuid + '" type="checkbox" value="0" class="pluginSwitch" ' + checked + ' /><label for="enable' + row.uuid + '" class="label-success"></label></div>';
                         }
-                        
+
                     } else {
                         if (!row.enabled) {
                             $.ajax({
@@ -483,7 +483,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                         }
                     }
                     if (row.hasOwnProperty("permissions") && row.permissions.length) {
-                        var disabled = "";
+                        var disabled = '';
                         if (!row.isPluginTablesInstalled) {
                             disabled = ' disabled="disabled" ';
                         }
@@ -524,7 +524,7 @@ $uuidJSCondition = implode(" && ", $rowId);
         }).on("loaded.rs.jquery.bootgrid", function () {
             $('[data-toggle="tooltip"], .tooltip').tooltip("hide");
             setTimeout(function(){
-                $('[data-toggle="tooltip"]').tooltip({container: 'body'});
+                $('[data-toggle="tooltip"]').tooltip({container: 'body',html:true});
             },500);
             /* Executes after data is loaded and rendered */
             grid.find(".pluginSwitch").on("change", function (e) {
@@ -564,7 +564,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                     type: 'post',
                     success: function (response) {
                         if(response.error){
-                            avideoAlertError(response.msg) ;                               
+                            avideoAlertError(response.msg) ;
                         }else{
                             $("#grid").bootgrid('reload');
                         }

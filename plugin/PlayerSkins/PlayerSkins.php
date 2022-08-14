@@ -4,7 +4,9 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 
 class PlayerSkins extends PluginAbstract {
-    
+
+    static public $hasMarks = false;
+
     public function getTags() {
         return array(
             PluginTags::$FREE,
@@ -61,6 +63,7 @@ class PlayerSkins extends PluginAbstract {
         $obj->contextMenuCopyEmbedCode = true;
         $obj->contextMenuShare = true;
         $obj->playerFullHeight = false;
+
         return $obj;
     }
 
@@ -109,7 +112,7 @@ class PlayerSkins extends PluginAbstract {
                  * 
                  */
                 $htmlMediaTag .= '<p>' . __("If you can't view this video, your browser does not support HTML5 videos") . '</p><p class="vjs-no-js">' . __("To view this video please enable JavaScript, and consider upgrading to a web browser that") . '<a href="http://videojs.com/html5-video-support/" target="_blank" rel="noopener noreferrer">supports HTML5 video</a></p></video>';
-            } else if ($vType == 'audio') {               
+            } else if ($vType == 'audio') {
                 $htmlMediaTag = '<audio playsinline webkit-playsinline="webkit-playsinline" 
                        preload="auto"
                        poster="' . $images->poster . '" controls class="embed-responsive-item video-js vjs-default-skin vjs-16-9 vjs-big-play-centered" id="mainVideo">';
@@ -140,7 +143,7 @@ class PlayerSkins extends PluginAbstract {
                     }
                     $htmlMediaTag = "<!-- Embed Link {$video['title']} {$video['filename']} -->";
                     $htmlMediaTag .= '<video playsinline webkit-playsinline="webkit-playsinline"  id="mainVideo" style="display: none; height: 0;width: 0;" ></video>';
-                    $htmlMediaTag .= '<div id="main-video" class="embed-responsive embed-responsive-16by9">';
+                    $htmlMediaTag .= '<div id="main-video" class="embed-responsive-item">';
                     $htmlMediaTag .= '<iframe class="embed-responsive-item" scrolling="no" allowfullscreen="true" src="' . $url . '"></iframe>';
                     $htmlMediaTag .= '<script>$(document).ready(function () {addView(' . $video['id'] . ', 0);});</script>';
                     $htmlMediaTag .= '</div>';
@@ -209,6 +212,7 @@ class PlayerSkins extends PluginAbstract {
         $obj = $this->getDataObject();
         $css = "";
         $js = "";
+        $js .= "<script>var _adWasPlayed = 0;</script>";
         if (isLive()) {
             $js .= "<script>var isLive = true;</script>";
         }
@@ -258,15 +262,18 @@ class PlayerSkins extends PluginAbstract {
             if ($obj->showShareSocial && CustomizeUser::canShareVideosFromVideo(@$video['id'])) {
                 $css .= "<link href=\"" . getURL('plugin/PlayerSkins/shareButton.css') . "\" rel=\"stylesheet\" type=\"text/css\"/>";
             }
-            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay)) {
+            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay) && empty($_REQUEST['hideAutoplaySwitch'])) {
                 $css .= "<link href=\"" . getURL('plugin/PlayerSkins/autoplayButton.css') . "\" rel=\"stylesheet\" type=\"text/css\"/>";
             }
+        }
+        $videos_id = getVideos_id();
+        if (!empty($videos_id) && Video::getEPG($videos_id)) {
+            $css .= "<link href=\"" . getURL('plugin/PlayerSkins/epgButton.css') . "\" rel=\"stylesheet\" type=\"text/css\"/>";
         }
 
         $url = urlencode(getSelfURI());
         $oembed = '<link href="' . getCDN() . 'oembed/?format=json&url=' . $url . '" rel="alternate" type="application/json+oembed" />';
         $oembed .= '<link href="' . getCDN() . 'oembed/?format=xml&url=' . $url . '" rel="alternate" type="application/xml+oembed" />';
-
 
         return $js . $css . $oembed;
     }
@@ -284,7 +291,7 @@ class PlayerSkins extends PluginAbstract {
             }
             if ($obj->showLogoOnEmbed && isEmbed() || $obj->showLogo) {
                 $title = $config->getWebSiteTitle();
-                $url = "{$global['webSiteRootURL']}{$config->getLogo(true)}";
+                //$url = "{$global['webSiteRootURL']}{$config->getLogo(true)}";
                 $js .= "<script>var PlayerSkinLogoTitle = '{$title}';</script>";
                 PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayerSkins/logo.js"));
                 //$js .= "<script src=\"".getCDN()."plugin/PlayerSkins/logo.js\"></script>";
@@ -298,8 +305,25 @@ class PlayerSkins extends PluginAbstract {
                 $js .= "<script>function tooglePlayersocial(){showSharing{$social['id']}();}</script>";
             }
 
-            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay)) {
+            if ($obj->showShareAutoplay && isVideoPlayerHasProgressBar() && empty($obj->forceAlwaysAutoplay) && empty($_REQUEST['hideAutoplaySwitch'])) {
                 PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayerSkins/autoplayButton.js"));
+            } else {
+                if ($obj->showShareAutoplay) {
+                    $js .= "<!-- PlayerSkins showShareAutoplay -->";
+                }
+                if (isVideoPlayerHasProgressBar()) {
+                    $js .= "<!-- PlayerSkins isVideoPlayerHasProgressBar -->";
+                }
+                if (empty($obj->forceAlwaysAutoplay)) {
+                    $js .= "<!-- PlayerSkins empty(\$obj->forceAlwaysAutoplay) -->";
+                }
+                if (empty($_REQUEST['hideAutoplaySwitch'])) {
+                    $js .= "<!-- PlayerSkins empty(\$_REQUEST['hideAutoplaySwitch']) -->";
+                }
+            }
+            $videos_id = getVideos_id();
+            if (!empty($videos_id) && Video::getEPG($videos_id)) {
+                PlayerSkins::getStartPlayerJS(file_get_contents("{$global['systemRootPath']}plugin/PlayerSkins/epgButton.js"));
             }
         }
         if (isAudio()) {
@@ -311,9 +335,17 @@ class PlayerSkins extends PluginAbstract {
                 self::prepareStartPlayerJS($onPlayerReady);
             }
         }
-        if (!empty($getStartPlayerJSWasRequested) || isVideo()) {
-            $js .= "<script src=\"" . getCDN() . "view/js/videojs-persistvolume/videojs.persistvolume.js\"></script>";
+        if (empty($global['doNotLoadPlayer']) && !empty($getStartPlayerJSWasRequested) || isVideo()) {
+            $js .= "<script src=\"" . getURL('view/js/videojs-persistvolume/videojs.persistvolume.js') . "\"></script>";
             $js .= "<script>" . self::getStartPlayerJSCode() . "</script>";
+        }
+
+        include $global['systemRootPath'] . 'plugin/PlayerSkins/mediaSession.php';
+        PlayerSkins::addOnPlayerReady('if(typeof updateMediaSessionMetadata === "function"){updateMediaSessionMetadata();}');
+
+        if (self::$hasMarks) {
+            $js .= '<link href="' . getURL('plugin/AD_Server/videojs-markers/videojs.markers.css') . '" rel="stylesheet" type="text/css"/>';
+            $js .= '<script src="' . getURL('plugin/AD_Server/videojs-markers/videojs-markers.js') . '"></script>';
         }
 
         return $js;
@@ -325,6 +357,7 @@ class PlayerSkins extends PluginAbstract {
 
         $dataSetup = array();
 
+        //$dataSetup[] = "inactivityTimeout: 0";
         $dataSetup[] = "errorDisplay: false";
         if (isVideoPlayerHasProgressBar() && !empty($obj->playbackRates)) {
             $dataSetup[] = "'playbackRates':{$obj->playbackRates}";
@@ -377,7 +410,7 @@ class PlayerSkins extends PluginAbstract {
         if (empty($currentTime) && isVideoPlayerHasProgressBar()) {
             $currentTime = self::getCurrentTime();
         }
-        
+
         if (!empty($global['doNotLoadPlayer'])) {
             return '';
         }
@@ -397,11 +430,21 @@ class PlayerSkins extends PluginAbstract {
         $js .= "
         originalVideo = $('#mainVideo').clone();
         /* prepareStartPlayerJS_onPlayerReady = " . count($prepareStartPlayerJS_onPlayerReady) . ", prepareStartPlayerJS_getDataSetup = " . count($prepareStartPlayerJS_getDataSetup) . " */
-        if (typeof player === 'undefined') {
+        if (typeof player === 'undefined' && $('#mainVideo').length) {
             player = videojs('mainVideo'" . (self::getDataSetup(implode(" ", $prepareStartPlayerJS_getDataSetup))) . ");
             ";
         if (!empty($IMAADTag) && isVideoPlayerHasProgressBar()) {
-            $js .= "adTagOptions = {id: 'mainVideo', adTagUrl: '{$IMAADTag}', autoPlayAdBreaks:false}; player.ima(adTagOptions);";
+            $js .= "adTagOptions = {"
+                    . "id: 'mainVideo', "
+                    . "adTagUrl: '{$IMAADTag}', "
+                    . "debug: true, "
+                    . "/*useStyledLinearAds: false,*/"
+                    . "/*useStyledNonLinearAds: true,*/"
+                    . "forceNonLinearFullSlot: true, "
+                    . "/*adLabel: 'Advertisement',*/ "
+                    . "/*autoPlayAdBreaks:false,*/"
+                    . "}; "
+                    . "player.ima(adTagOptions);";
             $js .= "setInterval(function(){ fixAdSize(); }, 300);
                 // first time it's clicked.
                 var startEvent = 'click';";
@@ -425,31 +468,62 @@ class PlayerSkins extends PluginAbstract {
 
             $js .= "
                 player.on('adsready', function () {
-                    console.log('reloadAds adIsReady ');
-                    player.ima.setAdBreakReadyListener(function() {console.log('Ads playAdBreak()');player.ima.playAdBreak();});
+                    console.log('adsready');
+                        player.ima.setAdBreakReadyListener(function(e) {
+                            if(!_adWasPlayed){
+                                console.log('ADs !_adWasPlayed player.ima.playAdBreak();',e);
+                                //player.ima.requestAds();
+                                player.on('play', function () {
+                                    if(!_adWasPlayed){
+                                        player.ima.playAdBreak();
+                                        _adWasPlayed = 1;
+                                    }
+                                });
+                            }else{
+                                console.log('ADs _adWasPlayed player.ima.playAdBreak();',e);
+                                player.ima.playAdBreak();
+                            }
+                        });
                 });player.on('ads-ad-started', function () {
                     console.log('ads-ad-started');
                 });player.on('ads-manager', function (a) {
                     console.log('ads-manager', a);
-                });player.on('ads-manager', function (a) {
+                });player.on('ads-loader', function (a) {
                     console.log('ads-loader', a);
-                });player.on('ads-manager', function (a) {
+                });player.on('ads-request', function (a) {
                     console.log('ads-request', a);
                 });player.one(startEvent, function () {player.ima.initializeAdDisplayContainer();});";
         }
 
         $js .= "}
         player.ready(function () {";
+
+        $js .= "player.on('error', () => {
+            AvideoJSError(player.error().code);
+        });";
+
+        // this is here because for some reason videos on the storage only works if it loads dinamically on android devices only
+        if (isMobile()) {
+            $js .= "player.src(player.currentSources());";
+        }
+        if (empty($_REQUEST['mute'])) {
+            $play = "playerPlayIfAutoPlay({$currentTime});";
+
+            $js .= "
+            player.persistvolume({
+                namespace: 'AVideo'
+            });";
+        } else {
+            $play = "player.volume(0);player.muted(true);playerPlayMutedIfAutoPlay({$currentTime});";
+        }
+
         $js .= "var err = this.error();
             if (err && err.code) {
                 $('.vjs-error-display').hide();
                 $('#mainVideo').find('.vjs-poster').css({'background-image': 'url({$global['webSiteRootURL']}plugin/Live/view/Offline.jpg)'});
             }
             " . implode(PHP_EOL, $prepareStartPlayerJS_onPlayerReady) . "
-            playerPlayIfAutoPlay({$currentTime});
-        });
-        player.persistvolume({
-            namespace: 'AVideo'
+            {$play}
         });";
 
         if ($obj->showLoopButton && isVideoPlayerHasProgressBar()) {
@@ -474,10 +548,10 @@ class PlayerSkins extends PluginAbstract {
             $videos_id = getVideos_id();
             if (!empty($videos_id)) {
                 $video = Video::getVideoLight($videos_id);
-                $progress = Video::getVideoPogressPercent($videos_id); 
+                $progress = Video::getVideoPogressPercent($videos_id);
                 if (!empty($progress) && !empty($progress['lastVideoTime'])) {
                     $currentTime = intval($progress['lastVideoTime']);
-                } else if (!empty($video['externalOptions'])) {                    
+                } else if (!empty($video['externalOptions'])) {
                     $json = _json_decode($video['externalOptions']);
                     if (!empty($json->videoStartSeconds)) {
                         $currentTime = intval(parseDurationToSeconds($json->videoStartSeconds));
@@ -539,8 +613,11 @@ class PlayerSkins extends PluginAbstract {
             url += '?t=' + time;
             }
             $('#linkCurrentTime, .linkCurrentTime').val(url);
-            if (time >= 5 && time % 5 === 0) {
+            if (time >= 5 && time % 1 === 0) {
                 addView({$videos_id}, time);
+            }else{
+                addViewFromCookie();
+                addViewSetCookie(PHPSESSID, {$videos_id}, time, seconds_watching_video);
             }
         });
         player.on('ended', function () {
@@ -615,6 +692,63 @@ class PlayerSkins extends PluginAbstract {
             ObjectYPT::setCache($name, $tags);
         }
         return array($tags);
+    }
+
+    /**
+     * 
+     * @param type $markersList array(array('timeInSeconds'=>10,'name'=>'abc'),array('timeInSeconds'=>20,'name'=>'abc20'),array('timeInSeconds'=>25,'name'=>'abc25')....);
+     * @param type $width
+     * @param type $color
+     */
+    public static function createMarker($markersList, $width = 10, $color = 'yellow') {
+        global $global;
+
+        $bt = debug_backtrace();
+        $file = str_replace($global['systemRootPath'], '', $bt[0]['file']);
+
+        $onPlayerReady .= " /* {$file} */
+                player.markers({markerStyle: {
+                    'width': '{$width}px',
+                    'background-color': '{$color}'
+                },
+                markerTip: {
+                    display: true,
+                    text: function (marker) {
+                        return marker.text;
+                    }
+                },
+                markers: ";
+        $markers = array();
+        $addedSomething = false;
+        foreach ($markersList as $value) {
+            $obj = new stdClass();
+            $obj->time = $value['timeInSeconds'];
+            $obj->text = $value['name'];
+            if (empty($obj->text)) {
+                continue;
+            }
+            $addedSomething = true;
+            $markers[] = $obj;
+        }
+
+        $onPlayerReady .= json_encode($markers);
+        $onPlayerReady .= "});";
+        if ($addedSomething) {
+            self::$hasMarks = true;
+            PlayerSkins::getStartPlayerJS($onPlayerReady);
+        }
+    }
+    
+    
+    
+    public function getWatchActionButton($videos_id) {
+        global $global, $video;
+        include $global['systemRootPath'] . 'plugin/PlayerSkins/actionButton.php';
+    }
+    
+    public function getGalleryActionButton($videos_id) {
+        global $global;
+        include $global['systemRootPath'] . 'plugin/PlayerSkins/actionButtonGallery.php';
     }
 
 }

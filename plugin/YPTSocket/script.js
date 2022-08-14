@@ -2,32 +2,56 @@ var socketConnectRequested = 0;
 var totalDevicesOnline = 0;
 var yptSocketResponse;
 
+var socketResourceId;
 var socketConnectTimeout;
+;
+var users_id_online = [];
 function socketConnect() {
     if (socketConnectRequested) {
+        console.log('socketConnect: already requested');
         return false;
     }
     clearTimeout(socketConnectTimeout);
+    if (!isOnline()) {
+        console.log('socketConnect: Not Online');
+        socketConnectRequested = 0;
+        socketConnectTimeout = setTimeout(function () {
+            socketConnect();
+        }, 1000);
+        return false;
+    }
+
     socketConnectRequested = 1;
     var url = addGetParam(webSocketURL, 'page_title', $('<textarea />').html($(document).find("title").text()).text());
     //console.log('Trying to reconnect on socket... ');
-    conn = new WebSocket(url);    
+    if (!isValidURL(url)) {
+        socketConnectRequested = 0;
+        console.log("socketConnect: Invalid URL ", url);
+        socketConnectTimeout = setTimeout(function () {
+            socketConnect();
+        }, 30000);
+        return false;
+    }
+    conn = new WebSocket(url);
     setSocketIconStatus('loading');
     conn.onopen = function (e) {
+        socketConnectRequested = 0;
         clearTimeout(socketConnectTimeout);
-        console.log("Socket onopen");
+        console.log("socketConnect: Socket onopen");
         onSocketOpen();
         return false;
     };
     conn.onmessage = function (e) {
         var json = JSON.parse(e.data);
+        consolelog("Socket onmessage conn.onmessage", json);
+        socketResourceId = json.resourceId;
         yptSocketResponse = json;
         parseSocketResponse();
         if (json.type == webSocketTypes.ON_VIDEO_MSG) {
             console.log("Socket onmessage ON_VIDEO_MSG", json);
             $('.videoUsersOnline, .videoUsersOnline_' + json.videos_id).text(json.total);
         }
-        if (json.type == webSocketTypes.ON_LIVE_MSG) {
+        if (json.type == webSocketTypes.ON_LIVE_MSG && typeof json.is_live !== 'undefined') {
             console.log("Socket onmessage ON_LIVE_MSG", json);
             var selector = '#liveViewStatusID_' + json.live_key.key + '_' + json.live_key.live_servers_id;
             if (json.is_live) {
@@ -49,7 +73,7 @@ function socketConnect() {
         } else {
             var myfunc;
             if (json.callback) {
-                console.log("Socket onmessage json.callback", json.callback);
+                console.log("Socket onmessage json.callback ", json.resourceId, json.callback);
                 var code = "if(typeof " + json.callback + " == 'function'){myfunc = " + json.callback + ";}else{myfunc = defaultCallback;}";
                 //console.log(code);
                 eval(code);
@@ -68,7 +92,6 @@ function socketConnect() {
         }, 15000);
         onSocketClose();
     };
-
     conn.onerror = function (err) {
         socketConnectRequested = 0;
         console.error('Socket encountered error: ', err, 'Closing socket');
@@ -84,17 +107,17 @@ function onSocketClose() {
     setSocketIconStatus('disconnected');
 }
 
-function setSocketIconStatus(status){
+function setSocketIconStatus(status) {
     var selector = '.socket_info';
-    if(status=='connected'){
+    if (status == 'connected') {
         $(selector).removeClass('socket_loading');
         $(selector).removeClass('socket_disconnected');
         $(selector).addClass('socket_connected');
-    }else if(status=='disconnected'){
+    } else if (status == 'disconnected') {
         $(selector).removeClass('socket_loading');
         $(selector).addClass('socket_disconnected');
         $(selector).removeClass('socket_connected');
-    }else{
+    } else {
         $(selector).addClass('socket_loading');
         $(selector).removeClass('socket_disconnected');
         $(selector).removeClass('socket_connected');
@@ -120,8 +143,30 @@ function sendSocketMessageToUser(msg, callback, to_users_id) {
     }
 }
 
+function sendSocketMessageToUser(msg, callback, to_users_id) {
+    if (conn.readyState === 1) {
+        conn.send(JSON.stringify({msg: msg, webSocketToken: webSocketToken, callback: callback, to_users_id: to_users_id}));
+    } else {
+        console.log('Socket not ready send message in 1 second');
+        setTimeout(function () {
+            sendSocketMessageToUser(msg, to_users_id, callback);
+        }, 1000);
+    }
+}
+
+function sendSocketMessageToResourceId(msg, callback, resourceId) {
+    if (conn.readyState === 1) {
+        conn.send(JSON.stringify({msg: msg, webSocketToken: webSocketToken, callback: callback, resourceId: resourceId}));
+    } else {
+        console.log('Socket not ready send message in 1 second');
+        setTimeout(function () {
+            sendSocketMessageToUser(msg, to_users_id, callback);
+        }, 1000);
+    }
+}
+
 function isSocketActive() {
-    return typeof conn != 'undefined' && conn.readyState === 1;
+    return isOnline() && typeof conn != 'undefined' && conn.readyState === 1;
 }
 
 function defaultCallback(json) {
@@ -129,24 +174,48 @@ function defaultCallback(json) {
 }
 
 var socketAutoUpdateOnHTMLTimout;
+var globalAutoUpdateOnHTML = [];
 function socketAutoUpdateOnHTML(autoUpdateOnHTML) {
+    for (var prop in autoUpdateOnHTML) {
+        if (autoUpdateOnHTML[prop] === false) {
+            continue;
+        }
+        globalAutoUpdateOnHTML[prop] = autoUpdateOnHTML[prop];
+    }
+    
+    //console.log('socketAutoUpdateOnHTML 1', autoUpdateOnHTML, globalAutoUpdateOnHTML);
+}
+
+
+async function AutoUpdateOnHTMLTimer() {
+
     clearTimeout(socketAutoUpdateOnHTMLTimout);
-    socketAutoUpdateOnHTMLTimout = setTimeout(function () {
+    //console.log('globalAutoUpdateOnHTML 1', empty(globalAutoUpdateOnHTML), globalAutoUpdateOnHTML);
+    if (!empty(globalAutoUpdateOnHTML)) {
         $('.total_on').text(0);
         $('.total_on').parent().removeClass('text-success');
         //console.log("parseSocketResponse", json.autoUpdateOnHTML);
-        for (var prop in autoUpdateOnHTML) {
-            if (autoUpdateOnHTML[prop] === false) {
+
+        var localAutoUpdateOnHTML = globalAutoUpdateOnHTML;
+        globalAutoUpdateOnHTML = [];
+        //console.log('localAutoUpdateOnHTML 1', localAutoUpdateOnHTML);
+        for (var prop in localAutoUpdateOnHTML) {
+            if (localAutoUpdateOnHTML[prop] === false) {
                 continue;
             }
-            var val = autoUpdateOnHTML[prop];
+            var val = localAutoUpdateOnHTML[prop];
             $('.' + prop).text(val);
             if (parseInt(val) > 0) {
                 $('.' + prop).parent().addClass('text-success');
             }
         }
-    }, 500);
+    }
+
+    socketAutoUpdateOnHTMLTimout = setTimeout(function () {
+        AutoUpdateOnHTMLTimer();
+    }, 2000);
 }
+
 
 function parseSocketResponse() {
     json = yptSocketResponse;
@@ -155,9 +224,12 @@ function parseSocketResponse() {
     }
     //console.log("parseSocketResponse", json);
     if (json.isAdmin && webSocketServerVersion > json.webSocketServerVersion) {
-        if (typeof avideoToastWarning == 'funciton') {
+        if (typeof avideoToastWarning == 'function') {
             avideoToastWarning("Please restart your socket server. You are running (v" + json.webSocketServerVersion + ") and your client is expecting (v" + webSocketServerVersion + ")");
         }
+    }
+    if (json && typeof json.users_id_online !== 'undefined') {
+        users_id_online = json.users_id_online;
     }
     if (json && typeof json.autoUpdateOnHTML !== 'undefined') {
         socketAutoUpdateOnHTML(json.autoUpdateOnHTML);
@@ -221,9 +293,55 @@ function parseSocketResponse() {
     }
 }
 
+
+function socketNewConnection(json) {
+    setUserOnlineStatus(json.msg.users_id);
+}
+
+function socketDisconnection(json) {
+    setUserOnlineStatus(json.msg.users_id);
+}
+
+function setInitialOnlineStatus() {
+    if (!isReadyToCheckIfIsOnline()) {
+        setTimeout(function () {
+            setInitialOnlineStatus();
+        }, 1000);
+        return false;
+    }
+
+    for (var users_id in users_id_online) {
+        setUserOnlineStatus(users_id);
+    }
+    return true;
+}
+
+function setUserOnlineStatus(users_id) {
+    if (isUserOnline(users_id)) {
+        $('.users_id_' + users_id).removeClass('offline');
+        $('.users_id_' + users_id).addClass('online');
+    } else {
+        $('.users_id_' + users_id).removeClass('online');
+        $('.users_id_' + users_id).addClass('offline');
+    }
+}
+var getWebSocket;
 $(function () {
+    startSocket();
+    AutoUpdateOnHTMLTimer();
+});
+var _startSocketTimeout;
+async function startSocket() {
+    clearTimeout(_startSocketTimeout);
+    if (!isOnline() || typeof webSiteRootURL == 'undefined') {
+        console.log('startSocket: Not Online');
+        _startSocketTimeout = setTimeout(function () {
+            startSocket();
+        }, 10000);
+        return false;
+    }
     //console.log('Getting webSocketToken ...');
-    var getWebSocket = webSiteRootURL + 'plugin/YPTSocket/getWebSocket.json.php';
+    getWebSocket = webSiteRootURL + 'plugin/YPTSocket/getWebSocket.json.php';
     getWebSocket = addGetParam(getWebSocket, 'webSocketSelfURI', webSocketSelfURI);
     getWebSocket = addGetParam(getWebSocket, 'webSocketVideos_id', webSocketVideos_id);
     getWebSocket = addGetParam(getWebSocket, 'webSocketLiveKey', webSocketLiveKey);
@@ -232,7 +350,7 @@ $(function () {
         success: function (response) {
             if (response.error) {
                 console.log('Getting webSocketToken ERROR ' + response.msg);
-                if (typeof avideoToastError == 'funciton') {
+                if (typeof avideoToastError == 'function') {
                     avideoToastError(response.msg);
                 }
             } else {
@@ -246,4 +364,5 @@ $(function () {
     if (inIframe()) {
         $('#socket_info_container').hide();
     }
-});
+    setInitialOnlineStatus();
+}

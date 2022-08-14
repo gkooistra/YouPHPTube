@@ -22,6 +22,8 @@ class GoogleCloudDocumentaiV1beta2DocumentPage extends \Google\Collection
   protected $collection_key = 'visualElements';
   protected $blocksType = GoogleCloudDocumentaiV1beta2DocumentPageBlock::class;
   protected $blocksDataType = 'array';
+  protected $detectedBarcodesType = GoogleCloudDocumentaiV1beta2DocumentPageDetectedBarcode::class;
+  protected $detectedBarcodesDataType = 'array';
   protected $detectedLanguagesType = GoogleCloudDocumentaiV1beta2DocumentPageDetectedLanguage::class;
   protected $detectedLanguagesDataType = 'array';
   protected $dimensionType = GoogleCloudDocumentaiV1beta2DocumentPageDimension::class;
@@ -34,11 +36,16 @@ class GoogleCloudDocumentaiV1beta2DocumentPage extends \Google\Collection
   protected $layoutDataType = '';
   protected $linesType = GoogleCloudDocumentaiV1beta2DocumentPageLine::class;
   protected $linesDataType = 'array';
+  /**
+   * @var int
+   */
   public $pageNumber;
   protected $paragraphsType = GoogleCloudDocumentaiV1beta2DocumentPageParagraph::class;
   protected $paragraphsDataType = 'array';
   protected $provenanceType = GoogleCloudDocumentaiV1beta2DocumentProvenance::class;
   protected $provenanceDataType = '';
+  protected $symbolsType = GoogleCloudDocumentaiV1beta2DocumentPageSymbol::class;
+  protected $symbolsDataType = 'array';
   protected $tablesType = GoogleCloudDocumentaiV1beta2DocumentPageTable::class;
   protected $tablesDataType = 'array';
   protected $tokensType = GoogleCloudDocumentaiV1beta2DocumentPageToken::class;
@@ -61,6 +68,20 @@ class GoogleCloudDocumentaiV1beta2DocumentPage extends \Google\Collection
   public function getBlocks()
   {
     return $this->blocks;
+  }
+  /**
+   * @param GoogleCloudDocumentaiV1beta2DocumentPageDetectedBarcode[]
+   */
+  public function setDetectedBarcodes($detectedBarcodes)
+  {
+    $this->detectedBarcodes = $detectedBarcodes;
+  }
+  /**
+   * @return GoogleCloudDocumentaiV1beta2DocumentPageDetectedBarcode[]
+   */
+  public function getDetectedBarcodes()
+  {
+    return $this->detectedBarcodes;
   }
   /**
    * @param GoogleCloudDocumentaiV1beta2DocumentPageDetectedLanguage[]
@@ -146,10 +167,16 @@ class GoogleCloudDocumentaiV1beta2DocumentPage extends \Google\Collection
   {
     return $this->lines;
   }
+  /**
+   * @param int
+   */
   public function setPageNumber($pageNumber)
   {
     $this->pageNumber = $pageNumber;
   }
+  /**
+   * @return int
+   */
   public function getPageNumber()
   {
     return $this->pageNumber;
@@ -181,6 +208,20 @@ class GoogleCloudDocumentaiV1beta2DocumentPage extends \Google\Collection
   public function getProvenance()
   {
     return $this->provenance;
+  }
+  /**
+   * @param GoogleCloudDocumentaiV1beta2DocumentPageSymbol[]
+   */
+  public function setSymbols($symbols)
+  {
+    $this->symbols = $symbols;
+  }
+  /**
+   * @return GoogleCloudDocumentaiV1beta2DocumentPageSymbol[]
+   */
+  public function getSymbols()
+  {
+    return $this->symbols;
   }
   /**
    * @param GoogleCloudDocumentaiV1beta2DocumentPageTable[]

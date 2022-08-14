@@ -33,7 +33,8 @@ $crc = uniqid();
                     </div>
                 </div>
             <?php } else { ?>
-                <h5><?php echo __("Want to watch this again later?"); ?></h5>
+                <strong><?php echo __("Want to watch this again later?"); ?></strong>
+                <br>
                 <?php echo __("Sign in to add this video to a playlist."); ?>
                 <a href="<?php echo $global['webSiteRootURL']; ?>user" class="btn btn-primary">
                     <span class="fas fa-sign-in-alt"></span>
@@ -43,38 +44,7 @@ $crc = uniqid();
         </div>
         <script>
             $(document).ready(function () {
-                loadPL<?php echo $videos_id . $crc; ?>();
+                loadPL('<?php echo $videos_id; ?>','<?php echo $crc; ?>');
             });
-            function loadPL<?php echo $videos_id . $crc; ?>(){
-                if(typeof $('#addBtn<?php echo $videos_id . $crc; ?>').webuiPopover !== 'function'){
-                    setTimeout(function(){loadPL<?php echo $videos_id . $crc; ?>()}, 1000);
-                }else{
-                    loadPlayLists('<?php echo $videos_id; ?>', '<?php echo $crc; ?>');
-                    $('#addBtn<?php echo $videos_id . $crc; ?>').webuiPopover();
-                    $('#addPlayList<?php echo $videos_id . $crc; ?>').click(function () {
-                        modal.showPleaseWait();
-                        $.ajax({
-                            url: '<?php echo $global['webSiteRootURL']; ?>objects/playlistAddNew.json.php',
-                            method: 'POST',
-                            data: {
-                                'videos_id': <?php echo $videos_id; ?>,
-                                'status': $('#publicPlayList<?php echo $videos_id . $crc; ?>').is(":checked") ? "public" : "private",
-                                'name': $('#playListName<?php echo $videos_id . $crc; ?>').val()
-                            },
-                            success: function (response) {
-                                if (response.status>0) {
-                                    playList = [];
-                                    reloadPlayLists();
-                                    loadPlayLists('<?php echo $videos_id; ?>', '<?php echo $crc; ?>');
-                                    $('#playListName<?php echo $videos_id . $crc; ?>').val("");
-                                    $('#publicPlayList<?php echo $videos_id . $crc; ?>').prop('checked', true);
-                                }
-                                modal.hidePleaseWait();
-                            }
-                        });
-                        return false;
-                    });
-                }
-            }
         </script>
     <?php } ?>

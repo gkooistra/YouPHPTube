@@ -19,6 +19,10 @@ $obj->key = $_REQUEST['key'];
 $obj->live_servers_id = $_REQUEST['live_servers_id'];
 $obj->newkey = "";
 
+if(empty($obj->key) && !empty($_REQUEST['name'])){
+    $obj->key = $_REQUEST['name'];
+}
+
 if (empty($obj->command)) {
     $obj->msg = __("empty command");
     die(json_encode($obj));
@@ -77,6 +81,7 @@ switch ($obj->command) {
         break;
     case "drop_publisher_reset_key":
         $obj->newkey = LiveTransmition::resetTransmitionKey($l->getUsers_id());
+        // no break
     case "drop_publisher":
         //http://server.com/control/drop/publisher|subscriber|client?srv=SRV&app=APP&name=NAME&addr=ADDR&clientid=CLIENTID
         $obj->commandURL = Live::getDropURL($obj->key, $obj->live_servers_id);

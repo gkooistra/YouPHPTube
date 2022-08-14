@@ -1,4 +1,5 @@
 <?php
+
 /**
  * to stop
  * find who is using the port 
@@ -15,7 +16,7 @@ class YPTSocket extends PluginAbstract {
 
     public function getDescription() {
         global $global;
-        $desc = '<span class="socket_info" style="float: right; margin:0 10px;">'.getSocketConnectionLabel().'</span><script>if(isSocketActive()){setSocketIconStatus(\'connected\');}</script> ';
+        $desc = '<span class="socket_info" style="float: right; margin:0 10px;">' . getSocketConnectionLabel() . '</span><script>if(isSocketActive()){setSocketIconStatus(\'connected\');}</script> ';
         $desc .= "Socket Plugin, WebSockets allow for a higher amount of efficiency compared to REST because they do not require the HTTP request/response overhead for each message sent and received<br>";
         $desc .= "<br>To start it on server now <code>sudo nohup php {$global['systemRootPath']}plugin/YPTSocket/server.php &</code>";
         $desc .= "<br>To test use <code>php {$global['systemRootPath']}plugin/YPTSocket/test.php</code>";
@@ -24,7 +25,7 @@ class YPTSocket extends PluginAbstract {
         $help = "<br>run this command start the server <small><a href='https://github.com/WWBN/AVideo/wiki/Socket-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
 
         //$desc .= $this->isReadyLabel(array('YPTWallet'));
-        return $desc.$help;
+        return $desc . $help;
     }
 
     public function getName() {
@@ -36,11 +37,11 @@ class YPTSocket extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "1.1";
+        return "1.2";
     }
-    
+
     public static function getServerVersion() {
-        return "2.6";
+        return "3.3";
     }
 
     public function updateScript() {
@@ -57,17 +58,19 @@ class YPTSocket extends PluginAbstract {
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
-        
+
         $host = parse_url($global['webSiteRootURL'], PHP_URL_HOST);
         $server_crt_file = "/etc/letsencrypt/live/{$host}/fullchain.pem";
         $server_key_file = "/etc/letsencrypt/live/{$host}/privkey.pem";
-        
+
         $host = parse_url($global['webSiteRootURL'], PHP_URL_HOST);
-        
+
         $obj->forceNonSecure = false;
         self::addDataObjectHelper('forceNonSecure', 'Force not to use wss (non secure)', 'This is good if a reverse proxy is giving you a SSL');
         $obj->port = "2053";
         self::addDataObjectHelper('port', 'Server Port', 'You also MUST open this port on the firewall');
+        $obj->uri = "0.0.0.0";
+        self::addDataObjectHelper('uri', 'Server URI', 'You should not change it, only if you know what you are doing');
         $obj->host = $host;
         self::addDataObjectHelper('host', 'Server host', 'If your site is HTTPS make sure this host also handle the SSL connection');
         $obj->debugSocket = true;
@@ -80,65 +83,73 @@ class YPTSocket extends PluginAbstract {
         self::addDataObjectHelper('server_key_file', 'SSL Certificate Key File', 'If your site use HTTPS, you MUST provide one');
         $obj->allow_self_signed = true;
         self::addDataObjectHelper('allow_self_signed', 'Allow self signed certs', 'Should be unchecked in production');
-        
+
         $obj->showTotalOnlineUsersPerVideo = true;
         self::addDataObjectHelper('showTotalOnlineUsersPerVideo', 'Show Total Online Users Per Video');
         $obj->showTotalOnlineUsersPerLive = true;
         self::addDataObjectHelper('showTotalOnlineUsersPerLive', 'Show Total Online Users Per Live');
         $obj->showTotalOnlineUsersPerLiveLink = true;
-        self::addDataObjectHelper('showTotalOnlineUsersPerLiveLink', 'Show Total Online Users Per LiveLink');        
-        
+        self::addDataObjectHelper('showTotalOnlineUsersPerLiveLink', 'Show Total Online Users Per LiveLink');
+        $obj->enableCalls = true;
+        self::addDataObjectHelper('enableCalls', 'Enable Meeting Calls', 'This feature requires the meet plugin enabled');
+
         return $obj;
     }
-    
+
     public function getFooterCode() {
         self::getSocketJS();
+        self::getCallerJS();
     }
 
     public static function getSocketJS() {
         global $global;
         include $global['systemRootPath'] . 'plugin/YPTSocket/footer.php';
     }
-    
+
+    public static function getCallerJS() {
+        global $global;
+        include $global['systemRootPath'] . 'plugin/YPTSocket/footerCaller.php';
+    }
+
     public static function sendAsync($msg, $callbackJSFunction = "", $users_id = "", $send_to_uri_pattern = "") {
         global $global;
-        if(!is_string($msg)){
+        if (!is_string($msg)) {
             $msg = json_encode($msg);
         }
-        $command = "php {$global['systemRootPath']}plugin/YPTSocket/send.json.php '$msg' '$callbackJSFunction' '$users_id' '$send_to_uri_pattern'";
+        $command = get_php() . " {$global['systemRootPath']}plugin/YPTSocket/send.json.php '$msg' '$callbackJSFunction' '$users_id' '$send_to_uri_pattern'";
         execAsync($command);
     }
 
     public static function send($msg, $callbackJSFunction = "", $users_id = "", $send_to_uri_pattern = "") {
         global $global, $SocketSendObj, $SocketSendUsers_id, $SocketSendResponseObj, $SocketURL;
-        if(!is_string($msg)){
+        if (!is_string($msg)) {
             $msg = json_encode($msg);
         }
         $SocketSendUsers_id = $users_id;
-        if(!is_array($SocketSendUsers_id)){
+        if (!is_array($SocketSendUsers_id)) {
             $SocketSendUsers_id = array($SocketSendUsers_id);
         }
-        
+
         $SocketSendObj = new stdClass();
         $SocketSendObj->msg = $msg;
         $SocketSendObj->json = _json_decode($msg);
-        
-        $SocketSendObj->webSocketToken = getEncryptedInfo(0,$send_to_uri_pattern);
+
+        $SocketSendObj->webSocketToken = getEncryptedInfo(0, $send_to_uri_pattern);
         $SocketSendObj->callback = $callbackJSFunction;
-        
+
         $SocketSendResponseObj = new stdClass();
         $SocketSendResponseObj->error = true;
         $SocketSendResponseObj->msg = "";
         $SocketSendResponseObj->msgObj = $SocketSendObj;
-        $SocketSendResponseObj->callbackJSFunction = $callbackJSFunction;  
-        
+        $SocketSendResponseObj->callbackJSFunction = $callbackJSFunction;
+
         require_once $global['systemRootPath'] . 'objects/autoload.php';
 
         $SocketURL = self::getWebSocketURL(true, $SocketSendObj->webSocketToken);
         //_error_log("Socket Send: {$SocketURL}");
-        \Ratchet\Client\connect($SocketURL)->then(function($conn) {
+        \Ratchet\Client\connect($SocketURL)->then(function ($conn) {
             global $SocketSendObj, $SocketSendUsers_id, $SocketSendResponseObj;
-            $conn->on('message', function($msg) use ($conn, $SocketSendResponseObj) {
+            $conn->on('message', function ($msg) use ($conn, $SocketSendResponseObj) {
                 //echo "Received: {$msg}\n";
                 //$conn->close();
                 $SocketSendResponseObj->error = false;
@@ -149,32 +160,80 @@ class YPTSocket extends PluginAbstract {
                 $SocketSendObj->to_users_id = $users_id;
                 $conn->send(json_encode($SocketSendObj));
             }
-        
+
             $conn->close();
-            
+
             //$SocketSendResponseObj->error = false;
         }, function ($e) {
-            global $SocketURL;
-            _error_log("Could not connect: {$e->getMessage()} {$SocketURL}", AVideoLog::$ERROR);
-        });
-        
+                    global $SocketURL;
+                    _error_log("Could not connect: {$e->getMessage()} {$SocketURL}", AVideoLog::$ERROR);
+                });
+
         return $SocketSendResponseObj;
     }
 
-    public static function getWebSocketURL($isCommandLine=false, $webSocketToken='') {
+    public static function getWebSocketURL($isCommandLine = false, $webSocketToken = '') {
         global $global;
         $socketobj = AVideoPlugin::getDataObject("YPTSocket");
         $address = $socketobj->host;
         $port = $socketobj->port;
         $protocol = "ws";
         $scheme = parse_url($global['webSiteRootURL'], PHP_URL_SCHEME);
-        if(strtolower($scheme)==='https'){
+        if (strtolower($scheme) === 'https') {
             $protocol = "wss";
         }
-        if(empty($webSocketToken)){
+        if (empty($webSocketToken)) {
             $webSocketToken = getEncryptedInfo(0);
         }
-        return "{$protocol}://{$address}:{$port}?webSocketToken={$webSocketToken}&isCommandLine=".intval($isCommandLine);
+        return "{$protocol}://{$address}:{$port}?webSocketToken={$webSocketToken}&isCommandLine=" . intval($isCommandLine);
+    }
+
+    public function onUserSocketConnect() {
+        $obj = AVideoPlugin::getDataObjectIfEnabled('YPTSocket');
+        if (!empty($obj->enableCalls)) {
+            echo 'callerNewConnection(response);';
+        }
+        echo 'socketNewConnection(response);';
+        return '';
+    }
+    
+    public function onUserSocketDisconnect() {
+        $obj = AVideoPlugin::getDataObjectIfEnabled('YPTSocket');
+        if (!empty($obj->enableCalls)) {
+            echo 'callerDisconnection(response);';
+        }
+        echo 'socketDisconnection(response);';
+        return '';
+    }
+    
+    public static function getUserOnlineLabel($users_id, $class='', $style='') {
+        global $global;
+        $users_id = intval($users_id);
+        $varsArray = array('users_id' => $users_id, 'class'=>$class, 'style'=>$style);
+        $filePath = $global['systemRootPath'] . 'plugin/YPTSocket/userOnlineLabel.php';
+        return getIncludeFileContent($filePath, $varsArray);
+    }
+    
+    
+    public static function shouldShowCaller() {
+        global $_YPTSocketshouldShowCaller;
+        if(!isset($_YPTSocketshouldShowCaller)){
+            $obj = new stdClass();
+            $obj->show = false;
+            $obj->reason = '';
+            if (!User::isLogged()) {
+                $obj->reason = 'Not logged';
+            } else {
+                $objSocket = AVideoPlugin::getDataObjectIfEnabled('YPTSocket');
+                if (empty($objSocket->enableCalls)) {
+                    $obj->reason = 'YPTSocket enableCalls = false';
+                }else{
+                    $obj->show = true;
+                }
+            }
+            $_YPTSocketshouldShowCaller = $obj;
+        }
+        return $_YPTSocketshouldShowCaller;
     }
 
 }

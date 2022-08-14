@@ -1,21 +1,18 @@
 <?php
 require_once '../objects/functions.php';
 require_once '../locale/function.php';
-
-
-
 //var_dump($_SERVER);exit;
 ?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Install AVideo</title>
-        <script src="../view/js/jquery-3.5.1.min.js" type="text/javascript"></script>
+        <script src="../node_modules/jquery/dist/jquery.min.js" type="text/javascript"></script>
         <link rel="icon" href="../view/img/favicon.png">
         <link href="../view/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
 
         <link href="../view/bootstrap/bootstrapSelectPicker/css/bootstrap-select.min.css" rel="stylesheet" type="text/css"/>
-        <link href="../view/css/fontawesome-free-5.5.0-web/css/all.min.css" rel="stylesheet" type="text/css"/>
+        <link href="../node_modules/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css"/>
         <link href="../view/css/flagstrap/css/flags.css" rel="stylesheet" type="text/css"/>
         <style>
             .bootstrap-select{
@@ -28,8 +25,7 @@ require_once '../locale/function.php';
     <body>
         <?php
         if (file_exists('../videos/configuration.php')) {
-            require_once '../videos/configuration.php';
-            ?>
+            require_once '../videos/configuration.php'; ?>
             <div class="container">
                 <h3 class="alert alert-success">
                     <span class="glyphicon glyphicon-ok-circle"></span>
@@ -63,25 +59,23 @@ require_once '../locale/function.php';
                                         <strong>Your server is <?php echo $_SERVER['SERVER_SOFTWARE']; ?>, you must install Apache</strong>
                                     </div>
                                     <?php
-                                }
-                                ?>
+                                } ?>
                                 <?php
-                                if (isPHP("5.6")) {
+                                if (isPHP('7.3')) {
                                     ?>
                                     <div class="alert alert-success">
                                         <span class="glyphicon glyphicon-check"></span>
-                                        <strong>PHP <?php echo PHP_VERSION; ?> is Present</strong>
+                                        <strong>PHP <?php echo PHP_VERSION; ?> is present.</strong>
                                     </div>
                                     <?php
                                 } else {
                                     ?>
                                     <div class="alert alert-warning">
                                         <span class="glyphicon glyphicon-exclamation-sign"></span>
-                                        <strong>Your PHP version is <?php echo PHP_VERSION; ?>, we recommend install PHP 5.6.x or greater</strong>
-                                    </div>                  
+                                        <strong>Your PHP version is <?php echo PHP_VERSION; ?>. PHP 7.3 or newer is required.</strong>
+                                    </div>
                                     <?php
-                                }
-                                ?>
+                                } ?>
 
                                 <?php
                                 if (checkVideosDir()) {
@@ -99,14 +93,13 @@ require_once '../locale/function.php';
                                         <details>
                                             <?php
                                             $dir = getPathToApplication() . "videos";
-                                            if (!file_exists($dir)) {
-                                                ?>
+                                    if (!file_exists($dir)) {
+                                        ?>
                                                 The video directory does not exists, AVideo had no permition to create it, you must create it manualy!
                                                 <br>
                                                 <pre><code>sudo mkdir <?php echo $dir; ?></code></pre>
                                                 <?php
-                                            }
-                                            ?>
+                                    } ?>
                                             <br>
                                             Then you can set the permissions (www-data means apache user).
                                             <br>
@@ -115,11 +108,10 @@ require_once '../locale/function.php';
                                     </div>
                                     <?php
                                 }
-                                $pathToPHPini = php_ini_loaded_file();
-                                if (empty($pathToPHPini)) {
-                                    $pathToPHPini = "/etc/php/7.0/cli/php.ini";
-                                }
-                                ?>
+            $pathToPHPini = php_ini_loaded_file();
+            if (empty($pathToPHPini)) {
+                $pathToPHPini = "/etc/php/7.0/cli/php.ini";
+            } ?>
 
                                 <?php
                                 if (check_post_max_size()) {
@@ -142,8 +134,7 @@ require_once '../locale/function.php';
                                         </details>
                                     </div>
                                     <?php
-                                }
-                                ?>
+                                } ?>
 
                                 <?php
                                 if (check_upload_max_filesize()) {
@@ -166,8 +157,7 @@ require_once '../locale/function.php';
                                         </details>
                                     </div>
                                     <?php
-                                }
-                                ?>
+                                } ?>
                             </div>
                         </div>
                     </div>
@@ -195,25 +185,24 @@ require_once '../locale/function.php';
                                             <select class="selectpicker" id="mainLanguage">
                                                 <?php
                                                 global $global;
-                                                include_once '../objects/bcp47.php'; 
-                                                $dir = "../locale/";
-                                                $flags = array();
-                                                if ($handle = opendir($dir)) {
-                                                    while (false !== ($entry = readdir($handle))) {
-                                                        if ($entry != '.' && $entry != '..' && $entry != 'index.php' && $entry != 'function.php' && $entry != 'save.php') {
-                                                            $flags[] = str_replace('.php', '', $entry);
-                                                        }
-                                                    }
-                                                    closedir($handle);
-                                                }
-                                                sort($flags);
+            include_once '../objects/bcp47.php';
+            $dir = "../locale/";
+            $flags = [];
+            if ($handle = opendir($dir)) {
+                while (false !== ($entry = readdir($handle))) {
+                    if ($entry != '.' && $entry != '..' && $entry != 'index.php' && $entry != 'function.php' && $entry != 'save.php') {
+                        $flags[] = str_replace('.php', '', $entry);
+                    }
+                }
+                closedir($handle);
+            }
+            sort($flags);
 
-                                                foreach ($flags as $flag) {
-                                                    //var_dump($global['bcp47'][$flag]);
-                                                    $fileEx = $global['bcp47'][$flag]['flag'];
-                                                    echo "<option data-content='<span class=\"flagstrap-icon flagstrap-$fileEx\"></span> {$global['bcp47'][$flag]['label']}' value=\"$fileEx\" " . (('us' == $fileEx) ? " selected" : "") . ">{$global['bcp47'][$flag]['label']}</option>";
-                                                }
-                                                ?>
+            foreach ($flags as $flag) {
+                //var_dump($global['bcp47'][$flag]);
+                $fileEx = $global['bcp47'][$flag]['flag'];
+                echo "<option data-content='<span class=\"flagstrap-icon flagstrap-$fileEx\"></span> {$global['bcp47'][$flag]['label']}' value=\"$fileEx\" " . (('us' == $fileEx) ? " selected" : "") . ">{$global['bcp47'][$flag]['label']}</option>";
+            } ?>
                                             </select>
                                         </div>
                                     </div>
@@ -224,14 +213,12 @@ require_once '../locale/function.php';
                                     <div class="form-group">
                                         <label for="systemAdminPass">System Admin password</label>
                                         <?php
-                                        getInputPassword("systemAdminPass", 'class="form-control" required="required"', __("Enter System Admin password"));
-                                        ?>
+                                        getInputPassword("systemAdminPass", 'class="form-control" required="required"', __("Enter System Admin password")); ?>
                                     </div>
                                     <div class="form-group">
                                         <label for="confirmSystemAdminPass">Confirm System Admin password</label>
                                         <?php
-                                        getInputPassword("confirmSystemAdminPass", 'class="form-control" required="required"', __("Confirm System Admin password"));
-                                        ?>
+                                        getInputPassword("confirmSystemAdminPass", 'class="form-control" required="required"', __("Confirm System Admin password")); ?>
                                     </div>
                                 </div>
                             </div>
@@ -256,12 +243,11 @@ require_once '../locale/function.php';
                                     <div class="form-group">
                                         <label for="databasePass">Database Password</label>
                                         <?php
-                                        getInputPassword("databasePass", 'class="form-control"', __("Enter Database Password"));
-                                        ?>
+                                        getInputPassword("databasePass", 'class="form-control"', __("Enter Database Password")); ?>
                                     </div>
                                     <div class="form-group">
                                         <label for="databaseName">Database Name</label>
-                                        <input type="text" class="form-control" id="databaseName" placeholder="Enter Database Name" value="aVideo" required="required">
+                                        <input type="text" class="form-control" id="databaseName" placeholder="Enter Database Name" value="avideo" required="required">
                                     </div>
                                     <div class="form-group">
                                         <label for="createTables">Do you want to create database and tables?</label><br>
@@ -281,14 +267,14 @@ require_once '../locale/function.php';
                 </div>
 
             </div>
-        <?php } ?>
+        <?php
+        } ?>
         <script src="../view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
-        <script src="../view/css/flagstrap/js/jquery.flagstrap.min.js" type="text/javascript"></script>
         <script src="../view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js" type="text/javascript"></script>
-        <script src="../view/js/seetalert/sweetalert.min.js" type="text/javascript"></script>
-        <script src="../view/js/jquery.lazy/jquery.lazy.min.js" type="text/javascript"></script>
-        <script src="../view/js/jquery.lazy/jquery.lazy.plugins.min.js" type="text/javascript"></script>
-        <script src="../view/js/js-cookie/js.cookie.js" type="text/javascript"></script>
+        <script src="../node_modules/sweetalert/dist/sweetalert.min.js" type="text/javascript"></script>
+        <script src="../node_modules/jquery-lazy/jquery.lazy.min.js" type="text/javascript"></script>
+        <script src="../node_modules/jquery-lazy/jquery.lazy.plugins.min.js" type="text/javascript"></script>
+        <script src="../node_modules/js-cookie/dist/js.cookie.js" type="text/javascript"></script>
         <script src="../view/js/script.js" type="text/javascript"></script>
 
         <script>
@@ -352,7 +338,7 @@ require_once '../locale/function.php';
                             if (xhr.status == 404) {
                                 avideoAlert("Sorry!", "Your Site URL is wrong!", "error");
                             } else {
-                                avideoAlert("Sorry!", "Unknow error!", "error");
+                                avideoAlert("Sorry!", "Unknown error!", "error");
                             }
                         }
                     });

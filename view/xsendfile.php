@@ -13,9 +13,31 @@ if (empty($_GET['file'])) {
     die('GET file not found');
 }
 
-$path_parts = pathinfo($_GET['file']);
-$file = $path_parts['basename'];
+if($_GET['file']=='index.mp4'){
+    $url = parse_url($_SERVER["REQUEST_URI"]);
+    $paths = Video::getPaths($url["path"]);
+    $path = "{$paths['path']}index.mp4";
+    $file = "{$paths["relative"]}index.mp4";
+    $path_parts = pathinfo($file);
+    //var_dump(__LINE__, $file, $path, $paths);
+}else{
+    $path_parts = pathinfo($_GET['file']);
+    $file = $path_parts['basename'];
+}
+//header('Content-Type: application/json');var_dump($path, $file, $paths, $url, Video::getPaths($redirectURI));exit;
 
+if ($file == "test.mp4") {
+    $path = "{$global['systemRootPath']}view/xsendfile.html";
+    header('Content-Transfer-Encoding: binary');
+    header('Connection: Keep-Alive');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+    header('Pragma: public');
+    header('Content-Type: text/html');
+    header('Content-Length: ' . filesize($path));
+    header("X-Sendfile: {$path}");
+    exit;
+}
 
 if ($file == "X-Sendfile.mp4") {
     $path = "{$global['systemRootPath']}plugin/SecureVideosDirectory/test.json";
@@ -34,19 +56,30 @@ if ($file == "configuration.php") {
     _error_log("XSENDFILE Can't read this configuration ");
     forbiddenPage("Can't read this");
 }
-
-$path = Video::getPathToFile($file);
+if(!empty($_REQUEST['cacheDownload'])){
+    $file = preg_replace('/[^0-9a-z_\.]/i', '', $_GET['file']);
+    $relativePath = "cache/download/";
+    $path = getVideosDir().$relativePath.$file;
+    $_GET['download'] = 1;
+    _error_log("cacheDownload: $path");
+}else{
+    $path = Video::getPathToFile($file);
+}
+//header('Content-Type: application/json');var_dump(__LINE__, $_SERVER["REQUEST_URI"], $file, $path);exit;
+//header('Content-Type: application/json');var_dump($advancedCustom->doNotUseXsendFile);
 if (file_exists($path)) {
+    $filesize = filesize($path);
     if (!empty($_GET['download'])) {
-        if(!CustomizeUser::canDownloadVideos()){
+        if (empty($_REQUEST['cacheDownload']) && !CustomizeUser::canDownloadVideos()) {
             _error_log("downloadHLS: CustomizeUser::canDownloadVideos said NO");
             forbiddenPage("Can't download this");
         }
         if (!empty($_GET['title'])) {
-            $quoted = sprintf('"%s"', addcslashes(basename($_GET['title']), '"\\'));
+            $quoted = safeString($_GET['title'], true).".{$path_parts['extension']}";
         } else {
-            $quoted = sprintf('"%s"', addcslashes(basename($_GET['file']), '"\\'));
+            $quoted = safeString(basename($_GET['file']), true).".{$path_parts['extension']}";
         }
+        //header('Content-Type: application/json');var_dump($quoted);exit;
         header('Content-Description: File Transfer');
         header('Content-Disposition: attachment; filename=' . $quoted);
         header('Content-Transfer-Encoding: binary');
@@ -62,14 +95,17 @@ if (file_exists($path)) {
         if (empty($advancedCustom->doNotUseXsendFile)) {
             //_error_log("X-Sendfile: {$path}");
             header("X-Sendfile: {$path}");
-        }else{
+        } else {
             _error_log("Careful, we recommend you to use the X-Sendfile and it is disabled on AdvancedCustom plugin -> doNotUseXsendFile. You may have an error 'Allowed Memory Size Exhausted' if your video file is too big", AVideoLog::$WARNING);
         }
     } else {
         $advancedCustom->doNotUseXsendFile = true;
     }
     header("Content-type: " . mime_content_type($path));
-    header('Content-Length: ' . filesize($path));
+    header('Content-Length: ' . $filesize);
+    //header("Content-Range: 0-".($filesize-1)."/".$filesize);
+    //_error_log("downloadHLS: filesize={$filesize} {$path}");
+    //var_dump($advancedCustom->doNotUseXsendFile);exit;
     if (!empty($advancedCustom->doNotUseXsendFile)) {
         ini_set('memory_limit', filesize($path) * 1.5);
         _error_log("Your XSEND File is not enabled, it may slow down your site, file = $path", AVideoLog::$WARNING);
