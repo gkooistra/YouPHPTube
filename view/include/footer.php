@@ -187,3 +187,4 @@ if (!empty($global['rowCount'])) {
     echo PHP_EOL . "rowCount: {$global['rowCount']}";
 }
 ?>
+-->

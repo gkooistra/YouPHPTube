@@ -65,7 +65,7 @@ class TagsHasVideos extends ObjectYPT {
         }
         return $row;
     }
-
+        
     static function getAllFromVideosId($videos_id) {
         global $global;
         if(!static::isTableInstalled()){
@@ -75,9 +75,9 @@ class TagsHasVideos extends ObjectYPT {
                 . " LEFT JOIN tags as t ON tags_id = t.id "
                 . " LEFT JOIN tags_types as tt ON tags_types_id = tt.id "
                 . " WHERE videos_id=? ";
-        $res = sqlDAL::readSql($sql,"i",array($videos_id));
+        $res = sqlDAL::readSql($sql,"i",array($videos_id)); 
         $fullData = sqlDAL::fetchAllAssoc($res);
-
+        
         sqlDAL::close($res);
         $rows = array();
         if ($res!=false) {
@@ -89,7 +89,7 @@ class TagsHasVideos extends ObjectYPT {
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
-    }
+    }    
     static function getAllVideosIdFromTagsId($tags_id) {
         global $global;
         if(!static::isTableInstalled()){
@@ -97,9 +97,9 @@ class TagsHasVideos extends ObjectYPT {
         }
         $sql = "SELECT * FROM  " . static::getTableName() . "  "
                 . " WHERE tags_id=? ";
-        $res = sqlDAL::readSql($sql,"i",array($tags_id));
+        $res = sqlDAL::readSql($sql,"i",array($tags_id)); 
         $fullData = sqlDAL::fetchAllAssoc($res);
-
+        
         sqlDAL::close($res);
         $rows = array();
         if ($res!=false) {
@@ -110,17 +110,17 @@ class TagsHasVideos extends ObjectYPT {
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
-    }
-
+    }  
+    
     static function getAllFromVideosIdAndTagsTypesId($videos_id, $tags_types_id) {
         global $global;
         if(!static::isTableInstalled()){
             return false;
         }
         $sql = "SELECT t.*, tv.* FROM  " . static::getTableName() . " tv LEFT JOIN tags as t ON tags_id = t.id WHERE tags_types_id = ? AND videos_id=? ";
-        $res = sqlDAL::readSql($sql,"ii",array($tags_types_id, $videos_id));
+        $res = sqlDAL::readSql($sql,"ii",array($tags_types_id, $videos_id)); 
         $fullData = sqlDAL::fetchAllAssoc($res);
-
+        
         sqlDAL::close($res);
         $rows = array();
         if ($res!=false) {
@@ -132,9 +132,9 @@ class TagsHasVideos extends ObjectYPT {
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
-    }
-
-
+    } 
+    
+       
     static function getTotalVideosFromTagsId($tags_id) {
         global $global;
         if(!static::isTableInstalled()){
@@ -142,7 +142,7 @@ class TagsHasVideos extends ObjectYPT {
         }
         $sql = "SELECT count(*) as total FROM  " . static::getTableName() . "  "
                 . " WHERE tags_id=? ";
-        $res = sqlDAL::readSql($sql,"i",array($tags_id));
+        $res = sqlDAL::readSql($sql,"i",array($tags_id)); 
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {
@@ -151,7 +151,7 @@ class TagsHasVideos extends ObjectYPT {
             $row = 0;
         }
         return $row;
-    }
+    } 
 
     static function removeAllTagsFromVideo($videos_id){
         global $global;
