@@ -30,7 +30,7 @@ if (empty($advancedCustom)) {
         ?>
         <ul class="list-inline">
             <li>
-            Part of <a href="http://www.incotech.online" class="external btn btn-outline btn-primary btn-xs" target="_blank">INCOTECH</a>
+                 Part of <a href="http://www.incotech.online" class="external btn btn-outline btn-primary btn-xs" target="_blank">INCOTECH</a>
             </li>
         </ul>
         <?php
@@ -187,4 +187,3 @@ if (!empty($global['rowCount'])) {
     echo PHP_EOL . "rowCount: {$global['rowCount']}";
 }
 ?>
--->

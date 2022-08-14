@@ -91,15 +91,13 @@ class LiveTransmitionHistory extends ObjectYPT {
 
     public function setTitle($title) {
         global $global;
-        $Char = "&zwnj;";
-        $title = str_replace($Char, '', $title);
-        $title = ($title);
+        $title = $global['mysqli']->real_escape_string($title);
         $this->title = $title;
     }
 
     public function setDescription($description) {
         global $global;
-        $description = ($description);
+        $description = $global['mysqli']->real_escape_string($description);
         $this->description = $description;
     }
 
@@ -341,10 +339,10 @@ class LiveTransmitionHistory extends ObjectYPT {
         return $rows;
     }
 
-    public static function isLive($key, $live_servers_id=0) {
+    public static function isLive($key) {
         global $global;
 
-        $row = self::getActiveLiveFromUser(0, $live_servers_id, $key);
+        $row = self::getActiveLiveFromUser(0, '', $key);
         //var_dump($key, $row);exit;
         if (empty($row)) {
             return false;
@@ -354,7 +352,8 @@ class LiveTransmitionHistory extends ObjectYPT {
 
     public static function getLatest($key, $live_servers_id = null, $active=false) {
         global $global;
-        $key = ($key);
+
+        $key = $global['mysqli']->real_escape_string($key);
 
         if (empty($key)) {
             return false;
@@ -374,12 +373,11 @@ class LiveTransmitionHistory extends ObjectYPT {
         }
         $sql .= " ORDER BY created DESC LIMIT 1";
         //var_dump($sql, $key);exit;
+
         $res = sqlDAL::readSql($sql);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
-        //_error_log($sql);
-        //_error_log($data);
-        if (!empty($data)) {
+        if ($res) {
             $row = $data;
         } else {
             $row = false;
@@ -398,45 +396,13 @@ class LiveTransmitionHistory extends ObjectYPT {
 
     public static function finishFromTransmitionHistoryId($live_transmitions_history_id) {
         global $global;
-        //var_dump(debug_backtrace());exit;
         $live_transmitions_history_id = intval($live_transmitions_history_id);
         if (empty($live_transmitions_history_id)) {
+            _error_log('LiveTransmitionHistory::finishALLOffline ERROR empty live_transmitions_history_id ');
             return false;
         }
-        _error_log(debug_backtrace());
+        _error_log('LiveTransmitionHistory::finishALLOffline finishing $live_transmitions_history_id '. json_encode(debug_backtrace()));
         $sql = "UPDATE " . static::getTableName() . " SET finished = now() WHERE id = {$live_transmitions_history_id} ";
-
-        $insert_row = sqlDAL::writeSql($sql);
-        $global['mysqli']->commit();
-        
-        Live::unfinishAllFromStats();
-        return $insert_row;
-    }
-    
-    
-    public static function updateModifiedTime($live_transmitions_history_id) {
-        global $global;
-        $live_transmitions_history_id = intval($live_transmitions_history_id);
-        if (empty($live_transmitions_history_id)) {
-            return false;
-        }
-        _error_log(debug_backtrace());
-        $sql = "UPDATE " . static::getTableName() . " SET modified = now() WHERE id = {$live_transmitions_history_id} ";
-
-        $insert_row = sqlDAL::writeSql($sql);
-        $global['mysqli']->commit();
-        
-        Live::unfinishAllFromStats();
-        return $insert_row;
-    }
-    
-    public static function unfinishFromTransmitionHistoryId($live_transmitions_history_id) {
-        global $global;
-        $live_transmitions_history_id = intval($live_transmitions_history_id);
-        if (empty($live_transmitions_history_id)) {
-            return false;
-        }
-        $sql = "UPDATE " . static::getTableName() . " SET finished = NULL WHERE id = {$live_transmitions_history_id} ";
 
         $insert_row = sqlDAL::writeSql($sql);
         $global['mysqli']->commit();
@@ -460,7 +426,7 @@ class LiveTransmitionHistory extends ObjectYPT {
         $modified = array();
         $keysChecked = array();
         foreach ($rows as $value) {
-            if(in_array($value['key'], $keysChecked)){
+            if(in_array($keysChecked, $value['key'])){
                 _error_log("LiveTransmitionHistory::finishALLOffline the key {$value['key']} is in another history record and will be finished ");
                 self::finishFromTransmitionHistoryId($value['id']);
                 $modified[] = $value['id'];
@@ -568,19 +534,18 @@ class LiveTransmitionHistory extends ObjectYPT {
             $total = count($fullData);
             foreach ($fullData as $row) {
                 if ($total < 10 && strtotime($row['modified']) < strtotime('-1 hour')) {
-                    if(Live::isStatsAccessible($live_servers_id)){
-                        // check if the m3u8 file still exists
-                        $m3u8 = Live::getM3U8File($row['key'], false, true);
-                        $isURL200 = isValidM3U8Link($m3u8);
-                        if (empty($isURL200)) {
-                            self::finishFromTransmitionHistoryId($row['id']);
-                            //var_dump($isURL200, $m3u8, $row);exit;
-                            continue;
-                        }
+                    // check if the m3u8 file still exists
+                    $m3u8 = Live::getM3U8File($row['key'], false, true);
+                    $isURL200 = isValidM3U8Link($m3u8);
+                    if (empty($isURL200)) {
+                        self::finishFromTransmitionHistoryId($row['id']);
+                        //var_dump($isURL200, $m3u8, $row);exit;
+                        continue;
+                    } else {
+                        // update it to make sure the modified date is updated
+                        $lth = new LiveTransmitionHistory($row['id']);
+                        $lth->save();
                     }
-                    // update it to make sure the modified date is updated
-                    $lth = new LiveTransmitionHistory($row['id']);
-                    $lth->save();
                 }
                 $log = LiveTransmitionHistoryLog::getAllFromHistory($row['id']);
                 $row['totalUsers'] = count($log);
@@ -604,7 +569,7 @@ class LiveTransmitionHistory extends ObjectYPT {
             $formats .= "i";
             $values[] = $users_id;
         }
-        if (!isset($live_servers_id) || strtolower($live_servers_id) == 'null') {
+        if (strtolower($live_servers_id) == 'null') {
             $sql .= ' AND `live_servers_id` IS NULL ';
         }else if (!empty($live_servers_id)) {
             $sql .= ' AND `live_servers_id` = ? ';
@@ -618,7 +583,6 @@ class LiveTransmitionHistory extends ObjectYPT {
         }
 
         $sql .= " ORDER BY created DESC LIMIT {$count}";
-        //echo $sql;var_dump($values);exit;
         $res = sqlDAL::readSql($sql, $formats, $values);
         if ($count == 1) {
             $data = sqlDAL::fetchAssoc($res);
@@ -640,19 +604,18 @@ class LiveTransmitionHistory extends ObjectYPT {
                 $total = count($fullData);
                 foreach ($fullData as $row) {
                     if ($total < 10 && strtotime($row['modified']) < strtotime('-1 hour')) {
-                        if(Live::isStatsAccessible($live_servers_id)){
-                            // check if the m3u8 file still exists
-                            $m3u8 = Live::getM3U8File($row['key']);
-                            $isURL200 = isValidM3U8Link($m3u8);
-                            if (empty($isURL200)) {
-                                self::finishFromTransmitionHistoryId($row['id']);
-                                //var_dump($isURL200, $m3u8, $row);exit;
-                                continue;
-                            } 
+                        // check if the m3u8 file still exists
+                        $m3u8 = Live::getM3U8File($row['key']);
+                        $isURL200 = isValidM3U8Link($m3u8);
+                        if (empty($isURL200)) {
+                            self::finishFromTransmitionHistoryId($row['id']);
+                            //var_dump($isURL200, $m3u8, $row);exit;
+                            continue;
+                        } else {
+                            // update it to make sure the modified date is updated
+                            $lth = new LiveTransmitionHistory($row['id']);
+                            $lth->save();
                         }
-                        // update it to make sure the modified date is updated
-                        $lth = new LiveTransmitionHistory($row['id']);
-                        $lth->save();
                     }
                     $log = LiveTransmitionHistoryLog::getAllFromHistory($row['id']);
                     $row['totalUsers'] = count($log);
@@ -667,8 +630,7 @@ class LiveTransmitionHistory extends ObjectYPT {
 
     public function save() {
         global $global;
-        $global['mysqli']->commit();
-        /*
+        
         $activeLive = self::getActiveLiveFromUser($this->users_id, $this->live_servers_id, $this->key);
         if(!empty($activeLive)){
             //_error_log("LiveTransmitionHistory::save: active live found ". json_encode($activeLive));
@@ -679,19 +641,6 @@ class LiveTransmitionHistory extends ObjectYPT {
             }
         }else{
             //_error_log("LiveTransmitionHistory::save: active live NOT found ");
-        }
-         * 
-         */
-        $activeLive = self::getLatest($this->key, $this->live_servers_id, true);
-        if(!empty($activeLive)){
-            _error_log("LiveTransmitionHistory::save: active live found ". json_encode($activeLive));
-            foreach ($activeLive as $key => $value) {
-                if(empty($this->$key)){
-                    $this->$key = $value;
-                }
-            }
-        }else{
-            _error_log("LiveTransmitionHistory::save: active live NOT found ". _json_encode(array($this->key, $this->live_servers_id, $activeLive)));
         }
         if(empty($this->id)){
             // if is creating a new make sure all 
@@ -710,7 +659,7 @@ class LiveTransmitionHistory extends ObjectYPT {
         $this->total_viewers = intval($this->total_viewers);
         
         $id = parent::save();
-        _error_log("LiveTransmitionHistory::save: id=$id ($this->users_id, $this->live_servers_id, $this->key) ". json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
+        //_error_log("LiveTransmitionHistory::save: id=$id ($this->users_id, $this->live_servers_id, $this->key) ". json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
         $global['mysqli']->commit();
         return $id;
     }
