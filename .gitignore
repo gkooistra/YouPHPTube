@@ -77,3 +77,6 @@ sitemap.xml
 /plugin/JoshWho/
 .DS_Store
 /.project
+objects/ezyang/
+/plugin/Conspyre/
+/plugin/VideoOffline/
