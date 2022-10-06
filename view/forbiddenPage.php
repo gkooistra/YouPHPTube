@@ -4,7 +4,7 @@ $config = new Configuration();
 $global['isForbidden'] = true;
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo __("Forbidden") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <?php
@@ -28,10 +28,11 @@ $global['isForbidden'] = true;
                         <div class="col-sm-8">
                             <?php
                             $value = '';
-                if (!empty($_REQUEST['unlockPassword'])) {
-                    $value = $_REQUEST['unlockPassword'];
-                }
-                echo getInputPassword('unlockPassword', 'class="form-control" value="' . $value . '"', __('Unlock Password')); ?>
+                            if (!empty($_REQUEST['unlockPassword'])) {
+                                $value = $_REQUEST['unlockPassword'];
+                            }
+                            echo getInputPassword('unlockPassword', 'class="form-control" value="' . $value . '"', __('Unlock Password')); 
+                            ?>
                         </div>
                         <div class="col-sm-4">
                             <button class="btn btn-success btn-block" type="submit"><i class="fas fa-lock-open"></i> <?php echo __('Unlock'); ?></button>

@@ -50,7 +50,7 @@ if (!empty($video['id'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo $playListObj->getName() . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
@@ -132,7 +132,7 @@ if (!empty($video['id'])) {
                             </div>
                             <div id="main-video" class="embed-responsive embed-responsive-16by9">
 
-                                <video playsinline
+                                <video <?php echo PlayerSkins::getPlaysinline(); ?>
                                 <?php if ($config->getAutoplay() && false) { // disable it for now    ?>
                                            autoplay="true"
                                            muted="muted"

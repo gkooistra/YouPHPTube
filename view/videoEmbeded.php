@@ -168,7 +168,7 @@ if (User::hasBlockedUser($video['users_id'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <meta name="robots" content="noindex">
         <?php
@@ -447,7 +447,7 @@ if (User::hasBlockedUser($video['users_id'])) {
     } else {
         ?>
         <!-- else -->
-        <video style="width: 100%; height: 100%; position: fixed; top: 0; <?php echo $objectFit; ?>" playsinline webkit-playsinline poster="<?php echo $poster; ?>" <?php echo $controls; ?> <?php echo $loop; ?>   <?php echo $mute; ?>
+        <video style="width: 100%; height: 100%; position: fixed; top: 0; <?php echo $objectFit; ?>" <?php echo PlayerSkins::getPlaysinline(); ?> poster="<?php echo $poster; ?>" <?php echo $controls; ?> <?php echo $loop; ?>   <?php echo $mute; ?>
                class="video-js vjs-default-skin vjs-big-play-centered <?php echo $vjsClass; ?> " id="mainVideo">
     <?php echo getSources($video['filename']); ?>
             <p><?php echo __("If you can't view this video, your browser does not support HTML5 videos"); ?></p>
@@ -481,7 +481,7 @@ if (User::hasBlockedUser($video['users_id'])) {
     $jsFiles[] = "view/js/BootstrapMenu.min.js";
     $jsFiles[] = "node_modules/sweetalert/dist/sweetalert.min.js";
     //$jsFiles[] = "view/js/bootgrid/jquery.bootgrid.js";
-    $jsFiles[] = "view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js";
+    //$jsFiles[] = "view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js";
     $jsFiles[] = "view/js/script.js";
     $jsFiles[] = "node_modules/js-cookie/dist/js.cookie.js";
     //$jsFiles[] = "view/css/flagstrap/js/jquery.flagstrap.min.js";

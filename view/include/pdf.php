@@ -15,12 +15,12 @@ $sources = getVideosURLPDF($video['filename']);
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <video playsinline webkit-playsinline="webkit-playsinline"  id="mainVideo" style="display: none; height: 0;width: 0;" ></video>
+            <video id="mainVideo" style="display: none; height: 0;width: 0;" ></video>
             <div id="main-video" class="embed-responsive embed-responsive-16by9">
                 <?php
                 $url = $sources["pdf"]['url'];
                 ?>
-                <iframe id="pdfIframe" class="embed-responsive-item" scrolling="no" allowfullscreen="true" type="application/pdf" src="<?php echo $url; ?>"></iframe>
+                <iframe id="pdfIframe" class="embed-responsive-item" scrolling="no" <?php echo Video::$iframeAllowAttributes; ?> type="application/pdf" src="<?php echo $url; ?>"></iframe>
                 <script>
                     $(document).ready(function () {
                         addView(<?php echo $video['id']; ?>, 0);

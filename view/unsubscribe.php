@@ -24,7 +24,7 @@ $subscribe->save();
 
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $config->getLanguage(); ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo __("Unsubscribe"); ?></title>
         <?php
@@ -47,7 +47,7 @@ $subscribe->save();
                 </div>
                 <div class="panel-body">
                     <h1><?php echo __("You've unsubscribed"); ?></h1>
-                    <?php echo __(" You'll no longer receive emails from us"); ?>
+                    <?php echo __("You'll no longer receive emails from us"); ?>
                 </div>
             </div>
 

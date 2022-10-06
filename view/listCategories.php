@@ -5,7 +5,7 @@ if (!isset($global['systemRootPath'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $config->getLanguage(); ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <?php
         echo getHTMLTitle(['Categories']);
@@ -21,7 +21,7 @@ if (!isset($global['systemRootPath'])) {
                 padding: 10px 10px 10px calc( 20% + 20px);
                 width: 100%;
                 color: #fff;
-                background-image: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1));
+                background-image: linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,1));
             }
             .categoryItem .panel-default{
                 position: relative;

@@ -113,23 +113,13 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
         $tmp_name = $_FILES['upl']['tmp_name'];
         $filenameMP4 = $filename . "." . $extension;
         decideMoveUploadedToVideos($tmp_name, $filenameMP4, $video->getType());
-
-        if ((AVideoPlugin::isEnabledByName('MP4ThumbsAndGif')) && ($extension == "mp4" || $extension == "webm" || $extension == "mp3")) {
-            $videoFileName = $video->getFilename();
-
-            MP4ThumbsAndGif::getImage($videoFileName, 'jpg', $id);
-            MP4ThumbsAndGif::getImage($videoFileName, 'gif', $id);
-            MP4ThumbsAndGif::getImage($videoFileName, 'webp', $id);
-        }
-
-        //    } else if(($extension=="mp3")||($extension=="ogg")){
-        //  }
+        
         $obj->title = $video->getTitle();
         $obj->error = false;
         $obj->filename = $filename;
         $obj->duration = $duration;
         $obj->videos_id = $id;
-
+        //var_dump($obj->videos_id);exit;
         if ($extension !== "jpg" && $video->getType() == "image") {
             sleep(1); // to make sure the file will be available
             $file = $video->getFilename();

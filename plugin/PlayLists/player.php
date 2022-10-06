@@ -61,14 +61,13 @@ foreach ($playList as $key => $value) {
 
 $video = PlayLists::isPlayListASerie($_GET['playlists_id']);
 
-$playlist_index = intval(@$_REQUEST['playlist_index']);
+$playlist_index = getPlayListIndex();
 
 if (!empty($video['id'])) {
     AVideoPlugin::getEmbed($video['id']);
     setVideos_id($video['id']);
 } else if (!empty($playListData[$playlist_index])) {
-    setVideos_id($playListData[$playlist_index]->getVideos_id());
-    $video = Video::getVideo($playListData[$playlist_index]->getVideos_id());
+    $video = getPlayListCurrentVideo();
 }
 
 if(empty($playListData)){
@@ -77,7 +76,7 @@ if(empty($playListData)){
 
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo $playListObj->getName() . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
@@ -145,7 +144,7 @@ if(empty($playListData)){
                 ?>
                 <!-- playlist player -->
                 <?php
-                $htmlMediaTag = '<video playsinline preload="auto"
+                $htmlMediaTag = '<video '.PlayerSkins::getPlaysinline().' preload="auto"
                                        controls class="embed-responsive-item video-js vjs-default-skin vjs-big-play-centered" id="mainVideo"
                                        data-setup=\'{"techOrder": ["youtube","html5"]}\'>
                                 </video>';

@@ -3,6 +3,7 @@
 global $global;
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 
+
 class API extends PluginAbstract {
 
     public function getTags() {
@@ -24,10 +25,24 @@ class API extends PluginAbstract {
         return "1apicbec-91db-4357-bb10-ee08b0913778";
     }
 
+    private static function addRowInfo($obj){
+        if(!isset($obj->current)){
+            $obj->current = getCurrentPage();
+        }
+        $obj->hasMore = true;
+        if(count($obj->rows) < $obj->rowCount){
+            $obj->hasMore = false;
+        }
+        if($obj->current*$obj->rowCount >= $obj->totalRows){
+            $obj->hasMore = false;
+        }
+        return $obj;
+    }
+    
     public function getEmptyDataObject() {
         global $global;
         $obj = new stdClass();
-        $obj->APISecret = md5($global['systemRootPath']);
+        $obj->APISecret = md5($global['salt'].$global['systemRootPath'].'API');
         return $obj;
     }
 
@@ -56,7 +71,15 @@ class API extends PluginAbstract {
                 $str = "\$object = \$this->set_api_$APIName(\$parameters);";
                 eval($str);
             } else {
-                $object = new ApiObject();
+                $method = "API_set_{$parameters['APIName']}";
+                if (!empty($parameters['APIPlugin']) &&
+                        AVideoPlugin::isEnabledByName($parameters['APIPlugin']) && 
+                        method_exists($parameters['APIPlugin'], $method)) {
+                    $str = "\$object = {$parameters['APIPlugin']}::{$method}(\$parameters);";
+                    eval($str);
+                } else {
+                    $object = new ApiObject();
+                }
             }
         }
         return $object;
@@ -81,7 +104,15 @@ class API extends PluginAbstract {
                 $str = "\$object = \$this->get_api_$APIName(\$parameters);";
                 eval($str);
             } else {
-                $object = new ApiObject();
+                $method = "API_get_{$parameters['APIName']}";
+                if (!empty($parameters['APIPlugin']) &&
+                        AVideoPlugin::isEnabledByName($parameters['APIPlugin']) && 
+                        method_exists($parameters['APIPlugin'], $method)) {
+                    $str = "\$object = {$parameters['APIPlugin']}::{$method}(\$parameters);";
+                    eval($str);
+                } else {
+                    $object = new ApiObject();
+                }
             }
         }
         return $object;
@@ -179,6 +210,32 @@ class API extends PluginAbstract {
         require_once $global['systemRootPath'] . 'objects/category.php';
         $obj = $this->startResponseObject($parameters);
         $rows = Category::getAllCategories();
+        foreach ($rows as $key => $value) {
+            $totalVideosOnChilds = Category::getTotalFromChildCategory($value['id']);
+            $childs = Category::getChildCategories($value['id']);
+            $photo = Category::getCategoryPhotoPath($value['id']);
+            $photoBg = Category::getCategoryBackgroundPath($value['id']);
+            $link = $global['webSiteRootURL'] . 'cat/' . $value['clean_name'];
+            
+            if (!empty($value['fullTotal_videos'])) {
+                $video = Category::getLatestVideoFromCategory($value['id'], true, true);
+                $images = Video::getImageFromID($video['id']);
+                $image = $images->poster;
+            } elseif (!empty($value['fullTotal_lives'])) {
+                $live = Category::getLatestLiveFromCategory($value['id'], true, true);
+                $image = Live::getImage($live['users_id'], $live['live_servers_id']);
+            } elseif (!empty($value['fullTotal_livelinks'])) {
+                $liveLinks = Category::getLatestLiveLinksFromCategory($value['id'], true, true);
+                $image = LiveLinks::getImage($liveLinks['id']);
+            }
+                    
+            $rows[$key]['image'] = $image;
+            $rows[$key]['totalVideosOnChilds'] = $totalVideosOnChilds;
+            $rows[$key]['childs'] = $childs;
+            $rows[$key]['photo'] = $photo;
+            $rows[$key]['photoBg'] = $photoBg;
+            $rows[$key]['link'] = $link;
+        }
         //array_multisort(array_column($rows, 'hierarchyAndName'), SORT_ASC, $rows);
         $totalRows = Category::getTotalCategories();
         $obj->totalRows = $totalRows;
@@ -323,7 +380,8 @@ class API extends PluginAbstract {
                 $status = "";
                 $ignoreGroup = true;
             }
-            $rows = [Video::getVideo($parameters['videos_id'], $status, $ignoreGroup)];
+            //              getVideo($id = "", $status = "viewable", $ignoreGroup = false, $random = false, $suggestedOnly = false, $showUnlisted = false, $ignoreTags = false, $activeUsersOnly = true)
+            $rows = [Video::getVideo($parameters['videos_id'], $status, $ignoreGroup, false, false, true)];
             $totalRows = empty($rows) ? 0 : 1;
         } elseif (self::isAPISecretValid()) {
             $rows = Video::getAllVideos("viewable", false, true);
@@ -336,7 +394,7 @@ class API extends PluginAbstract {
             $totalRows = Video::getTotalVideos();
         }
 
-        if (!empty($_REQUEST['catName'])) {
+        if (!empty($_REQUEST['catName']) && empty($parameters['videos_id'])) {
             $currentCat = Category::getCategoryByName($_REQUEST['catName']);
             if (!empty($currentCat)) {
                 $liveVideos = getLiveVideosFromCategory($currentCat['id']);
@@ -441,6 +499,8 @@ class API extends PluginAbstract {
         }
         $obj->totalRows = $totalRows;
         $obj->rows = $rows;
+        $obj = self::addRowInfo($obj);
+        //var_dump($obj->rows );exit;
         ObjectYPT::setCache($cacheName, $obj);
         return new ApiObject("", false, $obj);
     }
@@ -711,7 +771,7 @@ class API extends PluginAbstract {
 
             unset($obj->user['externalOptions']);
             unset($obj->user['extra_info']);
-
+            $obj->user['canStream'] = $obj->user['canStream'] || $obj->user['isAdmin'];
             $obj->user['DonationButtons'] = _json_decode($obj->user['DonationButtons']);
 
             $obj->livestream = LiveTransmition::getFromDbByUser($user->getBdId());
@@ -1533,7 +1593,7 @@ class API extends PluginAbstract {
         exit;
     }
     
-    private static function isAPISecretValid(){
+    public static function isAPISecretValid(){
         global $global;
         if(!empty($_REQUEST['APISecret'])){
             $dataObj = AVideoPlugin::getDataObject('API');

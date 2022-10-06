@@ -5,7 +5,8 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
         $_GET['page'] = 1;
     }
     $_REQUEST['current'] = $_GET['page'];
-
+    
+    echo '<!-- '.basename(__FILE__).' -->';
 
     include $global['systemRootPath'] . 'plugin/Gallery/view/modeGalleryCategoryLive.php';
     unset($_POST['sort']);
@@ -18,9 +19,13 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
     if(empty($contentSearchFound)){
         $contentSearchFound = !empty($videos);
     }
-    $liveVideos = getLiveVideosFromCategory($currentCat['id']);
-    if(!empty($liveVideos)){
-        $videos = array_merge($liveVideos, $videos);
+    $currPage = getCurrentPage();
+    global $categoryLiveVideos;
+    if(empty($categoryLiveVideos) && $currPage<2){
+        $categoryLiveVideos = getLiveVideosFromCategory($currentCat['id']);
+        if(!empty($categoryLiveVideos)){
+            $videos = array_merge($categoryLiveVideos, $videos);
+        }
     }
     if (!empty($videos)) {
         ?>
@@ -29,7 +34,7 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
             if (canPrintCategoryTitle($currentCat['name'])) {
                 ?>
                 <h3 class="galleryTitle">
-                    <a class="btn-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $currentCat['clean_name']; ?>">
+                    <a href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo $currentCat['clean_name']; ?>">
                         <i class="<?php echo $currentCat['iconClass']; ?>"></i> <?php echo $currentCat['name']; ?>
                     </a>
                     <?php

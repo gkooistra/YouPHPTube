@@ -57,8 +57,10 @@ class AVideoPlugin
         return false;
     }
 
-    public static function getHeadCode()
-    {
+    public static function getHeadCode(){
+        if(self::isDebuging(__FUNCTION__)){
+            return '<!-- AVideoPlugin::'.__FUNCTION__.' disabled -->';
+        }
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -75,8 +77,7 @@ class AVideoPlugin
         return $str;
     }
 
-    public static function getChartTabs()
-    {
+    public static function getChartTabs(){
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -167,8 +168,10 @@ class AVideoPlugin
         return $str;
     }
 
-    public static function getFooterCode()
-    {
+    public static function getFooterCode(){
+        if(self::isDebuging(__FUNCTION__)){
+            return '<!-- AVideoPlugin::'.__FUNCTION__.' disabled -->';
+        }
         $plugins = Plugin::getAllEnabled();
         $str = "";
         foreach ($plugins as $value) {
@@ -292,6 +295,7 @@ class AVideoPlugin
         if (empty($pluginIsLoaded)) {
             $pluginIsLoaded = [];
         }
+        $name = preg_replace('/[^0-9a-z_]/i', '', $name);
         $loadPluginFile = "{$global['systemRootPath']}plugin/{$name}/{$name}.php";
         // need to add dechex because some times it return an negative value and make it fails on javascript playlists
         if (!isset($pluginIsLoaded[$name]) && empty($forceReload)) {
@@ -632,8 +636,10 @@ class AVideoPlugin
         }
     }
 
-    public static function getEnd()
-    {
+    public static function getEnd(){
+        if(self::isDebuging(__FUNCTION__)){
+            return '<!-- AVideoPlugin::'.__FUNCTION__.' disabled -->';
+        }
         $plugins = Plugin::getAllEnabled();
         usort($plugins, function ($a, $b) {
             if ($a['name'] == 'Cache') {
@@ -651,8 +657,11 @@ class AVideoPlugin
             self::YPTstart();
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
-                //_error_log("{$value['dirName']}::" . __FUNCTION__);
-                if(!empty($_REQUEST['debug'])){
+                $func = "{$value['dirName']}::" . __FUNCTION__;
+                //echo $func.PHP_EOL;
+                //_error_log($func);
+                if(!empty($_REQUEST['debugcomment'])){
+                    _error_log("Debug {$value['dirName']} getEnd ");
                     echo "<!-- {$value['dirName']} getEnd -->".PHP_EOL;
                 }
                 $p->getEnd();
@@ -684,6 +693,36 @@ class AVideoPlugin
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $p->afterNewVideo($videos_id);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+    
+    public static function onVideoLikeDislike($videos_id, $users_id, $isLike){
+        if(empty($videos_id)){
+            return false;
+        }
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onVideoLikeDislike($videos_id, $users_id, $isLike);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+    
+    public static function onNewSubscription($users_id, $subscriber_users_id){
+        if(empty($subscriber_users_id) || empty($users_id)){
+            return false;
+        }
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->onNewSubscription($users_id, $subscriber_users_id);
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
@@ -808,6 +847,18 @@ class AVideoPlugin
             $p = static::loadPlugin($value['dirName']);
             if (is_object($p)) {
                 $p->getChannelButton();
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+    }
+    
+    public static function getUserNotificationButton(){
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $p->getUserNotificationButton();
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
@@ -1084,8 +1135,7 @@ class AVideoPlugin
         return $js;
     }
 
-    public static function navBarButtons()
-    {
+    public static function navBarButtons(){
         $plugins = Plugin::getAllEnabled();
         $userOptions = [];
         $navBarButtons = "";
@@ -1100,8 +1150,10 @@ class AVideoPlugin
         return $navBarButtons;
     }
 
-    public static function navBarProfileButtons()
-    {
+    public static function navBarProfileButtons(){
+        if(self::isDebuging(__FUNCTION__)){
+            return '<!-- AVideoPlugin::'.__FUNCTION__.' disabled -->';
+        }
         $plugins = Plugin::getAllEnabled();
         $userOptions = [];
         $navBarButtons = "";
@@ -1115,9 +1167,18 @@ class AVideoPlugin
         }
         return $navBarButtons;
     }
+    
+    private static function isDebuging($name){
+        if(!empty($_REQUEST['debug_'.$name]) || !empty($_REQUEST['debug'])){
+            return true;
+        }
+        return false;
+    }
 
-    public static function navBar()
-    {
+    public static function navBar(){
+        if(self::isDebuging(__FUNCTION__)){
+            return '<!-- AVideoPlugin::'.__FUNCTION__.' disabled -->';
+        }
         $plugins = Plugin::getAllEnabled();
         $userOptions = [];
         $navBarButtons = "<!-- Plugin::navBar Start -->";
@@ -1133,8 +1194,10 @@ class AVideoPlugin
         return $navBarButtons;
     }
 
-    public static function navBarAfter()
-    {
+    public static function navBarAfter(){
+        if(self::isDebuging(__FUNCTION__)){
+            return '<!-- AVideoPlugin::'.__FUNCTION__.' disabled -->';
+        }
         $plugins = Plugin::getAllEnabled();
         $userOptions = [];
         $navBarButtons = "";
@@ -2326,6 +2389,7 @@ class AVideoPlugin
                 'PlayerSkins', // PlayerSkins
                 'Permissions', // Permissions
                 'Scheduler', // Permissions
+                'UserNotifications', 
             ];
         } else {
             return [
@@ -2335,6 +2399,7 @@ class AVideoPlugin
                 'e9a568e6-ef61-4dcc-aad0-0109e9be8e36', // PlayerSkins
                 'Permissions-5ee8405eaaa16', // Permissions
                 'Scheduler-5ee8405eaaa16', // Permissions
+                'UserNotifications-5ee8405eaaa16', // Permissions
             ];
         }
     }
@@ -2373,6 +2438,12 @@ class YouPHPTubePlugin extends AVideoPlugin
 }     
 
 function getLiveApplicationArrayCMP($a, $b) {
-    //var_dump($a['title'],$a['comingsoon'], $b['title'],$b['comingsoon'], $a['comingsoon'] - $b['comingsoon']);
+    if(empty($a['comingsoon'])){
+        return -1;
+    }
+    if(empty($b['comingsoon'])){
+        return 1;
+    }
+    //var_dump($a['comingsoon'],$b['comingsoon'], $a['comingsoon'] - $b['comingsoon']);
     return $a['comingsoon'] - $b['comingsoon'];
 }

@@ -139,13 +139,13 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                         $downloadMP4Link = array();
                         foreach ($files as $key => $theLink) {
                             //$notAllowedKeys = array('m3u8');
-                            $notAllowedKeys = [];
+                            $notAllowedKeys = ['log'];
                             if (empty($advancedCustom->showImageDownloadOption)) {
                                 $notAllowedKeys = array_merge($notAllowedKeys, ['jpg', 'gif', 'webp', 'pjpg']);
                             }
                             $keyFound = false;
                             foreach ($notAllowedKeys as $notAllowedKey) {
-                                if (preg_match("/{$notAllowedKey}/", $key)) {
+                                if (preg_match("/{$notAllowedKey}/i", $key)) {
                                     $keyFound = true;
                                     break;
                                 }
@@ -312,6 +312,21 @@ if ($video['type'] !== 'notfound' && CustomizeUser::canShareVideosFromVideo($vid
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Rating"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10">
                     <?php include $global['systemRootPath'] . 'view/rrating/rating-' . $video['rrating'] . '.php'; ?>
+                </div>
+                <?php
+            }
+            if (!empty($advancedCustom->showVideoDownloadedLink) && isValidURL($video['videoDownloadedLink'])) {
+                $parse = parse_url($video['videoDownloadedLink']);
+                $domain = str_replace('www.', '', $parse['host']);
+                ?>
+                <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Source"); ?>:</strong></div>
+                <div class="col-xs-8 col-sm-10 col-lg-10 descriptionArea" itemprop="source">
+                    <a class="btn btn-xs btn-default" href="<?php echo $video['videoDownloadedLink']; ?>" target="_blank" rel="nofollow">
+                        <i class="fas fa-external-link-alt"></i>
+                        <?php
+                        echo $domain;
+                        ?>
+                    </a>
                 </div>
                 <?php
             }

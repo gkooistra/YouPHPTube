@@ -109,6 +109,8 @@ if (!class_exists('Video')) {
         public static $searchFieldsNames = ['v.title', 'v.description', 'c.name', 'c.description', 'v.id', 'v.filename'];
         public static $searchFieldsNamesLabels = ['Video Title', 'Video Description', 'Channel Name', 'Channel Description', 'Video ID', 'Video Filename'];
 
+        public static $iframeAllowAttributes = 'allow="fullscreen;autoplay;camera *;microphone *;" allowfullscreen="allowfullscreen" mozallowfullscreen="mozallowfullscreen" msallowfullscreen="msallowfullscreen" oallowfullscreen="oallowfullscreen" webkitallowfullscreen="webkitallowfullscreen"';
+        
         public function __construct($title = "", $filename = "", $id = 0) {
             global $global;
             $this->rotation = 0;
@@ -148,6 +150,12 @@ if (!class_exists('Video')) {
             if (empty($this->id)) {
                 return false;
             }
+            
+            $lastStatistic = VideoStatistic::getLastStatistics($this->id, User::getId());
+            if(!empty($lastStatistic)){
+                return false;
+            }
+            
             $sql = "UPDATE videos SET views_count = views_count+1, modified = now() WHERE id = ?";
 
             $insert_row = sqlDAL::writeSql($sql, "i", [$this->id]);
@@ -790,7 +798,7 @@ if (!class_exists('Video')) {
                 }
             }
             _mysql_connect();
-            $sql = "SELECT STRAIGHT_JOIN  u.*, v.*, "
+            $sql = "SELECT STRAIGHT_JOIN  u.*, u.externalOptions as userExternalOptions, v.*, "
                     . " nv.title as next_title,"
                     . " nv.clean_title as next_clean_title,"
                     . " nv.filename as next_filename,"
@@ -1160,7 +1168,8 @@ if (!class_exists('Video')) {
                 $suggestedOnly = true;
                 $status = '';
             }
-            $sql = "SELECT STRAIGHT_JOIN  u.*, v.*, c.iconClass, c.name as category, c.clean_name as clean_category,c.description as category_description, v.created as videoCreation, v.modified as videoModified "
+            $sql = "SELECT STRAIGHT_JOIN  u.*, u.externalOptions as userExternalOptions, v.*, c.iconClass, c.name as category, c.clean_name as clean_category,c.description as category_description,"
+                    . " v.created as videoCreation, v.modified as videoModified "
                     //. ", (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = 1 ) as likes "
                     //. ", (SELECT count(id) FROM likes as l where l.videos_id = v.id AND `like` = -1 ) as dislikes "
                     . " FROM videos as v "
@@ -1316,6 +1325,9 @@ if (!class_exists('Video')) {
                 foreach ($rows as $row) {
                     $ids[] = $row['id'];
                 }
+                
+                $daysLimit = getTrendingLimit();
+                
                 if (!empty($ids)) {
                     $sql .= " ORDER BY FIND_IN_SET(v.id, '" . implode(",", $ids) . "') DESC, likes DESC ";
                 } else {
@@ -1427,6 +1439,9 @@ if (!class_exists('Video')) {
                 }
                 if (empty($obj['externalOptions'])) {
                     $obj['externalOptions'] = json_encode(['videoStartSeconds' => '00:00:00']);
+                }                
+                if (!empty($obj['userExternalOptions']) && is_string($obj['userExternalOptions'])) {
+                    $obj['userExternalOptions'] = User::decodeExternalOption($obj['userExternalOptions']);
                 }
                 $obj = cleanUpRowFromDatabase($obj);
                 return $obj;
@@ -1496,6 +1511,10 @@ if (!class_exists('Video')) {
             if (empty($row['externalOptions'])) {
                 $row['externalOptions'] = json_encode(['videoStartSeconds' => '00:00:00']);
             }
+            if (!empty($row['userExternalOptions']) && is_string($row['userExternalOptions'])) {
+                $row['userExternalOptions'] = User::decodeExternalOption($row['userExternalOptions']);
+            }
+            //var_dump($row['userExternalOptions']);exit;
             $row = array_merge($row, AVideoPlugin::getAllVideosArray($row['id']));
             TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
             ObjectYPT::setCache($name, $row);
@@ -1711,7 +1730,7 @@ if (!class_exists('Video')) {
                         $row['duration_in_seconds'] = self::updateDurationInSeconds($row['id'], $row['duration']);
                     }
                     if (empty($row['filesize'])) {
-                        if($video['type']=='video' || $video['type']=='audio'){
+                        if($row['type']=='video' || $row['type']=='audio'){
                             $row['filesize'] = Video::updateFilesize($row['id']);
                         }
                     }
@@ -3415,7 +3434,7 @@ if (!class_exists('Video')) {
             $videoFilename = str_replace($videosDir, '', $videoFilename);
             $paths = Video::getPaths($videoFilename, $createDir);
             //var_dump($paths);
-            if (preg_match('/index.(m3u8|mp4)$/', $videoFilename)) {
+            if (preg_match('/index(_offline)?.(m3u8|mp4)$/', $videoFilename)) {
                 $paths['path'] = rtrim($paths['path'], DIRECTORY_SEPARATOR);
                 $paths['path'] = rtrim($paths['path'], '/');
                 $videoFilename = str_replace($paths['relative'], '', $videoFilename);
@@ -3558,6 +3577,7 @@ if (!class_exists('Video')) {
                 return "";
             }
             $filename = fixPath($filename);
+            $filename = str_replace('index_offline', 'index', $filename);
             $filename = str_replace(getVideosDir(), '', $filename);
             if (preg_match('/videos[\/\\\]([^\/\\\]+)[\/\\\].*index.(m3u8|mp4|mp3)$/', $filename, $matches)) {
                 //var_dump($filename, $matches);
@@ -3570,10 +3590,6 @@ if (!class_exists('Video')) {
                 $search = array_merge($search, $global['langs_codes_values_withdot']);
             }
 
-            if (empty($global['avideo_resolutions']) || !is_array($global['avideo_resolutions'])) {
-                $global['avideo_resolutions'] = [240, 360, 480, 540, 720, 1080, 1440, 2160];
-            }
-
             foreach ($global['avideo_resolutions'] as $value) {
                 $search[] = "_{$value}";
 
@@ -3583,7 +3599,7 @@ if (!class_exists('Video')) {
             if ($cleanName == $filename || preg_match('/([a-z]+_[0-9]{12}_[a-z0-9]{4})_[0-9]+/', $filename)) {
                 $cleanName = preg_replace('/([a-z]+_[0-9]{12}_[a-z0-9]{4,5})_[0-9]+/', '$1', $filename);
             }
-
+            
             $path_parts = pathinfo($cleanName);
             if (empty($path_parts['extension'])) {
                 //_error_log("Video::getCleanFilenameFromFile could not find extension of ".$filename);
@@ -3917,6 +3933,7 @@ if (!class_exists('Video')) {
             if (!empty($source['url'])) {
                 $videos['mp3'] = $source['url'];
             }
+            //var_dump($videos);exit;
             $c = ObjectYPT::setCache($cacheName, $videos);
             //var_dump($cacheName, $c);exit;
             return $videos;
@@ -4618,9 +4635,9 @@ if (!class_exists('Video')) {
 
         public static function getVideoPogressPercent($videos_id, $users_id = 0) {
             $lastVideoTime = self::getVideoPogress($videos_id, $users_id);
-
+            
             if (empty($lastVideoTime)) {
-                return ['percent' => 0, 'lastVideoTime' => 0];
+                return ['percent' => 0, 'lastVideoTime' => 0, 'msg' => 'empty LastVideoTime'];
             }
 
             // start incremental search and save
@@ -4636,14 +4653,15 @@ if (!class_exists('Video')) {
             $duration = parseDurationToSeconds($row['duration']);
 
             if (empty($duration)) {
-                return ['percent' => 0, 'lastVideoTime' => 0];
+                return ['percent' => 0, 'lastVideoTime' => 0, 'msg' => 'empty duration'];
             }
 
             if ($lastVideoTime > $duration) {
-                return ['percent' => 100, 'lastVideoTime' => $lastVideoTime];
+                return ['percent' => 100, 'lastVideoTime' => $lastVideoTime, 'msg' => 'LastVideoTime > duration'];
             }
 
-            return ['percent' => ($lastVideoTime / $duration) * 100, 'lastVideoTime' => $lastVideoTime];
+            //var_dump(__LINE__, $videos_id,  $users_id, $lastVideoTime, ['percent' => ($lastVideoTime / $duration) * 100, 'lastVideoTime' => $lastVideoTime]);exit;
+            return ['percent' => ($lastVideoTime / $duration) * 100, 'lastVideoTime' => $lastVideoTime, 'duration'=>$duration];
         }
 
         public function getRrating() {
@@ -5155,14 +5173,14 @@ if (!class_exists('Video')) {
                     $favoriteBtnAddedStyle = "display: none;";
                     $favoriteBtnStyle = '';
                 }
-                $loggedUserHTML = '<div class="galleryVideoButtons">';
+                $loggedUserHTML = '<!-- getVideosListItem --><div class="galleryVideoButtons">';
                 $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', false, ' . $value['watchLaterId'] . ');return false;" '
                         . 'class="btn btn-dark btn-xs watchLaterBtnAdded watchLaterBtnAdded' . $value['id'] . '" '
                         . 'title="' . __("Added On Watch Later") . '" style="color: #4285f4;' . $watchLaterBtnAddedStyle . '" ><i class="fas fa-check"></i></button> ';
-                $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', true, ' . $value['watchLaterId'] . ');return false;" class="btn btn-dark btn-xs watchLaterBtn watchLaterBtn' . $value['id'] . '" title="' . __("Watch Later") . '" style="' . $watchLaterBtnStyle . '" ><i class="fas fa-clock"></i></button>';
+                $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', true, ' . $value['watchLaterId'] . ');return false;" class="btn btn-dark btn-xs watchLaterBtn watchLaterBtn' . $value['id'] . '" title=' . printJSString('Watch Later', true) . ' style="' . $watchLaterBtnStyle . '" ><i class="fas fa-clock"></i></button>';
                 $loggedUserHTML .= '<br>';
-                $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', false, ' . $value['favoriteId'] . ');return false;" class="btn btn-dark btn-xs favoriteBtnAdded favoriteBtnAdded' . $value['id'] . '" title="' . __("Added On Favorite") . '" style="color: #4285f4; ' . $favoriteBtnAddedStyle . '"><i class="fas fa-check"></i></button>  ';
-                $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', true, ' . $value['favoriteId'] . ');return false;" class="btn btn-dark btn-xs favoriteBtn favoriteBtn' . $value['id'] . '" title="' . __("Favorite") . '" style="' . $favoriteBtnStyle . '" ><i class="fas fa-heart" ></i></button>    ';
+                $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', false, ' . $value['favoriteId'] . ');return false;" class="btn btn-dark btn-xs favoriteBtnAdded favoriteBtnAdded' . $value['id'] . '" title=' . printJSString('Added On Favorite', true) . ' style="color: #4285f4; ' . $favoriteBtnAddedStyle . '"><i class="fas fa-check"></i></button>  ';
+                $loggedUserHTML .= '<button onclick="addVideoToPlayList(' . $value['id'] . ', true, ' . $value['favoriteId'] . ');return false;" class="btn btn-dark btn-xs favoriteBtn favoriteBtn' . $value['id'] . '" title=' . printJSString('Favorite', true) . ' style="' . $favoriteBtnStyle . '" ><i class="fas fa-heart" ></i></button>    ';
                 $loggedUserHTML .= '</div>';
             }
             $progress = self::getVideoPogressPercent($value['id']);
@@ -5228,7 +5246,7 @@ if (!class_exists('Video')) {
             return $btnHTML;
         }
 
-        static function getVideoImagewithHoverAnimationFromVideosId($videos_id, $addThumbOverlay = true, $addLink = true, $galeryDetails = false) {
+        static function getVideoImagewithHoverAnimationFromVideosId($videos_id, $addThumbOverlay = true, $addLink = true, $galeryDetails = false, $preloadImage=false) {
             if (empty($videos_id)) {
                 return '';
             }
@@ -5244,7 +5262,7 @@ if (!class_exists('Video')) {
                 $images = object_to_array($video['images']);
             }
             //var_dump($videos_id, $video, $images);
-            $img = getVideoImagewithHoverAnimation($images['poster'], $images['thumbsGif'], $video['title']);
+            $img = getVideoImagewithHoverAnimation($images['poster'], $images['thumbsGif'], $video['title'], $preloadImage);
             $program = AVideoPlugin::loadPluginIfEnabled('PlayLists');
             $isserie = Video::isSerie($videos_id);
             $isserieClass = "";
@@ -5262,7 +5280,8 @@ if (!class_exists('Video')) {
                 }
             }
             $progress = Video::getVideoPogressPercent($video['id']);
-            $img .= "<div class=\"progress\" style=\"height: 3px; margin-bottom: 2px;\">"
+            //var_dump($video['id'], $progress);
+            $img .= "<div class=\"progress\">"
                     . "<div class=\"progress-bar progress-bar-danger\" role=\"progressbar\" "
                     . "style=\"width: {$progress['percent']}%;\" "
                     . "aria-valuenow=\"{$progress['percent']}\" "
@@ -5300,7 +5319,7 @@ if (!class_exists('Video')) {
                 $galleryDropDownMenu = Gallery::getVideoDropdownMenu($videos_id);
 
                 $galleryVideoButtons .= '
-                <div class="galleryVideoButtons">
+                <!-- getVideoImagewithHoverAnimationFromVideosId --><div class="galleryVideoButtons">
                     <button onclick="addVideoToPlayList(' . $videos_id . ', false, ' . $watchLaterId . ');return false;" class="btn btn-dark btn-xs watchLaterBtnAdded watchLaterBtnAdded' . $videos_id . '" data-toggle="tooltip" data-placement="left" title=' . printJSString("Added On Watch Later", true) . ' style="color: #4285f4;' . $watchLaterBtnAddedStyle . '" ><i class="fas fa-check"></i></button> 
                     <button onclick="addVideoToPlayList(' . $videos_id . ', true, ' . $watchLaterId . ');return false;" class="btn btn-dark btn-xs watchLaterBtn watchLaterBtn' . $videos_id . '" data-toggle="tooltip" data-placement="left" title=' . printJSString("Watch Later", true) . ' style="' . $watchLaterBtnStyle . '" ><i class="fas fa-clock"></i></button>
                     <br>
@@ -5566,7 +5585,7 @@ if (!class_exists('Video')) {
 
         static public function getAllActiveEPGs() {
             global $config;
-            $sql = "SELECT * FROM `videos` WHERE status = '" . Video::$statusActive . "' AND epg_link IS NOT NULL AND epg_link != '';";
+            $sql = "SELECT * FROM `videos` WHERE status = '" . Video::$statusActive . "' AND `type` = 'linkVideo' AND epg_link IS NOT NULL AND epg_link != '';";
             $res = sqlDAL::readSql($sql);
             $fullResult2 = sqlDAL::fetchAllAssoc($res);
             sqlDAL::close($res);
@@ -5590,7 +5609,7 @@ if (!class_exists('Video')) {
             }
 
             if (!isset($_getEPG[$videos_id])) {
-                $sql = "SELECT * FROM `videos` WHERE id = ? AND epg_link IS NOT NULL AND epg_link != ''";
+                $sql = "SELECT * FROM `videos` WHERE id = ? AND `type` = 'linkVideo' AND epg_link IS NOT NULL AND epg_link != ''";
                 $res = sqlDAL::readSql($sql, 'i', array($videos_id));
 
                 $video = sqlDAL::fetchAssoc($res);

@@ -63,7 +63,7 @@ class VideoStatistic extends ObjectYPT {
                 . "(`when`,ip, users_id, videos_id, lastVideoTime, created, modified, session_id) values "
                 . "(now(),?," . $userId . ",?,{$lastVideoTime},now(),now(),'" . session_id() . "')";
         $insert_row = sqlDAL::writeSql($sql, "si", [getRealIpAddr(), $videos_id]);
-
+        //if($videos_id==4){_error_log($sql);}
         if (!empty($global['mysqli']->insert_id)) {
             return $global['mysqli']->insert_id;
         } else {
@@ -96,7 +96,7 @@ class VideoStatistic extends ObjectYPT {
             //$totalVideoSeconds = timeToSeconds($hms);
             //Video::addViewPercent();
         }
-
+        //if($videos_id==4){ _error_log("updateStatistic $videos_id, $users_id, $lastVideoTime, $seconds_watching_video ".json_encode($lastStatistic));}
         $id = $vs->save();
         /*
           if(!empty($id)){
@@ -124,19 +124,27 @@ class VideoStatistic extends ObjectYPT {
         $this->seconds_watching_video = intval($this->seconds_watching_video);
 
         $this->json = ($this->json);
-
+        
+        if(empty($this->id)){
+            $row = self::getLastStatistics($$this->videos_id, $this->users_id);
+            if(!empty($row)){
+                $this->id = $row['id'];
+            }
+        }
+        
         return parent::save();
     }
 
     public static function getLastStatistics($videos_id, $users_id = 0) {
         if (!empty($users_id)) {
-            $sql = "SELECT * FROM videos_statistics WHERE videos_id = ? AND users_id = ? ORDER BY id DESC LIMIT 1 ";
-            $res = sqlDAL::readSql($sql, 'ii', [$videos_id, $users_id], true);
+            $sql = "SELECT * FROM videos_statistics WHERE videos_id = ? AND (users_id = ? OR session_id = ?) ORDER BY id DESC LIMIT 1 ";
+            $res = sqlDAL::readSql($sql, 'iis', [$videos_id, $users_id, session_id()], true);
         } else {
             $sql = "SELECT * FROM videos_statistics WHERE videos_id = ? AND session_id = ? ORDER BY id DESC LIMIT 1 ";
             $res = sqlDAL::readSql($sql, 'is', [$videos_id, session_id()], true);
         }
         $result = sqlDAL::fetchAssoc($res);
+        //if($videos_id==4){_error_log($sql." $videos_id, $users_id, ".session_id().' => '. json_encode($result));}
         sqlDAL::close($res);
         if (!empty($result)) {
             return $result;
@@ -146,6 +154,7 @@ class VideoStatistic extends ObjectYPT {
 
     public static function getLastVideoTimeFromVideo($videos_id, $users_id) {
         $row = self::getLastStatistics($videos_id, $users_id);
+        //var_dump($row);
         if (empty($row)) {
             return 0;
         }
@@ -309,11 +318,11 @@ class VideoStatistic extends ObjectYPT {
         global $global, $advancedCustom;
         
         if(empty($daysLimit)){
-            if(empty($advancedCustom)){
-                $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
-            }
-            $daysLimit = intval($advancedCustom->trendingOnLastDays->value);
+            $daysLimit = getTrendingLimit();
         }
+        
+        //$dateDaysLimit = getTrendingLimitDate();
+        
         $cacheName3 = "getChannelsWithMoreViews{$daysLimit}" . DIRECTORY_SEPARATOR . md5(json_encode([$_GET, $_POST]));
         $cache = ObjectYPT::getCache($cacheName3, 3600); // 1 hour cache
         if (!empty($cache)) {
@@ -324,7 +333,8 @@ class VideoStatistic extends ObjectYPT {
         }
 
         // get unique videos ids from the requested timeframe
-        $sql = "SELECT distinct(videos_id) as videos_id FROM videos_statistics WHERE DATE(`when`) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
+        $sql = "SELECT distinct(videos_id) as videos_id FROM videos_statistics "
+                . " WHERE DATE(`when`) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
         $channels = [];
         $channelsPerUser = [];
         $cacheName2 = "getChannelsWithMoreViews" . DIRECTORY_SEPARATOR . md5($sql);
@@ -353,7 +363,9 @@ class VideoStatistic extends ObjectYPT {
         if (!empty($channelsPerUser)) {
             foreach ($channelsPerUser as $key => $value) {
                 // count how many views each one has
-                $sql2 = "SELECT count(id) as total FROM videos_statistics WHERE videos_id IN (" . implode(",", $value) . ") AND DATE(created) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
+                $sql2 = "SELECT count(id) as total FROM videos_statistics "
+                        . " WHERE videos_id IN (" . implode(",", $value) . ") "
+                        . " AND DATE(created) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
                 $res2 = sqlDAL::readSql($sql2);
                 $result2 = sqlDAL::fetchAssoc($res2);
                 sqlDAL::close($res2);
@@ -377,16 +389,16 @@ class VideoStatistic extends ObjectYPT {
         global $global, $advancedCustom;
         
         if(empty($daysLimit)){
-            if(empty($advancedCustom)){
-                $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
-            }
-            $daysLimit = intval($advancedCustom->trendingOnLastDays->value);
+            $daysLimit = getTrendingLimit();
         }
+        
+        $dateDaysLimit = getTrendingLimitDate();
         
         // get unique videos ids from the requested timeframe
         $sql = "SELECT distinct(videos_id) as videos_id FROM videos_statistics s "
                 . " LEFT JOIN videos v ON v.id = videos_id "
-                . " WHERE DATE(s.`when`) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
+                . " WHERE v.created > '{$dateDaysLimit}' "
+                . " AND DATE(s.`when`) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
 
         if ($showOnlyLoggedUserVideos === true && !Permissions::canModerateVideos()) {
             $sql .= " AND v.users_id = '" . User::getId() . "'";
@@ -405,7 +417,7 @@ class VideoStatistic extends ObjectYPT {
                 $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "')";
             }
         } elseif ($status == "viewableNotUnlisted") {
-            $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus(false)) . "')";
+            $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus(false)) . "') ";
         } elseif (!empty($status)) {
             $sql .= " AND v.status = '{$status}'";
         }
@@ -424,7 +436,9 @@ class VideoStatistic extends ObjectYPT {
         if ($res !== false) {
             foreach ($fullData as $key => $value) {
                 // count how many views each one has
-                $sql2 = "SELECT count(id) as total FROM videos_statistics WHERE videos_id = {$value['videos_id']} AND DATE(created) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
+                $sql2 = "SELECT count(id) as total FROM videos_statistics "
+                        . " WHERE videos_id = {$value['videos_id']} "
+                        . " AND DATE(created) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
 
                 $res2 = sqlDAL::readSql($sql2);
                 $result2 = sqlDAL::fetchAssoc($res2);
@@ -460,13 +474,13 @@ class VideoStatistic extends ObjectYPT {
 
     public static function getChannelsTotalViews($users_id, $daysLimit = 0) {
         global $global, $advancedCustom;
-        
+                
         if(empty($daysLimit)){
-            if(empty($advancedCustom)){
-                $advancedCustom = AVideoPlugin::getObjectData("CustomizeAdvanced");
-            }
-            $daysLimit = intval($advancedCustom->trendingOnLastDays->value);
+            $daysLimit = getTrendingLimit();
         }
+        
+        $dateDaysLimit = getTrendingLimitDate();
+        
         $cacheName = "getChannelsTotalViews($users_id, $daysLimit)";
         $cache = ObjectYPT::getCache($cacheName, 3600); // 1 hour cache
         if (!empty($cache)) {
@@ -476,6 +490,7 @@ class VideoStatistic extends ObjectYPT {
         // count how many views each one has
         $sql2 = "SELECT count(s.id) as total FROM videos_statistics s "
                 . " LEFT JOIN videos v ON v.id = videos_id WHERE v.users_id = $users_id "
+                . " AND v.created > '{$dateDaysLimit}' "
                 . " AND DATE(s.`when`) >= DATE_SUB(DATE(NOW()), INTERVAL {$daysLimit} DAY) ";
         $res2 = sqlDAL::readSql($sql2);
         $result2 = sqlDAL::fetchAssoc($res2);

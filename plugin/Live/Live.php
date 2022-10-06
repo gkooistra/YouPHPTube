@@ -1,5 +1,4 @@
 <?php
-
 global $global;
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/Live/Objects/LiveTransmition.php';
@@ -23,9 +22,9 @@ class Live extends PluginAbstract {
     public static $posterType_regular = 0;
     public static $posterType_preroll = 1;
     public static $posterType_postroll = 2;
-    
-    const PERMISSION_CAN_RESTREAM= 0;
-    const CAN_RESTREAM_All_USERS= 0;
+
+    const PERMISSION_CAN_RESTREAM = 0;
+    const CAN_RESTREAM_All_USERS = 0;
     const CAN_RESTREAM_ONLY_SELECTED_USERGROUPS = 1;
 
     public function getTags() {
@@ -65,7 +64,7 @@ class Live extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "11.0";
+        return "11.1";
     }
 
     public function updateScript() {
@@ -205,8 +204,8 @@ class Live extends PluginAbstract {
             }
             LiveTransmitionHistory::finishALL();
         }
-        if (AVideoPlugin::compareVersion($this->getName(), "11.0") < 0) {
-            $sqls = file_get_contents($global['systemRootPath'] . 'plugin/Live/install/updateV11.0.sql');
+        if (AVideoPlugin::compareVersion($this->getName(), "11.1") < 0) {
+            $sqls = file_get_contents($global['systemRootPath'] . 'plugin/Live/install/updateV11.1.sql');
             $sqlParts = explode(";", $sqls);
             foreach ($sqlParts as $value) {
                 sqlDal::writeSql(trim($value));
@@ -262,8 +261,23 @@ class Live extends PluginAbstract {
             $title = self::getTitleFromKey($value['key'], $value['title']);
 
             $users_id = Live_schedule::getUsers_idOrCompany($value['id']);
+        
+            $_array = array(
+                'users_id'=>$users_id,
+                'title'=>$title,
+                'link'=>$link,
+                'imgJPG'=>Live_schedule::getPosterURL($value['id']),
+                'imgGIF'=>'',
+                'type'=>'scheduleLive',
+                'LiveUsersLabelLive'=>$LiveUsersLabelLive,
+                'uid'=>'LiveSchedule_' . $value['id'],
+                'callback'=>$callback,
+                'startsOnDate'=>"{$value['scheduled_time']} {$value['timezone']}",
+                'class'=>'live_' . $value['key'],
+                'description'=>$value['description']
+            );
 
-            $app = self::getLiveApplicationModelArray($users_id, $title, $link, Live_schedule::getPosterURL($value['id']), '', 'scheduleLive', $LiveUsersLabelLive, 'LiveSchedule_' . $value['id'], $callback, "{$value['scheduled_time']} {$value['timezone']}", 'live_' . $value['key']);
+            $app = self::getLiveApplicationModelArray($_array);
             $app['live_servers_id'] = $value['live_servers_id'];
             $app['key'] = $value['key'];
             $app['isPrivate'] = false;
@@ -272,10 +286,10 @@ class Live extends PluginAbstract {
             $app['scheduled_time_timezone'] = $value['timezone'];
             $app['scheduled_time'] = $value['scheduled_time'];
             $app['live_schedule_id'] = $value['id'];
-
+            //var_dump($app);exit;
             $array[] = $app;
         }
-        //var_dump($rows);exit;
+        //var_dump(count($array), $rows);exit;
 
         $rows = LiveTransmitionHistory::getActiveLives();
         $currentLives = array();
@@ -320,8 +334,23 @@ class Live extends PluginAbstract {
             $title = self::getTitleFromKey($value['key'], $value['title']);
 
             $users_id = LiveTransmitionHistory::getUsers_idOrCompany($value['id']);
-
-            $app = self::getLiveApplicationModelArray($users_id, $title, $link, self::getPoster($value['users_id'], $value['live_servers_id']), '', 'LiveDB', $LiveUsersLabelLive, 'LiveObject_' . $value['id'], '', '', "live_{$value['key']}");
+            
+            $_array = array(
+                'users_id'=>$users_id,
+                'title'=>$title,
+                'link'=>$link,
+                'imgJPG'=> self::getPoster($value['users_id'], $value['live_servers_id']),
+                'imgGIF'=> '',
+                'type'=>'LiveDB',
+                'LiveUsersLabelLive'=>$LiveUsersLabelLive,
+                'uid'=>'LiveObject_'.$value['id'],
+                'callback'=>'',
+                'startsOnDate'=>'',
+                'class'=>"live_{$value['key']}",
+                'description'=>$value['description']
+            );
+            
+            $app = self::getLiveApplicationModelArray($_array);
             $app['live_servers_id'] = $value['live_servers_id'];
             $app['key'] = $value['key'];
             $app['live_transmitions_history_id'] = $value['id'];
@@ -340,19 +369,49 @@ class Live extends PluginAbstract {
         return $array;
     }
 
-    public static function getLiveApplicationModelArray($users_id, $title, $link, $imgJPG, $imgGIF, $type, $LiveUsersLabelLive = '', $uid = '', $callback = '', $startsOnDate = '', $class = '') {
+    public static function getLiveApplicationModelArray($array) {
         global $global, $_getLiveApplicationModelArray_counter, $_getLiveApplicationModelArray;
-
+        
         if (!isset($_getLiveApplicationModelArray)) {
             $_getLiveApplicationModelArray = [];
         }
 
-        if (!empty($_getLiveApplicationModelArray[$uid])) {
-            return $_getLiveApplicationModelArray[$uid];
-        }
-
         if (empty($_getLiveApplicationModelArray_counter)) {
             $_getLiveApplicationModelArray_counter = 0;
+        }
+        
+        $expectedValues = array(
+            'users_id',
+            'title',
+            'link',
+            'imgJPG',
+            'imgGIF',
+            'type',
+            'LiveUsersLabelLive',
+            'uid',
+            'callback',
+            'startsOnDate',
+            'class',
+            'description'
+        );
+        
+        $argsArray = array();
+        
+        $arg_list = func_get_args();
+        if(count($arg_list)>1){
+            foreach ($arg_list as $key => $value) {
+                $argsArray[$expectedValues[$key]] = $value;
+            }
+        }else{
+            $argsArray = $array;
+        }
+        
+        foreach ($expectedValues as $value) {
+            if(isset($argsArray[$value])){
+                eval('$'.$value.' = $argsArray[$value];');
+            }else{
+                eval('$'.$value.' = false;');
+            }
         }
 
         $uid = str_replace(['&', '='], '', $uid);
@@ -443,6 +502,7 @@ class Live extends PluginAbstract {
             'categories_id' => intval($lt['categories_id']),
             'className' => $uid,
             'comingsoon' => $comingsoon,
+            'description' => $description,
             'timezone' => date_default_timezone_get(),
         ];
 
@@ -487,14 +547,13 @@ class Live extends PluginAbstract {
         self::addDataObjectHelper('controlServer', 'Control Server');
         $obj->disableRestream = false;
         self::addDataObjectHelper('disableRestream', 'Disable Restream', 'If you check this, we will not send requests to your Restreamer URL');
-        
+
         $o = new stdClass();
-        $o->type = array(self::CAN_RESTREAM_All_USERS=>('All Users'), self::CAN_RESTREAM_ONLY_SELECTED_USERGROUPS=>('Selected user groups'));
+        $o->type = array(self::CAN_RESTREAM_All_USERS => ('All Users'), self::CAN_RESTREAM_ONLY_SELECTED_USERGROUPS => ('Selected user groups'));
         $o->value = self::CAN_RESTREAM_All_USERS;
         $obj->whoCanRestream = $o;
         self::addDataObjectHelper('whoCanRestream', 'Who can Restream');
-        
-        
+
         $obj->disableDVR = false;
         self::addDataObjectHelper('disableDVR', 'Disable DVR', 'Enable or disable the DVR Feature, you can control the DVR length in your nginx.conf on the parameter hls_playlist_length');
         $obj->disableGifThumbs = false;
@@ -502,7 +561,7 @@ class Live extends PluginAbstract {
         $obj->disableLiveThumbs = false;
         self::addDataObjectHelper('disableLiveThumbs', 'Disable Live thumbnails', 'This option will disable the çive image extraction and will use the user static image, it will save some hardware capacity from your encoder and may speedup your page');
         $obj->hideTopButton = false;
-        self::addDataObjectHelper('hideTopButton', 'Hide Top Button', 'This will hide the "Go Live" button on the top menu bar');
+        self::addDataObjectHelper('hideTopButton', 'Hide Top Button', 'This will hide the "Live Settings" button on the top menu bar');
         $obj->hideUserGroups = false;
         $obj->hideShare = false;
         $obj->hideAdvancedStreamKeys = false;
@@ -524,9 +583,9 @@ class Live extends PluginAbstract {
         $obj->limitLiveOnVideosList = 12;
         self::addDataObjectHelper('limitLiveOnVideosList', 'Videos List Limit', 'This will limit the maximum of videos that you will see in the Videos page');
         $obj->doNotShowGoLiveButton = false;
-        self::addDataObjectHelper('doNotShowGoLiveButton', 'Hide Top Go live Button', 'This will hide the "Go Live" button on the top menu bar');
+        self::addDataObjectHelper('doNotShowGoLiveButton', 'Hide Top Live Settings Button', 'This will hide the "Go Live" button on the top menu bar');
         $obj->doNotShowGoLiveButtonOnUploadMenu = false;
-        self::addDataObjectHelper('doNotShowGoLiveButtonOnUploadMenu', 'Hide Go live Button on Upload Menu', 'This will hide the "Go Live" button on the right upload menu bar');
+        self::addDataObjectHelper('doNotShowGoLiveButtonOnUploadMenu', 'Hide Live Settings Button on Upload Menu', 'This will hide the "Live Settings" button on the right upload menu bar');
         $obj->doNotProcessNotifications = false;
         self::addDataObjectHelper('doNotProcessNotifications', 'Do not show notifications', 'Do not show the notification on the top bar');
         $obj->useLiveServers = false;
@@ -617,7 +676,7 @@ Click <a href=\"{link}\">here</a> to join our live.";
                 $css .= '<link href="' . getURL('plugin/YouPHPFlix2/view/css/fullscreen.css') . '" rel="stylesheet" type="text/css"/>';
                 $css .= '<style>.container-fluid {overflow: visible;padding: 0;}#mvideo{padding: 0 !important; position: absolute; top: 0;}</style>';
             }
-            $js .= '<script>var playLiveInFullScreen = true</script>';
+            $js .= '<script>var playLiveInFullScreen = true;</script>';
             $css .= '<style>body.fullScreen{overflow: hidden;}</style>';
         }
 
@@ -980,9 +1039,9 @@ Click <a href=\"{link}\">here</a> to join our live.";
                 }
                 return '<!-- SendRecordedToEncoder::getSaveDVRButton -->' . SendRecordedToEncoder::getSaveDVRButton($key, $live_servers_id, $class);
                 break;
-            case "save_the_momment":
+            case "save_the_moment":
                 $obj2 = AVideoPlugin::getDataObjectIfEnabled('SendRecordedToEncoder');
-                if (empty($obj2) || empty($obj2->saveTheMommentEnable)) {
+                if (empty($obj2) || empty($obj2->saveTheMomentEnable)) {
                     return '<!-- SendRecordedToEncoder saveDVREnable is not present -->';
                 }
                 if ($obj->controllButtonsShowOnlyToAdmin_save_dvr && !User::isAdmin()) {
@@ -992,11 +1051,11 @@ Click <a href=\"{link}\">here</a> to join our live.";
                     return '<!-- User Cannot record -->';
                 }
                 $class .= 'btn btn-warning ';
-                return '<!-- SendRecordedToEncoder::getSaveTheMommentButton -->' . SendRecordedToEncoder::getSaveTheMommentButton($key, $live_servers_id, $class);
+                return '<!-- SendRecordedToEncoder::getsaveTheMomentButton -->' . SendRecordedToEncoder::getsaveTheMomentButton($key, $live_servers_id, $class);
                 break;
-            case "download_the_momment":
+            case "download_the_moment":
                 $obj2 = AVideoPlugin::getDataObjectIfEnabled('SendRecordedToEncoder');
-                if (empty($obj2) || empty($obj2->downloadTheMommentEnable)) {
+                if (empty($obj2) || empty($obj2->downloadTheMomentEnable)) {
                     return '<!-- SendRecordedToEncoder saveDVREnable is not present -->';
                 }
                 if ($obj->controllButtonsShowOnlyToAdmin_save_dvr && !User::isAdmin()) {
@@ -1006,7 +1065,7 @@ Click <a href=\"{link}\">here</a> to join our live.";
                     return '<!-- User Cannot record -->';
                 }
                 $class .= 'btn btn-info ';
-                return '<!-- SendRecordedToEncoder::getSaveTheMommentButton -->' . SendRecordedToEncoder::getDownloadTheMommentButton($key, $live_servers_id, $class);
+                return '<!-- SendRecordedToEncoder::getsaveTheMomentButton -->' . SendRecordedToEncoder::getdownloadTheMomentButton($key, $live_servers_id, $class);
                 break;
             default:
                 return '';
@@ -1061,8 +1120,8 @@ Click <a href=\"{link}\">here</a> to join our live.";
         $btn = "<div class=\"btn-group justified recordLiveControlsDiv keepLabels\" style=\"display: none;\" id=\"liveControls\">";
         //$btn .= self::getButton("drop_publisher", $live_transmition_id, $live_servers_id);
         $btn .= self::getButton("save_dvr", $key, $live_servers_id, $iconsOnly, '', $btnClass);
-        $btn .= self::getButton("save_the_momment", $key, $live_servers_id, $iconsOnly, '', $btnClass);
-        $btn .= self::getButton("download_the_momment", $key, $live_servers_id, $iconsOnly, '', $btnClass);
+        $btn .= self::getButton("save_the_moment", $key, $live_servers_id, $iconsOnly, '', $btnClass);
+        $btn .= self::getButton("download_the_moment", $key, $live_servers_id, $iconsOnly, '', $btnClass);
         $btn .= self::getButton("drop_publisher_reset_key", $key, $live_servers_id, $iconsOnly, '', $btnClass);
         $btn .= self::getButton("record_start", $key, $live_servers_id, $iconsOnly, '', $btnClass);
         $btn .= self::getButton("record_stop", $key, $live_servers_id, $iconsOnly, '', $btnClass);
@@ -2044,6 +2103,24 @@ Click <a href=\"{link}\">here</a> to join our live.";
 
                 $users_id = LiveTransmition::getUsers_idOrCompanyFromKey($value->name);
 
+                /*
+                $array = array(
+                    'users_id'=>$users_id,
+                    'title'=>$title,
+                    'link'=>$link,
+                    'imgJPG'=> $imgJPG,
+                    'imgGIF'=> $imgGIF,
+                    'type'=>'live',
+                    'LiveUsersLabelLive'=>$LiveUsersLabelLive,
+                    'uid'=>$uid,
+                    'callback'=>'',
+                    'startsOnDate'=>'',
+                    'class'=>'live_' . $value->name,
+                    'description'=>''
+                );
+                 * 
+                 */
+                
                 $app = self::getLiveApplicationModelArray($users_id, $title, $link, $imgJPG, $imgGIF, 'live', $LiveUsersLabelLive, $uid, '', $uid, 'live_' . $value->name);
                 $app['live_servers_id'] = $live_servers_id;
                 $app['key'] = $value->name;
@@ -2901,9 +2978,15 @@ Click <a href=\"{link}\">here</a> to join our live.";
         return self::sendRestream($obj);
     }
 
-    public static function restream($liveTransmitionHistory_id) {
-        outputAndContinueInBackground();
+    public static function restream($liveTransmitionHistory_id, $live_restreams_id = 0, $test = false) {
+        if (empty($test)) {
+            outputAndContinueInBackground();
+        }
         $obj = self::getRestreamObject($liveTransmitionHistory_id);
+        $obj->live_restreams_id = $live_restreams_id;
+        if ($test) {
+            $obj->test = 1;
+        }
         return self::sendRestream($obj);
     }
 
@@ -2915,14 +2998,14 @@ Click <a href=\"{link}\">here</a> to join our live.";
                 return false;
             }
             set_time_limit(30);
-            
-            $obj->responseToken = encryptString(array('users_id'=>$obj->users_id,'time'=>time()));
-            
+
+            $obj->responseToken = encryptString(array('users_id' => $obj->users_id, 'time' => time(), 'liveTransmitionHistory_id' => $obj->liveTransmitionHistory_id));
+
             $data_string = json_encode($obj);
             _error_log("Live:sendRestream ({$obj->restreamerURL}) {$data_string} " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5)));
             //open connection
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30); 
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
             curl_setopt($ch, CURLOPT_TIMEOUT, 10); //timeout in seconds
             //set the url, number of POST vars, POST data
             curl_setopt($ch, CURLOPT_URL, $obj->restreamerURL);
@@ -2935,8 +3018,8 @@ Click <a href=\"{link}\">here</a> to join our live.";
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
             //curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);   
-            curl_setopt($ch, CURLOPT_AUTOREFERER, true); 
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
             curl_setopt($ch, CURLOPT_VERBOSE, 1);
             curl_setopt(
                     $ch,
@@ -2948,7 +3031,7 @@ Click <a href=\"{link}\">here</a> to join our live.";
             $info = curl_getinfo($ch);
             $output = curl_exec($ch);
             curl_close($ch);
-            _error_log('Live:sendRestream complete ' . json_encode(array($info, $output)));
+            _error_log('Live:sendRestream complete ' . json_encode(array($output)));
             return true;
         } catch (Exception $exc) {
             _error_log("Live:sendRestream " . $exc->getTraceAsString());
@@ -3591,7 +3674,7 @@ Click <a href=\"{link}\">here</a> to join our live.";
     }
 
     private static function getProcess($key) {
-        if(empty($key)){
+        if (empty($key)) {
             error_log("Live:getProcess key is empty");
             return false;
         }
@@ -3623,38 +3706,62 @@ Click <a href=\"{link}\">here</a> to join our live.";
         }
         return false;
     }
-    
-    
-    function getPermissionsOptions(){
+
+    function getPermissionsOptions() {
         $permissions = array();
         $permissions[] = new PluginPermissionOption(self::PERMISSION_CAN_RESTREAM, __("Can Restream"), __("Can restream live videos"), 'Live');
         return $permissions;
     }
-    
-    static function canRestream(){
+
+    static function canRestream() {
+        if(User::isAdmin()){
+            return true;
+        }
         if (!empty($_REQUEST['token'])) {
             $live_restreams_id = intval(decryptString($_REQUEST['token']));
-            if(!empty($live_restreams_id)){
-                _error_log('Live::canRestream: canRestream by pass '.$live_restreams_id);
+            if (!empty($live_restreams_id)) {
+                _error_log('Live::canRestream: canRestream by pass ' . $live_restreams_id);
                 return true;
             }
         }
         $canStream = User::canStream();
-        if(empty($canStream)){
+        if (empty($canStream)) {
             _error_log('Live::canRestream: user cannot restream');
             return false;
         }
         $obj = AVideoPlugin::getDataObject('Live');
-        if(!empty($obj->disableRestream)){
+        if (!empty($obj->disableRestream)) {
             _error_log('Live::canRestream: disableRestream is active');
             return false;
         }
-        if($obj->whoCanRestream->value === self::CAN_RESTREAM_All_USERS){
+        if ($obj->whoCanRestream->value === self::CAN_RESTREAM_All_USERS) {
             return true;
         }
-        $permission = Permissions::hasPermission(self::PERMISSION_CAN_RESTREAM,'Live');
-        _error_log('Live::canRestream: permission is '. json_encode($permission));
+        $permission = Permissions::hasPermission(self::PERMISSION_CAN_RESTREAM, 'Live');
+        _error_log('Live::canRestream: permission is ' . json_encode($permission));
         return $permission;
+    }
+
+    public static function _getUserNotificationButton() {
+        $obj = AVideoPlugin::getDataObject('Live');
+        if (Live::canStreamWithWebRTC()) {
+            ?>
+            <button class="btn btn-default btn-sm faa-parent animated-hover " onclick="avideoModalIframeFull(webSiteRootURL + 'plugin/Live/webcamFullscreen.php');" data-toggle="tooltip" title=<?php printJSString(__("Webcam")); ?> >
+                <i class="fas fa-circle faa-flash" style="color:red;"></i> <span class="hidden-sm hidden-xs"><?php echo __("Webcam"); ?></span>
+            </button>
+            <?php
+        }
+        if (Live::canScheduleLive()) {
+            ?>
+            <button class="btn btn-primary btn-sm" onclick="avideoModalIframeFull(webSiteRootURL + 'plugin/Live/view/Live_schedule/panelIndex.php');" data-toggle="tooltip" title="<?php echo __('Schedule') ?>" >
+                <i class="far fa-calendar"></i> <span class="hidden-sm hidden-xs"><?php echo __('Schedule'); ?></span>
+            </button>
+        <?php
+        }
+    }
+    
+    public function getUserNotificationButton() {
+        self::_getUserNotificationButton();
     }
 
 }

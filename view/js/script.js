@@ -27,27 +27,7 @@ try {
     var isDebuging = false;
     var avideoIsOnline = false;
     var userLang = navigator.language || navigator.userLanguage;
-    /* Code sample for resize iframe on a third party page
-     <iframe width="640" height="310" style="max-width: 100%;max-height: 100%; border:none;" src="..." frameborder="0" allowfullscreen="allowfullscreen" allow="autoplay" scrolling="NO" >iFrame is not supported!</iframe>
-     <script>
-     // Create browser compatible event handler.
-     var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
-     var eventer = window[eventMethod];
-     var messageEvent = eventMethod == "attachEvent" ? "onmessage" : "message";
-     var _iframe = document.querySelector("iframe");
-     // Listen for a message from the iframe.
-     eventer(messageEvent, function (e) {
-     //console.log('EventListener', e.data);
-     if(e.data.height){
-     _iframe.style.height = e.data.height + 'px';
-     }
-     },false);
-     
-     setInterval(function(){
-     _iframe.contentWindow.postMessage({getHeight: 1}, "*");
-     },1000);
-     </script>
-     */
+    var iframeAllowAttributes = 'allow="fullscreen;autoplay;camera *;microphone *;" allowfullscreen="allowfullscreen" mozallowfullscreen="mozallowfullscreen" msallowfullscreen="msallowfullscreen" oallowfullscreen="oallowfullscreen" webkitallowfullscreen="webkitallowfullscreen"';
 
     // Create browser compatible event handler.
     var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
@@ -83,8 +63,8 @@ try {
     //console.log('Variable declaration ERROR', e);
 }
 
-const queryString = window.location.search;
-const urlParams = new URLSearchParams(queryString);
+var queryString = window.location.search;
+var urlParams = new URLSearchParams(queryString);
 
 if (urlParams.has('debug')) {
     isDebuging = false;
@@ -267,8 +247,6 @@ async function lazyImage() {
     processing_lazyImage = false;
 }
 
-lazyImage();
-var pleaseWaitIsINUse = false;
 var pauseIfIsPlayinAdsInterval;
 var seconds_watching_video = 0;
 var _startCountPlayingTime;
@@ -502,37 +480,45 @@ var last_videos_id = 0;
 var last_currentTime = -1;
 var videoViewAdded = false;
 var addViewBeaconTimeout;
+var _addViewCheck = false;
 function addView(videos_id, currentTime) {
     addViewSetCookie(PHPSESSID, videos_id, currentTime, seconds_watching_video);
+    if(_addViewCheck){
+        return false;
+    }
     if (last_videos_id == videos_id && last_currentTime == currentTime) {
         return false;
     }
-    if (currentTime > 5 && currentTime % 5 !== 0) { // only update each 5 seconds
+    if (currentTime > 5 && currentTime % 30 !== 0) { // only update each 30 seconds
         return false;
     }
-
-    if (!videoViewAdded || videoViewAdded !== videos_id) {
-        videoViewAdded = videos_id;
-        last_videos_id = videos_id;
-        last_currentTime = currentTime;
-        _addView(videos_id, currentTime);
-    }
+    _addViewCheck = true;
+    last_videos_id = videos_id;
+    last_currentTime = currentTime;
+    _addView(videos_id, currentTime, seconds_watching_video);
+    setTimeout(function () {
+        _addViewCheck = false
+    }, 1000);
     return true;
 }
 
-function _addView(videos_id, currentTime) {
+function _addView(videos_id, currentTime, seconds_watching_video) {
     if (typeof PHPSESSID == 'undefined') {
         PHPSESSID = '';
     }
     var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
+    if(empty(PHPSESSID)){
+        return false;
+    }
     url = addGetParam(url, 'PHPSESSID', PHPSESSID);
     //console.log('_addView', videos_id, currentTime);
     $.ajax({
         url: url,
         method: 'POST',
         data: {
-            'id': videos_id,
-            'currentTime': currentTime
+            id: videos_id,
+            currentTime: currentTime,
+            seconds_watching_video: seconds_watching_video
         },
         success: function (response) {
             $('.view-count' + videos_id).text(response.countHTML);
@@ -552,22 +538,10 @@ function _addViewAsync() {
     var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
     url = addGetParam(url, 'PHPSESSID', PHPSESSID);
     _addViewAsyncSent = true;
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: {
-            'id': mediaId,
-            'currentTime': playerCurrentTime,
-            'seconds_watching_video': seconds_watching_video
-        },
-        async: false,
-        success: function (response) {
-            //console.log('_addViewAsync', response);
-            setTimeout(function () {
-                _addViewAsyncSent = false;
-            }, 2000);
-        }
-    });
+    _addView(mediaId, playerCurrentTime, seconds_watching_video);
+    setTimeout(function () {
+        _addViewAsyncSent = false;
+    }, 2000);
 }
 
 var _addViewFromCookie_addingtime = false;
@@ -593,25 +567,16 @@ async function addViewFromCookie() {
     var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
     url = addGetParam(url, 'PHPSESSID', addView_PHPSESSID);
     if (mediaId == addView_videos_id) {
-        // it is the same video, play at the last momment
+        // it is the same video, play at the last moment
         forceCurrentTime = addView_playerCurrentTime;
     }
+    
+    _addView(addView_videos_id, addView_playerCurrentTime, addView_seconds_watching_video)
+    setTimeout(function () {
+        _addViewFromCookie_addingtime = false;
+    }, 2000);
+    addViewSetCookie(false, false, false, false);
 
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: {
-            'id': addView_videos_id,
-            'currentTime': addView_playerCurrentTime,
-            'seconds_watching_video': addView_seconds_watching_video
-        },
-        async: false,
-        success: function (response) {
-            _addViewFromCookie_addingtime = false;
-            //console.log('addViewFromCookie', response);
-            addViewSetCookie(false, false, false, false);
-        }
-    });
 }
 
 async function addViewSetCookie(PHPSESSID, videos_id, playerCurrentTime, seconds_watching_video) {
@@ -662,7 +627,25 @@ function nl2br(str, is_xhtml) {
     var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
     return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
 }
+
+function inMainIframe() {
+    var response = false;
+    if (window.self !== window.top) {
+        try {
+            var mainIframe = $('iframe', window.parent.document).attr('id');
+            response = mainIframe === 'mainIframe';
+        } catch (e) {
+            
+        }
+
+    }
+    return response;
+}
+
 function inIframe() {
+    if (inMainIframe()) {
+        return false;
+    }
     var url = new URL(location.href);
     var avideoIframe = url.searchParams.get("avideoIframe");
     if (avideoIframe && avideoIframe !== '0' && avideoIframe !== 0) {
@@ -1136,12 +1119,14 @@ function setCurrentTime(currentTime) {
         initdone = false;
         // wait for video metadata to load, then set time 
         player.on("loadedmetadata", function () {
-            player.currentTime(currentTime);
+            //console.log('setCurrentTime loadedmetadata', currentTime);
+            //player.currentTime(currentTime);
         });
         // iPhone/iPad need to play first, then set the time
         // events: https://www.w3.org/TR/html5/embedded-content-0.html#mediaevents
         player.on("canplaythrough", function () {
             if (!initdone) {
+                console.log('setCurrentTime canplaythrough', currentTime);
                 player.currentTime(currentTime);
                 initdone = true;
             }
@@ -1168,8 +1153,10 @@ function isWebRTC() {
 }
 
 function isAutoplayEnabled() {
-    consoleLog("Cookies.get('autoplay')", Cookies.get('autoplay'));
-    if (typeof forceautoplay !== 'undefined' && forceautoplay) {
+    //consoleLog("Cookies.get('autoplay')", Cookies.get('autoplay'));
+    if (typeof forceNotautoplay !== 'undefined' && forceNotautoplay) {
+        return false;
+    } else if (typeof forceautoplay !== 'undefined' && forceautoplay) {
         return true;
     } else if (isWebRTC()) {
         consoleLog("isAutoplayEnabled said No because is WebRTC ");
@@ -1401,6 +1388,23 @@ function avideoModalIframeCloseToastSuccess(msg) {
     window.parent.avideoToastSuccess(msg);
 }
 
+function avideoDialog(url, maximize) {
+    if (typeof parent.openWindow === 'function') {
+        url = addGetParam(url, 'avideoIframe', 1);
+        parent.openWindow(url, iframeAllowAttributes, '', maximize);
+    } else {
+        avideoModalIframeFullScreen(url);
+    }
+}
+
+function avideoDialogWithPost(url, params) {
+    if (typeof parent.openWindowWithPost === 'function') {
+        parent.openWindowWithPost(url, iframeAllowAttributes, params);
+    } else {
+        openWindowWithPost(url, 'avideoDialogWithPost', params, '');
+    }
+}
+
 function avideoModalIframe(url) {
     avideoModalIframeWithClassName(url, 'swal-modal-iframe', false);
 }
@@ -1421,8 +1425,24 @@ function avideoModalIframeFullScreen(url) {
     avideoModalIframeWithClassName(url, 'swal-modal-iframe-full', true);
 }
 
+function avideoModalIframeFullWithMinimize(url) {
+    if (false && typeof parent.openWindow === 'function') {
+        parent.openWindow(url, iframeAllowAttributes, '', true);
+    } else {
+        avideoModalIframeWithClassName(url, 'swal-modal-iframe-full-with-minimize', true);
+    }
+}
+
 function avideoModalIframeFullTransparent(url) {
     avideoModalIframeWithClassName(url, 'swal-modal-iframe-full-transparent', false);
+}
+
+function avideoModalIframeFullScreenMinimize() {
+    $('.swal-modal-iframe-full-with-minimize').closest('.swal-overlay').addClass('swal-offline-video-compress');
+}
+
+function avideoModalIframeFullScreenMaximize() {
+    $('.swal-modal-iframe-full-with-minimize').closest('.swal-overlay').removeClass('swal-offline-video-compress');
 }
 
 function avideoModalIframeFullScreenClose() {
@@ -1460,11 +1480,11 @@ function avideoAddIframeIntoElement(element, url, insideSelector) {
     url = addGetParam(url, 'avideoIframe', 1);
     //console.log('avideoAddIframeIntoElement', url, element);
     var html = '';
-    html += '<iframe frameBorder="0" class="avideoIframeIntoElement" src="' + url + '"  allow="camera *;microphone *" ></iframe>';
+    html += '<iframe frameBorder="0" class="avideoIframeIntoElement" src="' + url + '"  ' + iframeAllowAttributes + ' ></iframe>';
 
     var insideElement = $(element);
 
-    if (insideSelector) {
+    if (!empty(insideSelector)) {
         insideElement = $(element).find(insideSelector);
     }
 
@@ -1478,7 +1498,7 @@ function avideoWindowIframe(url) {
     html += '<div class="panel panel-default" id="draggable" style="width: 400px; height: 200px; float: left; z-index: 9999;">';
     html += '<div class="panel-heading" style="cursor: move;">head</div>';
     html += '<div class="panel-body" style="padding: 0;">';
-    html += '<iframe id="avideoWindowIframe" frameBorder="0" class="animate__animated animate__bounceInDown" src="' + url + '"  allow="camera *;microphone *" ></iframe>';
+    html += '<iframe id="avideoWindowIframe" frameBorder="0" class="animate__animated animate__bounceInDown" src="' + url + '"  ' + iframeAllowAttributes + '></iframe>';
     html += '</div>';
     html += '</div>';
     $('body').append(html);
@@ -1489,19 +1509,15 @@ function avideoWindowIframe(url) {
 
 var avideoModalIframeFullScreenOriginalURL = false;
 var avideoModalIframeWithClassNameTimeout;
+var avideoModalIframeFullScreenMinimize;
 function avideoModalIframeWithClassName(url, className, updateURL) {
+    var closeModal = true;
     showURL = document.location.href;
     if (updateURL) {
         if (!avideoModalIframeFullScreenOriginalURL) {
             avideoModalIframeFullScreenOriginalURL = document.location.href;
         }
         showURL = url;
-    }
-    try {
-        console.log('avideoModalIframeWithClassName window.history.pushState showURL', showURL);
-        window.history.pushState("", "", showURL);
-    } catch (e) {
-
     }
     url = addGetParam(url, 'avideoIframe', 1);
     //console.log('avideoModalIframeWithClassName', url, className, updateURL);
@@ -1515,28 +1531,48 @@ function avideoModalIframeWithClassName(url, className, updateURL) {
 
         avideoModalIframeFullScreenCloseButton = avideoModalIframeFullScreenCloseButtonSmall;
     }
+    avideoModalIframeFullScreenMaximize();
+    if (className === 'swal-modal-iframe-full-with-minimize') {
+        html += '<button class="btn btn-default pull-right swal-modal-iframe-full-with-minimize-btn" onclick="avideoModalIframeFullScreenMinimize();">';
+        html += '<i class="fas fa-compress-arrows-alt"></i>';
+        html += '</button>';
+        html += '<button class="btn btn-default pull-right swal-modal-iframe-full-with-maximize-btn" onclick="avideoModalIframeFullScreenMaximize();">';
+        html += '<i class="fas fa-expand-arrows-alt"></i>';
+        html += '</button>';
+        showURL = document.location.href;
+        closeModal = false;
+    }
 
     if (inIframe()) {
         html += avideoModalIframeFullScreenCloseButtonSmall;
     } else {
         html += avideoModalIframeFullScreenCloseButton;
-        html += '<img src="' + webSiteRootURL + 'videos/userPhoto/logo.png" class="img img-responsive " style="max-height:34px;">';
+        html += '<img src="' + webSiteRootURL + 'videos/userPhoto/logo.png" class="img img-responsive swal-modal-logo" style="max-height:34px;">';
     }
+
     html += '</div>';
-    html += '<iframe id="avideoModalIframe" frameBorder="0" class="animate__animated animate__bounceInDown" src="' + url + '"  allow="camera *;microphone *" ></iframe>';
+    html += '<iframe id="avideoModalIframe" frameBorder="0" class="animate__animated animate__bounceInDown" src="' + url + '"  ' + iframeAllowAttributes + ' ></iframe>';
+
+    try {
+        console.log('avideoModalIframeWithClassName window.history.pushState showURL', showURL);
+        avideoPushState(showURL);
+    } catch (e) {
+
+    }
+
     var span = document.createElement("span");
     span.innerHTML = html;
     $('.swal-overlay').show();
     swal({
         content: span,
-        closeModal: true,
+        closeModal: closeModal,
         buttons: false,
         className: className,
         onClose: avideoModalIframeRemove
     }).then(() => {
         if (avideoModalIframeFullScreenOriginalURL) {
             //console.log('avideoModalIframeWithClassName window.history.pushState avideoModalIframeFullScreenOriginalURL', avideoModalIframeFullScreenOriginalURL);
-            window.history.pushState("", "", avideoModalIframeFullScreenOriginalURL);
+            avideoPushState(avideoModalIframeFullScreenOriginalURL);
             avideoModalIframeFullScreenOriginalURL = false;
         }
     });
@@ -1583,6 +1619,14 @@ function avideoModalIframeWithClassName(url, className, updateURL) {
     }, 1000);
 }
 
+function avideoPushState(url) {
+    window.history.pushState("", "", url);
+    if (typeof parent.updatePageSRC == 'funciton') {
+        console.log('avideoPushState', url);
+        parent.updatePageSRC(url);
+    }
+}
+
 function checkIframeLoaded(id) {
 // Get a handle to the iframe element
     var iframe = document.getElementById(id);
@@ -1614,6 +1658,8 @@ function avideoModalIframeIsVisible() {
         modal = $('.swal-modal-iframe-full');
     } else if ($('.swal-modal-iframe-full-transparent').length) {
         modal = $('.swal-modal-iframe-full-transparent');
+    } else if ($('.swal-modal-iframe-full-with-minimize').length) {
+        modal = $('.swal-modal-iframe-full-with-minimize');
     } else {
         modal = $('.swal-modal-iframe');
     }
@@ -1711,6 +1757,22 @@ function pauseIfIsPlayinAds() { // look like the mobile does not know if is play
     }
 }
 
+function countToOrRevesrse(selector, total) {
+    var text = $(selector).text();
+    if (isNaN(text)) {
+        current = 0;
+    } else {
+        current = parseInt(text);
+    }
+    total = parseInt(total);
+
+    if (current <= total) {
+        countTo(selector, total);
+    } else {
+        countToReverse(selector, total);
+    }
+}
+
 function countTo(selector, total) {
     var text = $(selector).text();
     if (isNaN(text)) {
@@ -1733,6 +1795,31 @@ function countTo(selector, total) {
     var timeout = (500 / rest);
     setTimeout(function () {
         countTo(selector, total);
+    }, timeout);
+}
+
+function countToReverse(selector, total) {
+    var text = $(selector).text();
+    if (isNaN(text)) {
+        return false;
+    } else {
+        current = parseInt(text);
+    }
+    total = parseInt(total);
+    if (!total || current <= total) {
+        $(selector).removeClass('loading');
+        return;
+    }
+    var rest = (current - total);
+    var step = parseInt(rest / 100);
+    if (step < 1) {
+        step = 1;
+    }
+    current -= step;
+    $(selector).text(current);
+    var timeout = (500 / rest);
+    setTimeout(function () {
+        countToReverse(selector, total);
     }, timeout);
 }
 
@@ -1935,6 +2022,7 @@ async function getServerTime() {
             _serverDBTimeString = response._serverDBTimeString;
             _serverTimezone = response._serverTimezone;
             _serverDBTimezone = response._serverDBTimezone;
+            _serverSystemTimezone = response._serverSystemTimezone;
             //console.log('getServerTime _serverDBTimezone', _serverDBTimezone, response._serverDBTimezone);
             setInterval(function () {
                 _serverTime++;
@@ -1959,7 +2047,7 @@ function convertDBDateToLocal(dbDateString) {
         //console.log('convertDBDateToLocal format does not match', dbDateString);
         return dbDateString;
     }
-
+    checkMoment();
     dbDateString = $.trim(dbDateString.replace(/[^ 0-9:-]/g, ''));
     var m;
     if (!_serverDBTimezone) {
@@ -1982,10 +2070,20 @@ function convertDateFromTimezoneToLocal(dbDateString, timezone) {
         //console.log('convertDBDateToLocal format does not match', dbDateString);
         return dbDateString;
     }
+    checkMoment();
     dbDateString = $.trim(dbDateString.replace(/[^ 0-9:-]/g, ''));
     timezone = $.trim(timezone);
     var m = moment.tz(dbDateString, timezone).local();
     return m.format("YYYY-MM-DD HH:mm:ss");
+}
+
+function checkMoment() {
+    /*
+     while(typeof moment === 'undefined' || moment.tz !== 'function'){
+     console.log('checkMoment Waiting moment.tz to load');
+     delay(1);
+     }
+     */
 }
 
 function addGetParam(_url, _key, _value) {
@@ -2073,7 +2171,11 @@ async function setToolTips() {
         $(selector).not('.alreadyTooltip').on('click', function () {
             var t = this;
             setTimeout(function () {
-                $(t).tooltip('hide');
+                try {
+                    $(t).tooltip('hide');
+                } catch (e) {
+
+                }
             }, 2000);
         });
         $(selector).addClass('alreadyTooltip');
@@ -2312,8 +2414,13 @@ function downloadURLOrAlertError(jsonURL, data, filename, FFMpegProgress) {
                 if (response.msg) {
                     avideoAlertInfo(response.msg);
                 }
-                if (isMobile()) {
-                    document.location = response.url
+                if (
+                        isMobile()
+                        //|| /cdn.ypt.me/.test(response.url)
+                        ) {
+                    window.open(response.url, '_blank');
+                    avideoToastInfo('Opening file');
+                    //document.location = response.url
                 } else {
                     downloadURL(response.url, filename);
                 }
@@ -2461,8 +2568,9 @@ function empty(data) {
 
 function in_array(needle, haystack) {
     var length = haystack.length;
-    for(var i = 0; i < length; i++) {
-        if(haystack[i] == needle) return true;
+    for (var i = 0; i < length; i++) {
+        if (haystack[i] == needle)
+            return true;
     }
     return false;
 }
@@ -2627,18 +2735,84 @@ function addAtMention(selector) {
                 position: {collision: "flip"}
             });
 }
+/*
+ async function selectAElements() {
+ $("a").each(function () {
+ var location = window.location.toString()
+ var res = location.split("?");
+ pathWitoutGet = res[0];
+ if ($(this).attr("href") == window.location.pathname
+ || $(this).attr("href") == window.location
+ || $(this).attr("href") == pathWitoutGet) {
+ $(this).addClass("selected");
+ }
+ });
+ }*/
 
-async function selectAElements() {
-    $("a").each(function () {
-        var location = window.location.toString()
-        var res = location.split("?");
-        pathWitoutGet = res[0];
-        if ($(this).attr("href") == window.location.pathname
-                || $(this).attr("href") == window.location
-                || $(this).attr("href") == pathWitoutGet) {
-            $(this).addClass("selected");
+var hidePleaseWaitTimeout = {};
+var pleaseWaitIsINUse = {};
+var pleaseNextIndex = 0;
+function getPleaseWait() {
+    return (function () {
+        var index = pleaseNextIndex;
+        pleaseNextIndex++;
+        var selector = "#pleaseWaitDialog_" + index;
+        var pleaseWaitDiv = $(selector);
+        if (pleaseWaitDiv.length === 0) {
+            console.log('getPleaseWait', index);
+            if (typeof avideoLoader == 'undefined') {
+                avideoLoader = '';
+            }
+            pleaseWaitDiv = $('<div id="pleaseWaitDialog_' + index + '" class="pleaseWaitDialog modal fade"  data-backdrop="static" data-keyboard="false">' + avideoLoader + '<h2 style="display:none;">Processing...</h2><div class="progress" style="display:none;"><div class="progress-bar progress-bar-success progress-bar-striped active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div></div></div>').appendTo('body');
         }
-    });
+
+        return {
+            showPleaseWait: function () {
+                if (!empty(pleaseWaitIsINUse[index])) {
+                    console.log('showPleaseWait is in use', index, new Error().stack);
+                    return false;
+                }
+                pleaseWaitIsINUse[index] = true;
+                $(selector).removeClass('loaded');
+                $(selector).find('.progress').hide();
+                this.setText('Processing...');
+                $(selector).find('h2').hide();
+                this.setProgress(0);
+                $(selector).find('.progress').hide();
+                pleaseWaitDiv.modal();
+            },
+            hidePleaseWait: function () {
+                clearTimeout(hidePleaseWaitTimeout[index]);
+                hidePleaseWaitTimeout[index] = setTimeout(function () {
+                    setTimeout(function () {
+                        $(selector).addClass('loaded');
+                    }, showPleaseWaitTimeOut / 2);
+                    setTimeout(function () {
+                        pleaseWaitDiv.modal('hide');
+                    }, showPleaseWaitTimeOut); // wait for loader animation
+                    setTimeout(function () {
+                        pleaseWaitIsINUse[index] = false;
+                    }, showPleaseWaitTimeOut + 1000);
+                }, 500);
+            },
+            setProgress: function (valeur) {
+                var progressSelector = selector + ' .progress';
+                //console.log('showPleaseWait setProgress', progressSelector);
+                $(progressSelector).slideDown();
+                $(selector).find('.progress-bar').css('width', valeur + '%').attr('aria-valuenow', valeur);
+            },
+            setText: function (text) {
+                var textSelector = selector + ' h2';
+                //console.log('showPleaseWait setText', textSelector);
+                $(textSelector).slideDown();
+                $(textSelector).html(text);
+            },
+            getProgressSelector: function () {
+                var progressSelector = selector + ' .progress';
+                return progressSelector;
+            },
+        };
+    })();
 }
 
 $(document).ready(function () {
@@ -2664,60 +2838,7 @@ $(document).ready(function () {
             }
         }
     }, 2000);
-    var hidePleaseWaitTimeout;
-    modal = modal || (function () {
-        var pleaseWaitDiv = $("#pleaseWaitDialog");
-        if (pleaseWaitDiv.length === 0) {
-            if (typeof avideoLoader == 'undefined') {
-                avideoLoader = '';
-            }
-            pleaseWaitDiv = $('<div id="pleaseWaitDialog" class="modal fade"  data-backdrop="static" data-keyboard="false">' + avideoLoader + '<h2 style="display:none;">Processing...</h2><div class="progress" style="display:none;"><div class="progress-bar progress-bar-success progress-bar-striped active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div></div></div>').appendTo('body');
-        }
-
-        return {
-            showPleaseWait: function () {
-                if (pleaseWaitIsINUse) {
-                    console.log('showPleaseWait is in use');
-                    clearTimeout(hidePleaseWaitTimeout);
-                    return false;
-                }
-                pleaseWaitIsINUse = true;
-                $('#pleaseWaitDialog').removeClass('loaded');
-                $('#pleaseWaitDialog').find('.progress').hide();
-                this.setText('Processing...');
-                $('#pleaseWaitDialog').find('h2').hide();
-                this.setProgress(0);
-                $('#pleaseWaitDialog').find('.progress').hide();
-                pleaseWaitDiv.modal();
-            },
-            hidePleaseWait: function () {
-                clearTimeout(hidePleaseWaitTimeout);
-                hidePleaseWaitTimeout = setTimeout(function () {
-                    setTimeout(function () {
-                        $('#pleaseWaitDialog').addClass('loaded');
-                    }, showPleaseWaitTimeOut / 2);
-                    setTimeout(function () {
-                        pleaseWaitDiv.modal('hide');
-                    }, showPleaseWaitTimeOut); // wait for loader animation
-                    setTimeout(function () {
-                        pleaseWaitIsINUse = false;
-                    }, showPleaseWaitTimeOut + 1000);
-                }, 500);
-            },
-            setProgress: function (valeur) {
-                var element = $('#pleaseWaitDialog').find('.progress');
-                //console.log('showPleaseWait setProgress', element);
-                element.slideDown();
-                $('#pleaseWaitDialog').find('.progress-bar').css('width', valeur + '%').attr('aria-valuenow', valeur);
-            },
-            setText: function (text) {
-                var element = $('#pleaseWaitDialog').find('h2');
-                //console.log('showPleaseWait setText', element);
-                element.slideDown();
-                element.html(text);
-            },
-        };
-    })();
+    modal = getPleaseWait();
     try {
         $('[data-toggle="popover"]').popover();
     } catch (e) {
@@ -2728,7 +2849,8 @@ $(document).ready(function () {
         setToolTips();
     }, 5000);
     lazyImage();
-    selectAElements();
+    //aHrefToAjax();
+    //selectAElements();
     $('#clearCache, .clearCacheButton').on('click', function (ev) {
         ev.preventDefault();
         clearCache(true, 0, 0);
@@ -2775,6 +2897,7 @@ $(document).ready(function () {
     });
     checkAutoPlay();
     // Code to handle install prompt on desktop
+    //aHrefToAjax();
 
 });
 
@@ -2800,8 +2923,21 @@ async function checkSavedCookies() {
     });
 }
 
+function openWindow(url) {
+    var windowObject = window.open(url, '_blank').focus();
+    return windowObject;
+}
+
 function openWindowWithPost(url, name, params, strWindowFeatures) {
+    if (empty(strWindowFeatures)) {
+        strWindowFeatures = "directories=no,titlebar=no,toolbar=no,location=no,status=no,menubar=no,resizable=no,height=600,width=800";
+    }
     var windowObject = window.open("about:blank", name, strWindowFeatures);
+    postFormToTarget(url, name, params);
+    return windowObject;
+}
+
+function postFormToTarget(url, name, params) {
     var form = document.createElement("form");
     form.setAttribute("method", "post");
     form.setAttribute("action", url);
@@ -2818,7 +2954,6 @@ function openWindowWithPost(url, name, params, strWindowFeatures) {
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
-    return windowObject;
 }
 
 function fixAdSize() {
@@ -2988,7 +3123,7 @@ function isValidURL(value) {
     if (/^(ws|wss):\/\//i.test(value)) {
         return true;
     }
-    if (/^(https?|ftp):\/\/localhost/i.test(value)) {
+    if (/^(https?|ftp):\/\//i.test(value)) {
         return true;
     }
     return /^(?:(?:(?:https?|ftp|ws|wss):)?\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:[/?#]\S*)?$/i.test(value);
@@ -3064,7 +3199,7 @@ function notifyInputIfIsOutOfBounds(selector, min_length, max_length) {
         }
         feedback = '<i class="' + feedbackIcon + ' form-control-feedback" style="right:15px;"></i>';
     } else {
-        console.log('notifyInputIfIsOutOfBounds', text.length, force_length);
+        //console.log('notifyInputIfIsOutOfBounds', text.length, force_length);
         if (!empty(force_length) && text.length == force_length) {
             notifyInputIfIsOutOfBounds_animateClassTImeout = setTimeout(function () {
                 $(selector).addClass(animationInfo);
@@ -3095,6 +3230,58 @@ function setupFormElement(selector, min_length, max_length, force_length, isRequ
     }
     $(selector).keyup(function () {
         notifyInputIfIsOutOfBounds('#' + $(this).attr('id'), $(this).attr('min_length'), $(this).attr('max_length'));
+    });
+}
+
+var notifyInputIfIsWrongFormat_removeClassTImeout;
+var notifyInputIfIsWrongFormat_animateClassTImeout;
+function notifyInputIfIsWrongFormat(_this, isValid) {
+    clearTimeout(notifyInputIfIsWrongFormat_removeClassTImeout);
+    clearTimeout(notifyInputIfIsWrongFormat_animateClassTImeout);
+    var text = $(_this).val();
+    var parent = $(_this).parent();
+    var animationError = 'animate__shakeX';
+    var feedback = '';
+    parent.removeClass('has-error');
+    parent.removeClass('has-success');
+    $(_this).removeClass(animationError);
+    $(_this).addClass('animate__animated');
+    parent.find('.help-block').remove();
+    parent.find('.form-control-feedback').remove();
+    if (!isValid) {
+        feedbackIcon = 'fas fa-times';
+        parent.addClass('has-error');
+        notifyInputIfIsWrongFormat_animateClassTImeout = setTimeout(function () {
+            $(_this).addClass(animationError);
+        }, 1000);
+    } else {
+        feedbackIcon = 'fas fa-check';
+        parent.addClass('has-success');
+    }
+    feedback = '<i class="' + feedbackIcon + ' form-control-feedback" style="top: 25px;right:15px;"></i>';
+    notifyInputIfIsWrongFormat_removeClassTImeout = setTimeout(function () {
+        $(_this).removeClass(animationError);
+    }, 1000);
+    parent.append(feedback);
+    $(_this).val(text);
+}
+
+function setupMySQLInput(selector) {
+    if (typeof $(selector).inputmask !== 'function') {
+        addScript(webSiteRootURL + 'node_modules/inputmask/dist/jquery.inputmask.min.js');
+        setTimeout(function () {
+            setupMySQLInput(selector);
+        }, 1000);
+        return false;
+    }
+    $(selector).inputmask({
+        mask: "9999-99-99 99:99:99",
+        onincomplete: function (buffer, opts) {
+            notifyInputIfIsWrongFormat($(this), false);
+        },
+        oncomplete: function (buffer, opts) {
+            notifyInputIfIsWrongFormat($(this), true);
+        }
     });
 }
 
@@ -3147,16 +3334,204 @@ async function setVideoSuggested(videos_id, isSuggested) {
     })
 }
 
-function toogleVideoSuggested(btn){
+function toogleVideoSuggested(btn) {
     var videos_id = $(btn).attr('videos_id');
     var isSuggested = $(btn).hasClass('isSuggested');
     setVideoSuggested(videos_id, !isSuggested).then((data) => {
-        if(!isSuggested){
+        if (!isSuggested) {
             $(btn).removeClass('isNotSuggested btn-default');
             $(btn).addClass('isSuggested btn-warning');
-        }else{
+        } else {
             $(btn).addClass('isNotSuggested btn-default');
             $(btn).removeClass('isSuggested btn-warning');
         }
-    }).catch((error) => {console.log(error)});
+    }).catch((error) => {
+        console.log(error)
+    });
+}
+
+
+// Cookie functions stolen from w3schools
+function setCookie(cname, cvalue, exdays) {
+    Cookies.set(cname, cvalue, {
+        path: '/',
+        expires: exdays
+    });
+}
+
+function getCookie(cname) {
+    return Cookies.get(cname);
+}
+
+function delay(time) {
+    return new Promise(resolve => setTimeout(resolve, time));
+}
+
+function arrayToTemplate(itemsArray, template) {
+    if (typeof itemsArray == 'function') {
+        return '';
+    }
+    if (typeof template !== 'string') {
+        console.error('arrayToTemplate', typeof template, template);
+        return '';
+    }
+    for (var search in itemsArray) {
+        var replace = itemsArray[search];
+        if (typeof replace == 'function') {
+            continue;
+        }
+        template = template.replace(new RegExp('{' + search + '}', 'g'), replace);
+    }
+    template = template.replace(new RegExp('{[^\}]}', 'g'), '');
+    return template;
+}
+/*
+ function avideoLoadPage(url) {
+ console.log('avideoLoadPage', url);
+ avideoPushState(url);
+ if (inMainIframe()) {
+ parent.avideoLoadPage(url);
+ } else {
+ document.location = url;
+ }
+ }
+ 
+ function avideoLoadPage3(url) {
+ console.log('avideoLoadPage3', url);
+ avideoPushState(url);
+ if (inMainIframe()) {
+ parent.modal.showPleaseWait();
+ } else {
+ modal.showPleaseWait();
+ }
+ $.ajax({
+ url: url,
+ success: function (data) {
+ var parser = new DOMParser();
+ var htmlDoc = parser.parseFromString(data, "text/html");
+ $('body').fadeOut('fast', function () {
+ var head = $(htmlDoc).find('head');
+ $('head').html(head.html());
+ var selector = 'body > .container-fluid, body > .container';
+ var container = $(htmlDoc).find(selector).html();
+ $(selector).html(container);
+ var scriptsToAdd = $(htmlDoc).find('body script');
+ addScripts(scriptsToAdd);
+ var footerCode = $(htmlDoc).find('#pluginFooterCode').html();
+ $('#pluginFooterCode').html(footerCode);
+ $('body').fadeIn('fast', function () {
+ if (inMainIframe()) {
+ parent.modal.hidePleaseWait();
+ parent.updatePageFromIframe();
+ } else {
+ modal.hidePleaseWait();
+ }
+ //aHrefToAjax();
+ });
+ });
+ }
+ });
+ }
+ 
+ function avideoLoadPage2(url) {
+ console.log('avideoLoadPage', url);
+ avideoPushState(url);
+ modal.showPleaseWait();
+ $.ajax({
+ url: url,
+ success: function (data) {
+ var parser = new DOMParser();
+ var htmlDoc = parser.parseFromString(data, "text/html");
+ 
+ $('body').fadeOut('fast', function () {
+ var bodyElement = $(htmlDoc).find('body');
+ var head = $(htmlDoc).find('head').html();
+ var body = bodyElement.html();
+ var _class = bodyElement.attr('class');
+ var id = bodyElement.attr('id');
+ var style = bodyElement.attr('style');
+ $('head').html(head);
+ $('body').attr('class', _class);
+ $('body').attr('id', id);
+ $('body').attr('style', style);
+ $('body').html(body);
+ $('#pluginFooterCode').fadeIn('slow', function () {
+ modal.hidePleaseWait();
+ });
+ });
+ }
+ });
+ }
+ 
+ 
+ async function aHrefToAjax() {
+ if(typeof useIframe === 'undefined' || !useIframe){
+ return false;
+ }
+ $('a.aHrefToAjax').off('click');
+ $('a').click(function (evt) {
+ var target = $(this).attr('target');
+ $(this).addClass('aHrefToAjax');
+ if (empty(target)) {
+ var url = $(this).attr('href');
+ if (isValidURL(url)) {
+ evt.preventDefault();
+ avideoLoadPage(url);
+ return false;
+ }
+ }
+ });
+ }
+ 
+ function addScripts(scriptsToAdd) {
+ var localScripts = $("script");
+ for (index in scriptsToAdd) {
+ var script = scriptsToAdd[index];
+ if (typeof script === 'object') {
+ var src = $(script).attr('src');
+ console.log(typeof script, typeof $(script));
+ if (empty(src)) {
+ try {
+ $('body').append(script);
+ } catch (e) {
+ 
+ }
+ } else {
+ var scriptFound = false;
+ localScripts.each(function () {
+ var _src = $(this).attr('src');
+ 
+ if (src === _src) {
+ scriptFound = true;
+ return false;
+ }
+ });
+ if (!scriptFound) {
+ $('<script src="' + src + '" type="text/javascript"></script>').appendTo(document.body);
+ }
+ }
+ }
+ }
+ }
+ * */
+
+function addScript(src) {
+    if (!empty(src)) {
+        var localScripts = $("script");
+        var scriptFound = false;
+        localScripts.each(function () {
+            var _src = $(this).attr('src');
+
+            if (src === _src) {
+                scriptFound = true;
+                return false;
+            }
+        });
+        if (!scriptFound) {
+            console.log('addScript', src);
+            $('<script src="' + src + '" type="text/javascript"></script>').appendTo(document.body);
+        } else {
+            console.log('addScript already added ', src);
+        }
+    }
 }

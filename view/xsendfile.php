@@ -20,6 +20,13 @@ if($_GET['file']=='index.mp4'){
     $file = "{$paths["relative"]}index.mp4";
     $path_parts = pathinfo($file);
     //var_dump(__LINE__, $file, $path, $paths);
+}else if($_GET['file']=='index_offline.mp4'){
+    $url = parse_url($_SERVER["REQUEST_URI"]);
+    $paths = Video::getPaths($url["path"]);
+    $path = "{$paths['path']}index_offline.mp4";
+    $file = "{$paths["relative"]}index_offline.mp4";
+    $path_parts = pathinfo($file);
+    //var_dump($paths);exit;
 }else{
     $path_parts = pathinfo($_GET['file']);
     $file = $path_parts['basename'];
@@ -64,6 +71,7 @@ if(!empty($_REQUEST['cacheDownload'])){
     _error_log("cacheDownload: $path");
 }else{
     $path = Video::getPathToFile($file);
+    //var_dump($path);exit;
 }
 //header('Content-Type: application/json');var_dump(__LINE__, $_SERVER["REQUEST_URI"], $file, $path);exit;
 //header('Content-Type: application/json');var_dump($advancedCustom->doNotUseXsendFile);
@@ -116,5 +124,5 @@ if (file_exists($path)) {
     }
     die();
 } else {
-    _error_log("XSENDFILE ERROR: Not exists {$path}");
+    _error_log("XSENDFILE ERROR: Not exists path={$path} file={$file} ". json_encode($_GET));
 }

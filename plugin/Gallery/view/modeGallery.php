@@ -5,7 +5,7 @@ $leaderBoardTop = getAdsLeaderBoardTop();
 _ob_start();
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php
             echo $siteTitle;
@@ -15,7 +15,7 @@ _ob_start();
 
     <body class="<?php echo $global['bodyClass']; ?>">
         <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
-        <div class="container-fluid gallery">
+        <div class="container-fluid gallery avideoLoadPage">
             <?php
             if(!empty($leaderBoardTop)){
                 echo '<!-- leaderBoardTop start --><div class="row text-center" style="padding: 10px;">'.$leaderBoardTop.'</div><!-- leaderBoardTop end -->';

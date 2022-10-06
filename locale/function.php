@@ -39,7 +39,7 @@ function __($str, $allowHTML = false) {
 }
 
 function printJSString($str, $return = false) {
-    $text = json_encode(__($str));
+    $text = json_encode(__($str), JSON_UNESCAPED_UNICODE);
     if($return){
         return $text;
     }else{
@@ -163,5 +163,5 @@ function setLanguage($lang) {
 }
 
 function getLanguage(){
-    return strtolower(str_replace('_', '-', $_SESSION['language']));
+    return strtolower(str_replace('_', '-', $_SESSION['language']));exit;
 }

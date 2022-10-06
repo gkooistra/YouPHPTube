@@ -10,12 +10,15 @@ if (!PlayList::canSee($_GET['playlists_id'], User::getId())) {
     forbiddenPage(_('You cannot see this playlist'));
 }
 $global['doNotLoadPlayer'] = 1;
+/*
 $video = PlayLists::isPlayListASerie($_GET['playlists_id']);
 if (!empty($video)) {
     $video = Video::getVideo($video['id']);
     include $global['systemRootPath'] . 'view/modeYoutube.php';
     exit;
 }
+ * 
+ */
 
 $playListObj = new PlayList($_GET['playlists_id']);
 
@@ -48,7 +51,7 @@ foreach ($playList as $key => $value) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo $playListObj->getName() . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getURL('view/css/social.css'); ?>" rel="stylesheet" type="text/css"/>
@@ -66,7 +69,6 @@ foreach ($playList as $key => $value) {
     <body class="<?php echo $global['bodyClass']; ?>" style="padding: 5px;">
         <div class="container-fluid " style="overflow: hidden;">
             <div class="gallery">
-                
             <?php
             if (!empty($playList)) {
                 //createGallerySection($videos, $crc = "", $get = array(), $ignoreAds = false, $screenColsLarge = 0, $screenColsMedium = 0, $screenColsSmall = 0, $screenColsXSmall = 0, $galeryDetails = true)
@@ -83,14 +85,19 @@ foreach ($playList as $key => $value) {
         ?>
         <script>
             $(document).ready(function () {
-               $('.galleryLink').click(function(event){
+               $('.galleryVideo a').click(function(event){
                    event.preventDefault();
                    //avideoModalIframeFull($(this).attr('alternativeLink'));
                    var url = $(this).attr('embed');
+                   if(empty(url)){  
+                       console.log('$(\'.galleryVideo a\').click does not have embed');
+                       url = $(this).attr('href');
+                   }       
                    url = addGetParam(url, 'controls', -1);
                    url = addGetParam(url, 'showinfo', 0);
                    url = addGetParam(url, 'autoplay', 1);
-                   avideoAddIframeIntoElement(this, url, '.aspectRatio16_9');
+                   console.log('$(\'.galleryVideo a\').click open', url);
+                   avideoAddIframeIntoElement(this, url, '');
                });
             });
         </script>

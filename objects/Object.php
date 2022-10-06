@@ -298,7 +298,13 @@ abstract class ObjectYPT implements ObjectInterface
             foreach ($fieldsName as $value) {
                 //$escapedValue = $global['mysqli']->real_escape_string($this->$value);
                 if (strtolower($value) == 'created') {
-                    // do nothing
+                    //var_dump($this->created);exit;
+                    if(!empty($this->created) && User::isAdmin()){
+                        $this->created = str_replace('/[^0-9: \/-]/', '', $this->created);
+                        $formats .= 's';
+                        $values[] = $this->created;
+                        $fields[] = " `{$value}` = ? ";
+                    }
                 } elseif (strtolower($value) == 'modified') {
                     $fields[] = " {$value} = now() ";
                 } elseif (strtolower($value) == 'timezone') {
@@ -326,7 +332,14 @@ abstract class ObjectYPT implements ObjectInterface
             $fields = [];
             foreach ($fieldsName as $value) {
                 if (is_string($value) && (strtolower($value) == 'created' || strtolower($value) == 'modified')) {
-                    $fields[] = " now() ";
+                    if(empty($this->created) || !User::isAdmin()){
+                        $fields[] = " now() ";
+                    }else{
+                        $this->created = str_replace('/[^0-9: \/-]/', '', $this->created);
+                        $formats .= 's';
+                        $values[] = $this->created;
+                        $fields[] = " ? ";
+                    }
                 } elseif (is_string($value) && strtolower($value) == 'timezone') {
                     if (empty($this->$value)) {
                         $this->$value = date_default_timezone_get();
@@ -400,9 +413,20 @@ abstract class ObjectYPT implements ObjectInterface
         return false;
     }
 
-    private static function ignoreTableSecurityCheck(){
+    static function ignoreTableSecurityCheck(){
         
-        $ignoreArray = array('vast_campaigns_logs','videos', 'CachesInDB', 'plugins', 'users_login_history', 'live_transmitions_history', 'logincontrol_history', 'wallet','wallet_log', 'live_restreams_logs');
+        $ignoreArray = array(
+            'vast_campaigns_logs',
+            'videos', 'CachesInDB', 
+            'plugins', 
+            'users_login_history', 
+            'live_transmitions_history', 
+            'logincontrol_history', 
+            'wallet',
+            'audit', 
+            'wallet_log', 
+            'live_restreams_logs',
+            'clone_SitesAllowed');
         return in_array(static::getTableName(),$ignoreArray );
         
     }

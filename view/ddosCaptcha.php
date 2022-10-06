@@ -40,7 +40,9 @@ if($percentloadavg[0]<0.5){
     return ;
 }
 
-if (!empty($_SERVER['HTTP_USER_AGENT']) && preg_match("/AVideo(.*)/", $_SERVER['HTTP_USER_AGENT'])) {
+$ua = @$_SERVER['HTTP_USER_AGENT'];
+
+if (!empty($_SERVER['HTTP_USER_AGENT']) && preg_match("/AVideo(.*)/", $ua)) {
     return ;
 }
 
@@ -52,6 +54,24 @@ if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
 } else {
     $ip = $_SERVER['REMOTE_ADDR'];
 }
+
+$byPassCaptcha = array(
+    '/Live.on_/',
+    '/objects.aVideoEncoder/',
+    );
+
+foreach($byPassCaptcha as $regExp){
+    if(preg_match($regExp, $_SERVER['PHP_SELF'])){
+        error_log("AVideo ignore captcha {$ip} PHP_SELF={$_SERVER['PHP_SELF']}");
+        return;
+    }
+}
+
+$ignoreLog = array('/view/xsendfile.php');
+if(!in_array($_SERVER['PHP_SELF'], $ignoreLog) || preg_match('/(bot|spider|crawl)/i', $_SERVER['HTTP_USER_AGENT'])){
+    error_log("AVideo captcha {$ip} PHP_SELF={$_SERVER['PHP_SELF']} HTTP_USER_AGENT={$ua}");
+}
+
 session_name(md5($ip));
 session_start(); // inicial a sessao
 if(!empty($_SESSION['captcha_validated'])){

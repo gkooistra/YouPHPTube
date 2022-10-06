@@ -6,7 +6,7 @@ if (!isset($global['systemRootPath'])) {
 $metaDescription = "About Page";
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $config->getLanguage(); ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo __("About") . getSEOComplement() . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <?php
@@ -31,17 +31,10 @@ $metaDescription = "About Page";
                     }
                     if (empty($custom)) {
                         ?>
-                        <h1><?php echo __("I would humbly like to thank God for giving me the necessary knowledge, motivation, resources and idea to be able to execute this project. Without God's permission this would never be possible."); ?></h1>
+                        <h1><?php echo __("Deze website is onderdeel van INCOTECH ONLINE."); ?></h1>
                         <blockquote class="blockquote">
-                            <h1><?php echo __("For of Him, and through Him, and to Him, are all things: to whom be glory for ever. Amen."); ?></h1>
-                            <footer class="blockquote-footer"><?php echo __("Apostle Paul in"); ?> <cite title="Source Title"><?php echo __("Romans 11:36"); ?></cite></footer>
+                            <h1><?php echo __("Bedankt voor uw bezoek. Vergeet ook niet om onze andere kanalen te bezoeken."); ?></h1>
                         </blockquote>
-                        <div class="clearfix"></div>
-                        <span class="label label-success"><?php printf(__("You are running AVideo version %s!"), $config->getVersion()); ?></span>
-
-                        <span class="label label-success">
-                            <?php printf(__("You can upload max of %s!"), get_max_file_size()); ?>
-                        </span>
                         <span class="label label-success">
                             <?php printf(__("You have %s minutes of videos!"), number_format(getSecondsTotalVideosLength() / 6, 2)); ?>
                         </span>
@@ -77,3 +70,6 @@ $metaDescription = "About Page";
         </script>
     </body>
 </html>
+<?php
+include $global['systemRootPath'].'objects/include_end.php';
+?>

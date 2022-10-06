@@ -109,7 +109,7 @@ if (!empty($chat2) && !empty($chat2->useStaticLayout)) {
 $global['doNotLoadPlayer'] = 1;
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $_SESSION['language']; ?>">
+<html lang="<?php echo getLanguage(); ?>">
     <head>
         <title><?php echo __("Live") . $config->getPageTitleSeparator() . $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
@@ -135,6 +135,7 @@ $global['doNotLoadPlayer'] = 1;
                 width:  -webkit-fill-available;
             }
             <?php
+            /*
             if (AVideoPlugin::isEnabledByName('Chat2')) {
                 ?>
                 @media (max-width: 769px) {
@@ -144,6 +145,8 @@ $global['doNotLoadPlayer'] = 1;
                 }
                 <?php
             }
+             * 
+             */
             ?>
         </style>
     </head>
@@ -203,12 +206,16 @@ $global['doNotLoadPlayer'] = 1;
                         }
                         if (Live::canStreamWithMeet()) {
                             ?>
-                            <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Meet/');" class="btn btn-default pull-right"><i class="fas fa-comments"></i> <?php echo __("Meet"); ?></button>
+                            <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Meet/');" class="btn btn-default pull-right">
+                                <i class="fas fa-comments"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Start a Live Stream Meeting"); ?></span><span class="hidden-lg"><?php echo __("Meeting"); ?></span>
+                            </button>
                             <?php
                         }
                         if (Live::canStreamWithWebRTC()) {
                             ?>
-                            <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Live/webcamFullscreen.php?avideoIframe=1');" class="btn btn-default pull-right"><i class="fas fa-camera"></i> <?php echo __("Webcam"); ?></button>
+                            <button onclick="avideoModalIframeFullScreen(webSiteRootURL + 'plugin/Live/webcamFullscreen.php?avideoIframe=1');" class="btn btn-default pull-right" data-toggle="tooltip" title=<?php printJSString(__("Go Live With Webcam")); ?>>
+                                <i class="fas fa-camera"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Go Live With Webcam"); ?></span><span class="hidden-lg"><?php echo __("Webcam"); ?></span>
+                            </button>
                             <?php
                         }
                         if (empty($activeServerFound)) {
@@ -349,3 +356,4 @@ echo PlayerSkins::getStartPlayerJS("", "", true);
         </script>
     </body>
 </html>
+<?php include_once $global['systemRootPath'] . 'objects/include_end.php'; ?>

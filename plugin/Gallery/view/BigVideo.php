@@ -80,7 +80,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                             <div class="row thumbsImage">
                                 <div class="<?php echo $colClass1; ?>">
                                     <?php
-                                    echo Video::getVideoImagewithHoverAnimationFromVideosId($videoRow);
+                                    echo Video::getVideoImagewithHoverAnimationFromVideosId($videoRow, true, true, false, true);
                                     ?>
                                     <?php
                                     if (!empty($program) && $videoRow['type'] == 'serie' && !empty($videoRow['serie_playlists_id'])) {
@@ -246,6 +246,6 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
     <?php
 } else if (!empty($_GET['showOnly'])) {
     ?>
-    <a href="<?php echo $global['webSiteRootURL']; ?>" class="btn btn-default"><i class="fa fa-arrow-left"></i> <?php echo __("Go Back"); ?></a>
+    <a href="<?php echo getHomePageURL(); ?>" class="btn btn-default"><i class="fa fa-arrow-left"></i> <?php echo __("Go Back"); ?></a>
     <?php
 }

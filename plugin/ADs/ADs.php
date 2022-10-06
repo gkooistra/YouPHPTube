@@ -100,7 +100,7 @@ class ADs extends PluginAbstract
         //$head .= "<script> var adsbygoogleTimeout = []; </script>";
         if (!empty($_GET['abkw'])) {
             $abkw = preg_replace('/[^a-zA-Z0-9_ ,-]/', '', $_GET['abkw']);
-            $head .= "<script> window.abkw = '{$abkw}'; </script>";
+            $head .= "<script doNotSepareteTag> window.abkw = '{$abkw}'; </script>";
             return $head;
         }
         $obj = $this->getDataObject();
@@ -143,8 +143,17 @@ class ADs extends PluginAbstract
         }
         if (preg_match("/adsbygoogle/i", $adCode)) {
             $uid = uniqid();
-            $adCode = str_replace("(adsbygoogle = window.adsbygoogle || []).push({});", "$(function () {startGoogleAd('#adContainer{$uid}');});", trim($adCode));
+            $adCode = str_replace("(adsbygoogle = window.adsbygoogle || []).push({});", "document.addEventListener(\"DOMContentLoaded\", function(event) {startGoogleAd('#adContainer{$uid}');});", trim($adCode));
             $adCode = "<div style='min-width:250px;min-height:90px;' id='adContainer{$uid}'>{$adCode}</div>";
+        }
+        $adCode = str_replace("<script", "<script doNotSepareteTag ", trim($adCode));
+        return $adCode;
+    }
+    
+    
+    public static function addLabel($adCode, $label){
+        if(!empty($label) && User::isAdmin()){
+            $adCode = "<span data-toggle=\"tooltip\" title=\"{$label}\">{$adCode}</span>";
         }
         return $adCode;
     }

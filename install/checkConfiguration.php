@@ -34,10 +34,11 @@ error_log("Installation: ".__LINE__);
 
 if ($_POST['createTables'] == 2) {
     $sql = "CREATE DATABASE IF NOT EXISTS {$_POST['databaseName']}";
-    if ($mysqli->query($sql) !== true) {
-        $obj->error = "Error creating database: " . $mysqli->error;
+    try {
+        $mysqli->query($sql);
+    } catch (Exception $exc) {
+        $obj->error = "Error deleting user: " . $mysqli->error;
         echo json_encode($obj);
-        exit;
     }
 }
 $mysqli->select_db($_POST['databaseName']);
@@ -86,10 +87,13 @@ if ($_POST['createTables'] > 0) {
         if (substr(trim($line), -1, 1) == ';') {
             // Perform the query
             //error_log("Installation: ".$templine);
-            if (!$mysqli->query($templine)) {
+            try {
+                $mysqli->query($templine);
+            } catch (Exception $exc) {
                 error_log("Installation: SQL ERROR ".$mysqli->error);
                 $obj->error = ('Error performing query \'<strong>' . $templine . '\': ' . $mysqli->error . '<br /><br />');
             }
+
             // Reset temp variable to empty
             $templine = '';
         }
@@ -100,43 +104,50 @@ if ($_POST['createTables'] > 0) {
 error_log("Installation: ".__LINE__);
 
 $sql = "DELETE FROM users WHERE id = 1 ";
-if ($mysqli->query($sql) !== true) {
+
+
+try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
     $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
-
 
 error_log("Installation: ".__LINE__);
 $sql = "INSERT INTO users (id, user, email, password, created, modified, isAdmin) VALUES (1, 'admin', '" . $_POST['contactEmail'] . "', '" . md5($_POST['systemAdminPass']) . "', now(), now(), true)";
-if ($mysqli->query($sql) !== true) {
-    $obj->error = "Error creating admin user: " . $mysqli->error;
+
+try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
+    $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
 
 error_log("Installation: ".__LINE__);
 $sql = "DELETE FROM categories WHERE id = 1 ";
-if ($mysqli->query($sql) !== true) {
-    $obj->error = "Error deleting category: " . $mysqli->error;
+try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
+    $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
 
 error_log("Installation: ".__LINE__);
 $sql = "INSERT INTO categories (id, name, clean_name, description, created, modified) VALUES (1, 'Default', 'default','', now(), now())";
-if ($mysqli->query($sql) !== true) {
-    $obj->error = "Error creating category: " . $mysqli->error;
+try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
+    $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
 
 error_log("Installation: ".__LINE__);
 $sql = "DELETE FROM configurations WHERE id = 1 ";
-if ($mysqli->query($sql) !== true) {
-    $obj->error = "Error deleting configuration: " . $mysqli->error;
+try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
+    $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
 
 error_log("Installation: ".__LINE__);
@@ -149,20 +160,21 @@ if (is_dir("{$_POST['systemRootPath']}Encoder")) {
 $sql = "INSERT INTO configurations (id, video_resolution, users_id, version, webSiteTitle, language, contactEmail, encoderURL,  created, modified) "
         . " VALUES "
         . " (1, '858:480', 1,'{$installationVersion}', '{$_POST['webSiteTitle']}', '{$_POST['mainLanguage']}', '{$_POST['contactEmail']}', '{$encoder}', now(), now())";
-if ($mysqli->query($sql) !== true) {
-    $obj->error = "Error creating configuration: " . $mysqli->error;
+ try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
+    $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
 
 error_log("Installation: ".__LINE__);
 $sql = "INSERT INTO `plugins` VALUES (NULL, 'a06505bf-3570-4b1f-977a-fd0e5cab205d', 'active', now(), now(), '', 'Gallery', 'Gallery', '1.0');";
-if ($mysqli->query($sql) !== true) {
-    $obj->error = "Error enabling Gallery Plugin: " . $mysqli->error;
+try {
+    $mysqli->query($sql);
+} catch (Exception $exc) {
+    $obj->error = "Error deleting user: " . $mysqli->error;
     echo json_encode($obj);
-    exit;
 }
-
 
 error_log("Installation: ".__LINE__);
 $mysqli->close();
@@ -219,8 +231,14 @@ if(empty(\$global['webSiteRootPath'])){
 require_once \$global['systemRootPath'].'objects/include_config.php';
 ";
 
+$videosDir = $_POST['systemRootPath'].'videos/';
+
+if(!is_dir($videosDir)){
+    mkdir($videosDir, 0777, true);
+}
+
 error_log("Installation: ".__LINE__);
-$fp = fopen($_POST['systemRootPath'] . "videos/configuration.php", "wb");
+$fp = fopen("{$videosDir}configuration.php", "wb");
 fwrite($fp, $content);
 fclose($fp);
 error_log("Installation: ".__LINE__);

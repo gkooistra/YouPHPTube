@@ -185,7 +185,23 @@ class LiveTransmitionHistory extends ObjectYPT {
         $uid = "{$type}_{$liveTransmitionHistory_id}";
         $title = Live::getTitleFromKey($key, $title);
         //getLiveApplicationModelArray($users_id, $title, $link, $imgJPG, $imgGIF, $type, $LiveUsersLabelLive='', $uid ='', $callback='', $startsOnDate='', $class='')
-        $obj = Live::getLiveApplicationModelArray($users_id, $title, $link, $imgJPG, $imgGIF, $type, $LiveUsersLabelLive, $uid, '', '', "live_{$key}");
+                
+        $array = array(
+            'users_id'=>$users_id,
+            'title'=>$title,
+            'link'=>$link,
+            'imgJPG'=>$imgJPG,
+            'imgGIF'=>$imgGIF,
+            'type'=>$type,
+            'LiveUsersLabelLive'=>$LiveUsersLabelLive,
+            'uid'=>$uid,
+            'callback'=>'',
+            'startsOnDate'=>'',
+            'class'=>"live_{$key}",
+            'description'=>$lth->getDescription()
+        );
+        
+        $obj = Live::getLiveApplicationModelArray($array);
         $obj['key'] = $key;
         $obj['live_transmitions_history_id'] = $liveTransmitionHistory_id;
         $obj['isPrivate'] = self::isPrivate($liveTransmitionHistory_id);
@@ -304,7 +320,7 @@ class LiveTransmitionHistory extends ObjectYPT {
         $this->live_servers_id = intval($live_servers_id);
     }
 
-    public static function getAllFromUser($users_id=0, $onlyWithViewers=false) {
+    public static function getAllFromUser($users_id=0, $onlyWithViewers=false, $onlyActive=false) {
         global $global;
         $users_id = intval($users_id);
         $sql = "SELECT *, "
@@ -313,7 +329,10 @@ class LiveTransmitionHistory extends ObjectYPT {
                 . " WHERE 1=1 ";
         
         if(!empty($users_id)){
-            $sql .= " AND users_id = $users_id ";
+            $sql .= " AND (users_id = $users_id OR users_id_company = $users_id)  ";
+        }
+        if(!empty($onlyActive)){
+            $sql .= " AND (finished IS NULL) ";
         }
         
         if($onlyWithViewers){
@@ -337,6 +356,10 @@ class LiveTransmitionHistory extends ObjectYPT {
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
+    }
+    
+    public static function getAllActiveFromUser($users_id=0) {
+        return self::getAllFromUser($users_id, false, true);
     }
 
     public static function isLive($key) {
