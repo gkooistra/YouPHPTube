@@ -42,10 +42,28 @@ class CDN extends PluginAbstract
         return "2.0";
     }
 
+    public static function getDataObjectAdvanced() {
+        return array(
+            'key',
+            'CDN',
+            'CDN_S3',
+            'CDN_B2',
+            'CDN_FTP',
+            'CDN_YPTStorage',
+            'CDN_Live',
+            'CDN_LiveServers',
+            'storage_username',
+            'storage_password',
+            'storage_hostname',
+            );
+    }
+    
     public function getEmptyDataObject()
     {
         global $global, $config;
         $obj = new stdClass();
+        $obj->enable_cdn = true;
+        self::addDataObjectHelper('enable_cdn', 'Enable CDN', "If you disable the CDN and you still have a storage, your storage will be used as a backup for the videos only, you wtill need a database backup");
         $obj->key = "";
         $obj->CDN = "";
         $obj->CDN_S3 = "";
@@ -59,6 +77,7 @@ class CDN extends PluginAbstract
         $obj->enable_storage = false;
         $obj->storage_autoupload_new_videos = true;
         $obj->storage_users_can_choose_storage = true;
+        $obj->storage_keep_original_files = false;
         $obj->storage_username = "";
         $obj->storage_password = "";
         $obj->storage_hostname = "";
@@ -75,8 +94,7 @@ class CDN extends PluginAbstract
         return $btn;
     }
 
-    public function getPluginMenu()
-    {
+    public function getPluginMenu(){
         global $global;
         $fileAPIName = $global['systemRootPath'] . 'plugin/CDN/pluginMenu.html';
         $content = file_get_contents($fileAPIName);
@@ -95,17 +113,21 @@ class CDN extends PluginAbstract
         }
         return $cdnMenu.$storageMenu;
     }
+   
 
     /**
      *
-     * @param type $type enum(CDN, CDN_S3,CDN_B2,CDN_YPTStorage,CDN_Live,CDN_LiveServers)
-     * @param type $id the ID of the URL in case the CDN is an array
+     * @param string $type enum(CDN, CDN_S3,CDN_B2,CDN_YPTStorage,CDN_Live,CDN_LiveServers)
+     * @param string $id the ID of the URL in case the CDN is an array
      * @return boolean
      */
-    public static function getURL($type = 'CDN', $id = 0)
-    {
+    public static function getURL($type = 'CDN', $id = 0){
         $obj = AVideoPlugin::getObjectData('CDN');
-
+        
+        if(empty($obj->enable_cdn)){
+            return false;
+        }
+        
         if (empty($obj->{$type})) {
             return false;
         }
@@ -160,8 +182,8 @@ class CDN extends PluginAbstract
             } elseif (!empty($plugin->region)) {
                 $CDN_S3 = "https://{$bucket_name}.s3-accesspoint.{$region}.amazonaws.com";
             }
-            if (!empty($resp->CDN_S3)) {
-                $CDN_S3 = addLastSlash($resp->CDN_S3);
+            if (!empty($CDN_S3)) {
+                $CDN_S3 = addLastSlash($CDN_S3);
             }
         }
         return $CDN_S3;
@@ -174,8 +196,8 @@ class CDN extends PluginAbstract
         if (!empty($plugin)) {
             $b2 = new Blackblaze_B2();
             $CDN_B2 = $b2->getEndpoint();
-            if (!empty($resp->CDN_B2)) {
-                $CDN_B2 = addLastSlash($resp->CDN_B2);
+            if (!empty($CDN_B2)) {
+                $CDN_B2 = addLastSlash($CDN_B2);
             }
         }
         return $CDN_B2;

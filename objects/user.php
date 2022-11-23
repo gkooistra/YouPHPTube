@@ -8,7 +8,13 @@ require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/bootGrid.php';
 require_once $global['systemRootPath'] . 'objects/userGroups.php';
 
-class User {
+/**
+ * 
+ * @var array $global
+ * @var object $global['mysqli'] 
+ */
+class User
+{
 
     private $id;
     private $user;
@@ -58,7 +64,8 @@ class User {
     public static $is_company_status_WAITINGAPPROVAL = 2;
     public static $is_company_status = array(0 => 'Not a Company', 1 => 'Active Company', 2 => 'Company waiting for approval');
 
-    public function __construct($id, $user = "", $password = "") {
+    public function __construct($id, $user = "", $password = "")
+    {
         if (empty($id)) {
             // get the user data from user and pass
             $this->user = $user;
@@ -73,11 +80,13 @@ class User {
         }
     }
 
-    function getIs_company(): int {
+    function getIs_company(): int
+    {
         return intval($this->is_company);
     }
 
-    function setIs_company($is_company): void {
+    function setIs_company($is_company): void
+    {
         if ($is_company === 'true') {
             $is_company = self::$is_company_status_ISACOMPANY;
         }
@@ -94,71 +103,88 @@ class User {
         $this->is_company = $is_company;
     }
 
-    function getPhone() {
+    function getPhone()
+    {
         return $this->phone;
     }
 
-    function setPhone($phone): void {
+    function setPhone($phone): void
+    {
         $this->phone = $phone;
     }
 
-    public function getEmail() {
+    public function getEmail()
+    {
         return $this->email;
     }
 
-    public function getUser() {
+    public function getUser()
+    {
         return $this->user;
     }
 
-    public function getAbout() {
+    public function getAbout()
+    {
         return str_replace(['\\\\\\\n'], ["\n"], $this->about);
     }
 
-    public function setAbout($about) {
+    public function setAbout($about)
+    {
         $this->about = strip_specific_tags(xss_esc($about));
     }
 
-    public function getPassword() {
+    public function getPassword()
+    {
         return $this->password;
     }
 
-    public function getCanStream() {
+    public function getCanStream()
+    {
         return $this->canStream;
     }
 
-    public function setCanStream($canStream) {
+    public function setCanStream($canStream)
+    {
         $this->canStream = (empty($canStream) || strtolower($canStream) === 'false') ? 0 : 1;
     }
 
-    public function getCanViewChart() {
+    public function getCanViewChart()
+    {
         return $this->canViewChart;
     }
 
-    public function setCanViewChart($canViewChart) {
+    public function setCanViewChart($canViewChart)
+    {
         $this->canViewChart = (empty($canViewChart) || strtolower($canViewChart) === 'false') ? 0 : 1;
     }
 
-    public function getCanCreateMeet() {
+    public function getCanCreateMeet()
+    {
         return $this->canCreateMeet;
     }
 
-    public function setCanCreateMeet($canCreateMeet) {
+    public function setCanCreateMeet($canCreateMeet)
+    {
         $this->canCreateMeet = (empty($canCreateMeet) || strtolower($canCreateMeet) === 'false') ? 0 : 1;
     }
 
-    public function getCanUpload() {
+    public function getCanUpload()
+    {
         return $this->canUpload;
     }
 
-    public function setCanUpload($canUpload) {
+    public function setCanUpload($canUpload)
+    {
         $this->canUpload = (empty($canUpload) || strtolower($canUpload) === 'false') ? 0 : 1;
     }
 
-    public function getAnalyticsCode() {
+    public function getAnalyticsCode()
+    {
         return $this->analyticsCode;
     }
 
-    public function setAnalyticsCode($analyticsCode) {
+    public function setAnalyticsCode($analyticsCode)
+    {
         preg_match("/(ua-\d{4,9}-\d{1,4})/i", $analyticsCode, $matches);
         if (!empty($matches[1])) {
             $this->analyticsCode = $matches[1];
@@ -167,7 +193,8 @@ class User {
         }
     }
 
-    public function getAnalytics() {
+    public function getAnalytics()
+    {
         $id = $this->getId();
         $aCode = $this->getAnalyticsCode();
         if (!empty($id) && !empty($aCode)) {
@@ -189,7 +216,8 @@ if (typeof gtag !== \"function\") {
         return $code;
     }
 
-    public function addExternalOptions($id, $value) {
+    public function addExternalOptions($id, $value)
+    {
         $eo = User::decodeExternalOption($this->externalOptions);
         if (!is_array($eo)) {
             $eo = [];
@@ -199,20 +227,23 @@ if (typeof gtag !== \"function\") {
         return $this->save();
     }
 
-    public function removeExternalOptions($id) {
+    public function removeExternalOptions($id)
+    {
         $eo = User::decodeExternalOption($this->externalOptions);
         unset($eo[$id]);
         $this->setExternalOptions($eo);
         return $this->save();
     }
 
-    public function setExternalOptions($options) {
+    public function setExternalOptions($options)
+    {
         //we convert it to base64 to sanitize the input since we do not validate input from externalOptions
         $this->externalOptions = base64_encode(serialize($options));
         //var_dump($this->externalOptions, $options);
     }
 
-    public function getExternalOption($id) {
+    public function getExternalOption($id)
+    {
         $eo = User::decodeExternalOption($this->externalOptions);
         if (empty($eo[$id])) {
             return null;
@@ -220,7 +251,8 @@ if (typeof gtag !== \"function\") {
         return $eo[$id];
     }
 
-    public function load($id) {
+    public function load($id)
+    {
         $id = intval($id);
         if (empty($id)) {
             return false;
@@ -235,7 +267,8 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    private function loadFromUser($user) {
+    private function loadFromUser($user)
+    {
         $userLoaded = self::getUserDbFromUser($user);
         if (empty($userLoaded)) {
             return false;
@@ -248,27 +281,31 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public function loadSelfUser() {
+    public function loadSelfUser()
+    {
         $this->load($this->getId());
     }
 
-    public static function getId() {
+    public static function getId()
+    {
         if (self::isLogged()) {
             return $_SESSION['user']['id'];
         } else {
             return false;
         }
     }
-    
-    static function getCookieUsersId() {
+
+    static function getCookieUsersId()
+    {
         if (empty($_COOKIE['users_id'])) {
             return 0;
         } else {
             return intval($_COOKIE['users_id']);
         }
     }
-    
-    public static function getEmail_() {
+
+    public static function getEmail_()
+    {
         if (self::isLogged()) {
             return $_SESSION['user']['email'];
         } else {
@@ -276,20 +313,24 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function _getEmail() {
+    public static function _getEmail()
+    {
         return self::getEmail_();
     }
 
-    static function getEmailDb($users_id) {
+    static function getEmailDb($users_id)
+    {
         $user = self::getUserDB($users_id);
         return @$user['email'];
     }
 
-    public function getBdId() {
+    public function getBdId()
+    {
         return $this->id;
     }
 
-    public static function updateSessionInfo() {
+    public static function updateSessionInfo()
+    {
         if (self::isLogged()) {
             $user = self::getUserDb($_SESSION['user']['id']);
             _error_log('user updateSessionInfo login');
@@ -297,7 +338,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function getName() {
+    public static function getName()
+    {
         if (self::isLogged()) {
             return $_SESSION['user']['name'];
         } else {
@@ -305,7 +347,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function getUserName() {
+    public static function getUserName()
+    {
         if (self::isLogged()) {
             return $_SESSION['user']['user'];
         } else {
@@ -313,7 +356,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function getUserChannelName() {
+    public static function getUserChannelName()
+    {
         if (self::isLogged()) {
             if (empty($_SESSION['user']['channelName'])) {
                 $_SESSION['user']['channelName'] = self::_recommendChannelName();
@@ -328,7 +372,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function _recommendChannelName($name = "", $try = 0, $unknown = "", $users_id = 0) {
+    public static function _recommendChannelName($name = "", $try = 0, $unknown = "", $users_id = 0)
+    {
         if (empty($users_id)) {
             if (!empty(User::getId())) {
                 $users_id = User::getId();
@@ -366,7 +411,8 @@ if (typeof gtag !== \"function\") {
         return $name;
     }
 
-    public static function getUserFromChannelName($channelName) {
+    public static function getUserFromChannelName($channelName)
+    {
         $channelName = cleanString($channelName);
         global $global;
         $channelName = ($channelName);
@@ -387,7 +433,8 @@ if (typeof gtag !== \"function\") {
      * return an name to identify the user
      * @return String
      */
-    public static function getNameIdentification() {
+    public static function getNameIdentification()
+    {
         global $advancedCustomUser;
         if (self::isLogged()) {
             if (!empty(self::getName()) && empty($advancedCustomUser->doNotIdentifyByName)) {
@@ -410,7 +457,8 @@ if (typeof gtag !== \"function\") {
      * return an name to identify the user from database
      * @return String
      */
-    public function getNameIdentificationBd() {
+    public function getNameIdentificationBd()
+    {
         global $advancedCustomUser;
         if (!empty($this->name) && empty($advancedCustomUser->doNotIdentifyByName)) {
             return $this->name;
@@ -427,7 +475,8 @@ if (typeof gtag !== \"function\") {
         return __("Unknown User");
     }
 
-    public static function getNameIdentificationById($id = "") {
+    public static function getNameIdentificationById($id = "")
+    {
         if (!empty($id)) {
             $user = new User($id);
             return $user->getNameIdentificationBd();
@@ -435,7 +484,8 @@ if (typeof gtag !== \"function\") {
         return __("Unknown User");
     }
 
-    public static function getDescriptionById($id, $removeHTML = false) {
+    public static function getDescriptionById($id, $removeHTML = false)
+    {
         $about = self::getAboutFromId($id);
         if ($removeHTML) {
             $about = br2nl($about);
@@ -444,7 +494,8 @@ if (typeof gtag !== \"function\") {
         return trim($about);
     }
 
-    public static function getAboutFromId($id) {
+    public static function getAboutFromId($id)
+    {
         if (!empty($id)) {
             $user = new User($id);
             return $user->getAbout();
@@ -452,7 +503,8 @@ if (typeof gtag !== \"function\") {
         return '';
     }
 
-    public static function getUserPass() { 
+    public static function getUserPass()
+    {
         if (self::isLogged()) {
             //return $_SESSION['user']['password'];
             return $_SESSION['user']['passhash'];
@@ -461,15 +513,18 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public function _getName() {
+    public function _getName()
+    {
         return $this->name;
     }
 
-    public function getBdName() {
+    public function getBdName()
+    {
         return $this->_getName();
     }
 
-    public static function _getPhoto($id = "") {
+    public static function _getPhoto($id = "")
+    {
         global $global;
         if (!empty($id)) {
             $user = self::findById($id);
@@ -495,7 +550,8 @@ if (typeof gtag !== \"function\") {
         return $photo;
     }
 
-    public static function getPhoto($id = "", $ignoreCDN = false) {
+    public static function getPhoto($id = "", $ignoreCDN = false)
+    {
         global $global;
         if (!empty($id)) {
             $user = self::findById($id);
@@ -518,17 +574,20 @@ if (typeof gtag !== \"function\") {
         return $photo;
     }
 
-    public static function _getOGImage($users_id) {
+    public static function _getOGImage($users_id)
+    {
         return "/videos/userPhoto/photo{$users_id}_og_200X200.jpg";
     }
 
-    public static function deleteOGImage($users_id) {
+    public static function deleteOGImage($users_id)
+    {
         global $global;
         $photo = $global['systemRootPath'] . self::_getOGImage($users_id);
         @unlink($photo);
     }
 
-    public static function getOGImage($users_id = "") {
+    public static function getOGImage($users_id = "")
+    {
         global $global;
         $photo = self::_getPhoto($users_id);
         if ($photo == "view/img/userSilhouette.jpg") {
@@ -545,7 +604,8 @@ if (typeof gtag !== \"function\") {
         return getCDN() . self::_getOGImage($users_id);
     }
 
-    public static function getEmailVerifiedIcon($id = "") {
+    public static function getEmailVerifiedIcon($id = "")
+    {
         global $advancedCustomUser;
         $mark = '';
         if (!empty($advancedCustomUser->showEmailVerifiedMark)) {
@@ -582,13 +642,15 @@ if (typeof gtag !== \"function\") {
         return $mark;
     }
 
-    public function getPhotoDB() {
+    public function getPhotoDB()
+    {
         global $global;
         $photo = self::getPhoto($this->id);
         return $photo;
     }
 
-    public static function getBackground($id = "") {
+    public static function getBackground($id = "")
+    {
         global $global;
         if (!empty($id)) {
             $user = self::findById($id);
@@ -611,11 +673,13 @@ if (typeof gtag !== \"function\") {
         return $photo;
     }
 
-    public static function getMail() {
+    public static function getMail()
+    {
         return self::getEmail_();
     }
 
-    public function save($updateUserGroups = false) {
+    public function save($updateUserGroups = false)
+    {
         global $global, $config, $advancedCustom, $advancedCustomUser;
         if (is_object($config) && $config->currentVersionLowerThen('5.6')) {
             // they don't have analytics code
@@ -690,8 +754,8 @@ if (typeof gtag !== \"function\") {
             $formats = "ssssiiii";
             $values = [$user, $password, $this->email, $name, $this->isAdmin, $this->canStream, $this->canUpload, $this->canCreateMeet];
             $sql = "UPDATE users SET user = ?, password = ?, "
-                    . "email = ?, name = ?, isAdmin = ?,"
-                    . "canStream = ?,canUpload = ?,canCreateMeet = ?,";
+                . "email = ?, name = ?, isAdmin = ?,"
+                . "canStream = ?,canUpload = ?,canCreateMeet = ?,";
             if (isset($this->canViewChart)) {
                 $formats .= "i";
                 $values[] = $this->canViewChart;
@@ -719,21 +783,29 @@ if (typeof gtag !== \"function\") {
             $values[] = $this->id;
 
             $sql .= "status = ?, "
-                    . "photoURL = ?, backgroundURL = ?, "
-                    . "recoverPass = ?, about = ?, "
-                    . " channelName = ?, emailVerified = ? , analyticsCode = ?, externalOptions = ? , "
-                    . " first_name = ? , last_name = ? , address = ? , zip_code = ? , country = ? , region = ? , city = ? , donationLink = ? , phone = ? , is_company = " . (empty($this->is_company) ? 'NULL' : intval($this->is_company)) . ", "
-                    . " modified = now() WHERE id = ?";
+                . "photoURL = ?, backgroundURL = ?, "
+                . "recoverPass = ?, about = ?, "
+                . " channelName = ?, emailVerified = ? , analyticsCode = ?, externalOptions = ? , "
+                . " first_name = ? , last_name = ? , address = ? , zip_code = ? , country = ? , region = ? , city = ? , donationLink = ? , phone = ? , is_company = " . (empty($this->is_company) ? 'NULL' : intval($this->is_company)) . ", "
+                . " modified = now() WHERE id = ?";
         } else {
             $formats = "ssssiiiisssssssi";
-            $values = [$user, $password, $this->email, $name, $this->isAdmin, $this->canStream, $this->canUpload, $this->canCreateMeet,
-                $status, $this->photoURL, $this->recoverPass, $channelName, $this->analyticsCode, $this->externalOptions, $this->phone, $this->emailVerified];
+            $values = [
+                $user, $password, $this->email, $name, $this->isAdmin, $this->canStream, $this->canUpload, $this->canCreateMeet,
+                $status, $this->photoURL, $this->recoverPass, $channelName, $this->analyticsCode, $this->externalOptions, $this->phone, $this->emailVerified
+            ];
             $sql = "INSERT INTO users (user, password, email, name, isAdmin, canStream, canUpload, canCreateMeet, canViewChart, "
-                    . " status,photoURL,recoverPass, created, modified, channelName, analyticsCode, externalOptions, phone, is_company,emailVerified) "
-                    . " VALUES (?,?,?,?,?,?,?,?, false, "
-                    . "?,?,?, now(), now(),?,?,?,?," . (empty($this->is_company) ? 'NULL' : intval($this->is_company)) . ",?)";
+                . " status,photoURL,recoverPass, created, modified, channelName, analyticsCode, externalOptions, phone, is_company,emailVerified) "
+                . " VALUES (?,?,?,?,?,?,?,?, false, "
+                . "?,?,?, now(), now(),?,?,?,?," . (empty($this->is_company) ? 'NULL' : intval($this->is_company)) . ",?)";
         }
         $insert_row = sqlDAL::writeSql($sql, $formats, $values);
+
+        /**
+         * 
+         * @var array $global
+         * @var object $global['mysqli'] 
+         */
         if ($insert_row) {
             if (empty($this->id)) {
                 $id = $global['mysqli']->insert_id;
@@ -755,7 +827,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function getChannelOwner($channelName) {
+    public static function getChannelOwner($channelName)
+    {
         global $global;
         $channelName = ($channelName);
         $sql = "SELECT * FROM users WHERE channelName = ? LIMIT 1";
@@ -771,7 +844,8 @@ if (typeof gtag !== \"function\") {
         return $user;
     }
 
-    public static function getFromUsername($user) {
+    public static function getFromUsername($user)
+    {
         global $global;
         $user = ($user);
         $sql = "SELECT * FROM users WHERE user = ? LIMIT 1";
@@ -787,16 +861,17 @@ if (typeof gtag !== \"function\") {
         return $user;
     }
 
-    private static function setCacheWatchVideo($cacheName, $value) {
+    private static function setCacheWatchVideo($cacheName, $value)
+    {
         if (!User::isLogged()) {
-            ObjectYPT::setCache($cacheName, $value);
-            ;
+            ObjectYPT::setCache($cacheName, $value);;
         } else {
             ObjectYPT::setSessionCache($cacheName, $value);
         }
     }
 
-    public static function canWatchVideo($videos_id) {
+    public static function canWatchVideo($videos_id)
+    {
         $cacheName = "canWatchVideo$videos_id";
         if (!User::isLogged()) {
             $cacheName = "canWatchVideoNOTLOGED$videos_id";
@@ -875,13 +950,15 @@ if (typeof gtag !== \"function\") {
                 }
             }
         }
-
-        _error_log("User::canWatchVideo The user " . User::getId() . " is not on any of the user groups ({$videos_id}) " . json_encode($rows));
+        if (isVideo()) {
+            _error_log("User::canWatchVideo The user " . User::getId() . " is not on any in the user groups ({$videos_id}) " . json_encode($rows));
+        }
         self::setCacheWatchVideo($cacheName, false);
         return false;
     }
 
-    public static function canWatchVideoWithAds($videos_id) {
+    public static function canWatchVideoWithAds($videos_id)
+    {
         if (empty($videos_id)) {
             _error_log("User::canWatchVideo (videos_id is empty) " . $videos_id);
             return false;
@@ -894,32 +971,55 @@ if (typeof gtag !== \"function\") {
             //_error_log("User::userCanWatchVideoWithAds (can) " . User::getId() . " " . $videos_id);
             return true;
         }
-        _error_log("User::userCanWatchVideoWithAds (No can not) " . User::getId() . " " . $videos_id);
+        if (isVideo()) {
+            _error_log("User::userCanWatchVideoWithAds (No can not) " . User::getId() . " " . $videos_id);
+        }
 
         if (self::canWatchVideo($videos_id)) {
             //_error_log("User::canWatchVideo (can) " . $videos_id);
             return true;
         }
-        _error_log("User::canWatchVideo (No can not) " . $videos_id);
+        if (isVideo()) {
+            _error_log("User::canWatchVideo (No can not) " . $videos_id);
+        }
 
         return false;
     }
 
-    public function delete() {
-        if (!self::isAdmin()) {
-            return false;
-        }
-        // cannot delete yourself
-        if (self::getId() === $this->id) {
-            return false;
+    public function delete()
+    {
+        if (!Permissions::canAdminUsers()) {
+            if (self::getId() !== $this->id) {
+                _error_log('Delete user error, users_id does not match: [' . self::getId() . '] !== [' . $this->id . ']');
+                return false;
+            }
         }
 
         global $global;
         if (!empty($this->id)) {
+
+            $arrayTables = array(
+                //'live_transmition_history_log',
+                'live_transmitions',
+                'users_login_history',
+                'audit',
+                'ppvlive_purchases',
+            );
+
+            foreach ($arrayTables as $value) {
+                $sql = "DELETE FROM {$value} WHERE users_id = ?";
+                try {
+                    sqlDAL::writeSql($sql, "i", [$this->id]);
+                } catch (Exception $exc) {
+                }
+            }
+
             $sql = "DELETE FROM users WHERE id = ?";
         } else {
+            _error_log('Delete user error, this->id is empty');
             return false;
         }
+        _error_log('Delete user execute: ' . $this->id);
         return sqlDAL::writeSql($sql, "i", [$this->id]);
     }
 
@@ -929,9 +1029,10 @@ if (typeof gtag !== \"function\") {
     public const CAPTCHA_ERROR = 3;
     public const REQUIRE2FA = 4;
 
-    public function login($noPass = false, $encodedPass = false, $ignoreEmailVerification = false) {
+    public function login($noPass = false, $encodedPass = false, $ignoreEmailVerification = false)
+    {
         if (User::isLogged()) {
-            _error_log('User:login is already logged '.json_encode($_SESSION['user']['id']));
+            //_error_log('User:login is already logged '.json_encode($_SESSION['user']['id']));
             return self::USER_LOGGED;
         }
         global $global, $advancedCustom, $advancedCustomUser, $config;
@@ -969,14 +1070,14 @@ if (typeof gtag !== \"function\") {
             $_SESSION['user'] = $user;
             $this->setLastLogin($_SESSION['user']['id']);
             $rememberme = 0;
-            
+
             if ((!empty($_POST['rememberme']) && $_POST['rememberme'] == "true") || !empty($_COOKIE['rememberme'])) {
-                $valid='+ 1 year';
+                $valid = '+ 1 year';
                 $expires = strtotime($valid);
                 $rememberme = 1;
                 $passhash = self::getUserHash($user['id'], $valid);
             } else {
-                $valid='+ 1 day';
+                $valid = '+ 1 day';
                 $expires = 0;
                 $passhash = self::getUserHash($user['id'], $valid);
             }
@@ -989,7 +1090,7 @@ if (typeof gtag !== \"function\") {
             $_SESSION['loginAttempts'] = 0;
             session_write_close();
 
-            _error_log('User:login finish '.json_encode($_SESSION['user']['id']));
+            _error_log('User:login finish ' . json_encode($_SESSION['user']['id']));
             return self::USER_LOGGED;
         } else {
             unset($_SESSION['user']);
@@ -997,7 +1098,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function isCaptchaNeed() {
+    public static function isCaptchaNeed()
+    {
         global $advancedCustomUser;
         // check for multiple logins attempts to prevent hacking
         if (!empty($_SESSION['loginAttempts']) && !empty($advancedCustomUser->requestCaptchaAfterLoginsAttempts)) {
@@ -1011,7 +1113,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function checkLoginAttempts() {
+    public static function checkLoginAttempts()
+    {
         global $advancedCustomUser, $global, $_checkLoginAttempts;
         if (isset($_checkLoginAttempts)) {
             return true;
@@ -1038,7 +1141,8 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public static function getCaptchaFormIfNeed() {
+    public static function getCaptchaFormIfNeed()
+    {
         // check for multiple logins attempts to prevent hacking
         if (self::isCaptchaNeed()) {
             return self::getCaptchaForm();
@@ -1046,24 +1150,34 @@ if (typeof gtag !== \"function\") {
         return "";
     }
 
-    public static function getCaptchaForm($uid = "") {
+    public static function getCaptchaForm($uid = "", $forceCaptcha = false)
+    {
         global $global;
+
+        $url = "{$global['webSiteRootURL']}captcha";
+        if ($forceCaptcha) {
+            $url = addQueryStringParameter($url, 'forceCaptcha', 1);
+        }
+
         return '<div class="input-group">'
-                . '<span class="input-group-addon"><img src="' . $global['webSiteRootURL'] . 'captcha" id="captcha' . $uid . '"></span>
+            . '<span class="input-group-addon"><img src="' . $url . '" id="captcha' . $uid . '"></span>
                     <span class="input-group-addon"><span class="btn btn-xs btn-success btnReloadCapcha" id="btnReloadCapcha' . $uid . '"><span class="glyphicon glyphicon-refresh"></span></span></span>
                     <input name="captcha" placeholder="' . __("Type the code") . '" class="form-control" type="text" style="height: 60px;" maxlength="5" id="captchaText' . $uid . '">
                 </div>
                 <script>
                 $(document).ready(function () {
                     $("#btnReloadCapcha' . $uid . '").click(function () {
-                        $("#captcha' . $uid . '").attr("src", "' . $global['webSiteRootURL'] . 'captcha?" + Math.random());
+                        var url = "' . $url . '";
+                        url = addQueryStringParameter(url, "cache", Math.random());
+                        $("#captcha' . $uid . '").attr("src", url);
                         $("#captchaText' . $uid . '").val("");
                     });
                 });
                 </script>';
     }
 
-    private function setLastLogin($user_id) {
+    private function setLastLogin($user_id)
+    {
         global $global;
         if (empty($user_id)) {
             die('Error : setLastLogin ');
@@ -1072,7 +1186,8 @@ if (typeof gtag !== \"function\") {
         return sqlDAL::writeSql($sql, "i", [$user_id]);
     }
 
-    public static function logoff() {
+    public static function logoff()
+    {
         global $global, $justLogoff, $isLogged;
         $justLogoff = true;
         $isLogged = false;
@@ -1089,7 +1204,8 @@ if (typeof gtag !== \"function\") {
         session_write_close();
     }
 
-    private static function recreateLoginFromCookie() {
+    private static function recreateLoginFromCookie()
+    {
         global $justLogoff, $justTryToRecreateLoginFromCookie;
 
         if (empty($justTryToRecreateLoginFromCookie) && empty($justLogoff) && empty($_SESSION['user']['id'])) {
@@ -1110,7 +1226,7 @@ if (typeof gtag !== \"function\") {
                 $user->setPassword($_COOKIE['pass'], true);
                 //  $dbuser = self::getUserDbFromUser($_COOKIE['user']);
                 $resp = $user->login(false, true);
- 
+
                 //_error_log("user::recreateLoginFromCookie: do cookie-login: " . $_COOKIE['user'] . "   result: " $resp);
                 if (0 == $resp) {
                     _error_log("user::recreateLoginFromCookie: do cookie-login: " . $_COOKIE['user'] . "   id: " . $_SESSION['user']['id']);
@@ -1122,7 +1238,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function isLogged($checkForRequestLogin = false) {
+    public static function isLogged($checkForRequestLogin = false)
+    {
         self::recreateLoginFromCookie();
         $isLogged = !empty($_SESSION['user']['id']);
         if (empty($isLogged) && $checkForRequestLogin) {
@@ -1133,12 +1250,14 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function isVerified() {
+    public static function isVerified()
+    {
         self::recreateLoginFromCookie();
         return !empty($_SESSION['user']['emailVerified']);
     }
 
-    public static function isAdmin($users_id = 0) {
+    public static function isAdmin($users_id = 0)
+    {
         if (!empty($users_id)) {
             $user = new User($users_id);
             return !empty($user->getIsAdmin());
@@ -1148,7 +1267,8 @@ if (typeof gtag !== \"function\") {
         return !empty($_SESSION['user']['isAdmin']);
     }
 
-    public static function isACompany($users_id = 0) {
+    public static function isACompany($users_id = 0)
+    {
         global $_is_a_company;
 
         if (!empty($users_id)) {
@@ -1166,12 +1286,14 @@ if (typeof gtag !== \"function\") {
         return !empty($_SESSION['user']['is_company']);
     }
 
-    public static function canStream() {
+    public static function canStream()
+    {
         self::recreateLoginFromCookie();
         return !empty($_SESSION['user']['isAdmin']) || !empty($_SESSION['user']['canStream']);
     }
 
-    public static function externalOptions($id) {
+    public static function externalOptions($id)
+    {
         if (!empty($_SESSION['user']['externalOptions'])) {
             $externalOptions = User::decodeExternalOption($_SESSION['user']['externalOptions']);
             if (isset($externalOptions[$id])) {
@@ -1187,18 +1309,21 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public function getExternalOptions($id) {
+    public function getExternalOptions($id)
+    {
         if (empty($this->id)) {
             return null;
         }
         return self::externalOptionsFromUserID($this->id, $id);
     }
-    
-    public function _getExternalOptions() {
+
+    public function _getExternalOptions()
+    {
         return $this->externalOptions;
     }
 
-    public static function externalOptionsFromUserID($users_id, $id) {
+    public static function externalOptionsFromUserID($users_id, $id)
+    {
         $user = self::findById($users_id);
         if ($user) {
             if (!is_null($user['externalOptions'])) {
@@ -1222,15 +1347,17 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public function thisUserCanStream() {
+    public function thisUserCanStream()
+    {
         if ($this->status === 'i') {
             return false;
         }
         return !empty($this->isAdmin) || !empty($this->canStream);
     }
 
-    private function find($user, $pass, $mustBeactive = false, $encodedPass = false) {
-        global $global, $advancedCustom;
+    private function find($user, $pass, $mustBeactive = false, $encodedPass = false)
+    {
+        global $global, $advancedCustom, $advancedCustomUser;
         $formats = '';
         $values = [];
         $sql = "SELECT * FROM users WHERE user = ? ";
@@ -1242,6 +1369,16 @@ if (typeof gtag !== \"function\") {
             $formats .= "s";
             $values[] = trim($user);
             $sql .= " OR user = ? ";
+        }
+
+        if (
+            $advancedCustomUser->forceLoginToBeTheEmail &&
+            $advancedCustomUser->emailMustBeUnique &&
+            filter_var($user, FILTER_VALIDATE_EMAIL)
+        ) {
+            $formats .= "s";
+            $values[] = trim($user);
+            $sql .= " OR email = ? ";
         }
 
         if ($mustBeactive) {
@@ -1279,14 +1416,15 @@ if (typeof gtag !== \"function\") {
 
     /**
      * this is the deprecated function, with week password
-     * @global type $global
-     * @param type $user
-     * @param type $pass
-     * @param type $mustBeactive
-     * @param type $encodedPass
+     * @global array $global
+     * @param string $user
+     * @param string $pass
+     * @param string $mustBeactive
+     * @param string $encodedPass
      * @return boolean
      */
-    private function find_Old($user, $pass, $mustBeactive = false, $encodedPass = false) {
+    private function find_Old($user, $pass, $mustBeactive = false, $encodedPass = false)
+    {
         global $global;
         $formats = '';
         $values = [];
@@ -1335,7 +1473,8 @@ if (typeof gtag !== \"function\") {
         return $user;
     }
 
-    private static function findById($id) {
+    private static function findById($id)
+    {
         global $global;
         $id = intval($id);
         if (empty($id)) {
@@ -1354,7 +1493,8 @@ if (typeof gtag !== \"function\") {
         return $user;
     }
 
-    public static function findByEmail($email) {
+    public static function findByEmail($email)
+    {
         global $global;
         $email = trim($email);
         if (empty($email)) {
@@ -1373,7 +1513,8 @@ if (typeof gtag !== \"function\") {
         return $user;
     }
 
-    private static function getUserDb($id) {
+    private static function getUserDb($id)
+    {
         global $global;
         $id = intval($id);
         if (empty($id)) {
@@ -1388,61 +1529,84 @@ if (typeof gtag !== \"function\") {
         }
         return false;
     }
-    
-    private static function getUserHash($users_id, $valid='+7 days') {
+
+    private static function getUserHash($users_id, $valid = '+7 days')
+    {
         $obj = new stdClass();
         $obj->u = $users_id;
         $obj->v = strtotime($valid);
-        $user = self::getUserDb($users_id);        
+        $user = self::getUserDb($users_id);
         $obj->p = $user['password'];
-        return '_user_hash_'.encryptString($obj);
+        return '_user_hash_' . encryptString($obj);
     }
-    
-    static function getPasswordFromUserHashIfTheItIsValid($hash) {
-        if(!preg_match('/^_user_hash_/', $hash)){
+
+    static function getPasswordFromUserHashIfTheItIsValid($hash)
+    {
+        if (!preg_match('/^_user_hash_/', $hash)) {
             return false;
         }
-        $string = str_replace('_user_hash_', '',$hash );
-        
+        $string = str_replace('_user_hash_', '', $hash);
+
         $json = decryptString($string);
-        if(empty($json)){
-            _error_log('getPasswordFromUserHashIfTheItIsValid: string not decrypted '.$hash);
+        if (empty($json)) {
+            _error_log('getPasswordFromUserHashIfTheItIsValid: string not decrypted ' . $hash);
             return false;
         }
-        
+
         $obj = json_decode($json);
-        
-        if(empty($obj)){
+
+        if (empty($obj)) {
             _error_log('getPasswordFromUserHashIfTheItIsValid: json not decoded ');
             return false;
         }
-        
-        if($obj->v < time()){
+
+        if ($obj->v < time()) {
             _error_log('getPasswordFromUserHashIfTheItIsValid: hash expired ');
             return false;
         }
-        
-        if(empty($obj->u)){
+
+        if (empty($obj->u)) {
             _error_log('getPasswordFromUserHashIfTheItIsValid: user is empty ');
             return false;
         }
-        
+
         $user = self::getUserDb($obj->u);
-        
-        if($user['password'] === $obj->p){
+
+        if ($user['password'] === $obj->p) {
             return $user['password'];
         }
         _error_log("getPasswordFromUserHashIfTheItIsValid: password does not match [{$user['password']}] === [{$obj->p}]");
         return false;
     }
 
-    private static function getUserDbFromUser($user) {
-        global $global;
+    private static function getUserDbFromUser($user)
+    {
+        global $global, $advancedCustomUser;
         if (empty($user)) {
             return false;
         }
-        $sql = "SELECT * FROM users WHERE user = ? LIMIT 1";
-        $res = sqlDAL::readSql($sql, "s", [$user]);
+        if (empty($advancedCustomUser)) {
+            $advancedCustomUser = AVideoPlugin::getObjectData("CustomizeUser");
+        }
+        $formats = "";
+        $values = [];
+        $sql = "SELECT * FROM users WHERE user = ? ";
+        $formats .= 's';
+        $values[] = $user;
+
+        if (
+            $advancedCustomUser->forceLoginToBeTheEmail &&
+            $advancedCustomUser->emailMustBeUnique &&
+            filter_var($user, FILTER_VALIDATE_EMAIL)
+        ) {
+            _error_log("getUserDbFromUser will also check the email {$user} ");
+            $sql .= " OR email = ? ";
+            $formats .= 's';
+            $values[] = $user;
+        }
+
+        $sql .= " LIMIT 1";
+        $res = sqlDAL::readSql($sql, $formats, $values);
         $user = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($user !== false) {
@@ -1451,7 +1615,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function getUserFromID($users_id) {
+    public static function getUserFromID($users_id)
+    {
         global $global;
         $users_id = intval($users_id);
         if (empty($users_id)) {
@@ -1485,13 +1650,13 @@ if (typeof gtag !== \"function\") {
             unset($user['password'], $user['recoverPass']);
             if (!Permissions::canAdminUsers() && $user['id'] !== User::getId()) {
                 unset(
-                        $user['first_name'],
-                        $user['last_name'],
-                        $user['address'],
-                        $user['zip_code'],
-                        $user['country'],
-                        $user['region'],
-                        $user['city']
+                    $user['first_name'],
+                    $user['last_name'],
+                    $user['address'],
+                    $user['zip_code'],
+                    $user['country'],
+                    $user['region'],
+                    $user['city']
                 );
             }
             return $user;
@@ -1499,7 +1664,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function getUserFromEmail($email) {
+    public static function getUserFromEmail($email)
+    {
         $email = trim($email);
         $sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
         $res = sqlDAL::readSql($sql, "s", [$email], true);
@@ -1511,7 +1677,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public function setUser($user) {
+    public function setUser($user)
+    {
         global $advancedCustomUser;
         if (empty($advancedCustomUser->userCanChangeUsername)) {
             if (!empty($this->user)) {
@@ -1521,11 +1688,13 @@ if (typeof gtag !== \"function\") {
         $this->user = strip_tags($user);
     }
 
-    public function setName($name) {
+    public function setName($name)
+    {
         $this->name = strip_tags($name);
     }
 
-    public function setEmail($email) {
+    public function setEmail($email)
+    {
         global $advancedCustomUser;
         $email = strip_tags($email);
         if (!empty($advancedCustomUser->emailMustBeUnique)) {
@@ -1541,7 +1710,8 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public function setPassword($password, $doNotEncrypt = false) {
+    public function setPassword($password, $doNotEncrypt = false)
+    {
         if (!empty($password)) {
             if ($doNotEncrypt) {
                 $this->password = ($password);
@@ -1551,7 +1721,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public function setIsAdmin($isAdmin) {
+    public function setIsAdmin($isAdmin)
+    {
         if (empty($isAdmin) || $isAdmin === "false" || !User::isAdmin()) {
             $isAdmin = "0";
         } else {
@@ -1560,19 +1731,23 @@ if (typeof gtag !== \"function\") {
         $this->isAdmin = $isAdmin;
     }
 
-    public function setStatus($status) {
+    public function setStatus($status)
+    {
         $this->status = strip_tags($status);
     }
 
-    public function getPhotoURL() {
+    public function getPhotoURL()
+    {
         return $this->photoURL;
     }
 
-    public function setPhotoURL($photoURL) {
+    public function setPhotoURL($photoURL)
+    {
         $this->photoURL = strip_tags($photoURL);
     }
 
-    public static function getAllUsersFromUsergroup($users_groups_id, $ignoreAdmin = false, $searchFields = ['name', 'email', 'user', 'channelName', 'about'], $status = "") {
+    public static function getAllUsersFromUsergroup($users_groups_id, $ignoreAdmin = false, $searchFields = ['name', 'email', 'user', 'channelName', 'about'], $status = "")
+    {
         if (!Permissions::canAdminUsers() && !$ignoreAdmin) {
             return false;
         }
@@ -1629,13 +1804,14 @@ if (typeof gtag !== \"function\") {
             }
         } else {
             $user = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
 
         return $user;
     }
 
-    public static function getTotalUsersFromUsergroup($users_groups_id, $ignoreAdmin = false, $status = "") {
+    public static function getTotalUsersFromUsergroup($users_groups_id, $ignoreAdmin = false, $status = "")
+    {
         if (!Permissions::canAdminUsers() && !$ignoreAdmin) {
             return false;
         }
@@ -1684,7 +1860,8 @@ if (typeof gtag !== \"function\") {
         return $result;
     }
 
-    public static function getAllUsers($ignoreAdmin = false, $searchFields = ['name', 'email', 'user', 'channelName', 'about'], $status = "", $isAdmin = null, $isCompany = null) {
+    public static function getAllUsers($ignoreAdmin = false, $searchFields = ['name', 'email', 'user', 'channelName', 'about'], $status = "", $isAdmin = null, $isCompany = null)
+    {
         if (!Permissions::canAdminUsers() && !$ignoreAdmin) {
             return false;
         }
@@ -1729,13 +1906,14 @@ if (typeof gtag !== \"function\") {
             }
         } else {
             $user = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
 
         return $user;
     }
 
-    public static function getAllActiveUsersThatCanUpload() {
+    public static function getAllActiveUsersThatCanUpload()
+    {
         if (!Permissions::canAdminUsers()) {
             return false;
         }
@@ -1755,20 +1933,22 @@ if (typeof gtag !== \"function\") {
             }
         } else {
             $user = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
 
         return $user;
     }
-    
-    public static function decodeExternalOption($externalOptions){
-        if(is_string($externalOptions)){
+
+    public static function decodeExternalOption($externalOptions)
+    {
+        if (is_string($externalOptions)) {
             $externalOptions = unserialize(base64_decode($externalOptions));
         }
         return $externalOptions;
     }
 
-    private static function getUserInfoFromRow($row) {
+    private static function getUserInfoFromRow($row)
+    {
         $row['groups'] = UserGroups::getUserGroups($row['id']);
         $row['identification'] = self::getNameIdentificationById($row['id']);
         $row['photo'] = self::getPhoto($row['id']);
@@ -1792,25 +1972,26 @@ if (typeof gtag !== \"function\") {
         unset($row['password'], $row['recoverPass']);
         if (!Permissions::canAdminUsers() && $row['id'] !== User::getId()) {
             unset(
-                    $row['first_name'],
-                    $row['last_name'],
-                    $row['address'],
-                    $row['zip_code'],
-                    $row['country'],
-                    $row['region'],
-                    $row['city']
+                $row['first_name'],
+                $row['last_name'],
+                $row['address'],
+                $row['zip_code'],
+                $row['country'],
+                $row['region'],
+                $row['city']
             );
         }
         return $row;
     }
 
-    public static function getAllUsersThatHasVideos($ignoreAdmin = false) {
+    public static function getAllUsersThatHasVideos($ignoreAdmin = false)
+    {
         if (!self::isAdmin() && !$ignoreAdmin) {
             return false;
         }
         global $global;
         $sql = "SELECT * FROM users u WHERE status = 'a' AND (canUpload = 1 || isAdmin = 1) AND "
-                . " (SELECT count(id) FROM videos where users_id = u.id )>0 ";
+            . " (SELECT count(id) FROM videos where users_id = u.id )>0 ";
 
         $user = [];
         $res = sqlDAL::readSql($sql . ";");
@@ -1823,13 +2004,14 @@ if (typeof gtag !== \"function\") {
             }
         } else {
             $user = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
 
         return $user;
     }
 
-    public static function getTotalUsers($ignoreAdmin = false, $status = "", $isAdmin = null, $isCompany = null) {
+    public static function getTotalUsers($ignoreAdmin = false, $status = "", $isAdmin = null, $isCompany = null)
+    {
         if (!Permissions::canAdminUsers() && !$ignoreAdmin) {
             return false;
         }
@@ -1869,7 +2051,8 @@ if (typeof gtag !== \"function\") {
         return $result;
     }
 
-    public static function userExists($user) {
+    public static function userExists($user)
+    {
         global $global;
         $user = ($user);
         $sql = "SELECT * FROM users WHERE user = ? LIMIT 1";
@@ -1884,7 +2067,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function idExists($users_id) {
+    public static function idExists($users_id)
+    {
         global $global;
         $users_id = intval($users_id);
         $sql = "SELECT * FROM users WHERE id = ? LIMIT 1";
@@ -1898,7 +2082,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function createUserIfNotExists($user, $pass, $name, $email, $photoURL, $isAdmin = false, $emailVerified = false) {
+    public static function createUserIfNotExists($user, $pass, $name, $email, $photoURL, $isAdmin = false, $emailVerified = false)
+    {
         global $global, $advancedCustomUser;
         $userId = 0;
         if (!$userId = self::userExists($user)) {
@@ -1932,11 +2117,16 @@ if (typeof gtag !== \"function\") {
         return $userId;
     }
 
-    public function getRecoverPass() {
+    /**
+     * @return string
+     */
+    public function getRecoverPass()
+    {
         return $this->recoverPass;
     }
 
-    public function setRecoverPass($forceChange = false) {
+    public function setRecoverPass($forceChange = false)
+    {
         // let the same recover pass if it was 10 minutes ago
         if (!$this->isRecoverPassExpired($this->recoverPass) && empty($forceChange) && !empty($this->recoverPass) && !empty($recoverPass) && !empty($this->modified) && strtotime($this->modified) > strtotime("-10 minutes")) {
             return $this->recoverPass;
@@ -1945,13 +2135,15 @@ if (typeof gtag !== \"function\") {
         return $this->recoverPass;
     }
 
-    private function createRecoverPass($secondsValid = 600) {
+    private function createRecoverPass($secondsValid = 600)
+    {
         $json = new stdClass();
         $json->valid = strtotime("+{$secondsValid} seconds");
         return encryptString(json_encode($json));
     }
 
-    public function checkRecoverPass($recoverPass) {
+    public function checkRecoverPass($recoverPass)
+    {
         if ($this->recoverPass === $recoverPass) {
             if (!$this->isRecoverPassExpired($recoverPass)) {
                 _error_log('checkRecoverPass success: ' . $this->user . ' ' . getRealIpAddr());
@@ -1961,7 +2153,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public function isRecoverPassExpired($recoverPass) {
+    public function isRecoverPassExpired($recoverPass)
+    {
         $string = decryptString($recoverPass);
         if ($string) {
             $json = _json_decode($string);
@@ -1974,7 +2167,8 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public static function canUpload($doNotCheckPlugins = false) {
+    public static function canUpload($doNotCheckPlugins = false)
+    {
         global $global, $config, $advancedCustomUser;
         if (Permissions::canModerateVideos()) {
             return true;
@@ -1999,7 +2193,8 @@ if (typeof gtag !== \"function\") {
         return self::isAdmin();
     }
 
-    public static function canViewChart() {
+    public static function canViewChart()
+    {
         global $global, $config;
         if (self::isLogged() && !empty($_SESSION['user']['canViewChart'])) {
             return true;
@@ -2007,7 +2202,8 @@ if (typeof gtag !== \"function\") {
         return self::isAdmin();
     }
 
-    public static function canCreateMeet() {
+    public static function canCreateMeet()
+    {
         global $global, $config;
         if (self::isLogged() && !empty($_SESSION['user']['canCreateMeet'])) {
             return true;
@@ -2015,7 +2211,8 @@ if (typeof gtag !== \"function\") {
         return self::isAdmin();
     }
 
-    public static function canComment() {
+    public static function canComment()
+    {
         global $global, $config, $advancedCustomUser;
         if (self::isAdmin()) {
             return true;
@@ -2035,7 +2232,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function canSeeCommentTextarea() {
+    public static function canSeeCommentTextarea()
+    {
         global $global, $config;
         if (!$config->getAuthCanComment()) {
             if (!self::isAdmin()) {
@@ -2045,31 +2243,36 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public function getUserGroups() {
+    public function getUserGroups()
+    {
         return $this->userGroups;
     }
 
-    public function setUserGroups($userGroups) {
+    public function setUserGroups($userGroups)
+    {
         if (is_array($userGroups)) {
             $this->userGroups = $userGroups;
         }
     }
 
-    public function getIsAdmin() {
+    public function getIsAdmin()
+    {
         return $this->isAdmin;
     }
 
-    public function getStatus() {
+    public function getStatus()
+    {
         return $this->status;
     }
 
     /**
      *
-     * @param type $user_id
+     * @param string $user_id
      * text
      * label Default Primary Success Info Warning Danger
      */
-    public static function getTags($user_id) {
+    public static function getTags($user_id)
+    {
         $user = new User($user_id);
         $tags = [];
         if ($user->getIsAdmin()) {
@@ -2134,13 +2337,15 @@ if (typeof gtag !== \"function\") {
         return $tags;
     }
 
-    public function getBackgroundURL($type = '', $ignoreGeneric = false) {
+    public function getBackgroundURL($type = '', $ignoreGeneric = false)
+    {
         global $global;
         $this->backgroundURL = self::getBackgroundURLFromUserID($this->id, $type, $ignoreGeneric);
         return $this->backgroundURL;
     }
 
-    public static function getBackgroundURLFromUserID($users_id = 0, $type = '', $ignoreGeneric = false) {
+    public static function getBackgroundURLFromUserID($users_id = 0, $type = '', $ignoreGeneric = false)
+    {
         global $global;
         if (empty($users_id)) {
             $users_id = User::getId();
@@ -2168,11 +2373,13 @@ if (typeof gtag !== \"function\") {
         return $backgroundURL;
     }
 
-    public function setBackgroundURL($backgroundURL) {
+    public function setBackgroundURL($backgroundURL)
+    {
         $this->backgroundURL = strip_tags($backgroundURL);
     }
 
-    public function getChannelName() {
+    public function getChannelName()
+    {
         if (empty($this->channelName)) {
             $this->channelName = self::_recommendChannelName($this->channelName);
             $this->save();
@@ -2180,7 +2387,8 @@ if (typeof gtag !== \"function\") {
         return $this->channelName;
     }
 
-    public static function _getUserChannelName($users_id = 0) {
+    public static function _getUserChannelName($users_id = 0)
+    {
         global $global, $config;
         if (empty($users_id)) {
             $users_id = self::getId();
@@ -2193,20 +2401,23 @@ if (typeof gtag !== \"function\") {
         return $user->getChannelName();
     }
 
-    public function getEmailVerified() {
+    public function getEmailVerified()
+    {
         return intval($this->emailVerified);
     }
 
-    public static function validateChannelName($channelName) {
+    public static function validateChannelName($channelName)
+    {
         return trim(preg_replace("/[^0-9A-Z_-]/i", "", ucwords($channelName)));
     }
 
     /**
      *
-     * @param type $channelName
+     * @param string $channelName
      * @return boolean return true is is unique
      */
-    public function setChannelName($channelName) {
+    public function setChannelName($channelName)
+    {
         $channelName = self::validateChannelName($channelName);
         $user = static::getChannelOwner($channelName);
         if (!empty($user)) { // if the channel name exists and it is not from this user, rename the channel name
@@ -2219,11 +2430,13 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public function setEmailVerified($emailVerified) {
+    public function setEmailVerified($emailVerified)
+    {
         $this->emailVerified = (empty($emailVerified) || strtolower($emailVerified) === 'false') ? 0 : 1;
     }
 
-    public static function getChannelLink($users_id = 0) {
+    public static function getChannelLink($users_id = 0)
+    {
         global $global;
         $name = self::_getChannelName($users_id);
         if (empty($name)) {
@@ -2233,13 +2446,15 @@ if (typeof gtag !== \"function\") {
         return $link;
     }
 
-    public static function getChannelLinkFromChannelName($channelName) {
+    public static function getChannelLinkFromChannelName($channelName)
+    {
         global $global;
         $link = "{$global['webSiteRootURL']}channel/" . urlencode($channelName);
         return $link;
     }
 
-    public static function _getChannelName($users_id = 0) {
+    public static function _getChannelName($users_id = 0)
+    {
         global $global, $config;
         if (empty($users_id)) {
             $users_id = self::getId();
@@ -2256,7 +2471,8 @@ if (typeof gtag !== \"function\") {
         return $name;
     }
 
-    public static function sendVerificationLink($users_id) {
+    public static function sendVerificationLink($users_id)
+    {
         global $global, $advancedCustomUser, $_sendVerificationLink_sent;
 
         if (empty($users_id)) {
@@ -2283,17 +2499,21 @@ if (typeof gtag !== \"function\") {
             _error_log("sendVerificationLink: Email already sent, we will wait 30 min  {$users_id}");
             return true;
         }
-        $config = new Configuration();
-        $code = urlencode(static::createVerificationCode($users_id));
-        //Create a new PHPMailer instance
-        if (!is_object($config)) {
-            _error_log("sendVerificationLink: config is not a object " . json_encode($config));
-            return false;
-        }
-        $contactEmail = $config->getContactEmail();
-        $webSiteTitle = $config->getWebSiteTitle();
-        $email = $user->getEmail();
         try {
+            $config = new Configuration();
+            $code = urlencode(static::createVerificationCode($users_id));
+            //Create a new PHPMailer instance
+            if (!is_object($config)) {
+                _error_log("sendVerificationLink: config is not a object " . json_encode($config));
+                return false;
+            }
+            $contactEmail = $config->getContactEmail();
+            $webSiteTitle = $config->getWebSiteTitle();
+            /**
+             * @var string $email 
+             */
+            $email = '';
+            $email = $user->getEmail();
             $mail = new \PHPMailer\PHPMailer\PHPMailer();
             setSiteSendMessage($mail);
             //$mail->SMTPDebug = 4;
@@ -2321,31 +2541,39 @@ if (typeof gtag !== \"function\") {
                 $_SESSION["sendVerificationLink"][$users_id] = time();
             }
             return $resp;
-        } catch (phpmailerException $e) {
-            _error_log($e->errorMessage()); //Pretty error messages from PHPMailer
         } catch (Exception $e) {
             _error_log($e->getMessage()); //Boring error messages from anything else!
         }
         return false;
     }
 
-    public static function verifyCode($code) {
+    public static function verifyCode($code)
+    {
         global $global;
         $obj = static::decodeVerificationCode($code);
         $salt = hash('sha256', $global['salt']);
         if ($salt !== $obj->salt) {
+            _error_log('verifyCode salt is wrong');
             return false;
         }
         $user = new User($obj->users_id);
         $recoverPass = $user->getRecoverPass();
         if ($recoverPass == $obj->recoverPass) {
             $user->setEmailVerified(1);
-            return $user->save();
+            $users_id = $user->save();
+            if (empty($users_id)) {
+                _error_log('verifyCode could not save user');
+            } else {
+                _error_log('verifyCode user save');
+            }
+        } else {
+            _error_log('verifyCode wrong recover pass');
         }
         return false;
     }
 
-    public static function createVerificationCode($users_id) {
+    public static function createVerificationCode($users_id)
+    {
         global $global, $_createVerificationCode;
 
         if (empty($users_id)) {
@@ -2371,68 +2599,84 @@ if (typeof gtag !== \"function\") {
         return $_createVerificationCode[$users_id];
     }
 
-    public static function decodeVerificationCode($code) {
+    public static function decodeVerificationCode($code)
+    {
         $obj = _json_decode(base64_decode($code));
         return $obj;
     }
 
-    public function getFirst_name() {
+    public function getFirst_name()
+    {
         return $this->first_name;
     }
 
-    public function getLast_name() {
+    public function getLast_name()
+    {
         return $this->last_name;
     }
 
-    public function getAddress() {
+    public function getAddress()
+    {
         return $this->address;
     }
 
-    public function getZip_code() {
+    public function getZip_code()
+    {
         return $this->zip_code;
     }
 
-    public function getCountry() {
+    public function getCountry()
+    {
         return $this->country;
     }
 
-    public function getRegion() {
+    public function getRegion()
+    {
         return $this->region;
     }
 
-    public function getCity() {
+    public function getCity()
+    {
         return $this->city;
     }
 
-    public function setFirst_name($first_name) {
+    public function setFirst_name($first_name)
+    {
         $this->first_name = $first_name;
     }
 
-    public function setLast_name($last_name) {
+    public function setLast_name($last_name)
+    {
         $this->last_name = $last_name;
     }
 
-    public function setAddress($address) {
+    public function setAddress($address)
+    {
         $this->address = $address;
     }
 
-    public function setZip_code($zip_code) {
+    public function setZip_code($zip_code)
+    {
         $this->zip_code = $zip_code;
     }
 
-    public function setCountry($country) {
+    public function setCountry($country)
+    {
         $this->country = $country;
     }
 
-    public function setRegion($region) {
+    public function setRegion($region)
+    {
         $this->region = $region;
     }
 
-    public function setCity($city) {
+    public function setCity($city)
+    {
         $this->city = $city;
     }
 
-    public static function getDocumentImage($users_id) {
+    public static function getDocumentImage($users_id)
+    {
         $row = static::getBlob($users_id, User::$DOCUMENT_IMAGE_TYPE);
         if (!empty($row['blob'])) {
             return $row['blob'];
@@ -2440,7 +2684,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function saveDocumentImage($image, $users_id) {
+    public static function saveDocumentImage($image, $users_id)
+    {
         $row = static::saveBlob($image, $users_id, User::$DOCUMENT_IMAGE_TYPE);
         if (!empty($row['blob'])) {
             return $row['blob'];
@@ -2448,7 +2693,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function getBlob($users_id, $type) {
+    public static function getBlob($users_id, $type)
+    {
         global $global;
         $sql = "SELECT * FROM users_blob WHERE users_id = ? AND `type` = ? LIMIT 1";
         $res = sqlDAL::readSql($sql, "is", [$users_id, $type]);
@@ -2457,10 +2703,16 @@ if (typeof gtag !== \"function\") {
         return $result;
     }
 
-    public static function saveBlob($blob, $users_id, $type) {
+    public static function saveBlob($blob, $users_id, $type)
+    {
         global $global;
         $row = self::getBlob($users_id, $type);
         $null = null;
+        /**
+         * 
+         * @var array $global
+         * @var object $global['mysqli'] 
+         */
         if (!empty($row['id'])) {
             $sql = "UPDATE users_blob SET `blob` = ? , modified = now() WHERE id = ?";
             $stmt = $global['mysqli']->prepare($sql);
@@ -2476,7 +2728,8 @@ if (typeof gtag !== \"function\") {
         return $stmt->execute();
     }
 
-    public static function deleteBlob($users_id, $type) {
+    public static function deleteBlob($users_id, $type)
+    {
         global $global;
         $row = self::getBlob($users_id, $type);
         if (!empty($row['id'])) {
@@ -2490,11 +2743,13 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public function getDonationLink() {
+    public function getDonationLink()
+    {
         return $this->donationLink;
     }
 
-    public function getDonationLinkIfEnabled() {
+    public function getDonationLinkIfEnabled()
+    {
         global $advancedCustomUser;
         if ($advancedCustomUser->allowDonationLink) {
             return $this->donationLink;
@@ -2502,11 +2757,13 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public function setDonationLink($donationLink) {
+    public function setDonationLink($donationLink)
+    {
         $this->donationLink = $donationLink;
     }
 
-    public static function donationLink() {
+    public static function donationLink()
+    {
         if (self::isLogged()) {
             return $_SESSION['user']['donationLink'];
         } else {
@@ -2514,7 +2771,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function loginFromRequest() {
+    public static function loginFromRequest()
+    {
         inputToRequest();
         if (!empty($_REQUEST['do_not_login'])) {
             return false;
@@ -2561,7 +2819,8 @@ if (typeof gtag !== \"function\") {
         return $response;
     }
 
-    public static function loginFromRequestToGet() {
+    public static function loginFromRequestToGet()
+    {
         if (!empty($_REQUEST['user']) && !empty($_REQUEST['pass'])) {
             $return = "user={$_REQUEST['user']}&pass={$_REQUEST['pass']}";
             if (!empty($_REQUEST['encodedPass'])) {
@@ -2572,7 +2831,8 @@ if (typeof gtag !== \"function\") {
         return "";
     }
 
-    public static function getAddChannelToGalleryButton($users_id) {
+    public static function getAddChannelToGalleryButton($users_id)
+    {
         $gallery = AVideoPlugin::isEnabledByName('Gallery');
         if (empty($gallery)) {
             return '';
@@ -2580,7 +2840,8 @@ if (typeof gtag !== \"function\") {
         return Gallery::getAddChannelToGalleryButton($users_id);
     }
 
-    public static function getBlockUserButton($users_id) {
+    public static function getBlockUserButton($users_id)
+    {
         $canBlock = self::userCanBlockUserWithReason($users_id);
         if (!$canBlock->result) {
             return "<!-- {$canBlock->msg} -->";
@@ -2588,7 +2849,8 @@ if (typeof gtag !== \"function\") {
         return ReportVideo::buttonBlockUser($users_id);
     }
 
-    public static function getActionBlockUserButton($users_id) {
+    public static function getActionBlockUserButton($users_id)
+    {
         $canBlock = self::userCanBlockUserWithReason($users_id);
         if (!$canBlock->result) {
             return "<!-- {$canBlock->msg} -->";
@@ -2596,7 +2858,8 @@ if (typeof gtag !== \"function\") {
         return ReportVideo::actionButtonBlockUser($users_id);
     }
 
-    public static function userCanBlockUser($users_id, $ignoreIfIsAlreadyBLocked = false) {
+    public static function userCanBlockUser($users_id, $ignoreIfIsAlreadyBLocked = false)
+    {
         if (empty($users_id)) {
             return false;
         }
@@ -2615,7 +2878,8 @@ if (typeof gtag !== \"function\") {
         return true;
     }
 
-    public static function userCanBlockUserWithReason($users_id, $ignoreIfIsAlreadyBLocked = false) {
+    public static function userCanBlockUserWithReason($users_id, $ignoreIfIsAlreadyBLocked = false)
+    {
         $obj = new stdClass();
         $obj->result = false;
         $obj->msg = "Unkonw";
@@ -2645,7 +2909,8 @@ if (typeof gtag !== \"function\") {
         return $obj;
     }
 
-    public static function hasBlockedUser($reported_users_id, $users_id = 0) {
+    public static function hasBlockedUser($reported_users_id, $users_id = 0)
+    {
         if (empty($users_id)) {
             $users_id = User::getId();
         }
@@ -2660,7 +2925,8 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public function updateUserImages($params = []) {
+    public function updateUserImages($params = [])
+    {
         $id = $this->id;
         $obj = new stdClass();
 
@@ -2733,8 +2999,8 @@ if (typeof gtag !== \"function\") {
         $values[] = $this->id;
 
         $sql = "UPDATE users SET "
-                . "photoURL = ?, backgroundURL = ?, "
-                . " modified = now() WHERE id = ?";
+            . "photoURL = ?, backgroundURL = ?, "
+            . " modified = now() WHERE id = ?";
 
         $insert_row = sqlDAL::writeSql($sql, $formats, $values);
         $obj->save = $insert_row; // create/update data for photoURL / backgroundURL
@@ -2742,23 +3008,27 @@ if (typeof gtag !== \"function\") {
         return $obj;
     }
 
-    public function getExtra_info() {
+    public function getExtra_info()
+    {
         return $this->extra_info;
     }
 
-    public function setExtra_info($extra_info) {
+    public function setExtra_info($extra_info)
+    {
         $this->extra_info = $extra_info;
     }
 
-    public static function saveExtraInfo($string, $users_id) {
+    public static function saveExtraInfo($string, $users_id)
+    {
         $sql = "UPDATE users SET "
-                . "extra_info = ?, "
-                . " modified = now() WHERE id = ?";
+            . "extra_info = ?, "
+            . " modified = now() WHERE id = ?";
 
         return sqlDAL::writeSql($sql, "si", [$string, $users_id]);
     }
 
-    public static function userGroupsMatch($user_groups, $users_id = 0) {
+    public static function userGroupsMatch($user_groups, $users_id = 0)
+    {
         if (empty($users_id)) {
             $users_id = User::getId();
         }
@@ -2783,7 +3053,8 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
-    public static function getExtraSubscribers($users_id) {
+    public static function getExtraSubscribers($users_id)
+    {
         global $config;
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj)) {
@@ -2794,7 +3065,8 @@ if (typeof gtag !== \"function\") {
         return intval($value);
     }
 
-    public static function setExtraSubscribers($users_id, $value) {
+    public static function setExtraSubscribers($users_id, $value)
+    {
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || !User::isAdmin()) {
             return false;
@@ -2803,18 +3075,39 @@ if (typeof gtag !== \"function\") {
         return $user->addExternalOptions('ExtraSubscribers', intval($value));
     }
 
-    public static function getProfilePassword($users_id) {
+    public static function getProfilePassword($users_id = '')
+    {
         global $config;
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj)) {
             return false;
+        }
+        if (empty($users_id)) {
+            $users_id = User::getId();
         }
         $user = new User($users_id);
         $value = $user->getExternalOptions('ProfilePassword');
         return $value;
     }
 
-    public static function setProfilePassword($users_id, $value) {
+
+    public static function getWebsite($users_id = '')
+    {
+        global $config;
+        $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
+        if (empty($obj)) {
+            return false;
+        }
+        if (empty($users_id)) {
+            $users_id = User::getId();
+        }
+        $user = new User($users_id);
+        $value = $user->getExternalOptions('userWebsite');
+        return $value;
+    }
+
+    public static function setProfilePassword($users_id, $value)
+    {
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || !User::isAdmin()) {
             return false;
@@ -2823,9 +3116,13 @@ if (typeof gtag !== \"function\") {
         return $user->addExternalOptions('ProfilePassword', preg_replace('/[^0-9a-z]/i', '', $value));
     }
 
-    public static function getDonationButtons($users_id) {
+    public static function getDonationButtons($users_id = '')
+    {
         global $config;
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
+        if (empty($users_id)) {
+            $users_id = User::getId();
+        }
         if (empty($obj) || empty($users_id)) {
             return false;
         }
@@ -2838,7 +3135,8 @@ if (typeof gtag !== \"function\") {
         return $json;
     }
 
-    public static function setDonationButtons($users_id, $value) {
+    public static function setDonationButtons($users_id, $value)
+    {
         $obj = AVideoPlugin::getObjectData("CustomizeUser");
         $user = new User($users_id);
         if (!is_string($value)) {
@@ -2847,14 +3145,16 @@ if (typeof gtag !== \"function\") {
         return $user->addExternalOptions('DonationButtons', $value);
     }
 
-    static function getChannelPanel($users_id) {
+    static function getChannelPanel($users_id)
+    {
         $u = new User($users_id);
+        $objGallery = AVideoPlugin::getObjectData("Gallery");
         $get = ['channelName' => $u->getChannelName()];
         $current = getCurrentPage();
         $rowCount = getRowCount();
         $sort = $_POST['sort'];
         $_POST['current'] = 1;
-        $_REQUEST['rowCount'] = 6;
+        $_REQUEST['rowCount'] = $objGallery->screenColsLarge;
         $_POST['sort']['created'] = "DESC";
         $uploadedVideos = Video::getAllVideos("viewable", $users_id);
         $_POST['current'] = $current;
@@ -2863,73 +3163,69 @@ if (typeof gtag !== \"function\") {
         if (empty($uploadedVideos)) {
             return '';
         }
-        ?>
+?>
         <div class="panel panel-default">
             <div class="panel-heading" style="position: relative;">
-                <img src="<?php echo User::getPhoto($users_id); ?>"
-                     class="img img-thumbnail img-responsive pull-left" style="max-height: 100px; margin: 0 10px;" alt="User Photo" />
+                <img src="<?php echo User::getPhoto($users_id); ?>" class="img img-thumbnail img-responsive pull-left" style="max-height: 100px; margin: 0 10px;" alt="User Photo" />
                 <a href="<?php echo User::getChannelLink($users_id); ?>" class="btn btn-default">
                     <i class="fas fa-play-circle"></i>
-        <?php echo User::getNameIdentificationById($users_id); ?>
+                    <?php echo User::getNameIdentificationById($users_id); ?>
                 </a>
                 <div class="pull-right">
                     <?php echo User::getAddChannelToGalleryButton($users_id); ?>
                     <?php echo User::getBlockUserButton($users_id); ?>
-        <?php echo Subscribe::getButton($users_id); ?>
+                    <?php echo Subscribe::getButton($users_id); ?>
                     <?php echo CustomizeUser::getCallerButton($users_id, 'btn-xs'); ?>
                 </div>
             </div>
             <div class="panel-body gallery ">
-                <div  style="margin-left: 120px;">
-        <?php echo stripslashes(str_replace('\\\\\\\n', '<br/>', html_entity_decode($value['about']))); ?>
-                </div>
-
                 <div class="clearfix" style="margin-bottom: 10px;"></div>
                 <div class="clear clearfix galeryRowElement">
-        <?php
-        createGallerySection($uploadedVideos, dechex(crc32($users_id)));
-        ?>
+                    <?php
+                    createGallerySection($uploadedVideos, dechex(crc32($users_id)));
+                    ?>
                 </div>
             </div>
             <div class="panel-footer " style="font-size: 0.8em">
                 <div class=" text-muted">
-        <?php echo number_format_short(VideoStatistic::getChannelsTotalViews($users_id)), " ", __("Views in the last 30 days"); ?>
+                    <?php echo number_format_short(VideoStatistic::getChannelsTotalViews($users_id)), " ", __("Views in the last 30 days"); ?>
                 </div>
             </div>
         </div>
-                    <?php
-                }
-                
-                static function swapUser($users_id){ 
-                    if(!Permissions::canAdminUsers()){
-                        return false;
-                    }
-                    _session_start();
-                    $_SESSION['swapUser'] = $_SESSION['user'];
-                    $user = self::getUserFromID($users_id);
-                    //var_dump($users_id, $user);exit;
-                    _error_log("swapUser {$users_id}");
-                    $_SESSION['user'] = $user;
-                    return $_SESSION['user']['id'];
-                }
-                
-                static function cancelSwapUser(){
-                    if(!self::isSwapBackActive()){
-                        return false;
-                    }
-                    _session_start();
-                    $_SESSION['user'] = $_SESSION['swapUser'];
-                    unset($_SESSION['swapUser']);
-                    return $_SESSION['user']['id'];
-                }
-                
-                
-                static function isSwapBackActive(){
-                    if(empty($_SESSION['swapUser'])){
-                        return false;
-                    }
-                    return $_SESSION['swapUser']['id'];
-                }
+<?php
+    }
 
-            }
-            
+    static function swapUser($users_id)
+    {
+        if (!Permissions::canAdminUsers()) {
+            return false;
+        }
+        _session_start();
+        $_SESSION['swapUser'] = $_SESSION['user'];
+        $user = self::getUserFromID($users_id);
+        //var_dump($users_id, $user);exit;
+        _error_log("swapUser {$users_id}");
+        $_SESSION['user'] = $user;
+        return $_SESSION['user']['id'];
+    }
+
+    static function cancelSwapUser()
+    {
+        if (!self::isSwapBackActive()) {
+            return false;
+        }
+        _session_start();
+        $_SESSION['user'] = $_SESSION['swapUser'];
+        unset($_SESSION['swapUser']);
+        return $_SESSION['user']['id'];
+    }
+
+
+    static function isSwapBackActive()
+    {
+        if (empty($_SESSION['swapUser'])) {
+            return false;
+        }
+        return $_SESSION['swapUser']['id'];
+    }
+}

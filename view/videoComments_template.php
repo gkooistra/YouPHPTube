@@ -1,11 +1,14 @@
 <div class="clearfix"></div>
-<div class="animate__animated animate__flipInX media {userCanAdminComment} {userCanEditComment} {myVote} {pin} {isResponse}" id="comment_{id}">
+<div class="animate__animated animate__flipInX media {isAResponse} {userCanAdminComment} {userCanEditComment} {myVote} {pin} {isResponse}" id="comment_{id}">
     <div class="media-left">
         <img src="{photo}" class="media-object">
     </div>
     <div class="media-body">
+        <h3 class="media-heading hideIfHasVideosId">
+            <a href="{videoLink}"><i class="fas fa-video"></i> {videoTitle}</a> 
+        </h3>
         <h4 class="media-heading">
-            <a href="{channelLink}">{identification}</a> 
+            <a href="{channelLink}"><i class="fas fa-user"></i> {identification}</a> 
             <small><i>{humanTiming}</i></small>
             <i class="fas fa-thumbtack pull-right hideIfIsUnpinned" onclick="pinComment({id});" style="cursor: pointer;"></i>
         </h4>
@@ -33,10 +36,10 @@
             </button>
             <button class="btn btn-default no-outline allReplies btn-xs isNotOpen hideIfNoVideosId" onclick="toogleReplies({id}, this);">
                 <span class="hideIfIsOpen">
-                    {viewAllRepliesText} (<span class="total_replies">{total_replies}</span>) <i class="fa fa-chevron-down" aria-hidden="true"></i>
+                    {viewAllRepliesText} <span class="total_replies badge">{total_replies}</span> <i class="fa fa-chevron-down" aria-hidden="true"></i>
                 </span>
                 <span class="hideIfIsNotOpen">
-                    {hideRepliesText} (<span class="total_replies">{total_replies}</span>) <i class="fa fa-chevron-up" aria-hidden="true"></i>
+                    {hideRepliesText} <i class="fa fa-chevron-up" aria-hidden="true"></i>
                 </span>                
             </button>
             <button class="btn btn-default no-outline pin btn-xs hideIfUserCanNotAdminComment hideIfIsResponse" onclick="pinComment({id});">

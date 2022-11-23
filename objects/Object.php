@@ -102,9 +102,7 @@ abstract class ObjectYPT implements ObjectInterface
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
-        }
+        } 
         return $rows;
     }
 
@@ -125,8 +123,6 @@ abstract class ObjectYPT implements ObjectInterface
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
     }
@@ -299,8 +295,8 @@ abstract class ObjectYPT implements ObjectInterface
                 //$escapedValue = $global['mysqli']->real_escape_string($this->$value);
                 if (strtolower($value) == 'created') {
                     //var_dump($this->created);exit;
-                    if(!empty($this->created) && User::isAdmin()){
-                        $this->created = str_replace('/[^0-9: \/-]/', '', $this->created);
+                    if(!empty($this->created) && (User::isAdmin() || isCommandLineInterface())){
+                        $this->created = preg_replace('/[^0-9: \/-]/', '', $this->created);
                         $formats .= 's';
                         $values[] = $this->created;
                         $fields[] = " `{$value}` = ? ";
@@ -331,14 +327,18 @@ abstract class ObjectYPT implements ObjectInterface
             $sql .= "`" . implode("`,`", $fieldsName) . "` )";
             $fields = [];
             foreach ($fieldsName as $value) {
-                if (is_string($value) && (strtolower($value) == 'created' || strtolower($value) == 'modified')) {
-                    if(empty($this->created) || !User::isAdmin()){
-                        $fields[] = " now() ";
+                if (is_string($value) && (strtolower($value) == 'created' || strtolower($value) == 'modified')) {                    
+                    if (strtolower($value) == 'created') {
+                        if(empty($this->created) || (!User::isAdmin() && !isCommandLineInterface())){
+                            $fields[] = " now() ";
+                        }else{
+                            $this->created = preg_replace('/[^0-9: \/-]/', '', $this->created);
+                            $formats .= 's';
+                            $values[] = $this->created;
+                            $fields[] = " ? ";
+                        }
                     }else{
-                        $this->created = str_replace('/[^0-9: \/-]/', '', $this->created);
-                        $formats .= 's';
-                        $values[] = $this->created;
-                        $fields[] = " ? ";
+                        $fields[] = " now() ";
                     }
                 } elseif (is_string($value) && strtolower($value) == 'timezone') {
                     if (empty($this->$value)) {
@@ -363,7 +363,12 @@ abstract class ObjectYPT implements ObjectInterface
         //if(static::getTableName() == 'videos'){ echo $sql;var_dump($values);exit;}return false;
         //echo $sql;var_dump($values);exit;
         $insert_row = sqlDAL::writeSql($sql, $formats, $values);
-
+        
+        /**
+         * 
+         * @var array $global
+         * @var object $global['mysqli'] 
+         */
         if ($insert_row) {
             if (empty($this->id)) {
                 $id = $global['mysqli']->insert_id;
@@ -377,8 +382,7 @@ abstract class ObjectYPT implements ObjectInterface
         }
     }
 
-    private function getAllFields()
-    {
+    private function getAllFields(){
         global $global, $mysqlDatabase;
         $sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = '" . static::getTableName() . "'";
         $res = sqlDAL::readSql($sql, "s", [$mysqlDatabase]);
@@ -389,9 +393,7 @@ abstract class ObjectYPT implements ObjectInterface
             foreach ($fullData as $row) {
                 $rows[] = $row["COLUMN_NAME"];
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
-        }
+        } 
         return $rows;
     }
 
@@ -502,9 +504,9 @@ abstract class ObjectYPT implements ObjectInterface
 
     /**
      *
-     * @param type $name
-     * @param type $lifetime, if is = 0 it is unlimited
-     * @return type
+     * @param string $name
+     * @param int $lifetime, if is = 0 it is unlimited
+     * @return object
      */
     public static function getCache($name, $lifetime = 60, $ignoreSessionCache = false, $addSubDirs=true)
     {
@@ -782,8 +784,8 @@ abstract class ObjectYPT implements ObjectInterface
 
     /**
      * Make sure you start the session before any output
-     * @param type $name
-     * @param type $value
+     * @param string $name
+     * @param string $value
      */
     public static function setSessionCache($name, $value)
     {
@@ -798,9 +800,9 @@ abstract class ObjectYPT implements ObjectInterface
 
     /**
      *
-     * @param type $name
-     * @param type $lifetime, if is = 0 it is unlimited
-     * @return type
+     * @param string $name
+     * @param string $lifetime, if is = 0 it is unlimited
+     * @return string
      */
     public static function getSessionCache($name, $lifetime = 60)
     {

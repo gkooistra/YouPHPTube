@@ -7,7 +7,21 @@ if (isset($_GET['getLanguage'])) {
     }
 
     require_once($lngFile);
-    echo json_encode($t);
+    foreach ($t as $key => $value) {
+        if(empty($value)){
+            $t[$key] = $key;
+        }
+    }
+    
+    if(!empty($_REQUEST['print'])){
+        header('Content-Type: text/plain');
+        foreach ($t as $key => $value) {
+            echo $value.PHP_EOL;
+        }
+    }else{
+        header('Content-Type: application/json');
+        echo json_encode($t);
+    }
     exit;
 }
 

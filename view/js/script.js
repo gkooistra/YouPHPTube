@@ -483,7 +483,7 @@ var addViewBeaconTimeout;
 var _addViewCheck = false;
 function addView(videos_id, currentTime) {
     addViewSetCookie(PHPSESSID, videos_id, currentTime, seconds_watching_video);
-    if(_addViewCheck){
+    if (_addViewCheck) {
         return false;
     }
     if (last_videos_id == videos_id && last_currentTime == currentTime) {
@@ -507,7 +507,7 @@ function _addView(videos_id, currentTime, seconds_watching_video) {
         PHPSESSID = '';
     }
     var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
-    if(empty(PHPSESSID)){
+    if (empty(PHPSESSID)) {
         return false;
     }
     url = addGetParam(url, 'PHPSESSID', PHPSESSID);
@@ -570,7 +570,7 @@ async function addViewFromCookie() {
         // it is the same video, play at the last moment
         forceCurrentTime = addView_playerCurrentTime;
     }
-    
+
     _addView(addView_videos_id, addView_playerCurrentTime, addView_seconds_watching_video)
     setTimeout(function () {
         _addViewFromCookie_addingtime = false;
@@ -635,7 +635,7 @@ function inMainIframe() {
             var mainIframe = $('iframe', window.parent.document).attr('id');
             response = mainIframe === 'mainIframe';
         } catch (e) {
-            
+
         }
 
     }
@@ -2132,6 +2132,35 @@ function removeDuplicatedGetParam(_url) {
     return _url.replace(queryParam, newQueryParamString);
 }
 
+function removeGetParam(_url, parameter) {
+    var queryParam = _url.replace(/^[^?]+\?/, '');
+    if (queryParam == '') {
+        return _url;
+    }
+    var params = queryParam.split('&'),
+            results = {};
+    for (var i = 0; i < params.length; i++) {
+        var temp = params[i].split('='),
+                key = temp[0],
+                val = temp[1];
+        if (key !== parameter) {
+            results[key] = val;
+        }
+    }
+
+    var newQueryParam = [];
+    for (var key in results) {
+        newQueryParam.push(key + '=' + results[key]);
+    }
+
+    var newQueryParamString = newQueryParam.join('&');
+    queryParam = '?' + queryParam;
+    if (!empty(newQueryParamString)) {
+        newQueryParamString = '?' + newQueryParamString;
+    }
+    return _url.replace(queryParam, newQueryParamString);
+}
+
 function readFileCroppie(input, crop) {
     if ($(input)[0].files && $(input)[0].files[0]) {
         var reader = new FileReader();
@@ -2622,10 +2651,10 @@ function getCursorPos(input) {
 
 function isUserOnline(users_id) {
     users_id = parseInt(users_id);
-    if (empty(users_id_online)) {
+    if (typeof users_id_online === 'undefined' || empty(users_id_online)) {
         return false;
     }
-    if (empty(users_id_online[users_id])) {
+    if (typeof users_id_online[users_id] === 'undefined' || empty(users_id_online[users_id])) {
         return false;
     }
     if (empty(users_id_online[users_id].resourceId)) {
@@ -2899,7 +2928,40 @@ $(document).ready(function () {
     // Code to handle install prompt on desktop
     //aHrefToAjax();
 
+    _alertFromGet('error');
+    _alertFromGet('msg');
+    _alertFromGet('success');
+    _alertFromGet('toast');
+
 });
+
+async function _alertFromGet(type) {
+    if (urlParams.has(type)) {
+        var msg = urlParams.get(type);
+        var div = document.createElement("div");
+        div.innerHTML = msg;
+        var text = div.textContent || div.innerText || "";
+        if (!empty(text)) {
+            switch (type) {
+                case 'error':
+                    avideoAlertError(text);
+                    break;
+                case 'msg':
+                    avideoAlertInfo(text);
+                    break;
+                case 'success':
+                    avideoAlertSuccess(text);
+                    break;
+                case 'toast':
+                    avideoToast(text);
+                    break;
+            }
+            var url = removeGetParam(window.location.href, type);
+            window.history.pushState({}, document.title, url);
+        }
+    }
+}
+
 
 async function checkSocketStatus() {
     if (typeof conn != 'undefined') {
@@ -3214,6 +3276,79 @@ function notifyInputIfIsOutOfBounds(selector, min_length, max_length) {
         $(selector).removeClass(animationWarning);
     }, 1000);
     parent.append(feedback + '<small class="help-block">' + icon + ' ' + text.length + ' characters of ' + min_length + '-' + max_length + ' recommended</small>');
+}
+
+function passStrengthCheck(selector) {
+    var minLen = 6;
+    var pass = $(selector).val();
+
+    var strength = 0;
+    var strengthMsg = [];
+    if (pass.length > minLen) {
+        strength++;
+    } else {
+        strengthMsg.push('Min length ' + minLen);
+    }
+    if (/[a-z]+/.test(pass)) {
+        strength++;
+    } else {
+        strengthMsg.push('Lower case letters');
+    }
+    if (/[A-Z]+/.test(pass)) {
+        strength++;
+    } else {
+        strengthMsg.push('Upper case letters');
+    }
+    if (/[0-9]+/.test(pass)) {
+        strength++;
+    } else {
+        strengthMsg.push('Numbers');
+    }
+    if (/[^a-z0-9]+/i.test(pass)) {
+        strength++;
+    } else {
+        strengthMsg.push('Special chars');
+    }
+    return {strength: strength, strengthMsg: strengthMsg};
+}
+
+function passStrengthCheckInput(selector) {
+    var strengthCheck = passStrengthCheck(selector);
+    var msg = strengthCheck.strengthMsg;
+    var parent = $(selector).parent();
+    parent.removeClass('has-error');
+    parent.removeClass('has-warning');
+    parent.removeClass('has-success');
+    avideoTooltip(selector, '');
+    var pass = $(selector).val();
+    if (empty(pass)) {
+        return false;
+    }
+    switch (strengthCheck.strength) {
+        case 0:
+        case 1:
+        case 2:
+            parent.addClass('has-error');
+            break;
+        case 3:
+        case 4:
+            parent.addClass('has-warning');
+            break;
+        case 5:
+            parent.addClass('has-success');
+            break;
+    }
+    if (!empty(msg)) {
+        var text = msg.join(', ');
+        avideoTooltip(selector, 'Strength: ' + text);
+    }
+    return true;
+}
+
+function passStrengthCheckInputKeyUp(selector) {
+    $(selector).keyup(function () {
+        passStrengthCheckInput('#' + $(this).attr('id'));
+    });
 }
 
 function setupFormElement(selector, min_length, max_length, force_length, isRequired) {
@@ -3534,4 +3669,12 @@ function addScript(src) {
             console.log('addScript already added ', src);
         }
     }
+}
+
+function getUser(){
+    var url = webSiteRootURL+'plugin/API/get.json.php?APIName=user';
+    return $.ajax({
+        url: url,
+        async: false
+    }).responseText;
 }

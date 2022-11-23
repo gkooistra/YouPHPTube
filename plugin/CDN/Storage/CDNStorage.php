@@ -636,6 +636,7 @@ class CDNStorage {
             if (!empty($local_file)) {
                 $remote_file = '/' . CDNStorage::filenameToRemotePath($local_file, false);
                 $start = microtime(true);
+                $totalVideosLeft = count($videos_id_to_move);
                 if (ftp_get($connID, $local_file, $remote_file, FTP_BINARY)) {
                     $fileDownloadCount++;
                     $thisFilesize = filesize($local_file);
@@ -656,7 +657,6 @@ class CDNStorage {
                     $remainingFiles = $total-$count;
                     $eta = $remainingFiles*$seconds;
                     $eta_string = secondsToDuration($eta);
-                    $totalVideosLeft = count($videos_id_to_move);
                     _error_log("CDNStorage::ftp_get[{$totalVideosLeft}|{$count}/{$total}] success ETA $eta_string $mbps [$bytesPerSecond] {$remote_file} ". humanFileSize($thisFilesize));
                 } else {
                     _error_log("CDNStorage::ftp_get[{$totalVideosLeft}|{$count}/{$total}] ERROR {$remote_file}");
@@ -887,7 +887,15 @@ class CDNStorage {
     }
 
     public static function createDummyFiles($videos_id) {
+        
+        $obj = AVideoPlugin::getObjectData('CDN');
+        
+        if(!empty($obj->storage_keep_original_files)){
+            return 0;
+        }
+        
         $msg = "createDummyFiles($videos_id) ";
+        
         self::addToLog($videos_id, $msg);
         global $_getFilesListBoth, $_getFilesListRemote, $_getFilesList_CDNSTORAGE;
         unset($_getFilesListBoth);
@@ -1016,7 +1024,6 @@ class CDNStorage {
     public function getAddress($filename) {
         global $global;
         require_once $global['systemRootPath'] . 'objects/video.php';
-        $obj = $this->getDataObject();
         $file = Video::getPathToFile($filename);
         $address = ['path' => $file, 'url' => $this->getURL($filename)];
         return $address;
@@ -1099,7 +1106,7 @@ class CDNStorage {
         if (empty($file)) {
             return false;
         }
-        return unlink($file);
+        return @unlink($file);
     }
 
     public static function file_get_contents($remote_filename) {

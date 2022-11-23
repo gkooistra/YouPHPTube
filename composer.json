@@ -28,7 +28,7 @@
         "psr/http-message": "^1.0",
         "cboden/ratchet": "^0.4.3",
         "ratchet/pawl": "^0.4.1",
-        "singpolyma/openpgp-php": "^0.5.0",
+        "singpolyma/openpgp-php": "^0.6.0",
         "aws/aws-sdk-php": "^3.180",
         "gliterd/backblaze-b2": "^1.1",
         "paypal/rest-api-sdk-php": "*",
@@ -41,8 +41,10 @@
         "symfony/http-client": "^5.3",
         "nyholm/psr7": "^1.4",
         "norkunas/onesignal-php-api": "^2.7",
-        "stripe/stripe-php": "^9.1",
+        "stripe/stripe-php": "^10.0",
         "symfony/translation": "^5.3",
-        "amphp/amp": "^2.6"
+        "amphp/amp": "^2.6",
+        "scssphp/scssphp": "^1.11",
+        "vimeo/vimeo-api": "^3.0"
     }
 }

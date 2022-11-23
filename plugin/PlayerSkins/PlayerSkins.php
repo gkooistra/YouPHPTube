@@ -148,14 +148,22 @@ class PlayerSkins extends PluginAbstract {
                     $disableYoutubeIntegration = true;
                 }
                 $_GET['isEmbedded'] = "";
-                if (($disableYoutubeIntegration) || ((strpos($video['videoLink'], "youtu.be") == false) && (strpos($video['videoLink'], "youtube.com") == false) && (strpos($video['videoLink'], "vimeo.com") == false))) {
+                if (
+                    ($disableYoutubeIntegration) 
+                    || 
+                    (
+                        (strpos($video['videoLink'], "youtu.be") == false) 
+                        && (strpos($video['videoLink'], "youtube.com") == false) 
+                        //&& (strpos($video['videoLink'], "vimeo.com") == false)
+                    )
+                    ) {
                     $_GET['isEmbedded'] = "e";
                     $isVideoTypeEmbed = 1;
                     $url = parseVideos($video['videoLink']);
                     if ($config->getAutoplay()) {
                         $url = addQueryStringParameter($url, 'autoplay', 1);
                     }
-                    $htmlMediaTag = "<!-- Embed Link {$video['title']} {$video['filename']} -->";
+                    $htmlMediaTag = "<!-- Embed Link 1 {$video['title']} {$video['filename']} -->";
                     $htmlMediaTag .= '<video '.self::getPlaysinline().' id="mainVideo" style="display: none; height: 0;width: 0;" ></video>';
                     $htmlMediaTag .= '<div id="main-video" class="embed-responsive-item">';
                     $htmlMediaTag .= '<iframe class="embed-responsive-item" scrolling="no" '.Video::$iframeAllowAttributes.' src="' . $url . '"></iframe>';
@@ -170,7 +178,7 @@ class PlayerSkins extends PluginAbstract {
                     }
                     $_GET['isMediaPlaySite'] = $video['id'];
                     PlayerSkins::playerJSCodeOnLoad($video['id'], @$video['url']);
-                    $htmlMediaTag = "<!-- Embed Link YoutubeIntegration {$video['title']} {$video['filename']} -->";
+                    $htmlMediaTag = "<!-- Embed Link 2 YoutubeIntegration {$video['title']} {$video['filename']} -->";
                     $htmlMediaTag .= '<video '.self::getPlaysinline().' id="mainVideo" class="embed-responsive-item video-js vjs-default-skin vjs-16-9 vjs-big-play-centered" controls></video>';
                     $htmlMediaTag .= '<script>var player;mediaId = ' . $video['id'] . ';$(document).ready(function () {$(".vjs-control-bar").css("opacity: 1; visibility: visible;");});</script>';
                 }
@@ -300,7 +308,7 @@ class PlayerSkins extends PluginAbstract {
         $js = "<!-- playerSkin -->";
         $obj = $this->getDataObject();
         if (!empty($_GET['videoName']) || !empty($_GET['u']) || !empty($_GET['evideo']) || !empty($_GET['playlists_id'])) {
-            if (empty($obj->showLoopButton) && empty($playerSkinsObj->contextMenuLoop)) {
+            if (empty($obj->showLoopButton) && empty($obj->contextMenuLoop)) {
                 $js .= "<script>setPlayerLoop(false);</script>";
             }
             if ($obj->showLogoOnEmbed && isEmbed() || $obj->showLogo) {
@@ -713,16 +721,16 @@ class PlayerSkins extends PluginAbstract {
 
     /**
      * 
-     * @param type $markersList array(array('timeInSeconds'=>10,'name'=>'abc'),array('timeInSeconds'=>20,'name'=>'abc20'),array('timeInSeconds'=>25,'name'=>'abc25')....);
-     * @param type $width
-     * @param type $color
+     * @param array $markersList array(array('timeInSeconds'=>10,'name'=>'abc'),array('timeInSeconds'=>20,'name'=>'abc20'),array('timeInSeconds'=>25,'name'=>'abc25')....);
+     * @param int $width
+     * @param string $color
      */
     public static function createMarker($markersList, $width = 10, $color = 'yellow') {
         global $global;
 
         $bt = debug_backtrace();
         $file = str_replace($global['systemRootPath'], '', $bt[0]['file']);
-
+        $onPlayerReady = '';
         $onPlayerReady .= " /* {$file} */
                 player.markers({markerStyle: {
                     'width': '{$width}px',

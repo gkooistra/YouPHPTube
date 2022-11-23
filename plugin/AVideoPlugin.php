@@ -1051,10 +1051,17 @@ class AVideoPlugin
 
     /**
      *
-     * @return type return a list of IDs of the user groups
+     * @return string return a list of IDs of the user groups
      */
-    public static function getDynamicUserGroupsId($users_id)
-    {
+    public static function getDynamicUserGroupsId($users_id){
+        global $__getDynamicUserGroupsId;
+        if(!isset($__getDynamicUserGroupsId)){
+            $__getDynamicUserGroupsId = array();
+        }
+
+        if(isset($__getDynamicUserGroupsId[$users_id])){
+            return $__getDynamicUserGroupsId[$users_id];
+        }
         $plugins = Plugin::getAllEnabled();
         $array = [];
         foreach ($plugins as $value) {
@@ -1067,6 +1074,7 @@ class AVideoPlugin
             }
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
+        $__getDynamicUserGroupsId[$users_id] = $array;
         return $array;
     }
 
@@ -1248,9 +1256,9 @@ class AVideoPlugin
 
     /**
      *
-     * @param type $name
-     * @param type $version
-     * @return type
+     * @param string $name
+     * @param string $version
+     * @return string
      * -1 if your plugin is lower,
      * 0 if they are equal, and
      * 1 if your plugin is greater.
@@ -1377,13 +1385,13 @@ class AVideoPlugin
                 $can = $p->userCanWatchVideo($users_id, $videos_id);
                 if (!empty($can)) {
                     if ($can < 0) {
-                        if (!empty($users_id)) {
+                        if (!empty($users_id) && isVideo()) {
                             _error_log("userCanWatchVideo: DENIED The plugin {$value['dirName']} said the user ({$users_id}) can NOT watch the video ({$videos_id})");
                         }
                         $resp = false;
                     }
                     if ($can > 0) {
-                        if (!empty($users_id)) {
+                        if (!empty($users_id) && isVideo()) {
                             _error_log("userCanWatchVideo: SUCCESS The plugin {$value['dirName']} said the user ({$users_id}) can watch the video ({$videos_id})");
                         }
                         $userCanWatchVideoFunction[$users_id][$videos_id] = true;
@@ -1503,7 +1511,7 @@ class AVideoPlugin
     /**
      * In case some plugin needs to play a video that is not allowed for some reason.
      * A plugin can replace the getVideo method from the youtubeMode page
-     * @return type
+     * @return string
      */
     public static function getVideo()
     {

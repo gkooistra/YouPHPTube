@@ -27,6 +27,9 @@ class PlayList extends ObjectYPT {
 
     protected static function getFromDbFromName($name) {
         global $global;
+        if(!User::isLogged()){
+            return false;
+        }
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  name = ? AND users_id = " . User::getId() . " LIMIT 1";
         $res = sqlDAL::readSql($sql, "s", [$name]);
         $data = sqlDAL::fetchAssoc($res);
@@ -41,6 +44,9 @@ class PlayList extends ObjectYPT {
 
     static function getFromDbFromId($id) {
         global $global;
+        if(!User::isLogged()){
+            return false;
+        }
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  id = ? AND users_id = " . User::getId() . " LIMIT 1";
         $res = sqlDAL::readSql($sql, "i", [$id]);
         $data = sqlDAL::fetchAssoc($res);
@@ -88,11 +94,11 @@ class PlayList extends ObjectYPT {
 
     /**
      *
-     * @global type $global
-     * @param type $publicOnly
-     * @param type $userId if not present check session
-     * @param type $isVideoIdPresent pass the ID of the video checking
-     * @return boolean
+     * @global array $global
+     * @param string $publicOnly
+     * @param string $userId if not present check session
+     * @param string $isVideoIdPresent pass the ID of the video checking
+     * @return array
      */
     public static function getAllFromUser($userId, $publicOnly = true, $status = false, $playlists_id = 0, $try = 0, $includeSeries = false) {
         global $global, $config, $refreshCacheFromPlaylist;
@@ -197,17 +203,18 @@ class PlayList extends ObjectYPT {
                 array_unshift($rows, $watch_later);
             }
         } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            $rows = array();
         }
         return $rows;
     }
 
     /**
      *
-     * @global type $global
-     * @param type $publicOnly
-     * @param type $userId if not present check session
-     * @param type $isVideoIdPresent pass the ID of the video checking
+     * @global array $global
+     * @param string $publicOnly
+     * @param string $userId if not present check session
+     * @param string $isVideoIdPresent pass the ID of the video checking
      * @return boolean
      */
     public static function getAllFromUserLight($userId, $publicOnly = true, $status = false, $playlists_id = 0, $onlyWithVideos = false, $includeSeries = false) {
@@ -261,7 +268,8 @@ class PlayList extends ObjectYPT {
                 $rows[] = $row;
             }
         } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            $rows = array();
         }
         return $rows;
     }
@@ -372,7 +380,8 @@ class PlayList extends ObjectYPT {
                 $rows[] = $row;
             }
         } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            $rows = array();
         }
         $getVideosIDFromPlaylistLight[$playlists_id] = $rows;
         return $rows;
@@ -439,7 +448,8 @@ class PlayList extends ObjectYPT {
 
                 $cache = self::setCache($cacheName, $rows);
             } else {
-                die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+                //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+                $rows = array();
             }
         } else {
             $rows = object_to_array($rows);
@@ -656,7 +666,7 @@ class PlayList extends ObjectYPT {
 
     /**
      * This is just to fix errors from the update 6.4 to 6.5, where empty playlists were created before the update
-     * @return type
+     * @return string
      */
     private function clearEmptyLists() {
         $sql = "DELETE FROM " . static::getTableName() . " WHERE status = ''";
@@ -726,6 +736,9 @@ class PlayList extends ObjectYPT {
         return $this->users_id;
     }
 
+    /**
+     * @return string
+     */
     public function getStatus() {
         return $this->status;
     }
@@ -805,7 +818,8 @@ class PlayList extends ObjectYPT {
                 $rows[] = $row;
             }
         } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            $rows = array();
         }
         return $rows;
     }

@@ -25,6 +25,7 @@ class Category {
     private $order;
     private $suggested;
 
+
     public function getSuggested() {
         return empty($this->suggested) ? 0 : 1;
     }
@@ -110,7 +111,7 @@ class Category {
     }
 
     public function loadSelfCategory() {
-        $this->load($this->getId());
+        $this->load($this->id);
     }
 
     public function save($allowOfflineUser = false) {
@@ -176,10 +177,18 @@ class Category {
             }
             return $id;
         } else {
-            die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            return false;
         }
     }
-
+    /**
+     * 
+     * @param string $clean_title
+     * @param int $count
+     * @param int $id
+     * @param string $original_title
+     * @return string
+     */
     public static function fixCleanTitle($clean_title, $count, $id, $original_title = "") {
         global $global;
 
@@ -295,6 +304,7 @@ class Category {
             $result['name'] = xss_esc_back($result['name']);
             $result['description_html'] = textToLink(htmlentities($result['description']));
         }
+        //var_dump($sql,$name, $result);exit;
         return ($res) ? $result : false;
     }
 
@@ -342,8 +352,8 @@ class Category {
     }
 
     public static function deleteCategoryCache() {
-        ObjectYPT::deleteALLCache();
-        _error_log("deleteCategoryCache: {$cacheDir} = " . json_encode($rrmdir));
+        return ObjectYPT::deleteALLCache();
+        //_error_log("deleteCategoryCache: {$cacheDir} = " . json_encode($rrmdir));
     }
 
     public static function getAllCategories($filterCanAddVideoOnly = false, $onlyWithVideos = false, $onlySuggested = false, $sameUserGroupAsMe = false) {
@@ -370,12 +380,12 @@ class Category {
             }
         }
         if ($onlyWithVideos) {
-            $sql .= " AND ((SELECT count(*) FROM videos v where v.categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id)) > 0  ";
+            $sql .= " AND ((SELECT count(*) FROM videos v where v.categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id AND id != c.id)) > 0  ";
             if (AVideoPlugin::isEnabledByName("Live")) {
                 $sql .= " OR "
                         . " ("
                         . " SELECT count(*) FROM live_transmitions lt where "
-                        . " (lt.categories_id = c.id OR lt.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        . " (lt.categories_id = c.id OR lt.categories_id IN (SELECT id from categories where parentId = c.id AND id != c.id))"
                         //. " AND lt.id = (select id FROM live_transmitions lt2 WHERE lt.users_id = lt2.users_id ORDER BY CREATED DESC LIMIT 1 )"
                         . " ) > 0  ";
             }
@@ -383,13 +393,13 @@ class Category {
                 $sql .= " OR "
                         . " ("
                         . " SELECT count(*) FROM LiveLinks ll where "
-                        . " (ll.categories_id = c.id OR ll.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        . " (ll.categories_id = c.id OR ll.categories_id IN (SELECT id from categories where parentId = c.id AND id != c.id))"
                         . " ) > 0  ";
             }
             $sql .= ")";
         }
         if ($sameUserGroupAsMe) {
-
+            _error_log('getAllCategories getUserGroups');
             $users_groups = UserGroups::getUserGroups($sameUserGroupAsMe);
 
             $users_groups_id = array(0);
@@ -415,15 +425,22 @@ class Category {
         $sql .= BootGrid::getSqlFromPost(['name'], "", " ORDER BY `order`, name ASC ");
         //echo $sql;exit;
         $cacheName = 'category/' . md5($sql);
+
+        //_error_log('getAllCategories getCache');
         $category = object_to_array(ObjectYPT::getCache($cacheName, 36000));
         if (empty($category)) {
             $res = sqlDAL::readSql($sql);
+
+            //_error_log('getAllCategories respond');
             $fullResult = sqlDAL::fetchAllAssoc($res);
             sqlDAL::close($res);
             $category = [];
             if ($res) {
                 foreach ($fullResult as $row) {
+
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $totals = self::getTotalFromCategory($row['id']);
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $fullTotals = self::getTotalFromCategory($row['id'], false, true, true);
 
                     $row['name'] = $row['name'];
@@ -432,21 +449,30 @@ class Category {
                     $row['fullTotal_videos'] = $fullTotals['videos'];
                     $row['fullTotal_lives'] = $fullTotals['lives'];
                     $row['fullTotal_livelinks'] = $fullTotals['livelinks'];
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $row['owner'] = User::getNameIdentificationById(@$row['users_id']);
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $row['canEdit'] = self::userCanEditCategory($row['id']);
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $row['canAddVideo'] = self::userCanAddInCategory($row['id']);
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $row['hierarchy'] = self::getHierarchyString($row['parentId']);
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $row['hierarchyAndName'] = $row['hierarchy'] . __($row['name']);
+                    //_error_log("getAllCategories id={$row['id']} line=".__LINE__);
                     $row['description_html'] = textToLink(htmlentities($row['description']));
                     $category[] = $row;
                 }
+
+                //_error_log('getAllCategories setCache');
                 //$category = $res->fetch_all(MYSQLI_ASSOC);
                 ObjectYPT::setCache($cacheName, $category);
             } else {
                 $category = false;
-                die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+                //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
             }
         }
+        //_error_log('getAllCategories return');
         return $category;
     }
 
@@ -460,7 +486,9 @@ class Category {
         sqlDAL::close($res);
         if ($result) {
             $hierarchyArray[] = $result;
-            return self::getHierarchyArray($result['parentId'], $hierarchyArray);
+            if($result['parentId'] != $categories_id){
+                return self::getHierarchyArray($result['parentId'], $hierarchyArray);
+            }
         }
         return $hierarchyArray;
     }
@@ -485,6 +513,9 @@ class Category {
     public static function userCanAddInCategory($categories_id, $users_id = 0) {
         if (empty($categories_id)) {
             return false;
+        }
+        if(isCommandLineInterface()){
+            return true;
         }
         if (empty($users_id)) {
             $users_id = User::getId();
@@ -564,7 +595,7 @@ class Category {
             }
         } else {
             $category = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $category;
     }
@@ -633,7 +664,7 @@ class Category {
 
     public static function getLatestVideoFromCategory($categories_id, $showUnlisted = false, $getAllVideos = false) {
         global $global, $config;
-        $sql = "SELECT * FROM videos v WHERE 1=1 AND (categories_id = ? OR categories_id IN (SELECT id from categories where parentId = ?))";
+        $sql = "SELECT * FROM videos v WHERE 1=1 AND (categories_id = ? OR categories_id IN (SELECT id from categories where parentId = ? ))";
 
         if (User::isLogged()) {
             $sql .= " AND (v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "') OR (v.status='u' AND v.users_id ='" . User::getId() . "'))";
@@ -776,12 +807,12 @@ class Category {
             $sql .= "AND parentId = 0 OR parentId = -1 ";
         }
         if ($onlyWithVideos) {
-            $sql .= " AND ((SELECT count(*) FROM videos v where v.categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id)) > 0  ";
+            $sql .= " AND ((SELECT count(*) FROM videos v where v.categories_id = c.id OR categories_id IN (SELECT id from categories where parentId = c.id AND id != c.id)) > 0  ";
             if (AVideoPlugin::isEnabledByName("Live")) {
                 $sql .= " OR "
                         . " ("
                         . " SELECT count(*) FROM live_transmitions lt where "
-                        . " (lt.categories_id = c.id OR lt.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        . " (lt.categories_id = c.id OR lt.categories_id IN (SELECT id from categories where parentId = c.id AND id != c.id))"
                         //. " AND lt.id = (select id FROM live_transmitions lt2 WHERE lt.users_id = lt2.users_id ORDER BY CREATED DESC LIMIT 1 )"
                         . " ) > 0  ";
             }
@@ -789,7 +820,7 @@ class Category {
                 $sql .= " OR "
                         . " ("
                         . " SELECT count(*) FROM LiveLinks ll where "
-                        . " (ll.categories_id = c.id OR ll.categories_id IN (SELECT id from categories where parentId = c.id))"
+                        . " (ll.categories_id = c.id OR ll.categories_id IN (SELECT id from categories where parentId = c.id AND id != c.id))"
                         . " ) > 0  ";
             }
             $sql .= ")";

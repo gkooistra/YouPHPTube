@@ -3,6 +3,7 @@
 require_once $global['systemRootPath'] . 'objects/plugin.php';
 
 abstract class PluginAbstract {
+
     private $dataObjectHelper = array();
     static $dataObject = array();
 
@@ -142,20 +143,20 @@ abstract class PluginAbstract {
             $eo = $this->getEmptyDataObject();
             // check if the plugin define any array for the select option, if does, overwrite it
             foreach ($eo as $key => $value) {
-                if(empty($o->$key)){
+                if (empty($o->$key)) {
                     continue;
                 }
                 $teo = gettype($value);
                 $to = gettype($o->$key);
-                if($teo !== $to){ // this will make sure the type is the same
-                    if(!is_numeric($value) || !is_numeric($o->$key)){
-                        if(!(is_int($value) && is_bool($o->$key)) && !(is_bool($value) && is_int($o->$key))){
+                if ($teo !== $to) { // this will make sure the type is the same
+                    if (!is_numeric($value) || !is_numeric($o->$key)) {
+                        if (!(is_int($value) && is_bool($o->$key)) && !(is_bool($value) && is_int($o->$key))) {
                             //_error_log("getDataObject - type is different $teo !== $to uuid = $uuid");
                             $o->$key = $value;
                         }
                     }
                 }
-                if(isset($value->type) && is_array($value->type) && isset($o->$key) && isset($o->$key->type)){
+                if (isset($value->type) && is_array($value->type) && isset($o->$key) && isset($o->$key->type)) {
                     $o->$key->type = $value->type;
                 }
             }
@@ -174,7 +175,7 @@ abstract class PluginAbstract {
             }
 
             PluginAbstract::$dataObject[$this->getUUID()] = $wholeObjects;
-        }else {
+        } else {
             $wholeObjects = PluginAbstract::$dataObject[$this->getUUID()];
         }
         //var_dump($obj['object_data']);
@@ -182,20 +183,69 @@ abstract class PluginAbstract {
         return (object) $wholeObjects;
     }
 
+    public function getDataObjectInfo() {
+        $eo = $this->getEmptyDataObject();
+        $return = array();
+        foreach ($eo as $key => $value) {
+            $return[$key] = array(
+                'is_deprecated' => $this->isDeprecated($key),
+                'is_experimental' => $this->isExperimental($key),
+                'is_advanced' => $this->isAdvanced($key)
+            );
+        }
+        return $return;
+    }
+
     public function setDataObject($object) {
         $pluginRow = Plugin::getPluginByUUID($this->getUUID());
-        if(empty($pluginRow)){
+        if (empty($pluginRow)) {
             return false;
         }
         $obj = new Plugin($pluginRow['id']);
         $obj->setObject_data(addcslashes(json_encode($object), '\\'));
         return $obj->save();
     }
-    
+
     public function setDataObjectParameter($parameterName, $value) {
         $object = $this->getDataObject();
         eval("\$object->$parameterName = \$value;");
         return $this->setDataObject($object);
+    }
+
+    public static function getDataObjectAdvanced() {
+        return array();
+    }
+    
+    public static function getDataObjectDeprecated() {
+        return array();
+    }
+
+    public static function getDataObjectExperimental() {
+        return array();
+    }    
+
+    public function isSomething($parameter_name, $type) {        
+        $name = $this->getName();
+        if(empty($name) || !class_exists($name)){
+            return false;
+        }
+        eval("\$array = {$name}::getDataObject{$type}();");
+        /**
+         * @var array $array
+         */
+        return in_array($parameter_name, $array);
+    }
+
+    public function isAdvanced($parameter_name) {        
+        return $this->isSomething($parameter_name, 'Advanced');
+    }
+
+    public function isExperimental($parameter_name) {
+        return $this->isSomething($parameter_name, 'Experimental');
+    }
+
+    public function isDeprecated($parameter_name) {
+        return $this->isSomething($parameter_name, 'Deprecated');
     }
 
     public function getEmptyDataObject() {
@@ -210,39 +260,39 @@ abstract class PluginAbstract {
     public function onEncoderNotifyIsDone($videos_id) {
         return false;
     }
-    
+
     public function onEncoderReceiveImage($videos_id) {
         return false;
     }
-    
+
     public function onUploadIsDone($videos_id) {
         return false;
     }
-    
+
     public function onReceiveFile($videos_id) {
         return false;
     }
-    
+
     public function afterNewVideo($videos_id) {
         return false;
     }
-    
+
     public function onNewVideo($videos_id) {
         return false;
     }
-    
+
     public function onUpdateVideo($videos_id) {
         return false;
     }
-    
+
     public function onVideoLikeDislike($videos_id, $users_id, $isLike) {
         return false;
     }
-    
+
     public function onNewSubscription($users_id, $subscriber_users_id) {
         return false;
     }
-    
+
     public function afterDonation($from_users_id, $how_much, $videos_id, $users_id, $extraParameters) {
         return false;
     }
@@ -288,7 +338,7 @@ abstract class PluginAbstract {
     public function getEnd() {
         return false;
     }
-    
+
     public function afterVideoJS() {
         return false;
     }
@@ -328,7 +378,7 @@ abstract class PluginAbstract {
 
     /**
      * 
-     * @return type array(array("key"=>'live key', "users"=>false, "name"=>$userName, "user"=>$user, "photo"=>$photo, "UserPhoto"=>$UserPhoto, "title"=>''));
+     * @return string array(array("key"=>'live key', "users"=>false, "name"=>$userName, "user"=>$user, "photo"=>$photo, "UserPhoto"=>$UserPhoto, "title"=>''));
      */
     public function getLiveApplicationArray() {
         return array();
@@ -353,11 +403,11 @@ abstract class PluginAbstract {
     public function getModeYouTube($videos_id) {
         return false;
     }
-    
+
     public function getModeLive($key) {
         return false;
     }
-    
+
     public function getModeLiveLink($liveLink_id) {
         return false;
     }
@@ -365,14 +415,14 @@ abstract class PluginAbstract {
     public function getModeYouTubeLive($users_id) {
         return false;
     }
-    
+
     public function getEmbed($videos_id) {
         return false;
     }
 
     /**
      * Loads a channel before display the channel page, usefull to create customized channel pages
-     * @param type $user is an database array from channels owner
+     * @param string $user is an database array from channels owner
      * @return boolean
      */
     public function getChannel($user_id, $user) {
@@ -381,12 +431,12 @@ abstract class PluginAbstract {
 
     /**
      * 
-     * @return type return a list of IDs of the user groups
+     * @return string return a list of IDs of the user groups
      */
     public function getDynamicUserGroupsId($users_id) {
         return array();
     }
-    
+
     public function getDynamicUsersId($users_groups_id) {
         return array();
     }
@@ -394,7 +444,7 @@ abstract class PluginAbstract {
     public function navBarButtons() {
         return "";
     }
-    
+
     public function navBarProfileButtons() {
         return "";
     }
@@ -402,7 +452,7 @@ abstract class PluginAbstract {
     public function navBar() {
         return "";
     }
-    
+
     public function navBarAfter() {
         return "";
     }
@@ -442,7 +492,7 @@ abstract class PluginAbstract {
 
     /**
      * 
-     * @param type $users_id
+     * @param string $users_id
      * @return 0 = I dont know, -1 = can not upload, 1 = can upload
      */
     public function userCanUpload($users_id) {
@@ -451,8 +501,8 @@ abstract class PluginAbstract {
 
     /**
      * 
-     * @param type $users_id
-     * @param type $videos_id
+     * @param string $users_id
+     * @param string $videos_id
      * @return 0 = I dont know, -1 = can not watch, 1 = can watch
      */
     public function userCanWatchVideo($users_id, $videos_id) {
@@ -461,8 +511,8 @@ abstract class PluginAbstract {
 
     /**
      * 
-     * @param type $users_id
-     * @param type $videos_id
+     * @param string $users_id
+     * @param string $videos_id
      * @return 0 = I dont know, -1 = can not watch, 1 = can watch
      */
     public function userCanWatchVideoWithAds($users_id, $videos_id) {
@@ -480,7 +530,7 @@ abstract class PluginAbstract {
     function showAds($videos_id) {
         return true;
     }
-    
+
     function isPaidUser($users_id) {
         return false;
     }
@@ -500,7 +550,7 @@ abstract class PluginAbstract {
     public function onLiveStream($users_id, $live_servers_id) {
         return null;
     }
-    
+
     public function on_publish_done($live_transmitions_history_id, $users_id, $key, $live_servers_id) {
         return null;
     }
@@ -537,7 +587,7 @@ abstract class PluginAbstract {
         return "";
     }
 
-    public static function getManagerVideosEditField($type='Advanced') {
+    public static function getManagerVideosEditField($type = 'Advanced') {
         return "";
     }
 
@@ -568,165 +618,165 @@ abstract class PluginAbstract {
     public function getUploadMenuButton() {
         return "";
     }
-    
+
     public function dataSetup() {
         return "";
     }
-    
-    function getPermissionsOptions(){
+
+    function getPermissionsOptions() {
         return array();
     }
 
-    protected function addDataObjectHelper($property, $name, $description=""){
-        $this->dataObjectHelper[$property] = array("name"=>$name, "description"=>$description);
+    protected function addDataObjectHelper($property, $name, $description = "") {
+        $this->dataObjectHelper[$property] = array("name" => $name, "description" => $description);
     }
-    
-    function getDataObjectHelper(){
+
+    function getDataObjectHelper() {
         return $this->dataObjectHelper;
     }
-    
-    function onUserSocketConnect(){
+
+    function onUserSocketConnect() {
         
     }
-    
-    function onUserSocketDisconnect(){
+
+    function onUserSocketDisconnect() {
         
     }
 
     function onVideoSetLive_transmitions_history_id($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetEncoderURL($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetFilepath($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetFilesize($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetUsers_id($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetSites_id($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetVideo_password($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetClean_title($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetDuration($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetIsSuggested($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetStatus($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetType($video_id, $oldValue, $newValue, $force) {
-
+        
     }
 
     function onVideoSetRotation($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetZoom($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetDescription($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetCategories_id($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetVideoDownloadedLink($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetVideoGroups($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetTrailer1($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetTrailer2($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetTrailer3($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetRate($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetYoutubeId($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetTitle($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetFilename($video_id, $oldValue, $newValue, $force) {
-
+        
     }
 
     function onVideoSetNext_videos_id($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetVideoLink($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetCan_download($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetCan_share($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetOnly_for_paid($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetRrating($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetExternalOptions($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetVideoStartSeconds($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function onVideoSetSerie_playlists_id($video_id, $oldValue, $newValue) {
-
+        
     }
 
     function updateParameter($parameterName, $newValue) {
@@ -743,17 +793,17 @@ abstract class PluginAbstract {
         $p->setObject_data(json_encode($pluginDO));
         return $p->save();
     }
-    
+
     public function getWalletConfigurationHTML($users_id, $wallet, $walletDataObject) {
         return "";
     }
+
 }
 
+class PluginPermissionOption {
 
-
-class PluginPermissionOption{
     private $type, $name, $description, $className;
-    
+
     function __construct($type, $name, $description, $className) {
         $this->type = $type;
         $this->name = $name;
@@ -776,4 +826,5 @@ class PluginPermissionOption{
     function getClassName() {
         return $this->className;
     }
+
 }

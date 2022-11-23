@@ -163,7 +163,7 @@ $siteRedirectUri = addQueryStringParameter($siteRedirectUri, 'success', _($advan
                                         if (empty($advancedCustomUser->disableCompanySignUp)) {
                                             $extra_info_fields = Users_extra_info::getAllActive(0, true);
                                             echo '<!-- Show CompanySignUp -->';
-                                            echo '<input id="is_company" name="is_company" type="hidden" value="' . User::$is_company_status_WAITINGAPPROVAL . '" >';
+                                            echo '<input id="is_company" name="is_company" type="hidden" value="0" >';
                                         } else {
                                             $extra_info_fields = Users_extra_info::getAllActive();
                                             echo '<!-- DO NOT Show CompanySignUp -->';
@@ -246,7 +246,7 @@ $siteRedirectUri = addQueryStringParameter($siteRedirectUri, 'success', _($advan
 
                 function validateSignupForm() {
                     var errorFound = false;
-                    var errorClass = 'glowBox';
+                    var errorClass = 'has-error';
                     $('#updateUserForm .input-group').removeClass(errorClass);
                     $('#updateUserForm input').each(function () {
                         console.log('found', $(this).attr('name'));
@@ -277,17 +277,13 @@ $siteRedirectUri = addQueryStringParameter($siteRedirectUri, 'success', _($advan
                         return false;
                     }
 
-                    var pass1 = $('#inputPassword').val();
-                    var pass2 = $('#inputPasswordConfirm').val();
                     // Password doesn't match
-                    if (!pass1.match(/[0-9a-z]+/i)) {
+                    if (!$('#inputPassword').val().match(/[0-9a-z]+/i)) {
                         $('#inputPassword').closest('.input-group').addClass(errorClass);
                         avideoAlertError("<?php echo __("Your password cannot be blank"); ?>");
                         return false;
                     }
-                    if (pass1 != pass2) {
-                        $('#inputPassword').closest('.input-group').addClass(errorClass);
-                        $('#inputPasswordConfirm').closest('.input-group').addClass(errorClass);
+                    if(!checkIfPasswordsMatch()){
                         avideoAlertError("<?php echo __("Your password does not match!"); ?>");
                         return false;
                     }
@@ -311,6 +307,21 @@ $siteRedirectUri = addQueryStringParameter($siteRedirectUri, 'success', _($advan
 
                     return true;
                 }
+                
+                function checkIfPasswordsMatch(){
+                    var errorClass = 'has-error';
+                    var inputPasswordConfirm = $('#inputPasswordConfirm').val();
+                    var inputPassword = $('#inputPassword').val();
+                    
+                    $('#inputPassword').closest('.input-group').removeClass(errorClass);
+                    $('#inputPasswordConfirm').closest('.input-group').removeClass(errorClass);
+                    if(inputPasswordConfirm !== inputPassword){
+                        $('#inputPassword').closest('.input-group').addClass(errorClass);
+                        $('#inputPasswordConfirm').closest('.input-group').addClass(errorClass);
+                        return false;
+                    }
+                    return true;
+                }
 
                 $(document).ready(function () {
 
@@ -318,6 +329,11 @@ $siteRedirectUri = addQueryStringParameter($siteRedirectUri, 'success', _($advan
                         $('#captcha').attr('src', webSiteRootURL+'captcha?PHPSESSID=<?php echo session_id(); ?>&' + Math.random());
                         $('#captchaText').val('');
                     });
+                    
+                    $('#inputPasswordConfirm').keyup(function () {
+                        checkIfPasswordsMatch();
+                    });
+                    passStrengthCheckInputKeyUp('#inputPassword');
 
                     $('#updateUserForm').submit(function (evt) {
                         evt.preventDefault();

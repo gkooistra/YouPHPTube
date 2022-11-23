@@ -80,7 +80,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                             <div class="row thumbsImage">
                                 <div class="<?php echo $colClass1; ?>">
                                     <?php
-                                    echo Video::getVideoImagewithHoverAnimationFromVideosId($videoRow, true, true, false, true);
+                                    echo Video::getVideoImagewithHoverAnimationFromVideosId($videoRow, true, true, false, true, empty($obj->GifOnBigVideo));
                                     ?>
                                     <?php
                                     if (!empty($program) && $videoRow['type'] == 'serie' && !empty($videoRow['serie_playlists_id'])) {
@@ -170,7 +170,7 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                                             ?>
                                             <div>
                                                 <i class="far fa-clock"></i>
-                                                <?php echo humanTiming(strtotime($videoRow['videoCreation'])), " ", __('ago'); ?>
+                                                <?php echo humanTiming(strtotime($videoRow['videoCreation']), 0, true,true); ?>
                                             </div>
                                             <div>
                                                 <a href="<?php echo User::getChannelLink($videoRow['users_id']); ?>">
@@ -183,12 +183,6 @@ if ($obj->BigVideo && empty($_GET['showOnly'])) {
                                                     <i class="fa fa-edit"></i> <?php echo __("Edit Video"); ?>
                                                 </button>
                                             <?php } ?>
-                                            <?php if (!empty($videoRow['trailer1'])) { ?>
-                                                <button type="button" class="btn-link" onclick="showTrailer('<?php echo parseVideos($videoRow['trailer1'], 1); ?>'); return false;" class="cursorPointer" >
-                                                        <i class="fa fa-video"></i> <?php echo __("Trailer"); ?>
-                                                </button>
-                                            <?php }
-                                            ?>
                                             <?php
                                             echo AVideoPlugin::getGalleryActionButton($videoRow['id']);
                                             ?>

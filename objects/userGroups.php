@@ -68,6 +68,11 @@ class UserGroups{
             $values = [$this->group_name];
         }
         if (sqlDAL::writeSql($sql, $formats, $values)) {
+            /**
+             * 
+             * @var array $global
+             * @var object $global['mysqli'] 
+             */
             if (empty($this->id)) {
                 $id = $global['mysqli']->insert_id;
             } else {
@@ -131,7 +136,7 @@ class UserGroups{
             //$category = $res->fetch_all(MYSQLI_ASSOC);
         } else {
             $arr = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $arr;
     }
@@ -152,7 +157,7 @@ class UserGroups{
             //$category = $res->fetch_all(MYSQLI_ASSOC);
         } else {
             $arr = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $arr;
     }
@@ -259,9 +264,8 @@ class UserGroups{
         return self::getUserGroups($users_id);
     }
 
-    public static function getUserGroups($users_id)
-    {
-        global $global;
+    public static function getUserGroups($users_id){
+        global $global, $__getUserGroups;
         $res = sqlDAL::readSql("SHOW TABLES LIKE 'users_has_users_groups'");
         $result = sqlDAL::num_rows($res);
         sqlDAL::close($res);
@@ -272,6 +276,15 @@ class UserGroups{
         if (empty($users_id)) {
             return [];
         }
+
+        if(!isset($__getUserGroups)){
+            $__getUserGroups = array();
+        } 
+
+        if(isset($__getUserGroups[$users_id])){
+            return $__getUserGroups[$users_id];
+        }
+
         $sql = "SELECT uug.*, ug.* FROM users_groups ug"
                 . " LEFT JOIN users_has_users_groups uug ON users_groups_id = ug.id WHERE users_id = ? ";
 
@@ -291,7 +304,7 @@ class UserGroups{
                 if (in_array($row['id'], $doNotRepeat)) {
                     continue;
                 }
-                if (in_array($row['id'], $ids)) {
+                if (is_array($ids) && in_array($row['id'], $ids)) {
                     $row['isDynamic'] = 1;
                 } else {
                     $row['isDynamic'] = 0;
@@ -302,8 +315,9 @@ class UserGroups{
             }
         } else {
             $arr = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
+        $__getUserGroups[$users_id] = $arr;
         return $arr;
     }
 
@@ -357,7 +371,6 @@ class UserGroups{
         }
 
         $sql = "INSERT INTO videos_group_view ( videos_id, users_groups_id) VALUES (?,?)";
-        $value = intval($value);
         $response = sqlDAL::writeSql($sql, "ii", [$videos_id,$users_groups_id]);
 
         if ($response) {
@@ -370,7 +383,7 @@ class UserGroups{
     public static function deleteVideoGroups($videos_id, $users_groups_id)
     {
         global $_getVideosAndCategoriesUserGroups;
-        if (!Video::canEdit($videos_id)) {
+        if (!Video::canEdit($videos_id) && !isCommandLineInterface()) {
             return false;
         }
 
@@ -434,7 +447,7 @@ class UserGroups{
             }
         } else {
             $arr = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $arr;
     }
@@ -460,7 +473,7 @@ class UserGroups{
             }
         } else {
             $arr = false;
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+            //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $arr;
     }

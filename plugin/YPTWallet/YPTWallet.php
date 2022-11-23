@@ -39,6 +39,63 @@ class YPTWallet extends PluginAbstract
     {
         return "4.0";
     }
+    
+    
+    public static function getDataObjectAdvanced() {
+        return array(
+            'decimalPrecision',
+            'wallet_button_title',
+            'add_funds_text',
+            'add_funds_success_success',
+            'add_funds_success_cancel',
+            'add_funds_success_fail',
+            'transfer_funds_text',
+            'transfer_funds_success_success',
+            'transfer_funds_success_fail',
+            'withdraw_funds_text',
+            'withdraw_funds_success_success',
+            'withdraw_funds_success_fail',
+            'virtual_currency',
+            'virtual_currency_symbol',
+            'virtual_currency_exchange_rate',
+            'virtual_currency_decimalPrecision',
+            'virtual_currency_enable',
+            'showWalletOnlyToAdmin',
+            'showWalletOnProfile',
+            'showWalletOnTopMenu',
+            'CryptoWalletName',
+            'CryptoWalletEnabled',
+            'hideConfiguration',
+            'manualAddFundsMenuTitle',
+            'manualAddFundsPageButton',
+            'manualAddFundsNotifyEmail',
+            'manualAddFundsMenuTitle',
+            'manualWithdrawFundsMenuTitle',
+            'manualWithdrawFundsPageButton',
+            'manualWithdrawFundsNotifyEmail',
+            'enableAutomaticAddFundsPage',
+            'enableManualAddFundsPage',
+            'enableManualWithdrawFundsPage',
+            'enableAutoWithdrawFundsPagePaypal',
+            'manualWithdrawFundsTransferToUserId',
+            'manualAddFundsTransferFromUserId'
+            );
+    }
+    
+    public static function getDataObjectDeprecated() {
+        return array(
+            'RedirectURL', 
+            'CancelURL',
+            );
+    }
+    
+    
+    public static function getDataObjectExperimental() {
+        return array(
+            'enablePlugin_YPTWalletRazorPay',
+            'enablePlugin_YPTWalletBlockonomics'
+        );
+    }
 
     public function getEmptyDataObject()
     {
@@ -270,11 +327,11 @@ class YPTWallet extends PluginAbstract
 
     /**
      *
-     * @param type $users_id
-     * @param type $value
-     * @param type $description
-     * @param type $json_data
-     * @param type $mainWallet_user_id A user ID where the money comes from and where the money goes for
+     * @param string $users_id
+     * @param string $value
+     * @param string $description
+     * @param string $json_data
+     * @param string $mainWallet_user_id A user ID where the money comes from and where the money goes for
      */
     public function addBalance($users_id, $value, $description = "", $json_data = "{}", $mainWallet_user_id = 0, $noNotExchangeValue = false)
     {
@@ -627,8 +684,8 @@ class YPTWallet extends PluginAbstract
 
     /**
      *
-     * @param type $wallet_log_id
-     * @param type $new_status
+     * @param string $wallet_log_id
+     * @param string $new_status
      * return true if balance is enought
      */
     public function processStatus($wallet_log_id, $new_status)

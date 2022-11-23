@@ -530,7 +530,7 @@ class StripeYPT extends PluginAbstract {
 
     /**
      * Return plans an users id
-     * @param type $payload
+     * @param string $payload
      */
     static function getMetadata($payload) {
         foreach ($payload as $value) {
@@ -584,6 +584,10 @@ class StripeYPT extends PluginAbstract {
 
     static function isSubscriptionPayment($payload) {
         return ($payload->type == "invoice.payment_succeeded" && !empty($payload->data->object->customer)) || $payload->type == "charge.succeeded" && empty($payload->data->object->metadata->singlePayment);
+    }
+    
+    static function isSubscriptionCanceled($payload) {
+        return ($payload->type == "customer.subscription.deleted" && !empty($payload->data->object->customer));
     }
 
     function processSinglePaymentIPN($payload) {

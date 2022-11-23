@@ -67,7 +67,8 @@ if (strtolower($scheme) !== 'https' || !empty($SocketDataObj->forceNonSecure)) {
     foreach ($parameters as $key => $value) {
         echo "Parameter [{$key}]: $value " . PHP_EOL;
     }
-
+    echo "DO NOT CLOSE THIS TERMINAL " . PHP_EOL;
+    
     $loop = React\EventLoop\Loop::get();
     
     $webSock = new React\Socket\Server($SocketDataObj->uri . ':' . $SocketDataObj->port, $loop);
