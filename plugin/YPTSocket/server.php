@@ -1,19 +1,41 @@
 <?php
+$global['debugMemmory'] = 1;
 use React\EventLoop\Loop;
+use React\Async\async;
 use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use Socket\Message;
-
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 //use React\Socket\Server as Reactor;
-
+if(empty($_SERVER['HTTP_HOST'])){
+    $_SERVER['HTTP_HOST'] = 'localhost';
+}
 require_once dirname(__FILE__) . '/../../videos/configuration.php';
-
+_ob_end_clean();
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once $global['systemRootPath'] . 'plugin/YPTSocket/Message.php';
+function riseSQLiteError(){
+    _error_log("Socket server For better performance install PDO SQLite in your PHP", AVideoLog::$ERROR);
+    echo ("sudo apt-get install php-sqlite3").PHP_EOL;
+    echo ("after that in your php.ini (".php_ini_loaded_file().") file to uncomment this line:").PHP_EOL;
+    echo (";extension=pdo_sqlite.so").PHP_EOL;
+}
+
+$loop = React\EventLoop\Loop::get();
+if (function_exists('pdo_drivers') && in_array("sqlite", pdo_drivers())) {
+    _error_log("Socket server SQLite loading");
+    require_once $global['systemRootPath'] . 'plugin/YPTSocket/db.php';
+    require_once $global['systemRootPath'] . 'plugin/YPTSocket/MessageSQLite.php';
+} else {
+    riseSQLiteError();
+    require_once $global['systemRootPath'] . 'plugin/YPTSocket/Message.php';
+}
+
 require_once $global['systemRootPath'] . 'objects/autoload.php';
 
 if (!isCommandLineInterface()) {
@@ -23,7 +45,7 @@ if (!isCommandLineInterface()) {
 $SocketDataObj = AVideoPlugin::getDataObject("YPTSocket");
 $SocketDataObj->serverVersion = YPTSocket::getServerVersion();
 
-ob_end_flush();
+@ob_end_flush();
 _mysql_close();
 session_write_close();
 exec('ulimit -n 20480'); // to handle over 1 k connections
@@ -68,9 +90,8 @@ if (strtolower($scheme) !== 'https' || !empty($SocketDataObj->forceNonSecure)) {
         echo "Parameter [{$key}]: $value " . PHP_EOL;
     }
     echo "DO NOT CLOSE THIS TERMINAL " . PHP_EOL;
-    
-    $loop = React\EventLoop\Loop::get();
-    
+
+
     $webSock = new React\Socket\Server($SocketDataObj->uri . ':' . $SocketDataObj->port, $loop);
     $webSock = new React\Socket\SecureServer($webSock, $loop, $parameters);
     $webServer = new Ratchet\Server\IoServer(
@@ -81,5 +102,6 @@ if (strtolower($scheme) !== 'https' || !empty($SocketDataObj->forceNonSecure)) {
             ),
             $webSock
     );
+    
     $loop->run();
 }

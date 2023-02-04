@@ -20,6 +20,7 @@ require_once $global['systemRootPath'] . 'objects/video.php';
 
 $obj = new stdClass();
 
+$obj->id = getPlatformId();
 $obj->title = $config->getWebSiteTitle();
 $obj->url = $global['webSiteRootURL'];
 $obj->language = $config->getLanguage();
@@ -27,6 +28,11 @@ $obj->version = $config->getVersion();
 $obj->date = date("Y-m-d H:i:s");
 $obj->MySQLDate = getMySQLDate();
 $obj->version = $config->getVersion();
+$obj->plugins = Plugin::getAvailablePluginsBasic();
+///getTotalVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $showUnlisted = false, $activeUsersOnly = true, $suggestedOnly = false, $type = '')
+$obj->totalVideos = Video::getTotalVideos('', false, true, true);
+$obj->totalUsers = User::getTotalUsers(true, 'a');
+$obj->totalChannels = Channel::getTotalChannels();;
 $obj->plugins = Plugin::getAvailablePluginsBasic();
 if (empty($_GET['version'])) {
     $obj->videos = [];
@@ -53,6 +59,10 @@ if (empty($_GET['version'])) {
     }
 }
 $obj->totalVideosResponse = is_array($obj->videos)?count($obj->videos):0;
-$json = json_encode($obj);
-file_put_contents($cachedFile, $json);
-echo $json;
+$json = _json_encode($obj);
+_file_put_contents($cachedFile, $json);
+if(empty($json)){
+    echo 'ERROR';
+}else{
+    echo $json;
+}

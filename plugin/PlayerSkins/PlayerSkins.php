@@ -167,7 +167,7 @@ class PlayerSkins extends PluginAbstract {
                     $htmlMediaTag .= '<video '.self::getPlaysinline().' id="mainVideo" style="display: none; height: 0;width: 0;" ></video>';
                     $htmlMediaTag .= '<div id="main-video" class="embed-responsive-item">';
                     $htmlMediaTag .= '<iframe class="embed-responsive-item" scrolling="no" '.Video::$iframeAllowAttributes.' src="' . $url . '"></iframe>';
-                    $htmlMediaTag .= '<script>$(document).ready(function () {addView(' . $video['id'] . ', 0);});</script>';
+                    $htmlMediaTag .= '<script>$(document).ready(function () {addView(' . intval($video['id']) . ', 0);});</script>';
                     $htmlMediaTag .= '</div>';
                 } else {
                     // youtube!
@@ -192,7 +192,7 @@ class PlayerSkins extends PluginAbstract {
                 $htmlMediaTag = "<!-- Serie {$video['title']} {$video['filename']} -->";
                 $htmlMediaTag .= '<video '.self::getPlaysinline().' id="mainVideo" style="display: none; height: 0;width: 0;" ></video>';
                 $htmlMediaTag .= '<iframe class="embed-responsive-item" scrolling="no" '.Video::$iframeAllowAttributes.' src="' . $link . '"></iframe>';
-                $htmlMediaTag .= '<script>$(document).ready(function () {addView(' . $video['id'] . ', 0);});</script>';
+                $htmlMediaTag .= '<script>$(document).ready(function () {addView(' . intval($video['id']) . ', 0);});</script>';
             }
 
             $html .= "<script>mediaId = '{$video['id']}';var player;" . self::playerJSCodeOnLoad($video['id'], @$autoPlayURL) . '</script>';
@@ -701,6 +701,7 @@ class PlayerSkins extends PluginAbstract {
             //_error_log("Cache not found $name");
             $video = new Video("", "", $videos_id);
             $fileName = $video->getFilename();
+            //_error_log("getVideoTags($videos_id) $fileName ".$video->getType());
             $resolution = Video::getHigestResolution($fileName);
             $obj = new stdClass();
             if (empty($resolution) || empty($resolution['resolution_text'])) {

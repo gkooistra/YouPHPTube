@@ -58,22 +58,16 @@ class BootGrid
 
         if (!empty($_POST['searchPhrase'])) {
             global $global;
-            $search = (xss_esc($_POST['searchPhrase']));
+            $search = strtolower(xss_esc($_POST['searchPhrase']));
             $search = str_replace('&quot;', '"', $search);
             $like = [];
             foreach ($searchFieldsNames as $value) {
-                if (preg_match('/description/', $value)) {
-                    //$like[] = " {$value} regexp '\\b{$search}\\b' ";// not sure why was using regexp
-                    $like[] = " {$value} LIKE '%{$search}%' ";
-                } else {
-                    $like[] = " {$value} LIKE '%{$search}%' ";
-                }
-                // for accent insensitive
+                $like[] = " {$value} LIKE '%{$search}%' ";
+                //$like[] = " {$value} LIKE _utf8 '%{$search}%' collate utf8_general_ci ";
+                //$like[] = " {$value} LIKE _utf8 '%{$search}%' collate utf8_unicode_ci ";
+                $like[] = " CONVERT(CAST({$value} as BINARY) USING utf8) LIKE _utf8 '%{$search}%'  collate utf8_unicode_ci ";
                 if (preg_match('/description/', $value)) {
                     $like[] = " CONVERT(CAST({$value} as BINARY) USING utf8) regexp '\\b{$search}\\b' ";
-                //$like[] = " CONVERT(CAST({$value} as BINARY) USING utf8) LIKE '%{$search}%' ";
-                } else {
-                    $like[] = " CONVERT(CAST({$value} as BINARY) USING utf8) LIKE '%{$search}%' ";
                 }
             }
             if (!empty($like)) {

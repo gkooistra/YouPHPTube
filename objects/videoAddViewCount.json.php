@@ -4,14 +4,14 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
-
+ini_set('max_execution_time', 5);
 //_error_log('Add view '. json_encode($_REQUEST));
 
 if(isBot()){
     die('Bot Not Allowed');
 }
 if (empty($_REQUEST['id'])) {
-    die('{"error":"' . __("Permission denied") . '"}');
+    die('{"error":"Permission denied"}');
 }
 if (empty($_COOKIE[$global['session_name']])) {
     die('{"error":"Cookie is disabled"}');

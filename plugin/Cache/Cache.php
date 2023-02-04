@@ -67,16 +67,10 @@ class Cache extends PluginAbstract
         } else {
             $obj->cacheDir .= 'notlogged_' . md5("notlogged" . $global['salt']) . DIRECTORY_SEPARATOR;
         }
-
         $obj->cacheDir = fixPath($obj->cacheDir, true);
         if (!file_exists($obj->cacheDir)) {
-            $obj->cacheDir = $global['systemRootPath'] . 'videos' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR;
-            $this->setDataObject($obj);
-            if (!file_exists($obj->cacheDir)) {
-                mkdir($obj->cacheDir, 0777, true);
-            }
+            mkdir($obj->cacheDir, 0777, true);
         }
-
         return $obj->cacheDir;
     }
 
@@ -245,7 +239,8 @@ class Cache extends PluginAbstract
             '/sitemap.xml',
             'plugin/Live/verifyToken.json.php',
             'control.json.php',
-            'robots.txt'
+            'robots.txt',
+            'Live_restreams'
         ];
         foreach ($cacheBotWhitelist as $value) {
             if (strpos($_SERVER['REQUEST_URI'], $value) !== false) {

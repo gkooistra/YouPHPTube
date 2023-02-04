@@ -79,11 +79,13 @@ foreach ($scanVars as $value) {
     foreach ($securityRemoveSingleQuotes as $value) {
         if (!empty($scanThis[$value])) {
             if (is_string($scanThis[$value])) {
-                $scanThis[$value] = str_replace("'", "", trim($scanThis[$value]));
+                $scanThis[$value] = fixQuotesIfSafari($scanThis[$value]);
+                $scanThis[$value] = str_replace(array("'","`"), array('', ''), trim($scanThis[$value]));
             } elseif (is_array($scanThis[$value])) {
                 foreach ($scanThis[$value] as $key => $value2) {
                     if (is_string($scanThis[$value][$key])) {
-                        $scanThis[$value][$key] = str_replace("'", "", trim($scanThis[$value][$key]));
+                        $scanThis[$value] = fixQuotesIfSafari($scanThis[$value]);
+                        $scanThis[$value][$key] = str_replace(array("'","`"), array('', ''), trim($scanThis[$value][$key]));
                     }
                 }
             }
@@ -130,7 +132,7 @@ foreach ($scanVars as $value) {
 
     foreach ($securityFilter as $value) {
         if (!empty($scanThis[$value])) {
-            $scanThis[$value] = str_replace(['\\', "--", "'", '"', "&quot;", "&#039;", "%23", "%5c", "#"], ['', '', '', '', '', '', '', '', ''], xss_esc($scanThis[$value]));
+            $scanThis[$value] = str_ireplace(['\\', "--", "'", '"', "&quot;", "&#039;", "%23", "%5c", "#"], ['', '', '', '', '', '', '', '', ''], xss_esc($scanThis[$value]));
         }
     }
 

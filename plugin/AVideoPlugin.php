@@ -1660,6 +1660,7 @@ class AVideoPlugin
     public static function getVideoTags($videos_id)
     {
         global $global, $advancedCustom;
+        $tolerance = 0.5;
         if (empty($videos_id) || !empty($global['disableVideoTags']) || !empty($advancedCustom->disableVideoTags)) {
             return [];
         }
@@ -1683,12 +1684,14 @@ class AVideoPlugin
                     $TimeLog = "AVideoPlugin::getVideoTags($videos_id) {$value['dirName']} ";
                     TimeLogStart($TimeLog);
                     $p = static::loadPlugin($value['dirName']);
+                    TimeLogEnd($TimeLog, __LINE__, $tolerance);
                     if (is_object($p)) {
                         $array = array_merge($array, $p->getVideoTags($videos_id));
+                        TimeLogEnd($TimeLog, __LINE__, $tolerance);
                     }
-                    TimeLogEnd($TimeLog, __LINE__);
+                    TimeLogEnd($TimeLog, __LINE__, $tolerance);
                 }
-                TimeLogEnd("AVideoPlugin::getVideoTags($videos_id)", __LINE__);
+                TimeLogEnd("AVideoPlugin::getVideoTags($videos_id)", __LINE__, $tolerance*2);
                 ObjectYPT::setCache($name, $array);
                 $_getVideoTags[$videos_id] = $array;
             } else {
@@ -2344,6 +2347,30 @@ class AVideoPlugin
         }
         return;
     }
+    
+    /**
+     * @param type $file = [
+                'filename' => "{$parts['filename']}.{$parts['extension']}",
+                'path' => $file,
+                'url' => $source['url'],
+                'url_noCDN' => @$source['url_noCDN'],
+                'type' => $type,
+                'format' => strtolower($parts['extension']),
+            ]
+     * @return $file
+     */
+    public static function modifyURL($file){
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $file = $p->modifyURL($file);
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+        return $file;
+    }
 
     public static function onVideoSetExternalOptions($video_id, $oldValue, $newValue)
     {
@@ -2385,6 +2412,23 @@ class AVideoPlugin
             self::YPTend("{$value['dirName']}::" . __FUNCTION__);
         }
         return;
+    }
+    
+    public static function getMobileHomePageURL()
+    {
+        $plugins = Plugin::getAllEnabled();
+        foreach ($plugins as $value) {
+            self::YPTstart();
+            $p = static::loadPlugin($value['dirName']);
+            if (is_object($p)) {
+                $url = $p->getMobileHomePageURL();
+                if(isValidURL($url)){
+                    return $url;
+                }
+            }
+            self::YPTend("{$value['dirName']}::" . __FUNCTION__);
+        }
+        return false;
     }
 
     public static function getPluginsOnByDefault($getUUID = true)

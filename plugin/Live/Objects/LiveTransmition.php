@@ -152,6 +152,10 @@ class LiveTransmition extends ObjectYPT
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res != false) {
+            $liveStreamObject = new LiveStreamObject($data['key'], $data['live_servers_id']);
+            $data['key_with_index'] = $liveStreamObject->getKeyWithIndex(true);
+            $data['live_index'] = $liveStreamObject->getIndex();
+            
             $user = $data;
         } else {
             $user = false;
@@ -165,17 +169,20 @@ class LiveTransmition extends ObjectYPT
             return false;
         }
         $row = static::getFromDbByUser($user_id);
-        if ($row) {
-            return $row;
+        if ($row && !empty($row['key'])) {
+            $row['just_created'] = false;
+        }else{
+            $l = new LiveTransmition(0);
+            $l->setTitle("I am Live");
+            $l->setDescription("");
+            $l->setKey(uniqid());
+            $l->setCategories_id(1);
+            $l->setUsers_id($user_id);
+            $l->save();
+            $row = static::getFromDbByUser($user_id);
+            $row['just_created'] = true;
         }
-        $l = new LiveTransmition(0);
-        $l->setTitle("I am Live");
-        $l->setDescription("");
-        $l->setKey(uniqid());
-        $l->setCategories_id(1);
-        $l->setUsers_id($user_id);
-        $l->save();
-        return static::getFromDbByUser($user_id);
+        return $row;
     }
 
     public static function resetTransmitionKey($user_id)
@@ -194,7 +201,9 @@ class LiveTransmition extends ObjectYPT
 
     public static function getFromRequest()
     {
-        if (!empty($_REQUEST['live_schedule'])) {
+        if (!empty($_REQUEST['live_transmitions_id'])) {
+            return LiveTransmition::getFromDb($_REQUEST['live_transmitions_id']);
+        } else if (!empty($_REQUEST['live_schedule'])) {
             return LiveTransmition::getFromDbBySchedule($_REQUEST['live_schedule']);
         } elseif (!empty($_REQUEST['u'])) {
             return LiveTransmition::getFromDbByUserName($_REQUEST['u']);

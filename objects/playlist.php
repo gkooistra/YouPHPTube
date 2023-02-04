@@ -27,7 +27,7 @@ class PlayList extends ObjectYPT {
 
     protected static function getFromDbFromName($name) {
         global $global;
-        if(!User::isLogged()){
+        if (!User::isLogged()) {
             return false;
         }
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  name = ? AND users_id = " . User::getId() . " LIMIT 1";
@@ -44,7 +44,7 @@ class PlayList extends ObjectYPT {
 
     static function getFromDbFromId($id) {
         global $global;
-        if(!User::isLogged()){
+        if (!User::isLogged()) {
             return false;
         }
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  id = ? AND users_id = " . User::getId() . " LIMIT 1";
@@ -259,9 +259,10 @@ class PlayList extends ObjectYPT {
         if ($res !== false) {
             foreach ($fullData as $row) {
                 $row = cleanUpRowFromDatabase($row);
+                $row['videos'] = array();
                 if ($onlyWithVideos) {
-                    $videos = self::getVideosIDFromPlaylistLight($row['id']);
-                    if (empty($videos)) {
+                    $row['videos'] = self::getVideosIDFromPlaylistLight($row['id']);
+                    if (empty($row['videos'])) {
                         continue;
                     }
                 }
@@ -349,6 +350,13 @@ class PlayList extends ObjectYPT {
         _session_start();
         unset($_SESSION['user']['sessionCache']['getAllFromUserVideo'][$videos_id]);
     }
+    
+    public static function getSuggested() {
+        global $global;
+        
+        return Video::getAllVideosLight("viewableNotUnlisted", false, false, true, 'serie');
+        
+    }
 
     public static function getVideosIDFromPlaylistLight($playlists_id) {
         global $global, $getVideosIDFromPlaylistLight;
@@ -361,22 +369,22 @@ class PlayList extends ObjectYPT {
             return $getVideosIDFromPlaylistLight[$playlists_id];
         }
 
-        $sql = "SELECT * FROM playlists_has_videos p WHERE playlists_id = ?  ORDER BY `order` ";
-        /*
-          cleanSearchVar();
-          $sort = @$_POST['sort'];
-          $_POST['sort'] = array();
-          $sql .= self::getSqlFromPost();
-          $_POST['sort'] = $sort;
-          reloadSearchVar();
-         *
-         */
-        $res = sqlDAL::readSql($sql, "i", [$playlists_id]);
+        if (empty($playlists_id)) {
+            $sql = "SELECT 0 as playlists_id, id as videos_id FROM videos p WHERE status = ?  ORDER BY `created` DESC ";
+            $res = sqlDAL::readSql($sql, "s", [Video::$statusActive]);
+        } else {
+            $sql = "SELECT * FROM playlists_has_videos p WHERE playlists_id = ?  ORDER BY `order` ";
+            $res = sqlDAL::readSql($sql, "i", [$playlists_id]);
+        }
+
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
         $rows = [];
         if ($res !== false) {
-            foreach ($fullData as $row) {
+            foreach ($fullData as $key => $row) {
+                if (empty($playlists_id)) {
+                    $row['order'] = $key;
+                } 
                 $rows[] = $row;
             }
         } else {
@@ -457,7 +465,7 @@ class PlayList extends ObjectYPT {
         return $rows;
     }
 
-    public static function getRandomImageFromPlayList($playlists_id, $try=0) {
+    public static function getRandomImageFromPlayList($playlists_id, $try = 0) {
         global $global;
         $sql = "SELECT v.* "
                 . " FROM  playlists_has_videos p "
@@ -472,10 +480,10 @@ class PlayList extends ObjectYPT {
             $images = Video::getImageFromFilename($row['filename'], $row['type']);
 
             if (!file_exists($images->posterLandscapePath) && !empty($row['serie_playlists_id'])) {
-                if($try>5){
+                if ($try > 5) {
                     return $images;
-                }else{
-                    return self::getRandomImageFromPlayList($row['serie_playlists_id'], $try+1);
+                } else {
+                    return self::getRandomImageFromPlayList($row['serie_playlists_id'], $try + 1);
                 }
             }
             return $images;
@@ -566,7 +574,7 @@ class PlayList extends ObjectYPT {
         $favorite = self::getIdFromUser($users_id, "favorite");
         if (empty($favorite)) {
             $pl = new PlayList(0);
-            $pl->setName("Favorite");
+            $pl->setName("Favorites");
             $pl->setUsers_id($users_id);
             $pl->setStatus("favorite");
             $pl->save();
@@ -676,9 +684,18 @@ class PlayList extends ObjectYPT {
 
     public function addVideo($videos_id, $add, $order = 0) {
         global $global;
+
+        $this->id = intval($this->id);
+        $videos_id = intval($videos_id);
+        $order = intval($order);
+
+        if (empty($this->id) || empty($videos_id)) {
+            return false;
+        }
+
         $formats = '';
         $values = [];
-        if (empty($add) || $add === "false") {
+        if (_empty($add)) {
             $sql = "DELETE FROM playlists_has_videos WHERE playlists_id = ? AND videos_id = ? ";
             $formats = "ii";
             $values[] = $this->id;
@@ -726,6 +743,10 @@ class PlayList extends ObjectYPT {
 
     public function getName() {
         return $this->name;
+    }
+    
+    public function getNameOrSerieTitle() {
+        return PlayLists::getNameOrSerieTitle($this->id);
     }
 
     public function getModified() {

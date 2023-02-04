@@ -9,10 +9,11 @@ if($_SERVER["HTTP_HOST"] === 'localhost' || $_SERVER["HTTP_HOST"] === '127.0.0.1
 }
  * 
  */
-
+//if(!empty($global['debugMemmory'])){return false;}
+//if(!empty($global['debugMemmory'])){var_dump(__LINE__);exit;}
 //var_dump($_SERVER, $global);exit;
-//$global['stopBotsList'] = array('bot','spider','rouwler','Nuclei','MegaIndex','NetSystemsResearch','CensysInspect','slurp','crawler','curl','fetch','loader');
-//$global['stopBotsWhiteList'] = array('google','bing','yahoo','yandex','twitter');
+//$global['stopBotsList'] = array('headless', 'bot','spider','rouwler','Nuclei','MegaIndex','NetSystemsResearch','CensysInspect','slurp','crawler','curl','fetch','loader');
+//$global['stopBotsWhiteList'] = array('facebook','google','bing','yahoo','yandex','twitter');
 if (!empty($global['stopBotsList']) && is_array($global['stopBotsList'])) {
     foreach ($global['stopBotsList'] as $value) {
         if (empty($_SERVER['HTTP_USER_AGENT'])) {
@@ -38,6 +39,11 @@ try {
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);
+    $urandom = '/dev/urandom';
+    if(file_exists($urandom)){ //https://stackoverflow.com/a/138748/2478180
+        ini_set("session.entropy_file", $urandom);
+        ini_set("session.entropy_length", "512");
+    }
     require_once __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
     ini_set('display_errors', 0);
     ini_set('display_startup_errors', 0);
@@ -84,7 +90,7 @@ $global['dont_show_us_flag'] = false;
 
 if (empty($doNotStartSessionbaseIncludeConfig)) {
     $config = new Configuration();
-    session_write_close();
+    @session_write_close();
 
     // server should keep session data for AT LEAST 1 hour
     ini_set('session.gc_maxlifetime', $config->getSession_timeout());
@@ -100,11 +106,11 @@ if (empty($doNotStartSessionbaseIncludeConfig)) {
         setcookie('key', 'value', time() + $config->getSession_timeout(), '/; SameSite=None; Secure');
     }
 
-    session_start();
-}
-// DDOS protection can be disabled in video/configuration.php
-if (!empty($global['enableDDOSprotection'])) {
-    ddosProtection();
+    _session_start();
+    // DDOS protection can be disabled in video/configuration.php
+    if (!empty($global['enableDDOSprotection'])) {
+        ddosProtection();
+    }
 }
 
 // set the referrer for aVideo

@@ -169,6 +169,19 @@ class API extends PluginAbstract {
 
     /**
      * @param string $parameters
+     * Returns the site unique ID
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}
+     * @return \ApiObject
+     */
+    public function get_api_id($parameters) {
+        global $global;
+        $obj = $this->startResponseObject($parameters);
+        $obj->id = getPlatformId();
+        return new ApiObject("", false, $obj);
+    }
+
+    /**
+     * @param string $parameters
      * This will check if the provided UserAgent/Headers comes from a mobile
      * Returns true if any type of mobile device detected, including special ones
      * PHP Sample code: "plugin/API/{getOrSet}.json.php?APIName={APIName}&userAgent=".urlencode($_SERVER["HTTP_USER_AGENT"])."&httpHeaders=".urlencode(json_encode(getallheaders()))
@@ -254,67 +267,133 @@ class API extends PluginAbstract {
         global $global;
         $playlists = AVideoPlugin::loadPlugin("PlayLists");
         if (empty($parameters['playlists_id'])) {
-            return new ApiObject("Playlist ID is empty", true, $parameters);
+            //return new ApiObject("Playlist ID is empty", true, $parameters);
+            $_POST['sort']['created'] = 'DESC';
+            $videos = PlayList::getVideosIDFromPlaylistLight(0);
+        } else {
+            $videos = PlayLists::getOnlyVideosAndAudioIDFromPlaylistLight($parameters['playlists_id']);
         }
-        $videos = PlayLists::getOnlyVideosAndAudioIDFromPlaylistLight($parameters['playlists_id']);
-
         if (empty($videos)) {
             return new ApiObject("There are no videos for this playlist", true, $parameters);
         }
 
-        if (empty($parameters['index'])) {
-            $parameters['index'] = 0;
-        }
-
-        if (empty($videos[$parameters['index']])) {
-            $video = $videos[0];
+        if (empty($parameters['playlists_id'])) {
+            //return new ApiObject("Playlist ID is empty", true, $parameters);
+            $_POST['sort']['created'] = 'DESC';
+            $config = new Configuration();
+            $videos = Video::getAllVideos();
+            $playlist = new PlayList($parameters['playlists_id']);
+            $parameters['playlist_name'] = __('Date Added');
+            $parameters['modified'] = date('Y-m-d H:i:s');
+            $parameters['users_id'] = 0;
+            $parameters['channel_name'] = $config->getWebSiteTitle();
+            $parameters['channel_photo'] = $config->getFavicon(true);
+            $parameters['channel_bg'] = $config->getFavicon(true);
+            $parameters['channel_link'] = $global['webSiteRootURL'];
         } else {
-            $video = $videos[$parameters['index']];
+            $playlist = new PlayList($parameters['playlists_id']);
+            $parameters['playlist_name'] = $playlist->getNameOrSerieTitle();
+            $parameters['modified'] = $playlist->getModified();
+            $users_id = $playlist->getUsers_id();
+            $user = new User($users_id);
+            $parameters['users_id'] = $users_id;
+            $parameters['channel_name'] = $user->getChannelName();
+            $parameters['channel_photo'] = $user->getPhotoDB();
+            $parameters['channel_bg'] = $user->getBackground();
+            $parameters['channel_link'] = $user->getChannelLink();
         }
-
-        $parameters['nextIndex'] = $parameters['index'] + 1;
-
-        if (empty($videos[$parameters['nextIndex']])) {
-            $parameters['nextIndex'] = 0;
-        }
-
-        $playlist = new PlayList($parameters['playlists_id']);
-        $user = new User($playlist->getUsers_id());
-
-        $videoPath = Video::getHigherVideoPathFromID($video['id']);
-        $parameters['videos'] = $videos;
-        $parameters['playlist_name'] = $playlist->getName();
-        $parameters['modified'] = $playlist->getModified();
-        $parameters['modified_timestamp'] = strtotime($parameters['modified']);
-        $parameters['users_id'] = $playlist->getUsers_id();
-        $parameters['channel_name'] = $user->getChannelName();
-        $parameters['channel_photo'] = $user->getPhotoDB();
-        $parameters['channel_bg'] = $user->getBackground();
-        $parameters['channel_link'] = $user->getChannelLink();
-        $parameters['totalPlaylistDuration'] = 0;
-        $parameters['currentPlaylistTime'] = 0;
-        foreach ($parameters['videos'] as $key => $value) {
-            $parameters['videos'][$key]['path'] = Video::getHigherVideoPathFromID($value['id']);
-            if ($key && $key <= $parameters['index']) {
-                $parameters['currentPlaylistTime'] += durationToSeconds($parameters['videos'][$key - 1]['duration']);
-            }
-            $parameters['totalPlaylistDuration'] += durationToSeconds($parameters['videos'][$key]['duration']);
-
-            $parameters['videos'][$key]['info'] = Video::getTags($value['id']);
-            $parameters['videos'][$key]['category'] = Category::getCategory($value['categories_id']);
-        }
-        if (empty($parameters['totalPlaylistDuration'])) {
-            $parameters['percentage_progress'] = 0;
-        } else {
-            $parameters['percentage_progress'] = ($parameters['currentPlaylistTime'] / $parameters['totalPlaylistDuration']) * 100;
-        }
-        $parameters['title'] = $video['title'];
-        $parameters['videos_id'] = $video['id'];
-        $parameters['path'] = $videoPath;
-        $parameters['duration'] = $video['duration'];
-        $parameters['duration_seconds'] = durationToSeconds($parameters['duration']);
+        
+        $parameters = array_merge($parameters, PlayLists::videosToPlaylist($videos, @$parameters['index'], !empty($parameters['audioOnly'])));        
 
         return new ApiObject("", false, $parameters);
+    }
+
+    /**
+     * @param string $parameters
+     * 'APISecret' to list all videos
+     * 'playlists_id' the program id
+     * 'index' the position of the video
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&playlists_id=1&index=2&APISecret={APISecret}
+     * @return \ApiObject
+     */
+    public function get_api_audio_from_program($parameters) {
+        $parameters['audioOnly'] = 1;
+        return $this->get_api_video_from_program($parameters);
+    }
+    
+    /**
+     * @param string $parameters
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}
+     * @return \ApiObject
+     */
+    public function get_api_suggested_programs($parameters) {
+        $playlists = AVideoPlugin::loadPlugin("PlayLists");
+        //var_dump($videos);exit;
+        $config = new Configuration();
+        $users_id = User::getId();
+        $list = [];
+        $obj = new stdClass();
+        $obj->id = 0;
+        $obj->photo = $config->getFavicon(true);
+        $obj->channelLink = $global['webSiteRootURL'];
+        $obj->username = $config->getWebSiteTitle();
+        $obj->name = __('Date added');
+        $obj->link = $global['webSiteRootURL'];
+        $_POST['sort']['created'] = 'DESC';
+        $obj->videos = PlayList::getVideosIDFromPlaylistLight(0);
+        $list[] = $obj;
+        $videos = PlayList::getSuggested();
+        foreach ($videos as $value) {
+                $videosArrayId = PlayList::getVideosIdFromPlaylist($value['serie_playlists_id']);
+                if (empty($videosArrayId) || $value['status'] == "favorite" || $value['status'] == "watch_later") {
+                    continue;
+                }
+                $obj = new stdClass();
+                $obj->id = $value['serie_playlists_id'];
+                $obj->photo = User::getPhoto($value['users_id']);
+                $obj->channelLink = User::getChannelLink($value['users_id']);
+                $obj->username = User::getNameIdentificationById($value['users_id']);
+                $obj->name = $value['title'];
+                $obj->link = PlayLists::getLink($value['serie_playlists_id']);
+                $obj->videos = PlayList::getVideosIDFromPlaylistLight($value['serie_playlists_id']);
+                $list[] = $obj;
+            }
+        return new ApiObject("", false, $list);
+    }
+        
+    /**
+     * This API will return all the tags from VideoTags plugin, also will list the latest 100 videos from the tags your user is subscribed to
+     * @param string $parameters
+     * 'audioOnly' 1 or 0, this option will extract the MP3 from the video file
+     * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}
+     * @return \ApiObject
+     */
+    public function get_api_tags($parameters) {
+        global $global;
+        $vtags = AVideoPlugin::loadPluginIfEnabled("VideoTags");
+        
+        if (empty($vtags)) {
+            return new ApiObject("VideoTags is disabled");
+        }
+                
+        $tags = VideoTags::getAll(User::getId());        
+        if (is_array($tags)) {
+            foreach ($tags as $key => $row) {
+                $tags[$key]['videos'] = array();
+                $tags[$key]['photo'] = $global['webSiteRootURL'].'view/img/notfound.jpg';
+                if(!empty($row['subscription'])){
+                    $videos = TagsHasVideos::getAllVideosFromTagsId($row['id']);
+                    $tags[$key]['videos'] = PlayLists::videosToPlaylist($videos, @$parameters['index'], !empty($parameters['audioOnly']));
+                    if(!empty($tags[$key]['videos'][0])){
+                        $tags[$key]['photo'] = $tags[$key]['videos'][0]['images']['poster'];
+                    }
+                }
+            }
+        }else{
+            $tags = array();
+        }
+        
+        return new ApiObject("", false, $tags);
     }
 
     /**
@@ -356,14 +435,25 @@ class API extends PluginAbstract {
      * ['videoType' the type of the video, the valid options are 'audio', 'video', 'embed', 'linkVideo', 'linkAudio', 'torrent', 'pdf', 'image', 'gallery', 'article', 'serie', 'image', 'zip', 'notfound', 'blockedUser']
      * ['is_serie' if is 0 return only videos, if is 1 return only series, if is not set, return all]
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIName={APIName}&catName=default&rowCount=10
+     * @example Suggested ----> {webSiteRootURL}plugin/API/get.json.php?APIName={APIName}&rowCount=10&sort[suggested]=1
+     * @example DateAdded ----> {webSiteRootURL}plugin/API/get.json.php?APIName={APIName}&rowCount=10&sort[created]=desc
+     * @example Trending ----> {webSiteRootURL}plugin/API/get.json.php?APIName={APIName}&rowCount=10&sort[trending]=1
+     * @example MostWatched ----> {webSiteRootURL}plugin/API/get.json.php?APIName={APIName}&rowCount=10&sort[views_count]=desc
      * @return \ApiObject
      */
     public function get_api_video($parameters) {
         $start = microtime(true);
-        $rowCount = getRowCount();
-        if ($rowCount > 100) {
-            // use 1 hour cache
-            $cacheName = 'get_api_video' . md5(json_encode($parameters) . json_encode($_GET));
+        
+        $cacheParameters = array('APIName', 'catName', 'rowCount', 'APISecret', 'sort', 'searchPhrase', 'current', 'tags_id', 'channelName', 'videoType', 'is_serie', 'user', 'videos_id');
+        
+        $cacheVars = array();
+        foreach ($cacheParameters as $value) {
+            $cacheVars[$value] = @$_REQUEST[$value];
+        }
+        
+        // use 1 hour cache
+        $cacheName = 'get_api_video' . md5(json_encode($cacheVars));
+        if(empty($parameters['videos_id'])){
             $obj = ObjectYPT::getCache($cacheName, 3600);
             if (!empty($obj)) {
                 $end = microtime(true) - $start;
@@ -786,9 +876,11 @@ class API extends PluginAbstract {
         $obj->user['canStream'] = $obj->user['canStream'] || $obj->user['isAdmin'];
         $obj->user['DonationButtons'] = _json_decode($obj->user['DonationButtons']);
 
-        $obj->livestream = LiveTransmition::getFromDbByUser($user->getBdId());
+        $obj->livestream = LiveTransmition::createTransmitionIfNeed($user->getBdId());
+        $obj->livestream["users_id"] = $user->getBdId();
         $obj->livestream["live_servers_id"] = Live::getCurrentLiveServersId();
         $obj->livestream["server"] = $p->getServer($obj->livestream["live_servers_id"]) . "?p=" . $user->getPassword();
+        $obj->livestream["server_v2"] = Live::getRTMPLinkWithOutKey($user->getBdId());
         $obj->livestream["poster"] = $global['webSiteRootURL'] . $p->getPosterImage($user->getBdId(), $obj->livestream["live_servers_id"]);
         $obj->livestream["joinURL"] = Live::getLinkToLiveFromUsers_idAndLiveServer($user->getBdId(), $obj->livestream["live_servers_id"]);
 
@@ -933,21 +1025,38 @@ class API extends PluginAbstract {
     public function get_api_programs($parameters) {
         global $global;
         require_once $global['systemRootPath'] . 'objects/playlist.php';
-        $playlists = PlayList::getAll();
+
+        $config = new Configuration();
+        $users_id = User::getId();
         $list = [];
-        foreach ($playlists as $value) {
-            $videosArrayId = PlayList::getVideosIdFromPlaylist($value['id']);
-            if (empty($videosArrayId) || $value['status'] == "favorite" || $value['status'] == "watch_later") {
-                continue;
+        $obj = new stdClass();
+        $obj->id = 0;
+        $obj->photo = $config->getFavicon(true);
+        $obj->channelLink = $global['webSiteRootURL'];
+        $obj->username = $config->getWebSiteTitle();
+        $obj->name = __('Date added');
+        $obj->link = $global['webSiteRootURL'];
+        $_POST['sort']['created'] = 'DESC';
+        $obj->videos = PlayList::getVideosIDFromPlaylistLight(0);
+        $list[] = $obj;
+        if (!empty($users_id)) {
+            //getAllFromUserLight($userId, $publicOnly = true, $status = false, $playlists_id = 0, $onlyWithVideos = false, $includeSeries = false)
+            $playlists = PlayList::getAllFromUserLight($users_id, false, false, 0, true, true);
+            foreach ($playlists as $value) {
+                $videosArrayId = PlayList::getVideosIdFromPlaylist($value['id']);
+                if (empty($videosArrayId) || $value['status'] == "favorite" || $value['status'] == "watch_later") {
+                    continue;
+                }
+                $obj = new stdClass();
+                $obj->id = $value['id'];
+                $obj->photo = User::getPhoto($value['users_id']);
+                $obj->channelLink = User::getChannelLink($value['users_id']);
+                $obj->username = User::getNameIdentificationById($value['users_id']);
+                $obj->name = $value['name'];
+                $obj->link = PlayLists::getLink($value['id']);
+                $obj->videos = $value['videos'];
+                $list[] = $obj;
             }
-            $obj = new stdClass();
-            $obj->id = $value['id'];
-            $obj->photo = User::getPhoto($value['users_id']);
-            $obj->channelLink = User::getChannelLink($value['users_id']);
-            $obj->username = User::getNameIdentificationById($value['users_id']);
-            $obj->name = $value['name'];
-            $obj->link = PlayLists::getLink($value['id']);
-            $list[] = $obj;
         }
         return new ApiObject("", false, $list);
     }
@@ -1623,7 +1732,10 @@ class ApiObject {
     public $response;
 
     public function __construct($message = "api not started or not found", $error = true, $response = []) {
+        $response = cleanUpRowFromDatabase($response);
+        
         $this->error = $error;
+        $this->msg = $message;
         $this->message = $message;
         $this->response = $response;
         $this->users_id = User::getId();

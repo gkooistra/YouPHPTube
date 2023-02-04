@@ -34,13 +34,15 @@ class CustomizeAdvanced extends PluginAbstract {
         return array(
             'EnableMinifyJS',
             'usePreloadLowResolutionImages',
+            'useFFMPEGToGenerateThumbs',
+            'makeVideosInactiveAfterEncode',
+            'makeVideosUnlistedAfterEncode',
             );
     }
     
     public static function getDataObjectExperimental() {
         return array(
             'autoPlayAjax',
-            'useFFMPEGToGenerateThumbs',
         );
     }
     
@@ -164,7 +166,7 @@ class CustomizeAdvanced extends PluginAbstract {
     }
     
     public function getEmptyDataObject() {
-        global $global;
+        global $global, $statusThatTheUserCanUpdate, $advancedCustom;
         $obj = new stdClass();
         $obj->logoMenuBarURL = "";
         $obj->encoderNetwork = "https://network.wwbn.net/";
@@ -189,7 +191,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotShowEmbedButton = false;
         $obj->embedBackgroundColor = "white";
         $obj->embedButtonLabel = "";
-        $obj->embedCodeTemplate = '<div class="embed-responsive embed-responsive-16by9"><iframe width="640" height="360" style="max-width: 100%;max-height: 100%; border:none;" src="{embedURL}" frameborder="0" '.Video::$iframeAllowAttributes.' scrolling="no" videoLengthInSeconds="{videoLengthInSeconds}">iFrame is not supported!</iframe></div>';
+        $obj->embedCodeTemplate = '<div class="embed-responsive embed-responsive-16by9" style="position: relative;padding-bottom: 56.25% !important;"><iframe width="640" height="360" style="max-width: 100%;max-height: 100%; border:none;position: absolute;top: 0;left: 0;width: 100%; height: 100%;" src="{embedURL}" frameborder="0" '.Video::$iframeAllowAttributes.' scrolling="no" videoLengthInSeconds="{videoLengthInSeconds}">iFrame is not supported!</iframe></div>';
         $obj->embedCodeTemplateObject = '<div class="embed-responsive embed-responsive-16by9"><object width="640" height="360"><param name="movie" value="{embedURL}"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed src="{embedURL}" allowscriptaccess="always" allowfullscreen="true" width="640" height="360"></embed></object></div>';
         $obj->htmlCodeTemplate = '<a href="{permaLink}"><img src="{imgSRC}">{title}</a>';
         $obj->BBCodeTemplate = '[url={permaLink}][img]{imgSRC}[/img]{title}[/url]';
@@ -222,6 +224,27 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotUseXsendFile = false;
         $obj->makeVideosInactiveAfterEncode = false;
         $obj->makeVideosUnlistedAfterEncode = false;
+        
+        $o = new stdClass();
+        $o->type = array();
+        foreach ($statusThatTheUserCanUpdate as $value) {
+            $statusIndex = $value[0];
+            $statusColor = $value[1];
+            $o->type[$statusIndex] = Video::$statusDesc[$statusIndex];
+        }
+        
+        $dbObject = PluginAbstract::getObjectDataFromDatabase($this->getUUID());
+        
+        if (!empty($dbObject->makeVideosInactiveAfterEncode)) {
+            $o->value = Video::$statusInactive;
+        } elseif (!empty($dbObject->makeVideosUnlistedAfterEncode)) {
+            $o->value = Video::$statusUnlisted;
+        }else{
+            $o->value = Video::$statusActive;
+        }
+        $obj->defaultVideoStatus = $o;
+        self::addDataObjectHelper('defaultVideoStatus', 'Default video status', 'When you submit a video that will be the default status');
+        
         $obj->usePermalinks = false;
         self::addDataObjectHelper('usePermalinks', 'Do not show video title on URL', 'This option is not good for SEO, but makes the URL clear');
         $obj->useVideoIDOnSEOLinks = true;
@@ -720,10 +743,7 @@ Allow: .css";
         $video = new Video('', '', $videos_id);
         $users_id = $video->getUsers_id();
         $user = new User($users_id);
-        $externalOptions = object_to_array(_json_decode(User::decodeExternalOption($user->_getExternalOptions())));
-        $externalOptions['doNotShowAdsOnThisChannel'] = $doNotShowAdsOnThisChannel;
-        $user->setExternalOptions(json_encode($externalOptions));
-        return $user->save();
+        return $user->addExternalOptions('doNotShowAdsOnThisChannel', $doNotShowAdsOnThisChannel);
     }
 
     public static function getDoNotShowAds($videos_id): bool {

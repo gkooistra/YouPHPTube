@@ -3,6 +3,7 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
+require_once $global['systemRootPath'] . 'objects/Object.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 
 class Plugin extends ObjectYPT
@@ -176,7 +177,7 @@ class Plugin extends ObjectYPT
                 $getPluginByUUID[$uuid] = $data;
             } else {
                 $name = AVideoPlugin::getPluginsNameOnByDefaultFromUUID($uuid);
-                if ($name !== false && empty($pluginJustInstalled[$uuid])) {
+                if (!sqlDAL::wasSTMTError() && $name !== false && empty($pluginJustInstalled[$uuid])) {
                     $pluginJustInstalled[$uuid] = 1;
                     _error_log("plugin::getPluginByUUID {$name} {$uuid} this plugin is On By Default we will install it ($sql)");
                     self::deleteByUUID($uuid);

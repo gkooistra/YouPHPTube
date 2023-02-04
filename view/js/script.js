@@ -45,6 +45,14 @@ try {
                 height = $('body').height();
             }
             parent.postMessage({height: height}, '*');
+        }else if (e.data.play) {
+            var currentTime = e.data.play.currentTime;
+            var muted = !empty(e.data.play.muted);
+            if(!muted){
+                playerPlay(currentTime);
+            }else{
+                tryToPlayMuted(currentTime);
+            }
         }
     }, false);
 
@@ -68,6 +76,16 @@ var urlParams = new URLSearchParams(queryString);
 
 if (urlParams.has('debug')) {
     isDebuging = false;
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+if (typeof String.prototype.replaceAll === "undefined") {
+    console.log('replaceAll is undefined');
+    String.prototype.replaceAll = function (match, _replace) {
+        return this.replace(new RegExp(escapeRegExp(match), 'g'), _replace);
+    }
 }
 
 async function setBodyOnline() {
@@ -97,20 +115,20 @@ $(document).mousemove(function (e) {
     mouseY = e.pageY;
 });
 String.prototype.stripAccents = function () {
-    var returnvar = this.replace(/[áàâãªä]/g, 'a');
-    returnvar = returnvar.replace(/[ÁÀÂÃÄ]/g, 'A');
+    var returnvar = this.replace(/[áàâãªäą]/g, 'a');
+    returnvar = returnvar.replace(/[ÁÀÂÃÄĄ]/g, 'A');
     returnvar = returnvar.replace(/[ÍÌÎÏ]/g, 'I');
     returnvar = returnvar.replace(/[íìîï]/g, 'i');
-    returnvar = returnvar.replace(/[éèêë]/g, 'e');
-    returnvar = returnvar.replace(/[ÉÈÊË]/g, 'E');
+    returnvar = returnvar.replace(/[éèêëę]/g, 'e');
+    returnvar = returnvar.replace(/[ÉÈÊËĘ]/g, 'E');
     returnvar = returnvar.replace(/[óòôõºö]/g, 'o');
     returnvar = returnvar.replace(/[ÓÒÔÕÖ]/g, 'O');
     returnvar = returnvar.replace(/[úùûü]/g, 'u');
     returnvar = returnvar.replace(/[ÚÙÛÜ]/g, 'U');
-    returnvar = returnvar.replace(/ç/g, 'c');
-    returnvar = returnvar.replace(/Ç/g, 'C');
-    returnvar = returnvar.replace(/ñ/g, 'n');
-    returnvar = returnvar.replace(/Ñ/g, 'N');
+    returnvar = returnvar.replace(/[çć]/g, 'c');
+    returnvar = returnvar.replace(/[ÇĆ]/g, 'C');
+    returnvar = returnvar.replace(/[ñń]/g, 'n');
+    returnvar = returnvar.replace(/[ÑŃ]/g, 'N');
     returnvar = returnvar.replace(/–/g, '-');
     returnvar = returnvar.replace(/[’‘‹›‚]/g, ' ');
     returnvar = returnvar.replace(/[“”«»„]/g, ' ');
@@ -129,17 +147,17 @@ String.prototype.stripAccents = function () {
     returnvar = returnvar.replace(/Е/g, 'E');
     returnvar = returnvar.replace(/Ё/g, 'YO');
     returnvar = returnvar.replace(/Ж/g, 'ZH');
-    returnvar = returnvar.replace(/З/g, 'Z');
+    returnvar = returnvar.replace(/[ЗŻŹ]/g, 'Z');
     returnvar = returnvar.replace(/И/g, 'I');
     returnvar = returnvar.replace(/Й/g, 'J');
     returnvar = returnvar.replace(/К/g, 'K');
-    returnvar = returnvar.replace(/Л/g, 'L');
+    returnvar = returnvar.replace(/[ЛŁ]/g, 'L');
     returnvar = returnvar.replace(/М/g, 'M');
     returnvar = returnvar.replace(/Н/g, 'N');
     returnvar = returnvar.replace(/О/g, 'O');
     returnvar = returnvar.replace(/П/g, 'P');
     returnvar = returnvar.replace(/Р/g, 'R');
-    returnvar = returnvar.replace(/С/g, 'S');
+    returnvar = returnvar.replace(/[СŚ]/g, 'S');
     returnvar = returnvar.replace(/Т/g, 'T');
     returnvar = returnvar.replace(/У/g, 'U');
     returnvar = returnvar.replace(/Ф/g, 'F');
@@ -162,17 +180,17 @@ String.prototype.stripAccents = function () {
     returnvar = returnvar.replace(/е/g, 'e');
     returnvar = returnvar.replace(/ё/g, 'yo');
     returnvar = returnvar.replace(/ж/g, 'zh');
-    returnvar = returnvar.replace(/з/g, 'z');
+    returnvar = returnvar.replace(/[зżź]/g, 'z');
     returnvar = returnvar.replace(/и/g, 'i');
     returnvar = returnvar.replace(/й/g, 'j');
     returnvar = returnvar.replace(/к/g, 'k');
-    returnvar = returnvar.replace(/л/g, 'l');
+    returnvar = returnvar.replace(/[лł]/g, 'l');
     returnvar = returnvar.replace(/м/g, 'm');
     returnvar = returnvar.replace(/н/g, 'n');
     returnvar = returnvar.replace(/о/g, 'o');
     returnvar = returnvar.replace(/п/g, 'p');
     returnvar = returnvar.replace(/р/g, 'r');
-    returnvar = returnvar.replace(/с/g, 's');
+    returnvar = returnvar.replace(/[сś]/g, 's');
     returnvar = returnvar.replace(/т/g, 't');
     returnvar = returnvar.replace(/у/g, 'u');
     returnvar = returnvar.replace(/ф/g, 'f');
@@ -306,8 +324,8 @@ function changeVideoSrc(vid_obj, source) {
     for (i = 0; i < source.length; i++) {
         if (source[i].type) {
             if (source[i].type === "application/x-mpegURL") {
-// it is HLS cancel it
-//return false;
+                // it is HLS cancel it
+                //return false;
                 autoLoad = false;
             }
             srcs.push(source[i]);
@@ -502,7 +520,12 @@ function addView(videos_id, currentTime) {
     return true;
 }
 
+var isVideoAddViewCount = false;
 function _addView(videos_id, currentTime, seconds_watching_video) {
+    if(isVideoAddViewCount){
+        return false;
+    }
+    isVideoAddViewCount = true;
     if (typeof PHPSESSID == 'undefined') {
         PHPSESSID = '';
     }
@@ -521,6 +544,7 @@ function _addView(videos_id, currentTime, seconds_watching_video) {
             seconds_watching_video: seconds_watching_video
         },
         success: function (response) {
+            isVideoAddViewCount = false;
             $('.view-count' + videos_id).text(response.countHTML);
         }
     });
@@ -580,7 +604,7 @@ async function addViewFromCookie() {
 }
 
 async function addViewSetCookie(PHPSESSID, videos_id, playerCurrentTime, seconds_watching_video) {
-////console.log('addViewSetCookie', videos_id, playerCurrentTime, seconds_watching_video, new Error().stack);
+    ////console.log('addViewSetCookie', videos_id, playerCurrentTime, seconds_watching_video, new Error().stack);
     Cookies.set('addView_PHPSESSID', PHPSESSID, {
         path: '/',
         expires: 1
@@ -1628,12 +1652,12 @@ function avideoPushState(url) {
 }
 
 function checkIframeLoaded(id) {
-// Get a handle to the iframe element
+    // Get a handle to the iframe element
     var iframe = document.getElementById(id);
     var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
     // Check if loading is complete
     if (iframeDoc.readyState == 'complete') {
-//iframe.contentWindow.alert("Hello");
+        //iframe.contentWindow.alert("Hello");
         iframe.contentWindow.onload = function () {
             alert("I am loaded");
         };
@@ -1642,7 +1666,7 @@ function checkIframeLoaded(id) {
         return;
     }
 
-// If we are here, it is not loaded. Set things up so we check   the status again in 100 milliseconds
+    // If we are here, it is not loaded. Set things up so we check   the status again in 100 milliseconds
     window.setTimeout(checkIframeLoaded, 100);
 }
 
@@ -2090,6 +2114,9 @@ function addGetParam(_url, _key, _value) {
     if (typeof _url !== 'string') {
         return false;
     }
+    if (typeof _value == 'undefined' || _value == 'undefined' || _value == '') {
+        return _url;
+    }
     var param = _key + '=' + escape(_value);
     var sep = '&';
     if (_url.indexOf('?') < 0) {
@@ -2268,6 +2295,7 @@ function changeVideoStatus(videos_id, status) {
                     $(".getChangeVideoStatusButton_" + videos_id).removeClass('status_a');
                     $(".getChangeVideoStatusButton_" + videos_id).removeClass('status_u');
                     $(".getChangeVideoStatusButton_" + videos_id).removeClass('status_i');
+                    $(".getChangeVideoStatusButton_" + videos_id).removeClass('status_s');
                     $(".getChangeVideoStatusButton_" + videos_id).addClass('status_' + response.status[item].status);
                 }
 
@@ -2278,13 +2306,21 @@ function changeVideoStatus(videos_id, status) {
 }
 
 function avideoAjax(url, data) {
-    modal.showPleaseWait();
+    avideoAjax2(url, data, true);
+}
+
+function avideoAjax2(url, data, pleaseWait) {
+    if(pleaseWait){
+        modal.showPleaseWait();
+    }
     $.ajax({
         url: url,
         data: data,
         type: 'post',
         success: function (response) {
-            modal.hidePleaseWait();
+            if(pleaseWait){
+                modal.hidePleaseWait();
+            }
             if (response.error) {
                 avideoAlertError(response.msg);
             } else {
@@ -2302,7 +2338,7 @@ function isPlayerUserActive() {
 }
 
 eventer('beforeunload', function (e) {
-////console.log('window.addEventListener(beforeunload');
+    ////console.log('window.addEventListener(beforeunload');
     _addViewAsync();
 }, false);
 eventer('visibilitychange', function () {
@@ -2375,7 +2411,7 @@ function downloadURL(url, filename) {
                                 const reader = response.body.getReader();
                                 read();
                                 function read() {
-                                    reader.read().then(({done, value}) => {
+                                    reader.read().then(({ done, value }) => {
                                         if (done) {
                                             controller.close();
                                             return;
@@ -2788,7 +2824,7 @@ function getPleaseWait() {
         var selector = "#pleaseWaitDialog_" + index;
         var pleaseWaitDiv = $(selector);
         if (pleaseWaitDiv.length === 0) {
-            console.log('getPleaseWait', index);
+            //console.log('getPleaseWait', index);
             if (typeof avideoLoader == 'undefined') {
                 avideoLoader = '';
             }
@@ -2935,11 +2971,96 @@ $(document).ready(function () {
 
 });
 
+/*!
+ * Sanitize an HTML string
+ * (c) 2021 Chris Ferdinandi, MIT License, https://gomakethings.com
+ * @param  {String}          str   The HTML string to sanitize
+ * @param  {Boolean}         nodes If true, returns HTML nodes instead of a string
+ * @return {String|NodeList}       The sanitized string or nodes
+ */
+function cleanHTML (str, nodes) {
+
+	/**
+	 * Convert the string to an HTML document
+	 * @return {Node} An HTML document
+	 */
+	function stringToHTML () {
+		let parser = new DOMParser();
+		let doc = parser.parseFromString(str, 'text/html');
+		return doc.body || document.createElement('body');
+	}
+
+	/**
+	 * Remove <script> elements
+	 * @param  {Node} html The HTML
+	 */
+	function removeScripts (html) {
+		let scripts = html.querySelectorAll('script');
+		for (let script of scripts) {
+			script.remove();
+		}
+	}
+
+	/**
+	 * Check if the attribute is potentially dangerous
+	 * @param  {String}  name  The attribute name
+	 * @param  {String}  value The attribute value
+	 * @return {Boolean}       If true, the attribute is potentially dangerous
+	 */
+	function isPossiblyDangerous (name, value) {
+		let val = value.replace(/\s+/g, '').toLowerCase();
+		if (['src', 'href', 'xlink:href'].includes(name)) {
+			if (val.includes('javascript:') || val.includes('data:text/html')) return true;
+		}
+		if (name.startsWith('on')) return true;
+	}
+
+	/**
+	 * Remove potentially dangerous attributes from an element
+	 * @param  {Node} elem The element
+	 */
+	function removeAttributes (elem) {
+
+		// Loop through each attribute
+		// If it's dangerous, remove it
+		let atts = elem.attributes;
+		for (let {name, value} of atts) {
+			if (!isPossiblyDangerous(name, value)) continue;
+			elem.removeAttribute(name);
+		}
+
+	}
+
+	/**
+	 * Remove dangerous stuff from the HTML document's nodes
+	 * @param  {Node} html The HTML document
+	 */
+	function clean (html) {
+		let nodes = html.children;
+		for (let node of nodes) {
+			removeAttributes(node);
+			clean(node);
+		}
+	}
+
+	// Convert the string to HTML
+	let html = stringToHTML();
+
+	// Sanitize it
+	removeScripts(html);
+	clean(html);
+
+	// If the user wants HTML nodes back, return them
+	// Otherwise, pass a sanitized string back
+	return nodes ? html.childNodes : html.innerHTML;
+
+}
+
 async function _alertFromGet(type) {
     if (urlParams.has(type)) {
         var msg = urlParams.get(type);
         var div = document.createElement("div");
-        div.innerHTML = msg;
+        div.innerHTML = cleanHTML(msg, false);
         var text = div.textContent || div.innerText || "";
         if (!empty(text)) {
             switch (type) {
@@ -3671,8 +3792,42 @@ function addScript(src) {
     }
 }
 
-function getUser(){
-    var url = webSiteRootURL+'plugin/API/get.json.php?APIName=user';
+function avideoLogoff(redirect) {
+    sendAVideoMobileLiveStreamerMessage('logoff', '');
+    if (redirect) {
+        document.location = webSiteRootURL + 'logoff';
+    }
+}
+
+async function sendAVideoMobileLiveStreamerMessage(type, value){
+    if (typeof window.flutter_inappwebview !== 'undefined') {
+        if (typeof window.flutter_inappwebview.callHandler == 'function') {
+            for (i = 0; i < 10; i++) {
+                response = await window.flutter_inappwebview.callHandler('AVideoMobileLiveStreamer' + i, {type: type, value: value, instanceIndex: i});
+                if(response!==null){
+                    console.log('sendAVideoMobileLiveStreamerMessage executed', i, response, type, value);
+                    break;
+                }else{
+                    console.log('sendAVideoMobileLiveStreamerMessage not found', i, type, value);
+                }
+            }
+        } else {
+            console.log('sendAVideoMobileLiveStreamerMessage will try again', type, value);
+            setTimeout(function () {
+                sendAVideoMobileLiveStreamerMessage(type, value);
+            }, 1000);
+        }
+    } else {
+        //window.parent.postMessage({type: type, value: value}, '*');
+        window.top.postMessage({type: type, value: value}, '*');
+    }
+}
+window.addEventListener("flutterInAppWebViewPlatformReady", function (event) {
+    sendAVideoMobileLiveStreamerMessage('APPIsReady', 1);
+});
+
+function getUser() {
+    var url = webSiteRootURL + 'plugin/API/get.json.php?APIName=user';
     return $.ajax({
         url: url,
         async: false

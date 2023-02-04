@@ -97,8 +97,4 @@ class MobileManager extends PluginAbstract
 
         return $obj;
     }
-
-    public function upload()
-    {
-    }
 }

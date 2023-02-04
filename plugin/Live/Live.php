@@ -1195,6 +1195,7 @@ Click <a href=\"{link}\">here</a> to join our live.";
     }
 
     public static function getAllControlls($key, $live_servers_id = 0, $iconsOnly = false, $btnClass = '') {
+        global $global;
         if (!Live::canManageLiveFromLiveKey($key, User::getId())) {
             return '';
         }
@@ -1208,18 +1209,7 @@ Click <a href=\"{link}\">here</a> to join our live.";
         $btn .= self::getButton("record_start", $key, $live_servers_id, $iconsOnly, '', $btnClass);
         $btn .= self::getButton("record_stop", $key, $live_servers_id, $iconsOnly, '', $btnClass);
         $btn .= "</div>";
-        $btn .= "<script>
-                $(document).ready(function () {
-                    setInterval(function () {
-                        if (isOnlineLabel || $('.liveOnlineLabel.label-success').length) {
-                            $('#liveControls').slideDown();
-                        } else {
-                            $('#liveControls').slideUp();
-                        }
-                    }, 1000);
-
-                });
-            </script>";
+        $btn .= "<script src=\"{$global['webSiteRootURL']}plugin/Live/view/isOnlineLabel.js\"></script>";
 
         return $btn;
     }
@@ -2408,6 +2398,14 @@ Click <a href=\"{link}\">here</a> to join our live.";
             return false;
         }
         return $latest['key'];
+    }
+    
+    public static function getLatest() {
+        $latest = LiveTransmitionHistory::getLatest();
+        if (empty($latest)) {
+            return false;
+        }
+        return $latest;
     }
 
     public static function isLive($users_id, $live_servers_id = 0, $live_index = '', $force_recreate = false) {
@@ -3901,17 +3899,23 @@ class LiveStreamObject {
             if (is_string($forceIndexIfEnabled) || is_int($forceIndexIfEnabled)) {
                 $this->live_index = $forceIndexIfEnabled;
             } else {
-                $objLive = AVideoPlugin::getDataObject("Live");
-                if (!empty($objLive->allowMultipleLivesPerUser)) {
-                    if (empty($allowOnlineIndex)) {
-                        $this->live_index = Live::getLatestValidNotOnlineLiveIndex($this->key);
-                    } else {
-                        $this->live_index = LiveTransmitionHistory::getLatestIndexFromKey($this->key);
-                    }
-                }
+                $this->live_index = $this->getIndex($allowOnlineIndex);
             }
         }
         return Live::getLiveKeyFromRequest($this->key, $this->live_index, $this->playlists_id_live);
+    }    
+
+    public function getIndex($allowOnlineIndex = false) {
+        $objLive = AVideoPlugin::getDataObject("Live");
+        $live_index = '';
+        if (!empty($objLive->allowMultipleLivesPerUser)) {
+            if (empty($allowOnlineIndex)) {
+                $live_index = Live::getLatestValidNotOnlineLiveIndex($this->key);
+            } else {
+                $live_index = LiveTransmitionHistory::getLatestIndexFromKey($this->key);
+            }
+        }
+        return $live_index;
     }
 
     public function getLive_servers_id() {
