@@ -26,31 +26,7 @@ class RepositoryWebrefReferencePageScores extends \Google\Model
   /**
    * @var float
    */
-  public $explainedNormalizedTopicality;
-  /**
-   * @var float
-   */
-  public $firstScore;
-  /**
-   * @var bool
-   */
-  public $hasSpecialLinks;
-  /**
-   * @var float
-   */
-  public $medianMentionScore;
-  /**
-   * @var float
-   */
-  public $navboostCoverage;
-  /**
-   * @var float
-   */
   public $referencePageScore;
-  /**
-   * @var float
-   */
-  public $referencePageSelectionScore;
   /**
    * @var bool
    */
@@ -63,14 +39,6 @@ class RepositoryWebrefReferencePageScores extends \Google\Model
    * @var float
    */
   public $singleTopicnessV2;
-  /**
-   * @var float
-   */
-  public $titleCoverage;
-  /**
-   * @var float
-   */
-  public $totalSum;
 
   /**
    * @param float
@@ -89,76 +57,6 @@ class RepositoryWebrefReferencePageScores extends \Google\Model
   /**
    * @param float
    */
-  public function setExplainedNormalizedTopicality($explainedNormalizedTopicality)
-  {
-    $this->explainedNormalizedTopicality = $explainedNormalizedTopicality;
-  }
-  /**
-   * @return float
-   */
-  public function getExplainedNormalizedTopicality()
-  {
-    return $this->explainedNormalizedTopicality;
-  }
-  /**
-   * @param float
-   */
-  public function setFirstScore($firstScore)
-  {
-    $this->firstScore = $firstScore;
-  }
-  /**
-   * @return float
-   */
-  public function getFirstScore()
-  {
-    return $this->firstScore;
-  }
-  /**
-   * @param bool
-   */
-  public function setHasSpecialLinks($hasSpecialLinks)
-  {
-    $this->hasSpecialLinks = $hasSpecialLinks;
-  }
-  /**
-   * @return bool
-   */
-  public function getHasSpecialLinks()
-  {
-    return $this->hasSpecialLinks;
-  }
-  /**
-   * @param float
-   */
-  public function setMedianMentionScore($medianMentionScore)
-  {
-    $this->medianMentionScore = $medianMentionScore;
-  }
-  /**
-   * @return float
-   */
-  public function getMedianMentionScore()
-  {
-    return $this->medianMentionScore;
-  }
-  /**
-   * @param float
-   */
-  public function setNavboostCoverage($navboostCoverage)
-  {
-    $this->navboostCoverage = $navboostCoverage;
-  }
-  /**
-   * @return float
-   */
-  public function getNavboostCoverage()
-  {
-    return $this->navboostCoverage;
-  }
-  /**
-   * @param float
-   */
   public function setReferencePageScore($referencePageScore)
   {
     $this->referencePageScore = $referencePageScore;
@@ -169,20 +67,6 @@ class RepositoryWebrefReferencePageScores extends \Google\Model
   public function getReferencePageScore()
   {
     return $this->referencePageScore;
-  }
-  /**
-   * @param float
-   */
-  public function setReferencePageSelectionScore($referencePageSelectionScore)
-  {
-    $this->referencePageSelectionScore = $referencePageSelectionScore;
-  }
-  /**
-   * @return float
-   */
-  public function getReferencePageSelectionScore()
-  {
-    return $this->referencePageSelectionScore;
   }
   /**
    * @param bool
@@ -225,34 +109,6 @@ class RepositoryWebrefReferencePageScores extends \Google\Model
   public function getSingleTopicnessV2()
   {
     return $this->singleTopicnessV2;
-  }
-  /**
-   * @param float
-   */
-  public function setTitleCoverage($titleCoverage)
-  {
-    $this->titleCoverage = $titleCoverage;
-  }
-  /**
-   * @return float
-   */
-  public function getTitleCoverage()
-  {
-    return $this->titleCoverage;
-  }
-  /**
-   * @param float
-   */
-  public function setTotalSum($totalSum)
-  {
-    $this->totalSum = $totalSum;
-  }
-  /**
-   * @return float
-   */
-  public function getTotalSum()
-  {
-    return $this->totalSum;
   }
 }
 

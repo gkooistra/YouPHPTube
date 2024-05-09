@@ -8,6 +8,7 @@ use JsonException;
 use OneSignal\Exception\InvalidArgumentException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
+
 use const JSON_THROW_ON_ERROR;
 
 abstract class AbstractApi
@@ -31,7 +32,8 @@ abstract class AbstractApi
     }
 
     /**
-     * @param mixed $value
+     * @param mixed $value String content with which to populate the stream
+     *
      * @phpstan-param int<1, max> $maxDepth
      */
     protected function createStream($value, int $flags = null, int $maxDepth = 512): StreamInterface

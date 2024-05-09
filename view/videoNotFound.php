@@ -4,12 +4,12 @@ if (!isset($global['systemRootPath'])) {
 }
 
 header('HTTP/1.0 404 Not Found', true, 404);
-$img = "".getCDN()."view/img/this-video-is-not-available.jpg";
-$poster = "".getCDN()."view/img/this-video-is-not-available.jpg";
+$img = ImagesPlaceHolders::getVideoNotFoundPoster(ImagesPlaceHolders::$RETURN_URL);
+$poster = $img;
 $imgw = 1280;
 $imgh = 720;
 unset($_SESSION['type']);
-session_write_close();
+_session_write_close();
 $video = [];
 $video['id'] = 0;
 $video['type'] = 'notfound';
@@ -25,36 +25,32 @@ $video['dislikes'] = '';
 $video['category'] = "embed";
 $video['views_count'] = 0;
 $video['filename'] = '';
+
+$_page = new Page(array('Chat Editor'), 'videoNotFound');
+$_page->setExtraStyles(
+    array(
+        'plugin/Gallery/style.css',
+    )
+);
 ?>
-<!DOCTYPE html>
-<html lang="<?php echo getLanguage(); ?>">
-    <head>
-        <title><?php echo __('Video Not Found'); ?></title>
-        <link href="<?php echo getCDN(); ?>plugin/Gallery/style.css" rel="stylesheet" type="text/css"/>
+<!-- view videoNotFound.php -->
+<div class="container-fluid principalContainer" id="modeYoutubePrincipal" style="overflow: hidden;">
+    <?php
+    require "{$global['systemRootPath']}view/modeYoutubeBundle.php";
+    ?>
+</div>
+<?php
+showCloseButton();
+?>
+<script>
+    $(function() {
         <?php
-        include $global['systemRootPath'] . 'view/include/head.php';
+        if (!empty($_REQUEST['404ErrorMsg'])) {
+            echo "avideoAlertInfo(\"{$_REQUEST['404ErrorMsg']}\");";
+        }
         ?>
-    </head>
-    <body class="<?php echo $global['bodyClass']; ?>">
-        <?php include $global['systemRootPath'] . 'view/include/navbar.php'; ?>
-        <!-- view videoNotFound.php -->
-        <div class="container-fluid principalContainer" id="modeYoutubePrincipal" style="overflow: hidden;">
-            <?php
-            require "{$global['systemRootPath']}view/modeYoutubeBundle.php";
-            ?>
-        </div>
-        <?php
-        include $global['systemRootPath'] . 'view/include/footer.php';
-        showCloseButton();
-        ?>
-        <script>
-            $(function () {
-                <?php
-                if (!empty($_REQUEST['404ErrorMsg'])) {
-                    echo "avideoAlertInfo(\"{$_REQUEST['404ErrorMsg']}\");";
-                }
-                ?>
-            });
-        </script>
-    </body>
-</html>
+    });
+</script>
+<?php
+$_page->print();
+?>

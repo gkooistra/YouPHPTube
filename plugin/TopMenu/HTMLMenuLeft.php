@@ -13,7 +13,7 @@ foreach ($menu as $key => $value) {
     ?>
     <li>
         <hr>
-        <strong class="text-danger">
+        <strong class="text-danger hideIfCompressed">
             <?php
             if (!empty($value['icon'])) {
                 ?>
@@ -37,7 +37,9 @@ foreach ($menu as $key => $value) {
                     <?php
                 }
                 ?>
-                <?php echo __($value2['title']); ?>
+                <span class="menuLabel">
+                    <?php echo __($value2['title']); ?>
+                </span>
             </a>
         </li>            
         <?php

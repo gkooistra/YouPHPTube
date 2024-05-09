@@ -2,7 +2,7 @@
 require_once '../videos/configuration.php';
 header('Content-Type: application/json');
 
-session_write_close();
+_session_write_close();
 $from = date("Y-m-d 00:00:00", strtotime($_REQUEST['dateFrom']));
 $to = date('Y-m-d 23:59:59', strtotime($_REQUEST['dateTo']));
 $fromDate = date("Y-m-d", strtotime($_REQUEST['dateFrom']));
@@ -18,7 +18,7 @@ if ($config->getAuthCanViewChart() == 0) {
         }
     } elseif (User::isLogged()) {
         $users_id = User::getId();
-    } 
+    }
 } elseif ($config->getAuthCanViewChart() == 1) {
     if ((!empty($_SESSION['user']['canViewChart']))||(User::isAdmin())) {
         if(empty($_REQUEST['users_id'])){
@@ -32,7 +32,7 @@ if ($config->getAuthCanViewChart() == 0) {
 $obj = new stdClass();
 
 
-$obj->data = array();
+$obj->data = [];
 
 
 if(empty($users_id)){
@@ -45,15 +45,15 @@ if($users_id === 'all'){
 
 $obj->data = VideoStatistic::getStatisticTotalViewsAndSecondsWatchingFromUser($users_id, $from, $to);
 
-$rows = array();
+$rows = [];
 foreach ($obj->data as $value) {
-    $rows[] = array(
+    $rows[] = [
         $value['videos_id'],
         $value['title'],
         $value['type'],
         $value['total_views'],
         intval($value['seconds_watching_video'])
-     );
+     ];
 }
 
 $filename = "{$users_id}_{$fromDate}_{$toDate}";
@@ -63,7 +63,7 @@ $identification = 'All Users';
 if(!empty($users_id)){
     $identification = User::getNameIdentificationById($users_id);
 }
-fputcsv($output, array('From', $fromDate, 'To', $toDate, 'User', "[{$users_id}] {$identification}"));
+fputcsv($output, ['From', $fromDate, 'To', $toDate, 'User', "[{$users_id}] {$identification}"]);
 $fields = ['videos_id', 'title', 'type', 'total views', 'seconds watching video'];
 fputcsv($output, $fields);
 foreach ($rows as $row) {

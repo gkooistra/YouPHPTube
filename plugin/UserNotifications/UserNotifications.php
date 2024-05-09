@@ -29,7 +29,7 @@ class UserNotifications extends PluginAbstract {
     }
 
     public function getPluginVersion() {
-        return "1.0";
+        return "2.0";
     }
 
     public function updateScript() {
@@ -72,8 +72,11 @@ class UserNotifications extends PluginAbstract {
         global $global;
         $css = '<link href="' . getURL('plugin/UserNotifications/style.css') . '" rel="stylesheet" type="text/css"/>';
 
-        $js = '<script>var user_notification_template = ' . json_encode(self::getTemplate()) . '</script>';
-        $js .= '<script>var requiredUserNotificationTemplateFields = ' . json_encode(self::requiredUserNotificationTemplateFields) . '</script>';
+        $js = '<script>';
+        $js .= 'var user_notification_template = ' . json_encode(self::getTemplate()) . ';';
+        $js .= 'var user_notification_template_placeholder_image = ' . json_encode(ImagesPlaceHolders::getVideoAnimationLandscape(ImagesPlaceHolders::$RETURN_URL)) . ';';
+        $js .= 'var requiredUserNotificationTemplateFields = ' . json_encode(self::requiredUserNotificationTemplateFields) . ';';
+        $js .= '</script>';
         return $css . $js;
     }
 
@@ -99,6 +102,8 @@ class UserNotifications extends PluginAbstract {
     static function createTemplateFromArray($itemsArray) {
         global $global;
         $template = self::getTemplate();
+        
+        $template = str_replace("{placeholder}",  ImagesPlaceHolders::getVideoAnimationLandscape(ImagesPlaceHolders::$RETURN_URL), $template);
         foreach ($itemsArray as $search => $replace) {
             if ($search == 'icon') {
                 $replace = '<i class="' . $replace . '"></i>';
@@ -135,7 +140,7 @@ class UserNotifications extends PluginAbstract {
         $identification = User::getNameIdentificationById($users_id);
         $video = new Video('', '', $videos_id);
         $to_users_id = $video->getUsers_id();
-        $image = "user/{$users_id}/foto.png";
+        $image = User::getPhoto($users_id, false, true);
         $href = Video::getLinkToVideo($videos_id);
         $videoTitle = safeString($video->getTitle());
         $msg = "<strong>{$identification}</strong> " . $msg . ': ' . $videoTitle;
@@ -190,7 +195,7 @@ class UserNotifications extends PluginAbstract {
         $msg = '<strong>'.$identification. '</strong> '.__('respond your comment on video on video').': '.$videoTitle;
         $type = self::type_success;
         $element_id = "UserNotificationResponse_{$comments_id}_{$to_users_id}_{$users_id}_{$videos_id}";
-        $image = "user/{$users_id}/foto.png";
+        $image = User::getPhoto($users_id, false, true);
         $href = Video::getLinkToVideo($videos_id);
         $icon = 'far fa-comments';
         return self::createNotification($title, $msg, $to_users_id, $image, $href, $type, $element_id, $icon);
@@ -203,7 +208,7 @@ class UserNotifications extends PluginAbstract {
         $element_id = "UserNotificationSubscription_{$users_id}_{$subscriber_users_id}";
         $identification = User::getNameIdentificationById($subscriber_users_id);
         $msg = '<strong>'.$identification. '</strong> '.__('subscribed to your channel');
-        $image = "user/{$subscriber_users_id}/foto.png";
+        $image = User::getPhoto($subscriber_users_id, false, true);
         $href = User::getChannelLink($subscriber_users_id);
         $icon = 'fas fa-user-check';
         return self::createNotification($title, $msg, $users_id, $image, $href, $type, $element_id, $icon);

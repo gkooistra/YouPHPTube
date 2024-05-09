@@ -16,6 +16,10 @@ require_once $global['systemRootPath'] . 'plugin/CloneSite/CloneSite.php';
 require_once $global['systemRootPath'] . 'plugin/CloneSite/CloneLog.php';
 require_once $global['systemRootPath'] . 'plugin/CloneSite/functions.php';
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 $totalSteps = 7;
 $total2 = $total = 0;
 $resp = new stdClass();
@@ -43,7 +47,7 @@ if (empty($objClone->cloneSiteURL)) {
 
 $objClone->cloneSiteURL = rtrim($objClone->cloneSiteURL, "/") . '/';
 $objCloneOriginal = $objClone;
-$argv[1] = preg_replace("/[^A-Za-z0-9 ]/", '', @$argv[1]);
+$argv[1] = preg_replace("/[^A-Za-z0-9 ]/", '', empty($argv[1])?'':$argv[1]);
 
 if (empty($objClone) || empty($argv[1]) || $objClone->myKey !== $argv[1]) {
     if (!User::isAdmin()) {
@@ -56,7 +60,7 @@ if (empty($objClone) || empty($argv[1]) || $objClone->myKey !== $argv[1]) {
 
 $videosSite = "{$objClone->cloneSiteURL}videos/";
 $videosDir = Video::getStoragePath() . "";
-$clonesDir = "{$videosDir}cache/clones/";
+$clonesDir = "{$videosDir}clones/";
 $photosDir = "{$videosDir}userPhoto/";
 $photosSite = "{$videosSite}userPhoto/";
 if (!file_exists($clonesDir)) {
@@ -89,34 +93,71 @@ if (!empty($json->error)) {
 
 $log->add("Clone: Good start! the server has answered");
 
+$json->sqlFile = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $json->sqlFile)));
+foreach ($json->videoFiles as $key => $value) {
+    $json->videoFiles[$key]->filename = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $value->filename)));
+    $json->videoFiles[$key]->url = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $value->url)));
+    $json->videoFiles[$key]->filesize = intval($value->filesize);
+    $json->videoFiles[$key]->filemtime = intval($value->filemtime);
+}
+foreach ($json->photoFiles as $key => $value) {
+    $json->photoFiles[$key]->filename = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $value->filename)));
+    $json->photoFiles[$key]->url = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $value->url)));
+    $json->photoFiles[$key]->filesize = intval($value->filesize);
+    $json->photoFiles[$key]->filemtime = intval($value->filemtime);
+}
+$objClone->cloneSiteURL = str_replace("'", '', escapeshellarg($objClone->cloneSiteURL));
+
 // get dump file
-$cmd = "wget -O {$clonesDir}{$json->sqlFile} {$objClone->cloneSiteURL}videos/cache/clones/{$json->sqlFile}";
-$log->add("Clone (2 of {$totalSteps}): Geting MySQL Dump file");
+$sqlFile = "{$clonesDir}{$json->sqlFile}";
+$sqlURL = "{$objClone->cloneSiteURL}videos/clones/{$json->sqlFile}";
+$cmd = "wget -O {$sqlFile} {$sqlURL}";
+$log->add("Clone (2 of {$totalSteps}): Geting MySQL Dump file [$cmd]");
 exec($cmd . " 2>&1", $output, $return_val);
 if ($return_val !== 0) {
     $log->add("Clone Error: " . print_r($output, true));
 }
-$log->add("Clone: Nice! we got the MySQL Dump file");
 
-// remove the first warning line
-$file = "{$clonesDir}{$json->sqlFile}";
-$contents = file($file, FILE_IGNORE_NEW_LINES);
+if(!file_exists($sqlFile) || empty(filesize($sqlFile))){
+    $log->add("Clone Error: on download file, trying again" . json_encode($output));
+    $content = url_get_contents($sqlURL);
+    if(!empty($content)){
+        _file_put_contents($sqlFile, $content);
+    }
+}
+
+if(!file_exists($sqlFile) || empty(filesize($sqlFile))){
+    $log->add("Clone Error: on download file we will continue anyway");
+}else{
+    $log->add("Clone: Nice! we got the MySQL Dump file [{$sqlURL}] " . humanFileSize(filesize($sqlFile)));
+}
+
+/*
+//$log->add("Clone: MySQL Dump $file");
+$contents = file($sqlFile, FILE_IGNORE_NEW_LINES);
+//$log->add("Clone: MySQL Dump contents ". json_encode($contents));
 $first_line = array_shift($contents);
-file_put_contents($file, implode("\r\n", $contents));
+file_put_contents($sqlFile, implode("\r\n", $contents));
 
-$log->add("Clone (3 of {$totalSteps}): Overwriting our database with the server database");
+$cmd = "sed -i '/CREATE DATABASE /d; /USE /d; /INSERT INTO \`CachesInDB\` /d' $sqlFile";
+exec($cmd);
+*/
+
+$log->add("Clone (3 of {$totalSteps}): Overwriting our database with the server database {$sqlFile}");
 // restore dump
-$cmd = "mysql -u {$mysqlUser} -p{$mysqlPass} --host {$mysqlHost} {$mysqlDatabase} < {$clonesDir}{$json->sqlFile}";
+/*
+$cmd = "mysql -u {$mysqlUser} -p{$mysqlPass} --host {$mysqlHost} {$mysqlDatabase} < $sqlFile";
+_error_log($cmd);
 exec($cmd . " 2>&1", $output, $return_val);
 if ($return_val !== 0) {
     $log->add("Clone Error try again: " . end($output));
-    $cmd2 = "sed -i 's/COLLATE=utf8mb4_0900_ai_ci/ /g' {$clonesDir}{$json->sqlFile} ";
+    $cmd2 = "sed -i 's/COLLATE=utf8mb4_0900_ai_ci/ /g' $sqlFile ";
     $log->add("Clone try again this command: {$cmd2}");
     exec($cmd2 . " 2>&1", $output2, $return_val2);
     if ($return_val2 !== 0) {
         $log->add("Clone Error: " . print_r($output2, true));
     }
-    $cmd2 = "sed -i 's/COLLATE utf8mb4_0900_ai_ci/ /g' {$clonesDir}{$json->sqlFile} ";
+    $cmd2 = "sed -i 's/COLLATE utf8mb4_0900_ai_ci/ /g' $sqlFile ";
     $log->add("and also this command: {$cmd2}");
     exec($cmd2 . " 2>&1", $output2, $return_val2);
     if ($return_val2 !== 0) {
@@ -127,6 +168,41 @@ if ($return_val !== 0) {
         $log->add("Clone Error: " . end($output));
     }
 }
+*/
+
+$lines = file($sqlFile);
+//$global['mysqli']->query("SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'");
+//$global['mysqli']->query("SET SESSION OLD_CHARACTER_SET_CLIENT = 'utf8';");
+// Loop through each line
+$templine = '';
+foreach ($lines as $line) {
+    ///*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+    ///*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */
+    if (strpos($line, 'OLD_CHARACTER_SET_RESULT') !== false) {
+        continue;
+    }
+    // Skip it if it's a comment
+    if (substr($line, 0, 2) == '--' || $line == ''){
+        continue;
+    }
+
+    // Add this line to the current segment
+    $templine .= $line;
+    // If it has a semicolon at the end, it's the end of the query
+    if (substr(trim($line), -1, 1) == ';') {
+        // Perform the query
+        try {
+            if (!$global['mysqli']->query($templine)) {
+                echo ('sqlDAL::executeFile ' . $sqlFile . ' Error performing query \'<strong>' . $templine . '\': ' . $global['mysqli']->error . '<br /><br />');
+            }
+        } catch (\Throwable $th) {
+            var_dump($templine, $th);
+        }
+        // Reset temp variable to empty
+        $templine = '';
+    }
+}
+
 $log->add("Clone: Great! we overwrite it with success.");
 
 if (empty($objClone->useRsync)) {
@@ -217,8 +293,8 @@ echo json_encode($json);
 $log->add("Clone: Complete, Database, {$total} Videos and {$total2} Photos");
 
 $cmd = "chmod -R 777 {$videosDir}";
-exec($cmd);    
-    
+exec($cmd);
+
 $time_end = microtime(true);
 //dividing with 60 will give the execution time in minutes otherwise seconds
 $execution_time = ($time_end - $time_start);

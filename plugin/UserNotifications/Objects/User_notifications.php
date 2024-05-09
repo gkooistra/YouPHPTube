@@ -67,7 +67,7 @@ class User_notifications extends ObjectYPT {
     }
 
     function setElement_Id($element_id) {
-        $this->element_id = safeString($element_id);
+        $this->element_id = substr(safeString($element_id), -250);;
     }
 
     function setPriority($priority) {
@@ -131,7 +131,7 @@ class User_notifications extends ObjectYPT {
         return parent::getAll();
     }
 
-    public static function getAllForUsers_id($users_id, $limit = 10) {
+    public static function getAllForUsers_id($users_id, $limit = 10, $sort = true) {
         global $global;
         if (!static::isTableInstalled()) {
             return false;
@@ -146,6 +146,12 @@ class User_notifications extends ObjectYPT {
                 $rows[] = $row;
             }
         }
+
+        if($sort){
+            usort($rows, function($a, $b) {
+                return $a['id']-$b['id'];
+            });
+        }      
         return $rows;
     }
 
@@ -182,7 +188,7 @@ class User_notifications extends ObjectYPT {
         global $global;
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  element_id = ? LIMIT 1";
         // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/AVideo/about
-        $res = sqlDAL::readSql($sql, "s", [$element_id], true);
+        $res = sqlDAL::readSql($sql, "s", [$element_id]);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {

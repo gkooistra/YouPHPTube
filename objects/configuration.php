@@ -3,14 +3,21 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
+includeConfigLog(__LINE__, basename(__FILE__));
 require_once $global['systemRootPath'] . 'objects/user.php';
+includeConfigLog(__LINE__, basename(__FILE__));
 require_once $global['systemRootPath'] . 'objects/functions.php';
+includeConfigLog(__LINE__, basename(__FILE__));
 require_once $global['systemRootPath'] . 'objects/Object.php';
+includeConfigLog(__LINE__, basename(__FILE__));
 
-class Configuration extends ObjectYPT{
+if(!class_exists('AVideoConf')){
+    
+class AVideoConf extends ObjectYPT{
     protected $id;
     protected $video_resolution;
     protected $webSiteTitle;
+    protected $description;
     protected $language;
     protected $contactEmail;
     protected $users_id;
@@ -42,6 +49,8 @@ class Configuration extends ObjectYPT{
     // version 4
     protected $encoderURL;
 
+    const DARKTHEMES = array('cyborg','darkly','netflix','slate','superhero','solar');
+
     public function __construct($video_resolution = "")
     {
         $this->load();
@@ -63,9 +72,9 @@ class Configuration extends ObjectYPT{
             die('{"error":"' . __("Permission denied") . '"}');
         }
         $this->users_id = User::getId();
-
+        $this->disable_youtubeupload = 0;
         ObjectYPT::deleteCache("getEncoderURL");
-
+        //var_dump($this->head);exit;
         return parent::save();
     }
 
@@ -92,6 +101,11 @@ class Configuration extends ObjectYPT{
         return $this->webSiteTitle;
     }
 
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
     public function getLanguage()
     {
         if ($this->language == "en") {
@@ -113,6 +127,11 @@ class Configuration extends ObjectYPT{
     public function setWebSiteTitle($webSiteTitle)
     {
         $this->webSiteTitle = $webSiteTitle;
+    }
+    
+    public function setDescription($description)
+    {
+        $this->description = $description;
     }
 
     public function setLanguage($language)
@@ -227,7 +246,18 @@ class Configuration extends ObjectYPT{
         if (file_exists($return['file'])) {
             convertImageToOG($return['file'], $destination);
         }
-        return getCDN() . "videos/cache/og_200X200.jpg";
+        return getURL("videos/cache/og_200X200.jpg");
+    }
+
+    public static function getOGImagePath()
+    {
+        global $global;
+        $destination = $global['systemRootPath']."videos/cache/og_200X200.jpg";
+        $return = self::_getFavicon(true);
+        if (file_exists($return['file'])) {
+            convertImageToOG($return['file'], $destination);
+        }
+        return $destination ;
     }
 
     public function setHead($head)
@@ -284,7 +314,8 @@ class Configuration extends ObjectYPT{
 
     public function getDisable_youtubeupload()
     {
-        return $this->disable_youtubeupload;
+        return 0;
+        //return $this->disable_youtubeupload;
     }
 
     public function getAllow_download()
@@ -327,68 +358,58 @@ class Configuration extends ObjectYPT{
         $this->autoplay = ($autoplay == 'true' || $autoplay == '1') ? 1 : 0;
     }
 
-    // end version 2.7
-
-    public static function rewriteConfigFile()
-    {
-        global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase;
-        if (empty($global['salt'])) {
-            $global['salt'] = uniqid();
+    static function updateConfigFile($additions, $replacements, $newVersion) {
+        global $global;
+        $filePath = "{$global['systemRootPath']}videos/configuration.php"; // Hardcoded file path
+        
+        // Check if the file exists
+        if (!file_exists($filePath)) {
+            return false;
         }
-        if (empty($global['disableTimeFix'])) {
-            $global['disableTimeFix'] = 0;
+    
+        // Read the file into an array
+        $lines = file($filePath);
+    
+        // Check if the configuration version is already the new version
+        foreach ($lines as $line) {
+            if (preg_match('/\$global\[\'configurationVersion\'\] = ([0-9]+(?:\.[0-9]+)?);/', $line, $matches)) {
+                if (isset($matches[1]) && (float)$matches[1] === (float)$newVersion) {
+                    // Version is already the new version, no need to modify the file
+                    return false;
+                }
+                break; // Break out of the loop once the version line is found
+            }
         }
-        if (empty($global['logfile'])) {
-            $global['logfile'] = $global['systemRootPath'] . 'videos/avideo.log';
+        
+        // Create a backup of the file
+        copy($filePath, "{$global['systemRootPath']}videos/configuration_bkp_".date('YmdHis').".php");
+    
+        // Process each line for replacements
+        foreach ($lines as &$line) {
+            foreach ($replacements as $pattern => $replacement) {
+                if (preg_match($pattern, $line)) {
+                    $line = preg_replace($pattern, $replacement, $line);
+                }
+            }
+            if(preg_match('/\$global\[\'configurationVersion\'\] = [0-9]+(\.[0-9]+)?;/', $line)){
+                $line = "\$global['configurationVersion'] = {$newVersion};".PHP_EOL;                
+            }
         }
-        $content = "<?php
-\$global['configurationVersion'] = 3.1;
-\$global['disableAdvancedConfigurations'] = {$global['disableAdvancedConfigurations']};
-\$global['videoStorageLimitMinutes'] = {$global['videoStorageLimitMinutes']};
-\$global['disableTimeFix'] = {$global['disableTimeFix']};
-\$global['logfile'] = '{$global['logfile']}';
-if(!empty(\$_SERVER['SERVER_NAME']) && \$_SERVER['SERVER_NAME']!=='localhost' && !filter_var(\$_SERVER['SERVER_NAME'], FILTER_VALIDATE_IP)) {
-    // get the subdirectory, if exists
-    \$file = str_replace(\"\\\\\", \"/\", __FILE__);
-    \$subDir = str_replace(array(\$_SERVER[\"DOCUMENT_ROOT\"], 'videos/configuration.php'), array('',''), \$file);
-    \$global['webSiteRootURL'] = \"http\".(!empty(\$_SERVER['HTTPS'])?\"s\":\"\").\"://\".\$_SERVER['SERVER_NAME'].\$subDir;
-}else{
-    \$global['webSiteRootURL'] = '{$global['webSiteRootURL']}';
-}
-\$global['systemRootPath'] = '{$global['systemRootPath']}';
-\$global['salt'] = '{$global['salt']}';
-\$global['enableDDOSprotection'] = {$global['enableDDOSprotection']};
-\$global['ddosMaxConnections'] = {$global['ddosMaxConnections']};
-\$global['ddosSecondTimeout'] = {$global['ddosSecondTimeout']};
-\$global['strictDDOSprotection'] = {$global['strictDDOSprotection']};
-\$global['noDebug'] = 0;
-\$global['webSiteRootPath'] = '';
-if(empty(\$global['webSiteRootPath'])){
-    preg_match('/https?:\/\/[^\/]+(.*)/i', \$global['webSiteRootURL'], \$matches);
-    if(!empty(\$matches[1])){
-        \$global['webSiteRootPath'] = \$matches[1];
+    
+        // Process each line for additions
+        foreach ($additions as $pattern => $addition) {
+            foreach ($lines as $index => &$line) {
+                if (preg_match($pattern, $line)) {
+                    array_splice($lines, $index + 1, 0, $addition . "\n");
+                    break; // Assuming only one addition per pattern
+                }
+            }
+        }
+    
+        // Write the array back to the file    
+        return file_put_contents($filePath, implode('', $lines));;
     }
-}
-if(empty(\$global['webSiteRootPath'])){
-    die('Please configure your webSiteRootPath');
-}
-
-\$mysqlHost = '{$mysqlHost}';
-\$mysqlUser = '{$mysqlUser}';
-\$mysqlPass = '{$mysqlPass}';
-\$mysqlDatabase = '{$mysqlDatabase}';
-
-/**
- * Do NOT change from here
- */
-
-require_once \$global['systemRootPath'].'objects/include_config.php';
-";
-
-        $fp = fopen($global['systemRootPath'] . "videos/configuration.php", "wb");
-        fwrite($fp, $content);
-        fclose($fp);
-    }
+    
 
     public function getTheme()
     {
@@ -398,9 +419,80 @@ require_once \$global['systemRootPath'].'objects/include_config.php';
         return $this->theme;
     }
 
-    public function setTheme($theme)
+    public function getThemes()
     {
-        $this->theme = $theme;
+        $theme = json_encode(array('light'=>'default', 'dark'=>'netflix', 'defaultTheme'=>'light'));
+        if (empty($this->theme)) {
+            return json_decode($theme);
+        }
+        $json = json_decode($this->theme);
+        if (empty($json)) {
+            if(in_array($this->theme, AVideoConf::DARKTHEMES)){
+                $theme = json_encode(array('light'=>'default', 'dark'=>$this->theme, 'defaultTheme'=>'dark'));
+            }else{
+                $theme = json_encode(array('light'=>$this->theme, 'dark'=>'netflix', 'defaultTheme'=>'light'));
+            }
+            return json_decode($theme);
+        }
+        return $json;
+    }
+
+    public function getThemeLight()
+    {
+        $theme = $this->getThemes();
+        return $theme->light;
+    }
+
+    public function getThemeDark()
+    {
+        $theme = $this->getThemes();
+        return $theme->dark;
+    }
+
+    public function getDefaultTheme()
+    {
+        if($this->isDefaultThemeDark()){
+            return  $this->getThemeDark();
+        }else{
+            return  $this->getThemeLight();
+        }
+    }
+
+    public function getAlternativeTheme()
+    {
+        if(!$this->isDefaultThemeDark()){
+            return  $this->getThemeDark();
+        }else{
+            return  $this->getThemeLight();
+        }
+    }
+
+    public function isDefaultThemeDark()
+    {
+        $theme = $this->getThemes();
+        return $theme->defaultTheme == 'dark';
+    }
+
+    public function setTheme($theme, $setDefault=false)
+    {
+        $themes = $this->getThemes();
+        if(in_array($theme, AVideoConf::DARKTHEMES)){
+            $themes->dark = $theme;
+            if($setDefault){
+                $themes->defaultTheme = 'dark';
+            }
+        }else{
+            $themes->light = $theme;
+            if($setDefault){
+                $themes->defaultTheme = 'light';
+            }
+        }
+        $this->theme = json_encode($themes);
+    }
+
+    public function setThemes($lightTheme, $darkTheme, $defaultTheme)
+    {
+        $this->theme = json_encode(array('light'=>$lightTheme, 'dark'=>$darkTheme, 'defaultTheme'=>$defaultTheme));
     }
 
     public function getSmtp()
@@ -578,4 +670,10 @@ require_once \$global['systemRootPath'].'objects/include_config.php';
         return 'configurations';
     }
 
+}
+}
+
+
+if(!class_exists('Configuration')){
+    class Configuration extends AVideoConf{}
 }

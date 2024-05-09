@@ -40,6 +40,8 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
    */
   public $commentClassificationBuckets;
   public $commentClassificationRanking;
+  protected $commentModeratedRestrictionsType = YoutubeCommentsApiCommentModeratedRestriction::class;
+  protected $commentModeratedRestrictionsDataType = 'array';
   /**
    * @var string
    */
@@ -85,6 +87,7 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
    * @var bool
    */
   public $hasCreatorReply;
+  public $impersonationScores;
   /**
    * @var bool
    */
@@ -121,6 +124,7 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
    * @var bool[]
    */
   public $lowQualityDecisions;
+  public $lowQualityScores;
   /**
    * @var int
    */
@@ -164,6 +168,10 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
   public $sensitivityScores;
   protected $sentimentType = YoutubeCommentsSentimentSentiment::class;
   protected $sentimentDataType = '';
+  /**
+   * @var string
+   */
+  public $shortReplyVideoId;
   protected $smartRepliesType = VideoYoutubeCommentsClassificationProtoYouTubeCommentSmartReply::class;
   protected $smartRepliesDataType = 'map';
   /**
@@ -203,6 +211,10 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
    */
   public $videoTimestamps;
   public $wordEntropy;
+  /**
+   * @var string
+   */
+  public $ytAuthorChannelId;
   public $ytCommentQualityScore;
   public $ytCommentQualityScore2;
   public $ytCommentQualityScore3;
@@ -314,6 +326,20 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
   public function getCommentClassificationRanking()
   {
     return $this->commentClassificationRanking;
+  }
+  /**
+   * @param YoutubeCommentsApiCommentModeratedRestriction[]
+   */
+  public function setCommentModeratedRestrictions($commentModeratedRestrictions)
+  {
+    $this->commentModeratedRestrictions = $commentModeratedRestrictions;
+  }
+  /**
+   * @return YoutubeCommentsApiCommentModeratedRestriction[]
+   */
+  public function getCommentModeratedRestrictions()
+  {
+    return $this->commentModeratedRestrictions;
   }
   /**
    * @param string
@@ -491,6 +517,14 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
   {
     return $this->hasCreatorReply;
   }
+  public function setImpersonationScores($impersonationScores)
+  {
+    $this->impersonationScores = $impersonationScores;
+  }
+  public function getImpersonationScores()
+  {
+    return $this->impersonationScores;
+  }
   /**
    * @param bool
    */
@@ -616,6 +650,14 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
   public function getLowQualityDecisions()
   {
     return $this->lowQualityDecisions;
+  }
+  public function setLowQualityScores($lowQualityScores)
+  {
+    $this->lowQualityScores = $lowQualityScores;
+  }
+  public function getLowQualityScores()
+  {
+    return $this->lowQualityScores;
   }
   /**
    * @param int
@@ -794,6 +836,20 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
   public function getSentiment()
   {
     return $this->sentiment;
+  }
+  /**
+   * @param string
+   */
+  public function setShortReplyVideoId($shortReplyVideoId)
+  {
+    $this->shortReplyVideoId = $shortReplyVideoId;
+  }
+  /**
+   * @return string
+   */
+  public function getShortReplyVideoId()
+  {
+    return $this->shortReplyVideoId;
   }
   /**
    * @param VideoYoutubeCommentsClassificationProtoYouTubeCommentSmartReply[]
@@ -984,6 +1040,20 @@ class YoutubeCommentsClusteringMiniStanza extends \Google\Collection
   public function getWordEntropy()
   {
     return $this->wordEntropy;
+  }
+  /**
+   * @param string
+   */
+  public function setYtAuthorChannelId($ytAuthorChannelId)
+  {
+    $this->ytAuthorChannelId = $ytAuthorChannelId;
+  }
+  /**
+   * @return string
+   */
+  public function getYtAuthorChannelId()
+  {
+    return $this->ytAuthorChannelId;
   }
   public function setYtCommentQualityScore($ytCommentQualityScore)
   {

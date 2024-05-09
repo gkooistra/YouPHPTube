@@ -1,5 +1,9 @@
 <?php
 global $global;
+if (isConfirmationPage()) {
+    echo '<!-- isConfirmationPage socket_info_container -->';
+    return false;
+}
 if (isBot()) {
     echo '<!-- isBot socket_info_container -->';
     return false;
@@ -56,7 +60,7 @@ if (!empty($obj->debugAllUsersSocket) || (User::isAdmin() && !empty($obj->debugS
             -o-transition: background-color  0.5s linear;
             transition: background-color  0.5s linear;
             transition: box-shadow 0.5s ease-in-out;
-            z-index: 1000;
+            z-index: 1050;
             -moz-box-shadow:    0 0 0 #00000000;
             -webkit-box-shadow: 0 0 0 #00000000;
             box-shadow:         0 0 0 #00000000;
@@ -144,12 +148,16 @@ if (!empty($obj->debugAllUsersSocket) || (User::isAdmin() && !empty($obj->debugS
             <button class="btn btn-xs btn-block btn-default" onclick="copyToClipboard('<?php echo addcslashes($command,'\\'); ?>')">Copy code to run on terminal</button>
             <button class="btn btn-xs btn-block btn-primary" onclick="socketConnect()">Try again</button>
         </div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fa-solid fa-code-compare"></i> Version <span class="webSocketServerVersion"></span></div>
+        <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fa-solid fa-memory"></i> Memory <span class="socket_mem">0 bytes</span></div>
         <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-user"></i> Your User ID <span class="socket_users_id">0</span></div>
         <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-id-card"></i> Socket ResourceId <span class="socket_resourceId">0</span></div>
         <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-network-wired"></i> Total Different Devices <span class="total_devices_online">0</span></div>
         <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInX', 'socket'); ?>" ><i class="fas fa-users"></i> Total Users Online <span class="total_users_online">0</span></div>
         <div class="socketItem hideNotConected <?php echo getCSSAnimationClassAndStyle('animate__flipInY', 'socket'); ?>" id="socketUsersURI">    
         </div>
+        
+        <button onclick="avideoAjax(webSiteRootURL+'plugin/YPTSocket/restart.json.php', {});" style="color: #d43f3a" class="socketItem btn btn-danger btn-sm btn-xs btn-block"><i class="fas fa-power-off"></i> Restart</button>
     </div>
     <script>
         var socket_info_container_draging = false;
@@ -240,6 +248,7 @@ if (!empty($obj->debugAllUsersSocket) || (User::isAdmin() && !empty($obj->debugS
     var webSocketVideos_id = '<?php echo getVideos_id(); ?>';
     var webSocketLiveKey = '<?php echo json_encode(isLive()); ?>';
     var webSocketServerVersion = '<?php echo YPTSocket::getServerVersion(); ?>';
+    var schedulerIsActive = <?php echo class_exists('Scheduler') && Scheduler::isActive()?1:0; ?>;
     var webSocketToken = '';
     var webSocketURL = '';
     var webSocketTypes = <?php echo json_encode($refl->getConstants()); ?>;
@@ -247,7 +256,7 @@ if (!empty($obj->debugAllUsersSocket) || (User::isAdmin() && !empty($obj->debugS
 
     function onUserSocketConnect(response) {
         try {
-<?php echo AVideoPlugin::onUserSocketConnect(); ?>
+        <?php echo AVideoPlugin::onUserSocketConnect(); ?>
         } catch (e) {
             console.log('onUserSocketConnect:error', e.message);
         }
@@ -257,7 +266,7 @@ if (!empty($obj->debugAllUsersSocket) || (User::isAdmin() && !empty($obj->debugS
         try {
 <?php echo AVideoPlugin::onUserSocketDisconnect(); ?>
         } catch (e) {
-            console.log('onUserSocketConnect:error', e.message);
+            console.log('onUserSocketDisconnect:error', e.message);
         }
     }
 </script>

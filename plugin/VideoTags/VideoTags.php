@@ -9,6 +9,13 @@ require_once $global['systemRootPath'] . 'plugin/VideoTags/Objects/Tags_subscrip
 
 class VideoTags extends PluginAbstract {
 
+    static $TagTypePinned = 'pinned';
+    static $TagTypePaid = 'paid';
+    static $TagTypeStatus = 'status';
+    static $TagTypeUserGroups = 'userGroups';
+    static $TagTypeCategory = 'category';
+    static $TagTypeSource = 'source';
+
     public function getTags() {
         return array(
             PluginTags::$FREE,
@@ -35,6 +42,7 @@ class VideoTags extends PluginAbstract {
         $obj->maxTags = 100;
         $obj->maxChars = 100;
         $obj->disableTagsSubscriptions = false;
+        $obj->showTagsOnEmbed = true;
         return $obj;
     }
 
@@ -48,7 +56,7 @@ class VideoTags extends PluginAbstract {
             session_start();
         }
         unset($_SESSION['getVideoTags'][$videos_id]);
-        session_write_close();
+        _session_write_close();
         TimeLogEnd(__FILE__ . "::" . __FUNCTION__, __LINE__);
         if ($deleted) {
             foreach ($tagsNameList as $value) {
@@ -83,6 +91,16 @@ class VideoTags extends PluginAbstract {
         return TagsHasVideos::removeAllTagsFromVideo($videos_id);
     }
 
+
+    static function add($name, $tags_types_id, $videos_id) {
+        $tag = VideoTags::getOrCreateTagFromName($name, $tags_types_id);
+        $id = TagsHasVideos::getFromTagsIdAndVideosId($tag->getId(), $videos_id);
+        if(empty($id)){
+            return $tag->_addVideo($videos_id);
+        }
+        return $id;
+    }
+
     static function getOrCreateTagFromName($name, $tags_types_id) {
         $name = trim(preg_replace("/[^[:alnum:][:space:]_-]/u", '', $name));
         $tag = self::getTagFromName($name, $tags_types_id);
@@ -104,29 +122,54 @@ class VideoTags extends PluginAbstract {
         return TagsHasVideos::getAllFromVideosId($videos_id);
     }
 
-    static function getArrayFromVideosId($videos_id) {
+    static function getArrayFromVideosId($videos_id, $tags_id = 0) {
         $rows = TagsHasVideos::getAllFromVideosId($videos_id);
         $array = array();
         foreach ($rows as $value) {
+            if(!empty($tags_id)){
+                if($tags_id!=$value['tags_types_id']){
+                    continue;
+                }
+            }
             $array[] = $value['name'];
         }
+        //var_dump($videos_id, $tags_id, $rows, $array);exit;
         return $array;
     }
 
-    static function getAllVideosIdFromTagsId($tags_id) {
-        return TagsHasVideos::getAllVideosIdFromTagsId($tags_id);
+    static function getAllVideosIdFromTagsId($tags_id, $limit = 100, $status = Video::SORT_TYPE_VIEWABLE) {
+        return TagsHasVideos::getAllVideosIdFromTagsId($tags_id, $limit, $status);
     }
     
-    static function getAllVideosFromTagsId($tags_id) {
-        return TagsHasVideos::getAllVideosFromTagsId($tags_id);
+    static function getTotalVideosFromTagsId($tags_id, $status = Video::SORT_TYPE_VIEWABLE) {
+        return TagsHasVideos::getTotalVideosFromTagsId($tags_id, $status);
     }
 
-    static function getTagsInputs() {
+    static function getVideoIndexFromTagsId($tags_id, $videos_id) {
+        if(!empty($videos_id)){
+            $pl = self::getAllVideosFromTagsId($tags_id);
+            foreach ($pl as $key => $value) {
+                if($value['videos_id']==$videos_id){
+                    return $key;
+                }
+            }
+        }
+        return 0;
+    }
+    
+    static function getAllVideosFromTagsId($tags_id, $limit = 100) {
+        return TagsHasVideos::getAllVideosFromTagsId($tags_id, $limit);
+    }
+
+    static function getTagsInputs($colSize = 3, $videos_id=0) {
         $types = TagsTypes::getAll();
         $str = "";
         foreach ($types as $value) {
-            $input = self::getTagsInput($value['id']);
-            $str .= "<label for=\"tagTypesId{$value['id']}\">" . __($value['name']) . "</label><div class=\"clear clearfix\">{$input}</div> ";
+            $input = self::getTagsInput($value['id'], $videos_id);
+            $str .= "<div class=\"col-sm-{$colSize}\"><label for=\"tagTypesId{$value['id']}\">" . __($value['name']) . "</label> {$input}</div> ";
+        }
+        if(!empty($str)){
+            $str = "<div class=\"row\">{$str}</div>";
         }
         return $str;
     }
@@ -149,42 +192,62 @@ class VideoTags extends PluginAbstract {
         return $str;
     }
 
-    static function getTagsInput($tagTypesId) {
+    static function getTagsInput($tagTypesId, $videos_id=0) {
         global $global;
+    
+        // Step 1: Query the database for tags associated with videos_id
+        $tags = []; // Initialize an array to hold the tags
+        if($videos_id > 0) {
+            // Assuming you have a function to get tags by video ID
+            $tags = self::getArrayFromVideosId($videos_id, $tagTypesId); 
+        }
+    
+        // Step 2: Convert tags into a suitable format (JSON)
+        $tagsJson = json_encode($tags);
+        //var_dump($tagsJson, $tags);
         $obj = AVideoPlugin::getObjectData("VideoTags");
         $str = '<input type="text" value="" id="inputTags' . $tagTypesId . '"/>
                 <script>
                 $(document).ready(function () {
-var citynames' . $tagTypesId . ' = new Bloodhound({
-  datumTokenizer: Bloodhound.tokenizers.obj.whitespace(\'name\'),
-  queryTokenizer: Bloodhound.tokenizers.whitespace,
-  prefetch: {
-    url: \'' . $global['webSiteRootURL'] . 'plugin/VideoTags/tags.json.php?tags_types_id=' . $tagTypesId . '?\'+Math.random(),
-    filter: function(list) {
-      return $.map(list, function(cityname) {
-        return { name: cityname }; });
-    }
-  }
-});
-citynames' . $tagTypesId . '.initialize();
-
-$(\'#inputTags' . $tagTypesId . '\').tagsinput({
-    maxTags: ' . $obj->maxTags . ',
-    maxChars: ' . $obj->maxChars . ',
-    trimValue: true,
-    typeaheadjs: {
-      name: \'citynames\',
-      displayKey: \'name\',
-      valueKey: \'name\',
-      source: citynames' . $tagTypesId . '.ttAdapter()
-    },
-    freeInput: ' . (self::canCreateTag() ? "true" : "false") . '
-});
-
+                    var videoTags' . $tagTypesId . ' = new Bloodhound({
+                        datumTokenizer: Bloodhound.tokenizers.obj.whitespace(\'name\'),
+                        queryTokenizer: Bloodhound.tokenizers.whitespace,
+                        prefetch: {
+                            url: \'' . $global['webSiteRootURL'] . 'plugin/VideoTags/tags.json.php?tags_types_id=' . $tagTypesId . '?\'+Math.random(),
+                            filter: function(list) {
+                                return $.map(list, function(tagsname) {
+                                    return { name: tagsname };
+                                });
+                            }
+                        }
+                    });
+                    videoTags' . $tagTypesId . '.initialize();
+    
+                    $(\'#inputTags' . $tagTypesId . '\').tagsinput({
+                        maxTags: ' . $obj->maxTags . ',
+                        maxChars: ' . $obj->maxChars . ',
+                        trimValue: true,
+                        typeaheadjs: {
+                            name: \'videoTags\',
+                            displayKey: \'name\',
+                            valueKey: \'name\',
+                            source: videoTags' . $tagTypesId . '.ttAdapter()
+                        },
+                        freeInput: ' . (self::canCreateTag() ? "true" : "false") . '
+                    });
+    
+                    // Step 3: Preload and fill the input with all tags from the database
+                    var preloadedTags = ' . $tagsJson . ';
+                    if(preloadedTags && preloadedTags.length) {
+                        preloadedTags.forEach(function(tag) {
+                            $(\'#inputTags' . $tagTypesId . '\').tagsinput(\'add\', tag);
+                        });
+                    }
                 });
                 </script>';
         return $str;
     }
+    
 
     static function canCreateTag() {
         $obj = AVideoPlugin::getObjectData("VideoTags");
@@ -216,7 +279,7 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
         return $_isUserSubscribedTags[$users_id][$tags_id];
     }
     
-    public static function getButton($tags_id, $btnClass = 'btn-xs', $btnClassPrimary = 'btn-primary', $btnClassSuccess = 'btn-success', $btnClassDefault = 'btn-default'){
+    public static function getButton($tags_id, $videos_id = 0, $btnClass = 'btn-xs', $btnClassPrimary = 'btn-primary', $btnClassSuccess = 'btn-success', $btnClassDefault = 'btn-default'){
         if(empty($tags_id)){
             return '';
         }
@@ -235,7 +298,9 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
         $playAllLink = '#';
         $playAllClass = 'hidden';
         if(AVideoPlugin::isEnabledByName('PlayLists')){
-            $playAllLink = PlayLists::getTagLink($tags_id, $embed = false, $playlist_index = null);
+            $playlist_index = self::getVideoIndexFromTagsId($tags_id, $videos_id);
+            //var_dump($videos_id,getVideos_id(), $playlist_index);exit;
+            $playAllLink = PlayLists::getTagLink($tags_id, false, $playlist_index);
             $playAllClass = '';
         }
         
@@ -243,12 +308,11 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
         $subscribedText = $tag->getName();
         $users_id = User::getId();
         $encryptedIdAndUser = encryptString(array('tags_id'=>$tags_id, 'users_id'=> $users_id));
-                            
+        $subscribed = '';         
         if (User::isLogged()) {
             $btnFile = $global['systemRootPath'] . 'plugin/VideoTags/subscribeBtn.html';
             $email = User::getMail();
             $subs = self::isUserSubscribed($users_id, $tags_id);
-
             if (!empty($subs)) {
                 if (!empty($subs['notify'])) {
                     $notify = 'notify';
@@ -351,14 +415,15 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
                 $users[] = $user;
             }
         }
+        return $users;
     }
 
-    static function getLabels($videos_id, $showType = true) {
+    static function getLabels($videos_id, $showType = true, $showSubscription = true) {
         global $global;
 
         $currentPage = getCurrentPage();
         $rowCount = getRowCount();
-        $_REQUEST['current'] = 1;
+        unsetCurrentPage();
         $_REQUEST['rowCount'] = 1000;
 
         $post = $_POST;
@@ -366,19 +431,21 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
         $get = $_GET;
         unset($_GET);
         $types = TagsTypes::getAll();
+        //var_dump($videos_id,  $types);
         $obj = AVideoPlugin::getDataObject('VideoTags');
         $tagsStrList = array();
         foreach ($types as $type) {
             $tags = TagsHasVideos::getAllFromVideosIdAndTagsTypesId($videos_id, $type['id']);
+            //var_dump($tags);
             $strT = "";
             foreach ($tags as $value) {
                 if (empty($value['name']) || $value['name'] === '-') {
                     continue;
                 }
-                if($obj->disableTagsSubscriptions){
+                if($obj->disableTagsSubscriptions || empty($showSubscription)){
                     $strT .= self::getTagHTMLLink($value['tags_id'], $value['total']);
                 }else{
-                    $strT .= self::getButton($value['tags_id']);
+                    $strT .= self::getButton($value['tags_id'], $videos_id);
                 }
             }
             if (!empty($strT)) {
@@ -390,6 +457,7 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
                 $tagsStrList[] = "{$label}{$strT}";
             }
         }
+        //exit;
         $_POST = $post;
         $_GET = $get;
 
@@ -429,7 +497,9 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
 
     public static function getManagerVideosJavaScripts() {
         global $global;
-        return "<script src=\"" . getCDN() . "plugin/VideoTags/bootstrap-tagsinput/bootstrap-tagsinput.min.js\" type=\"text/javascript\"></script><script src=\"" . getCDN() . "plugin/VideoTags/bootstrap-tagsinput/typeahead.bundle.js\" type=\"text/javascript\"></script>";
+        $js = "<script src=\"" . getURL('plugin/VideoTags/bootstrap-tagsinput/bootstrap-tagsinput.min.js') . "\" type=\"text/javascript\"></script><script src=\"" . getURL('plugin/VideoTags/bootstrap-tagsinput/typeahead.bundle.js') . "\" type=\"text/javascript\"></script>";
+        $css = "<style></style>";
+        return $css.$js;
     }
 
     public static function saveVideosAddNew($post, $videos_id) {
@@ -467,7 +537,27 @@ $(\'#inputTags' . $tagTypesId . '\').tagsinput({
         return $css;
     }
     public function getFooterCode(){
-        $js = '<script src="' .getURL('plugin/VideoTags/View/script.js') . '" type="text/javascript"></script>';
+        $js = '';
+        $obj = AVideoPlugin::getDataObject('VideoTags');        
+        if($obj->showTagsOnEmbed && isEmbed() && isVideo()){
+            $videos_id = getVideos_id();
+            if(!empty($videos_id)){
+                $labels = self::getLabels($videos_id, true, false);
+                //var_dump($labels);exit;
+                if(!empty($labels)){
+                    $js .= '<script>videoTagsLabels = '.json_encode($labels).';</script>';
+                }
+            }
+        }
+        //var_dump($js);exit;
+        $js .= '<script src="' .getURL('plugin/VideoTags/View/script.js') . '" type="text/javascript"></script>';
         return $js;
+    }
+    
+    public function getMobileInfo() {
+        $obj = $this->getDataObject();
+        $return = new stdClass();        
+        $return->videoTagsTypes = TagsTypes::getAll();
+        return $return;
     }
 }

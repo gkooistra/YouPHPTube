@@ -20,9 +20,49 @@ namespace Google\Service\Batch;
 class ReportAgentStateResponse extends \Google\Collection
 {
   protected $collection_key = 'tasks';
+  /**
+   * @var string
+   */
+  public $defaultReportInterval;
+  /**
+   * @var string
+   */
+  public $minReportInterval;
   protected $tasksType = AgentTask::class;
   protected $tasksDataType = 'array';
+  /**
+   * @var bool
+   */
+  public $useBatchMonitoredResource;
 
+  /**
+   * @param string
+   */
+  public function setDefaultReportInterval($defaultReportInterval)
+  {
+    $this->defaultReportInterval = $defaultReportInterval;
+  }
+  /**
+   * @return string
+   */
+  public function getDefaultReportInterval()
+  {
+    return $this->defaultReportInterval;
+  }
+  /**
+   * @param string
+   */
+  public function setMinReportInterval($minReportInterval)
+  {
+    $this->minReportInterval = $minReportInterval;
+  }
+  /**
+   * @return string
+   */
+  public function getMinReportInterval()
+  {
+    return $this->minReportInterval;
+  }
   /**
    * @param AgentTask[]
    */
@@ -36,6 +76,20 @@ class ReportAgentStateResponse extends \Google\Collection
   public function getTasks()
   {
     return $this->tasks;
+  }
+  /**
+   * @param bool
+   */
+  public function setUseBatchMonitoredResource($useBatchMonitoredResource)
+  {
+    $this->useBatchMonitoredResource = $useBatchMonitoredResource;
+  }
+  /**
+   * @return bool
+   */
+  public function getUseBatchMonitoredResource()
+  {
+    return $this->useBatchMonitoredResource;
   }
 }
 

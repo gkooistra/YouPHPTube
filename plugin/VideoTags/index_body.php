@@ -4,7 +4,7 @@ if (!isset($global['systemRootPath'])) {
     require_once '../../videos/configuration.php';
 }
 if (!User::isAdmin()) {
-    header("Location: {$global['webSiteRootURL']}?error=" . __("You can not do this"));
+    forbiddenPage("You can not do this");
     exit;
 }
 ?>
@@ -72,7 +72,7 @@ if (!User::isAdmin()) {
         </button>
     </div>
 </div>
-<script type="text/javascript" src="<?php echo getCDN(); ?>view/css/DataTables/datatables.min.js"></script>
+<script type="text/javascript" src="<?php echo getURL('view/css/DataTables/datatables.min.js'); ?>"></script>
 
 <script type="text/javascript">
     $(document).ready(function () {
@@ -140,7 +140,7 @@ if (!User::isAdmin()) {
             e.preventDefault();
             modal.showPleaseWait();
             $.ajax({
-                url: '<?php echo $global['webSiteRootURL']; ?>plugin/VideoTags/addTagTypes.php',
+                url: webSiteRootURL+'plugin/VideoTags/addTagTypes.php',
                 data: $('#panelForm').serialize(),
                 type: 'post',
                 success: function (response) {

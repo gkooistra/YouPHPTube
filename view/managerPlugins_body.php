@@ -5,33 +5,50 @@ foreach ($uuids as $value) {
     $rowId[] = " row.uuid != '{$value}' ";
 }
 $uuidJSCondition = implode(" && ", $rowId);
+$wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
 ?>
 <style>
-    td.wrapText{white-space: normal;}
-    .PluginActive, .PluginTags{
+    td.wrapText {
+        white-space: normal;
+    }
+
+    .PluginActive,
+    .PluginTags {
         border: solid 2px;
     }
-    .PluginActive.checked, .PluginTags.checked{
+
+    .PluginActive.checked,
+    .PluginTags.checked {}
+
+    .PluginActive.unchecked,
+    .PluginTags.unchecked {
+        background-color: rgba(0, 0, 0, 0.4);
     }
-    .PluginActive.unchecked, .PluginTags.unchecked{
-        background-color: rgba(0,0,0,0.4);
-    }
-    .PluginActive:hover, .PluginTags:hover{
-        border: solid 2px rgba(0,0,0,1);
+
+    .PluginActive:hover,
+    .PluginTags:hover {
+        border: solid 2px rgba(0, 0, 0, 1);
         cursor: pointer;
     }
-    .pluginDescription{
+
+    .pluginDescription {
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
         height: 1.75em;
         line-height: 1.75;
     }
-    #jsonElements .is_deprecated, #jsonElements .is_experimental , #jsonElements .is_advanced {
+
+    #jsonElements .is_deprecated,
+    #jsonElements .is_experimental,
+    #jsonElements .is_advanced {
         display: none;
         padding: 5px;
     }
-    #jsonElements .is_deprecated.forceShow, #jsonElements .is_experimental.forceShow, #jsonElements .is_advanced.forceShow {
+
+    #jsonElements .is_deprecated.forceShow,
+    #jsonElements .is_experimental.forceShow,
+    #jsonElements .is_advanced.forceShow {
         display: block;
     }
 </style>
@@ -47,42 +64,38 @@ $uuidJSCondition = implode(" && ", $rowId);
             <div class="tab-content">
                 <div id="menu0" class="tab-pane fade in active">
                     <div class="list-group-item">
-                        <div class="btn-group" >
+                        <div class="btn-group">
                             <button type="button" class="btn btn-default" id="upload">
                                 <i class="fas fa-plus"></i> <?php echo __("Upload a Plugin"); ?>
                             </button>
                         </div>
                         <div style="text-align: right; padding: 5px;">
                             <span class="badge" id="PluginTagsTotal">...</span>
-                            <button class="label label-default checked PluginTags PluginActive" pluginTag="all" id="PluginTagsAll" onclick="resetShowActiveInactiveOnly();PluginTagsReset();" >
+                            <button class="label label-default checked PluginTags PluginActive" pluginTag="all" id="PluginTagsAll" onclick="resetShowActiveInactiveOnly();PluginTagsReset();">
                                 <i class="fas fa-check-double"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("All"); ?></span>
                             </button>
-                            <button class="label label-primary checked PluginActive" pluginTag="Installed" id="PluginTagsInstalled" onclick="showActivesOnly();" >
+                            <button class="label label-primary checked PluginActive" pluginTag="Installed" id="PluginTagsInstalled" onclick="showActivesOnly();">
                                 <i class="fas fa-check"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Installed"); ?></span>
                             </button>
-                            <button class="label label-primary checked PluginActive" pluginTag="Uninstalled" id="PluginTagsUninstalled" onclick="showInactiveOnly();" >
+                            <button class="label label-primary checked PluginActive" pluginTag="Uninstalled" id="PluginTagsUninstalled" onclick="showInactiveOnly();">
                                 <i class="fas fa-times"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Uninstalled"); ?></span>
                             </button>
                             <?php
                             $class = new ReflectionClass('PluginTags');
                             $staticProperties = $class->getStaticProperties();
                             foreach ($staticProperties as $key => $value) {
-                                ?>
-                                <button class="label label-<?php echo $value[0]; ?> unchecked PluginTags"
-                                        id="PluginTags<?php echo $value[3]; ?>"
-                                        pluginTag="<?php echo $value[3]; ?>"
-                                        onclick="PluginTagsToggle('<?php echo $value[3]; ?>')"
-                                        data-toggle="tooltip" title="<?php echo __($value[1]); ?>">
+                            ?>
+                                <button class="label label-<?php echo $value[0]; ?> unchecked PluginTags" id="PluginTags<?php echo $value[3]; ?>" pluginTag="<?php echo $value[3]; ?>" onclick="PluginTagsToggle('<?php echo $value[3]; ?>')" data-toggle="tooltip" title="<?php echo __($value[1]); ?>">
                                     <?php echo $value[2]; ?> <span class="hidden-md hidden-sm hidden-xs"><?php echo __($value[1]); ?></span>
                                 </button>
-                                <?php
+                            <?php
                             }
                             ?>
                         </div>
                         <table id="grid" class="table table-condensed table-hover table-striped">
                             <thead>
                                 <tr>
-                                    <th data-column-id="name" data-formatter="name" data-width="300px" ><?php echo __("Name"); ?></th>
+                                    <th data-column-id="name" data-formatter="name" data-width="300px"><?php echo __("Name"); ?></th>
                                     <th data-column-id="description" data-formatter="description" data-css-class="wrapText hidden-md hidden-sm hidden-xs" data-header-css-class="hidden-md hidden-sm hidden-xs"><?php echo __("description"); ?></th>
                                     <th data-column-id="commands" data-formatter="commands" data-sortable="false" data-width="150px"></th>
                                 </tr>
@@ -124,10 +137,10 @@ $uuidJSCondition = implode(" && ", $rowId);
                                                 <div class="row" id="jsonElements" style="padding: 10px;">Some content.</div>
                                             </div>
                                             <div id="code" class="tab-pane fade">
-                                                <form class="form-compact"  id="updatePluginForm" onsubmit="">
-                                                    <input type="hidden" id="inputPluginId"  >
+                                                <form class="form-compact" id="updatePluginForm" onsubmit="">
+                                                    <input type="hidden" id="inputPluginId">
                                                     <label for="inputData" class="sr-only">Object Data</label>
-                                                    <textarea class="form-control" id="inputData"  rows="5"  placeholder="Object Data"></textarea>
+                                                    <textarea class="form-control" id="inputData" rows="5" placeholder="Object Data"></textarea>
                                                 </form>
                                             </div>
                                         </div>
@@ -138,41 +151,6 @@ $uuidJSCondition = implode(" && ", $rowId);
                                     </div>
                                 </div><!-- /.modal-content -->
                             </div><!-- /.modal-dialog -->
-                        </div>
-                        <div id="pluginsImportFormModal" class="modal fade" tabindex="-1" role="dialog">
-                            <div class="modal-dialog" role="document">
-                                <?php
-                                $dir = "{$global['systemRootPath']}plugin";
-                                if (!isUnzip()) {
-                                    ?>
-                                    <div class="alert alert-warning">
-                                        <?php echo __("Make sure you have the unzip app on your server"); ?>
-                                        <pre><code>sudo apt-get install unzip</code></pre>
-                                    </div>
-                                    <?php
-                                }
-                                if (is_writable($dir)) {
-                                    ?>
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                                            <h4 class="modal-title"><?php echo __("Upload a Plugin ZIP File"); ?></h4>
-                                        </div>
-                                        <div class="modal-body">
-                                            <input id="input-b1" name="input-b1" type="file" class="">
-                                        </div>
-                                    </div>
-                                    <?php
-                                } else {
-                                    ?>
-                                    <div class="alert alert-danger">
-                                        <?php echo __("You need to make the plugin dir writable before upload, run this command and refresh this page"); ?>
-                                        <pre><code>sudo chown www-data:www-data <?php echo $dir; ?> && sudo chmod 755 <?php echo $dir; ?></code></pre>
-                                    </div>
-                                    <?php
-                                }
-                                ?>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -200,7 +178,7 @@ $uuidJSCondition = implode(" && ", $rowId);
                             </h1>
                         </div>
                         <table class="table">
-                            <tr >
+                            <tr>
                                 <td>
                                     <img src="" class="img img-responsive img-rounded img-thumbnail zoom" style="height: 70px;">
                                 </td>
@@ -226,22 +204,8 @@ $uuidJSCondition = implode(" && ", $rowId);
         </div>
     </div>
 </div>
-<script src="<?php echo getCDN(); ?>js/form2JSON.js" type="text/javascript"></script>
+<script src="<?php echo getURL('view/js/form2JSON.js'); ?>" type="text/javascript"></script>
 <script>
-
-    function createPluginStoreList(src, name, price, description) {
-        var intPrice = Math.floor(price);
-        //var cents = Math.ceil((price - intPrice) * 100);
-        var $li = $('#pluginStoreListModel').clone();
-        $li.removeClass("hidden").attr("id", "");
-        $li.find('.panel-title').text(name);
-        $li.find('.int').text(intPrice);
-        $li.find('.cents').text("99");
-        $li.find('.desc').html(description);
-        $li.find('.img').attr("src", src);
-        $('#pluginStoreList').append($li);
-    }
-
     function showActivesOnly() {
         var id = "#PluginTagsUninstalled";
         $(id).removeClass('checked');
@@ -251,6 +215,7 @@ $uuidJSCondition = implode(" && ", $rowId);
         $(id).addClass('checked');
         processShow();
     }
+
     function showInactiveOnly() {
         var id = "#PluginTagsInstalled";
         $(id).removeClass('checked');
@@ -311,7 +276,7 @@ $uuidJSCondition = implode(" && ", $rowId);
         } else {
             var allItemsSeletors = getAllItemsSelector();
             //console.log(allItemsSeletors);
-            $("#grid tr").each(function (i, tr) {
+            $("#grid tr").each(function(i, tr) {
 
                 if (allItemsSeletors) {
                     if ($(tr).find(allItemsSeletors).length !== 0) {
@@ -345,6 +310,7 @@ $uuidJSCondition = implode(" && ", $rowId);
 
         totalVisible();
     }
+
     function PluginTagsReset() {
         $('.PluginTags').not('#PluginTagsAll').removeClass('checked');
         $('.PluginTags').not('#PluginTagsAll').addClass('unchecked');
@@ -374,7 +340,7 @@ $uuidJSCondition = implode(" && ", $rowId);
 
     function getAllItemsSelector() {
         var selectors = [];
-        $('.PluginTags').each(function (i, obj) {
+        $('.PluginTags').each(function(i, obj) {
             if ($(obj).hasClass('checked')) {
                 selectors.push('.plugin' + $(obj).attr('pluginTag'));
             }
@@ -388,7 +354,7 @@ $uuidJSCondition = implode(" && ", $rowId);
 
     function PluginTagsProcess() {
         var allItemsSeletors = getAllItemsSelector();
-        $("#grid tr").each(function (i, tr) {
+        $("#grid tr").each(function(i, tr) {
             if (!allItemsSeletors || $(tr).find(allItemsSeletors).length !== 0) {
                 $(tr).show();
             } else {
@@ -409,11 +375,11 @@ $uuidJSCondition = implode(" && ", $rowId);
             $(t).find('i').removeClass('fa-minus');
         }
     }
-    
-    
+
+
     function tooglePluginForceShow(t) {
         var id = $(t).attr('id');
-        var selector = '#jsonElements .'+id;
+        var selector = '#jsonElements .' + id;
         if ($(t).is(":checked")) {
             $(selector).addClass('forceShow');
             avideoTooltip(selector, id.replace('_', ' ').toUpperCase());
@@ -426,16 +392,16 @@ $uuidJSCondition = implode(" && ", $rowId);
         modal.showPleaseWait();
         $("#pluginsPermissionModalContent").html('');
         $.ajax({
-            url: '<?php echo $global['webSiteRootURL']; ?>plugin/Permissions/getPermissionsFromPlugin.html.php?plugins_id=' + plugins_id,
-            success: function (response) {
+            url: webSiteRootURL + 'plugin/Permissions/getPermissionsFromPlugin.html.php?plugins_id=' + plugins_id,
+            success: function(response) {
                 modal.hidePleaseWait();
                 $("#pluginsPermissionModalContent").html(response);
                 $('#pluginsPermissionModal').modal();
             }
         });
     }
-
-    $(document).ready(function () {
+    var panelCount = 0;
+    $(document).ready(function() {
 
 
         var myTextarea = document.getElementById("inputData");
@@ -451,8 +417,8 @@ $uuidJSCondition = implode(" && ", $rowId);
             navigation: 0,
             ajax: true,
             url: "<?php echo $global['webSiteRootURL'] . "objects/pluginsAvailable.json.php"; ?>",
-            responseHandler: function (data) {
-                setTimeout(function () {
+            responseHandler: function(data) {
+                setTimeout(function() {
                     processShow();
                     totalVisible();
                 }, 1000);
@@ -460,11 +426,11 @@ $uuidJSCondition = implode(" && ", $rowId);
 
             },
             formatters: {
-                "commands": function (column, row) {
+                "commands": function(column, row) {
                     var editBtn = '';
 
                     if (row.id && !$.isEmptyObject(row.data_object)) {
-                        editBtn = '<button type="button" class="btn btn-xs btn-default command-edit  btn-block" data-row-id="' + row.id + '" data-toggle="tooltip" data-placement="left" title="Edit"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> <?php echo __('Edit parameters'); ?></button>';
+                        editBtn = '<button type="button" class="btn btn-xs btn-default command-edit  btn-block" data-row-id="' + row.id + '" data-pname="' + row.name + '" data-toggle="tooltip" data-placement="left" title="Edit"><i class="fa-solid fa-pen-to-square"></i> <?php echo __('Edit parameters'); ?></button>';
                     }
                     var sqlBtn = '';
                     if (row.databaseScript && row.isPluginTablesInstalled) {
@@ -475,31 +441,36 @@ $uuidJSCondition = implode(" && ", $rowId);
                         menu = row.pluginMenu;
                     }
 
-                    return  editBtn + sqlBtn + menu;
+                    return editBtn + sqlBtn + menu;
                 },
-                "name": function (column, row) {
+                "name": function(column, row) {
                     var checked = '';
                     var switchBtn = '';
                     if (<?php echo $uuidJSCondition; ?>) {
-                        if(row.isPluginTablesInstalled || !row.databaseScript || (row.hasOwnProperty("installedPlugin") && row.installedPlugin.hasOwnProperty("pluginversion"))){
+                        if (row.isPluginTablesInstalled || !row.databaseScript || (row.hasOwnProperty("installedPlugin") && row.installedPlugin.hasOwnProperty("pluginversion"))) {
                             if (row.enabled) {
                                 checked = " checked='checked' ";
                             }
-                            switchBtn = '<div class="material-small material-switch pull-left"><input name="enable' + row.uuid + '" id="enable' + row.uuid + '" type="checkbox" value="0" class="pluginSwitch" ' + checked + ' /><label for="enable' + row.uuid + '" class="label-success"></label></div>';
+                            switchBtn = '<div class="material-small material-switch pull-left"><input name="enable' + row.uuid + '" id="enable' + row.uuid + '" type="checkbox" value="0" class="pluginSwitch" data-pname="' + row.name + '" ' + checked + ' /><label for="enable' + row.uuid + '" class="label-success"></label></div>';
                         }
 
                     } else {
                         if (!row.enabled) {
                             $.ajax({
-                                url: '<?php echo $global['webSiteRootURL']; ?>objects/pluginSwitch.json.php',
-                                data: {"uuid": row.uuid, "name": row.name, "dir": row.dir, "enable": true},
+                                url: webSiteRootURL + 'objects/pluginSwitch.json.php',
+                                data: {
+                                    "uuid": row.uuid,
+                                    "name": row.name,
+                                    "dir": row.dir,
+                                    "enable": true
+                                },
                                 type: 'post',
-                                success: function (response) {}
+                                success: function(response) {}
                             });
                         }
                         switchBtn = '';
                     }
-                    if(!row.isPluginTablesInstalled){
+                    if (!row.isPluginTablesInstalled) {
                         switchBtn += '<button type="button" class="btn btn-xs btn-danger command-sql  btn-block" data-row-id="' + row.id + '" data-toggle="tooltip" data-placement="right" title="Run Database Script"><span class="fa fa-database" aria-hidden="true"></span> <?php echo __('Install tables'); ?></button>';
                     }
                     //var txt = '<span id="plugin' + row.uuid + '" style="margin-top: -60px; position: absolute;"></span><a href="#plugin' + row.uuid + '">' + row.name + "</a> (" + row.dir + ")<br><small class='text-muted'>UUID: " + row.uuid + "</small>";
@@ -529,7 +500,7 @@ $uuidJSCondition = implode(" && ", $rowId);
 
                     return txt;
                 },
-                "description": function (column, row) {
+                "description": function(column, row) {
                     var txt = '<div class="pluginDescription"><button class="btn btn-xs btn-default" onclick="tooglePluginDescription(this);"><i class="fas fa-plus"></i></button> ' + row.description + '</div>';
                     var tags = '';
                     if (row.tags) {
@@ -558,27 +529,54 @@ $uuidJSCondition = implode(" && ", $rowId);
                     return txt;
                 }
             }
-        }).on("loaded.rs.jquery.bootgrid", function () {
-            $('[data-toggle="tooltip"], .tooltip').tooltip("hide");
-            setTimeout(function(){
-                $('[data-toggle="tooltip"]').tooltip({container: 'body',html:true});
-            },500);
+        }).on("loaded.rs.jquery.bootgrid", function() {
+            try {
+                $('[data-toggle="tooltip"], .tooltip').tooltip("hide");
+            } catch (error) {
+
+            }
+            setTimeout(function() {
+                $('[data-toggle="tooltip"]').tooltip({
+                    container: 'body',
+                    html: true
+                });
+            }, 500);
             /* Executes after data is loaded and rendered */
-            grid.find(".pluginSwitch").on("change", function (e) {
+            grid.find(".pluginSwitch").on("change", function(e) {
                 var row_index = $(this).closest('tr').index();
                 var row = $("#grid").bootgrid("getCurrentRows")[row_index];
+                var this_ = $(this);
                 modal.showPleaseWait();
                 $.ajax({
-                    url: '<?php echo $global['webSiteRootURL']; ?>objects/pluginSwitch.json.php',
-                    data: {"uuid": row.uuid, "name": row.name, "dir": row.dir, "enable": $('#enable' + row.uuid).is(":checked")},
+                    url: webSiteRootURL + 'objects/pluginSwitch.json.php',
+                    data: {
+                        "uuid": row.uuid,
+                        "name": row.name,
+                        "dir": row.dir,
+                        "enable": $('#enable' + row.uuid).is(":checked")
+                    },
                     type: 'post',
-                    success: function (response) {
+                    success: function(response) {
                         modal.hidePleaseWait();
-                        $("#grid").bootgrid('reload');
+                        if (this_.data("pname") == "WWBNIndex") {
+                            $.ajax({
+                                url: "<?= $global['webSiteRootURL']; ?>plugin/WWBNIndex/ajax.php",
+                                data: {
+                                    "action": "changePluginStatus",
+                                    "enabled": this_.is(":checked")
+                                },
+                                type: "post",
+                                success: function(response) {
+                                    window.location.reload();
+                                }
+                            });
+                        } else {
+                            $("#grid").bootgrid('reload');
+                        }
                     }
                 });
             });
-            grid.find(".command-edit").on("click", function (e) {
+            grid.find(".command-edit").on("click", function(e) {
                 var row_index = $(this).closest('tr').index();
                 var row = $("#grid").bootgrid("getCurrentRows")[row_index];
                 $('#inputPluginId').val(row.id);
@@ -588,77 +586,112 @@ $uuidJSCondition = implode(" && ", $rowId);
                 jsonToForm(row.data_object, row.data_object_helper, row.data_object_info);
                 $('#inputData').val(json);
                 $('#pluginsFormModal').modal();
+                $('#is_advanced').prop('checked', false);
             });
-            grid.find(".command-sql").on("click", function (e) {
+            grid.find(".command-sql").on("click", function(e) {
                 var row_index = $(this).closest('tr').index();
                 var row = $("#grid").bootgrid("getCurrentRows")[row_index];
                 $('#inputPluginId').val(row.id);
                 $('#inputData').val(JSON.stringify(row.data_object));
                 modal.showPleaseWait();
                 $.ajax({
-                    url: '<?php echo $global['webSiteRootURL']; ?>objects/pluginRunDatabaseScript.json.php',
-                    data: {"name": row.name},
+                    url: webSiteRootURL + 'objects/pluginRunDatabaseScript.json.php',
+                    data: {
+                        "name": row.name
+                    },
                     type: 'post',
-                    success: function (response) {
-                        if(response.error){
-                            avideoAlertError(response.msg) ;
-                        }else{
+                    success: function(response) {
+                        if (response.error) {
+                            avideoAlertError(response.msg);
+                        } else {
                             $("#grid").bootgrid('reload');
                         }
                         modal.hidePleaseWait();
                     }
                 });
             });
-            grid.find(".command-update").on("click", function (e) {
+            grid.find(".command-update").on("click", function(e) {
                 var row_index = $(this).closest('tr').index();
                 var row = $("#grid").bootgrid("getCurrentRows")[row_index];
                 $('#inputPluginId').val(row.id);
                 $('#inputData').val(JSON.stringify(row.data_object));
                 modal.showPleaseWait();
                 $.ajax({
-                    url: '<?php echo $global['webSiteRootURL']; ?>objects/pluginRunUpdateScript.json.php',
-                    data: {"name": row.name},
+                    url: webSiteRootURL + 'objects/pluginRunUpdateScript.json.php',
+                    data: {
+                        name: row.name,
+                        uuid: row.uuid
+                    },
                     type: 'post',
-                    success: function (response) {
+                    success: function(response) {
                         modal.hidePleaseWait();
                         $("#grid").bootgrid('reload');
+                        avideoResponse(response);
                     }
                 });
             });
+
+            if ($(".command-edit[data-pname=WWBNIndex]").length > 0) {
+                $(".command-edit[data-pname=WWBNIndex]").remove();
+            }
+            <?php
+            if ($wwbnIndexPlugin) {
+            ?>
+            <?php
+                include("{$global['systemRootPath']}plugin/WWBNIndex/script.js");
+            }
+            ?>
         });
-        $('#savePluginBtn').click(function (evt) {
+        $('#savePluginBtn').click(function(evt) {
             modal.showPleaseWait();
             $.ajax({
-                url: '<?php echo $global['webSiteRootURL']; ?>objects/pluginAddDataObject.json.php',
-                data: {"id": $('#inputPluginId').val(), "object_data": $('#inputData').val()},
+                url: webSiteRootURL + 'objects/pluginAddDataObject.json.php',
+                data: {
+                    "id": $('#inputPluginId').val(),
+                    "object_data": $('#inputData').val()
+                },
                 type: 'post',
-                success: function (response) {
+                success: function(response) {
                     modal.hidePleaseWait();
                     $("#grid").bootgrid('reload');
                     $('#pluginsFormModal').modal('hide');
                 }
             });
         });
-        $('#upload').click(function (evt) {
-            $('#pluginsImportFormModal').modal();
-        });
-        $('#input-b1').fileinput({
-            uploadUrl: '<?php echo $global['webSiteRootURL']; ?>objects/pluginImport.json.php',
-            allowedFileExtensions: ['zip']
-        }).on('fileuploaded', function (event, data, id, index) {
-            $("#grid").bootgrid('reload');
+        $('#upload').click(function(evt) {
+            //$('#pluginsImportFormModal').modal();
+            avideoModalIframeSmall(webSiteRootURL + 'view/managerPluginUpload.php');
         });
         $.ajax({
             url: 'https://youphp.tube/marketplace/plugins.json?jsonp=1',
             dataType: 'jsonp',
-            success: function (response) {
+            success: function(response) {
                 for (i = 0; i < response.rows.length; i++) {
                     var r = response.rows[i];
-                    createPluginStoreList('https://youphptube.b-cdn.net/marketplace/'+r.images[0], r.name, r.price, r.description);
+                    createPluginStoreList('https://youphptube.b-cdn.net/marketplace/' + r.images[0], r.name, r.price, r.description);
                 }
             }
         });
 
     });
 
+    function createPluginStoreList(src, name, price, description) {
+        var intPrice = Math.floor(price);
+        //var cents = Math.ceil((price - intPrice) * 100);
+        var $li = $('#pluginStoreListModel').clone();
+        $li.removeClass("hidden").attr("id", "");
+        $li.find('.panel-title').text(name);
+        $li.find('.int').text(intPrice);
+        $li.find('.cents').text("99");
+        $li.find('.desc').html(description);
+        $li.find('.img').attr("src", src);
+        $('#pluginStoreList').append($li);
+        // increment the panel count
+        panelCount++;
+
+        // if 4 panels have been added, append a clearfix div and reset the counter
+        if (panelCount % 4 === 0) {
+            $('#pluginStoreList').append('<div class="clearfix"></div>');
+        }
+    }
 </script>

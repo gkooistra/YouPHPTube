@@ -14,28 +14,26 @@ setRowCount(10);
 //setDefaultSort('id', 'DESC');
 if(empty($_REQUEST['id'])){
     if(empty($_POST['sort'])){
-       $_POST['sort'] = array();
+       $_POST['sort'] = [];
        $_POST['sort']['pin'] = 'DESC';
        //$_POST['sort']['comments_id_pai'] = 'IS NULL DESC';
        //$_POST['sort']['comments_id_pai'] = 'DESC';
        $_POST['sort']['id'] = 'DESC';
     }
-    $comments = Comment::getAllComments($_REQUEST['video_id'], @$_REQUEST['comments_id']);
-    $total = Comment::getTotalComments($_REQUEST['video_id'], @$_REQUEST['comments_id']);
+    $comments = Comment::getAllComments(@$_REQUEST['video_id'], @$_REQUEST['comments_id'], 0, true);
+    $total = Comment::getTotalComments(@$_REQUEST['video_id'], @$_REQUEST['comments_id']);
 }else{
     $comment = Comment::getComment($_REQUEST['id']);
     if(!empty($comment)){
-        $comments = array($comment);
+        $comments = [$comment];
         $total = 1;
     }else{
-        $comments = array();
+        $comments = [];
         $total = 0;
     }
 }
 
-foreach ($comments as $key => $value) {
-    $comments[$key] = Comment::addExtraInfo2($value);
-}
+$comments = Comment::addExtraInfo2InRows($comments);
 
 $obj = new stdClass();
 $obj->current = getCurrentPage();

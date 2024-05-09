@@ -4,7 +4,7 @@ if (!isset($global['systemRootPath'])) {
     require_once '../../videos/configuration.php';
 }
 if (!User::isAdmin()) {
-    header("Location: {$global['webSiteRootURL']}?error=" . __("You can not do this"));
+    forbiddenPage("You can not do this");
     exit;
 }
 ?>
@@ -137,7 +137,7 @@ if (!User::isAdmin()) {
                     <div class="row">
                         <h3><?php echo __("Add Videos into Campaign"); ?> - <strong id="campaignName"></strong></h3>
                         <div class="col-md-4">
-                            <img id="inputVideo-poster" src="<?php echo $global['webSiteRootURL']; ?>img/notfound.jpg" class="ui-state-default img-responsive" alt="">
+                            <img id="inputVideo-poster" src="<?php echo ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_URL); ?>" class="ui-state-default img-responsive" alt="">
                         </div>
                         <div class="col-md-8">
                             <input id="inputVideo" placeholder="<?php echo __("Video"); ?>" class="form-control">
@@ -231,13 +231,13 @@ if (!User::isAdmin()) {
 </div>
 <script src="<?php echo getURL('view/css/DataTables/datatables.min.js'); ?>" type="text/javascript"></script>
 <script src="<?php echo getURL('js/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js'); ?>" type="text/javascript"></script>
-<script src="<?php echo getURL('node_modules/chart.js/dist/chart.min.js'); ?>" type="text/javascript"></script>
+<script src="<?php echo getURL('node_modules/chart.js/dist/chart.umd.js'); ?>" type="text/javascript"></script>
 
 <script type="text/javascript">
     var tableLinks;
     var videoUploadModalinterval;
     function clearVideoForm() {
-        $('#inputVideo-poster').attr('src', "<?php echo $global['webSiteRootURL']; ?>view/img/notfound.jpg");
+        $('#inputVideo-poster').attr('src', "<?php echo ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_URL); ?>");
         $('#inputVideo').val('');
         $('#inputVideoClean').val('');
         $('#inputVideoURI').val('');
@@ -287,7 +287,7 @@ if (!User::isAdmin()) {
         $(".pluginSwitch").on("change", function (e) {
             modal.showPleaseWait();
             $.ajax({
-                url: '<?php echo $global['webSiteRootURL']; ?>objects/pluginSwitch.json.php',
+                url: webSiteRootURL+'objects/pluginSwitch.json.php',
                 data: {"uuid": "3f2a707f-3c06-4b78-90f9-a22f2fda92ef", "name": "AD_Server", "dir": "AD_Server", "enable": $('#enable1').is(":checked")},
                 type: 'post',
                 success: function (response) {
@@ -300,7 +300,7 @@ if (!User::isAdmin()) {
             minLength: 0,
             source: function (req, res) {
                 $.ajax({
-                    url: '<?php echo $global['webSiteRootURL']; ?>videos.json',
+                    url: webSiteRootURL+'videos.json',
                     type: "POST",
                     data: {
                         searchPhrase: req.term,
@@ -481,7 +481,7 @@ if (!User::isAdmin()) {
             e.preventDefault();
             modal.showPleaseWait();
             $.ajax({
-                url: '<?php echo $global['webSiteRootURL']; ?>plugin/AD_Server/view/addCampaign.php',
+                url: webSiteRootURL+'plugin/AD_Server/view/addCampaign.php',
                 data: $('#panelForm').serialize(),
                 type: 'post',
                 success: function (response) {

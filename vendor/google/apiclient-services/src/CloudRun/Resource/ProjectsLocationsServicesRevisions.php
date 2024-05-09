@@ -26,7 +26,7 @@ use Google\Service\CloudRun\GoogleLongrunningOperation;
  * Typical usage is:
  *  <code>
  *   $runService = new Google\Service\CloudRun(...);
- *   $revisions = $runService->revisions;
+ *   $revisions = $runService->projects_locations_services_revisions;
  *  </code>
  */
 class ProjectsLocationsServicesRevisions extends \Google\Service\Resource
@@ -43,6 +43,7 @@ class ProjectsLocationsServicesRevisions extends \Google\Service\Resource
    * @opt_param bool validateOnly Indicates that the request should be validated
    * without actually deleting any resources.
    * @return GoogleLongrunningOperation
+   * @throws \Google\Service\Exception
    */
   public function delete($name, $optParams = [])
   {
@@ -57,6 +58,7 @@ class ProjectsLocationsServicesRevisions extends \Google\Service\Resource
    * /{project}/locations/{location}/services/{service}/revisions/{revision}
    * @param array $optParams Optional parameters.
    * @return GoogleCloudRunV2Revision
+   * @throws \Google\Service\Exception
    */
   public function get($name, $optParams = [])
   {
@@ -79,6 +81,7 @@ class ProjectsLocationsServicesRevisions extends \Google\Service\Resource
    * @opt_param bool showDeleted If true, returns deleted (but unexpired)
    * resources along with active ones.
    * @return GoogleCloudRunV2ListRevisionsResponse
+   * @throws \Google\Service\Exception
    */
   public function listProjectsLocationsServicesRevisions($parent, $optParams = [])
   {

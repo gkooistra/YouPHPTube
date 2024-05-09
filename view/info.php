@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-$cachedFile = '../videos/cache/version.cache';
+$cachedFile = '../videos/cache/version'.(empty($_GET['version'])?1:0).'.cache';
 
 if (empty($_GET['modified']) && file_exists($cachedFile)) {
     $content = file_get_contents($cachedFile);
@@ -29,7 +29,7 @@ $obj->date = date("Y-m-d H:i:s");
 $obj->MySQLDate = getMySQLDate();
 $obj->version = $config->getVersion();
 $obj->plugins = Plugin::getAvailablePluginsBasic();
-///getTotalVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $showUnlisted = false, $activeUsersOnly = true, $suggestedOnly = false, $type = '')
+///getTotalVideos($status = Video::SORT_TYPE_VIEWABLE, $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $showUnlisted = false, $activeUsersOnly = true, $suggestedOnly = false, $type = '')
 $obj->totalVideos = Video::getTotalVideos('', false, true, true);
 $obj->totalUsers = User::getTotalUsers(true, 'a');
 $obj->totalChannels = Channel::getTotalChannels();;

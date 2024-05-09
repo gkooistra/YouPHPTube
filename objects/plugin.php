@@ -43,7 +43,7 @@ class Plugin extends ObjectYPT
 
     public function getPluginVersion()
     {
-        return $this->pluginVersion;
+        return $this->pluginversion;
     }
 
     public function getName()
@@ -94,15 +94,15 @@ class Plugin extends ObjectYPT
         $this->dirName = $dirName;
     }
 
-    public function setPluginversion($pluginversion)
+    public function setPluginversion($pluginVersion)
     {
-        $this->pluginversion = $pluginversion;
+        $this->pluginversion = $pluginVersion;
     }
 
     public static function setCurrentVersionByUuid($uuid, $currentVersion)
     {
         _error_log("plugin::setCurrentVersionByUuid $uuid, $currentVersion");
-        $p = static::getPluginByUUID($uuid);
+        $p = static::getPluginByUUID($uuid, true);
         if (!$p) {
             _error_log("plugin::setCurrentVersionByUuid error on get plugin");
             return false;
@@ -140,7 +140,7 @@ class Plugin extends ObjectYPT
         }
         if (empty($getPluginByName[$name])) {
             $sql = "SELECT * FROM " . static::getTableName() . " WHERE name = ? LIMIT 1";
-            $res = sqlDAL::readSql($sql, "s", [$name], true);
+            $res = sqlDAL::readSql($sql, "s", [$name]);
             $data = sqlDAL::fetchAssoc($res);
             sqlDAL::close($res);
             if (!empty($data)) {
@@ -152,7 +152,7 @@ class Plugin extends ObjectYPT
         return $getPluginByName[$name];
     }
 
-    public static function getPluginByUUID($uuid)
+    public static function getPluginByUUID($uuid, $refreshCache=false)
     {
         global $global, $getPluginByUUID, $pluginJustInstalled;
         $name = "plugin$uuid";
@@ -164,7 +164,7 @@ class Plugin extends ObjectYPT
         }
         if (empty($getPluginByUUID[$uuid])) {
             $sql = "SELECT * FROM " . static::getTableName() . " WHERE uuid = ? LIMIT 1";
-            $res = sqlDAL::readSql($sql, "s", [$uuid]);
+            $res = sqlDAL::readSql($sql, "s", [$uuid], $refreshCache);
             $data = sqlDAL::fetchAssoc($res);
             sqlDAL::close($res);
             if (!empty($data)) {
@@ -243,7 +243,11 @@ class Plugin extends ObjectYPT
                         $p = AVideoPlugin::loadPlugin($value);
                         if (!is_object($p) || $p->hidePlugin()) {
                             if ($value !== "Statistics") { // avoid error while this plugin is not ready
-                                _error_log("Plugin Not Found: {$value}");
+                                if (!is_object($p)) {
+                                    _error_log("Plugin Not Found 1: {$value}");
+                                }else{
+                                    _error_log("Plugin Not Found 1 hide: {$value}");
+                                }
                             }
                             continue;
                         }
@@ -292,11 +296,14 @@ class Plugin extends ObjectYPT
                         $p = AVideoPlugin::loadPlugin($value);
                         if (!is_object($p) || $p->hidePlugin()) {
                             if ($value !== "Statistics") { // avoid error while this plugin is not ready
-                                _error_log("Plugin Not Found: {$value}");
+                                _error_log("Plugin Not Found 2: {$value}");
                             }
                             continue;
                         }
                         $row = self::getPluginByUUID($p->getUUID());
+                        if(empty($row)){
+                            continue;
+                        }
                         $obj = new stdClass();
                         $obj->name = $p->getName();
                         $obj->pluginversion = $p->getPluginVersion();
@@ -401,6 +408,9 @@ class Plugin extends ObjectYPT
     public static function getEnabled($uuid)
     {
         global $global, $getEnabled;
+        if(!class_exists('sqlDAL')){
+            return array();
+        }
         if (empty($getEnabled)) {
             $getEnabled = [];
         }
@@ -582,4 +592,5 @@ class PluginTags
     public static $FREE = ['info', 'Free', '<i class="fas fa-check"></i>', 'FREE'];
     public static $PREMIUM = ['info', 'Premium', '<i class="fas fa-thumbs-up"></i>', 'PREMIUM'];
     public static $DEPRECATED = ['danger', 'Deprecated', '<i class="fas fa-times-circle"></i>', 'DEPRECATED'];
+    public static $UNDERDEVELOPMENT = ['warning', 'Under Development', '<i class="fa-solid fa-terminal"></i>', 'UNDERDEVELOPMENT'];
 }

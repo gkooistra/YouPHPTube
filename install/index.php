@@ -25,13 +25,13 @@ require_once '../locale/function.php';
     <body>
         <?php
         if (file_exists('../videos/configuration.php')) {
-            require_once '../videos/configuration.php'; ?>
+            //require_once '../videos/configuration.php'; ?>
             <div class="container">
                 <h3 class="alert alert-success">
-                    <span class="glyphicon glyphicon-ok-circle"></span>
-                    Your system is installed, remove the <code><?php echo $global['systemRootPath']; ?>install</code> directory to continue
+                    <i class="fa-solid fa-circle-check"></i>
+                    Your system is installed
                     <hr>
-                    <a href="<?php echo getHomePageURL(); ?>" class="btn btn-success btn-lg center-block">Go to the main page</a>
+                    <a href="../" class="btn btn-success btn-lg center-block">Go to the main page</a>
                 </h3>
             </div>
             <?php
@@ -48,14 +48,14 @@ require_once '../locale/function.php';
                                 if (isApache()) {
                                     ?>
                                     <div class="alert alert-success">
-                                        <span class="glyphicon glyphicon-check"></span>
+                                        <i class="fa-regular fa-square-check"></i>
                                         <strong><?php echo $_SERVER['SERVER_SOFTWARE']; ?> is Present</strong>
                                     </div>
                                     <?php
                                 } else {
                                     ?>
                                     <div class="alert alert-danger">
-                                        <span class="glyphicon glyphicon-unchecked"></span>
+                                        <i class="fa-regular fa-square"></i>
                                         <strong>Your server is <?php echo $_SERVER['SERVER_SOFTWARE']; ?>, you must install Apache</strong>
                                     </div>
                                     <?php
@@ -64,14 +64,14 @@ require_once '../locale/function.php';
                                 if (isPHP('7.3')) {
                                     ?>
                                     <div class="alert alert-success">
-                                        <span class="glyphicon glyphicon-check"></span>
+                                        <i class="fa-regular fa-square-check"></i>
                                         <strong>PHP <?php echo PHP_VERSION; ?> is present.</strong>
                                     </div>
                                     <?php
                                 } else {
                                     ?>
                                     <div class="alert alert-warning">
-                                        <span class="glyphicon glyphicon-exclamation-sign"></span>
+                                        <i class="fa-solid fa-circle-exclamation"></i>
                                         <strong>Your PHP version is <?php echo PHP_VERSION; ?>. PHP 7.3 or newer is required.</strong>
                                     </div>
                                     <?php
@@ -81,14 +81,14 @@ require_once '../locale/function.php';
                                 if (checkVideosDir()) {
                                     ?>
                                     <div class="alert alert-success">
-                                        <span class="glyphicon glyphicon-check"></span>
+                                        <i class="fa-regular fa-square-check"></i>
                                         <strong>Your videos directory is writable</strong>
                                     </div>
                                     <?php
                                 } else {
                                     ?>
                                     <div class="alert alert-danger">
-                                        <span class="glyphicon glyphicon-unchecked"></span>
+                                        <i class="fa-regular fa-square"></i>
                                         <strong>Your videos directory must be writable</strong>
                                         <details>
                                             <?php
@@ -103,7 +103,7 @@ require_once '../locale/function.php';
                                             <br>
                                             Then you can set the permissions (www-data means apache user).
                                             <br>
-                                            <pre><code>sudo chown www-data:www-data <?php echo $dir; ?> && sudo chmod 755 <?php echo $dir; ?> </code></pre>
+                                            <pre><code>sudo chown www-data:www-data <?php echo $dir; ?> && sudo chmod 777 <?php echo $dir; ?> </code></pre>
                                         </details>
                                     </div>
                                     <?php
@@ -117,14 +117,14 @@ require_once '../locale/function.php';
                                 if (check_post_max_size()) {
                                     ?>
                                     <div class="alert alert-success">
-                                        <span class="glyphicon glyphicon-check"></span>
+                                        <i class="fa-regular fa-square-check"></i>
                                         <strong>Your post_max_size is <?php echo ini_get('post_max_size'); ?></strong>
                                     </div>
                                     <?php
                                 } else {
                                     ?>
                                     <div class="alert alert-danger">
-                                        <span class="glyphicon glyphicon-unchecked"></span>
+                                        <i class="fa-regular fa-square"></i>
                                         <strong>Your post_max_size is <?php echo ini_get('post_max_size'); ?>, it must be at least 100M</strong>
 
                                         <details>
@@ -140,14 +140,14 @@ require_once '../locale/function.php';
                                 if (check_upload_max_filesize()) {
                                     ?>
                                     <div class="alert alert-success">
-                                        <span class="glyphicon glyphicon-check"></span>
+                                        <i class="fa-regular fa-square-check"></i>
                                         <strong>Your upload_max_filesize is <?php echo ini_get('upload_max_filesize'); ?></strong>
                                     </div>
                                     <?php
                                 } else {
                                     ?>
                                     <div class="alert alert-danger">
-                                        <span class="glyphicon glyphicon-unchecked"></span>
+                                        <i class="fa-regular fa-square"></i>
                                         <strong>Your upload_max_filesize is <?php echo ini_get('upload_max_filesize'); ?>, it must be at least 100M</strong>
 
                                         <details>
@@ -338,7 +338,7 @@ require_once '../locale/function.php';
                             if (xhr.status == 404) {
                                 avideoAlert("Sorry!", "Your Site URL is wrong!", "error");
                             } else {
-                                avideoAlert("Sorry!", "Unknown error!", "error");
+                                avideoAlert("Sorry!", "Unknown error! Please check the Apache server log for more information.", "error");
                             }
                         }
                     });

@@ -10,27 +10,43 @@ const keySystemsMap = {
   'urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b': 'org.w3.clearkey',
   'urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed': 'com.widevine.alpha',
   'urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95': 'com.microsoft.playready',
-  'urn:uuid:f239e769-efa3-4850-9c16-a903c6932efb': 'com.adobe.primetime'
+  'urn:uuid:f239e769-efa3-4850-9c16-a903c6932efb': 'com.adobe.primetime',
+  // ISO_IEC 23009-1_2022 5.8.5.2.2 The mp4 Protection Scheme
+  'urn:mpeg:dash:mp4protection:2011': 'mp4protection'
 };
 
 /**
  * Builds a list of urls that is the product of the reference urls and BaseURL values
  *
- * @param {string[]} referenceUrls
- *        List of reference urls to resolve to
+ * @param {Object[]} references
+ *        List of objects containing the reference URL as well as its attributes
  * @param {Node[]} baseUrlElements
  *        List of BaseURL nodes from the mpd
- * @return {string[]}
- *         List of resolved urls
+ * @return {Object[]}
+ *         List of objects with resolved urls and attributes
  */
-export const buildBaseUrls = (referenceUrls, baseUrlElements) => {
+export const buildBaseUrls = (references, baseUrlElements) => {
   if (!baseUrlElements.length) {
-    return referenceUrls;
+    return references;
   }
 
-  return flatten(referenceUrls.map(function(reference) {
+  return flatten(references.map(function(reference) {
     return baseUrlElements.map(function(baseUrlElement) {
-      return resolveUrl(reference, getContent(baseUrlElement));
+      const initialBaseUrl = getContent(baseUrlElement);
+      const resolvedBaseUrl = resolveUrl(reference.baseUrl, initialBaseUrl);
+
+      const finalBaseUrl = merge(
+        parseAttributes(baseUrlElement),
+        { baseUrl: resolvedBaseUrl }
+      );
+
+      // If the URL is resolved, we want to get the serviceLocation from the reference
+      // assuming there is no serviceLocation on the initialBaseUrl
+      if (resolvedBaseUrl !== initialBaseUrl && !finalBaseUrl.serviceLocation && reference.serviceLocation) {
+        finalBaseUrl.serviceLocation = reference.serviceLocation;
+      }
+
+      return finalBaseUrl;
     });
   }));
 };
@@ -140,8 +156,9 @@ export const getSegmentInformation = (adaptationSet) => {
  *
  * @param {Object} adaptationSetAttributes
  *        Contains attributes inherited by the AdaptationSet
- * @param {string[]} adaptationSetBaseUrls
- *        Contains list of resolved base urls inherited by the AdaptationSet
+ * @param {Object[]} adaptationSetBaseUrls
+ *        List of objects containing resolved base URLs and attributes
+ *        inherited by the AdaptationSet
  * @param {SegmentInformation} adaptationSetSegmentInfo
  *        Contains Segment information for the AdaptationSet
  * @return {inheritBaseUrlsCallback}
@@ -158,7 +175,7 @@ export const inheritBaseUrls =
     return repBaseUrls.map(baseUrl => {
       return {
         segmentInfo: merge(adaptationSetSegmentInfo, representationSegmentInfo),
-        attributes: merge(attributes, { baseUrl })
+        attributes: merge(attributes, baseUrl)
       };
     });
   };
@@ -288,6 +305,42 @@ export const parseCaptionServiceMetadata = (service) => {
 };
 
 /**
+ * A map callback that will parse all event stream data for a collection of periods
+ * DASH ISO_IEC_23009 5.10.2.2
+ * https://dashif-documents.azurewebsites.net/Events/master/event.html#mpd-event-timing
+ *
+ * @param {PeriodInformation} period object containing necessary period information
+ * @return a collection of parsed eventstream event objects
+ */
+export const toEventStream = (period) => {
+  // get and flatten all EventStreams tags and parse attributes and children
+  return flatten(findChildren(period.node, 'EventStream').map((eventStream) => {
+    const eventStreamAttributes = parseAttributes(eventStream);
+    const schemeIdUri = eventStreamAttributes.schemeIdUri;
+
+    // find all Events per EventStream tag and map to return objects
+    return findChildren(eventStream, 'Event').map((event) => {
+      const eventAttributes = parseAttributes(event);
+      const presentationTime = eventAttributes.presentationTime || 0;
+      const timescale = eventStreamAttributes.timescale || 1;
+      const duration = eventAttributes.duration || 0;
+      const start = (presentationTime / timescale) + period.attributes.start;
+
+      return {
+        schemeIdUri,
+        value: eventStreamAttributes.value,
+        id: eventAttributes.id,
+        start,
+        end: start + (duration / timescale),
+        messageData: getContent(event) || eventAttributes.messageData,
+        contentEncoding: eventStreamAttributes.contentEncoding,
+        presentationTimeOffset: eventStreamAttributes.presentationTimeOffset || 0
+      };
+    });
+  }));
+};
+
+/**
  * Maps an AdaptationSet node to a list of Representation information objects
  *
  * @name toRepresentationsCallback
@@ -304,8 +357,9 @@ export const parseCaptionServiceMetadata = (service) => {
  *
  * @param {Object} periodAttributes
  *        Contains attributes inherited by the Period
- * @param {string[]} periodBaseUrls
- *        Contains list of resolved base urls inherited by the Period
+ * @param {Object[]} periodBaseUrls
+ *        Contains list of objects with resolved base urls and attributes
+ *        inherited by the Period
  * @param {string[]} periodSegmentInfo
  *        Contains Segment Information at the period level
  * @return {toRepresentationsCallback}
@@ -385,8 +439,9 @@ export const toRepresentations =
  *
  * @param {Object} mpdAttributes
  *        Contains attributes inherited by the mpd
- * @param {string[]} mpdBaseUrls
- *        Contains list of resolved base urls inherited by the mpd
+  * @param {Object[]} mpdBaseUrls
+ *        Contains list of objects with resolved base urls and attributes
+ *        inherited by the mpd
  * @return {toAdaptationSetsCallback}
  *         Callback map function
  */
@@ -403,6 +458,41 @@ export const toAdaptationSets = (mpdAttributes, mpdBaseUrls) => (period, index) 
   const periodSegmentInfo = getSegmentInformation(period.node);
 
   return flatten(adaptationSets.map(toRepresentations(periodAttributes, periodBaseUrls, periodSegmentInfo)));
+};
+
+/**
+ * Tranforms an array of content steering nodes into an object
+ * containing CDN content steering information from the MPD manifest.
+ *
+ * For more information on the DASH spec for Content Steering parsing, see:
+ * https://dashif.org/docs/DASH-IF-CTS-00XX-Content-Steering-Community-Review.pdf
+ *
+ * @param {Node[]} contentSteeringNodes
+ *        Content steering nodes
+ * @param {Function} eventHandler
+ *        The event handler passed into the parser options to handle warnings
+ * @return {Object}
+ *        Object containing content steering data
+ */
+export const generateContentSteeringInformation = (contentSteeringNodes, eventHandler) => {
+  // If there are more than one ContentSteering tags, throw an error
+  if (contentSteeringNodes.length > 1) {
+    eventHandler({ type: 'warn', message: 'The MPD manifest should contain no more than one ContentSteering tag' });
+  }
+
+  // Return a null value if there are no ContentSteering tags
+  if (!contentSteeringNodes.length) {
+    return null;
+  }
+
+  const infoFromContentSteeringTag =
+    merge({serverURL: getContent(contentSteeringNodes[0])}, parseAttributes(contentSteeringNodes[0]));
+
+  // Converts `queryBeforeStart` to a boolean, as well as setting the default value
+  // to `false` if it doesn't exist
+  infoFromContentSteeringTag.queryBeforeStart = (infoFromContentSteeringTag.queryBeforeStart === 'true');
+
+  return infoFromContentSteeringTag;
 };
 
 /**
@@ -482,7 +572,14 @@ export const inheritAttributes = (mpd, options = {}) => {
   const {
     manifestUri = '',
     NOW = Date.now(),
-    clientOffset = 0
+    clientOffset = 0,
+    // TODO: For now, we are expecting an eventHandler callback function
+    // to be passed into the mpd parser as an option.
+    // In the future, we should enable stream parsing by using the Stream class from vhs-utils.
+    // This will support new features including a standardized event handler.
+    // See the m3u8 parser for examples of how stream parsing is currently used for HLS parsing.
+    // https://github.com/videojs/vhs-utils/blob/88d6e10c631e57a5af02c5a62bc7376cd456b4f5/src/stream.js#L9
+    eventHandler = function() {}
   } = options;
   const periodNodes = findChildren(mpd, 'Period');
 
@@ -493,7 +590,8 @@ export const inheritAttributes = (mpd, options = {}) => {
   const locations = findChildren(mpd, 'Location');
 
   const mpdAttributes = parseAttributes(mpd);
-  const mpdBaseUrls = buildBaseUrls([ manifestUri ], findChildren(mpd, 'BaseURL'));
+  const mpdBaseUrls = buildBaseUrls([{ baseUrl: manifestUri }], findChildren(mpd, 'BaseURL'));
+  const contentSteeringNodes = findChildren(mpd, 'ContentSteering');
 
   // See DASH spec section 5.3.1.2, Semantics of MPD element. Default type to 'static'.
   mpdAttributes.type = mpdAttributes.type || 'static';
@@ -531,6 +629,15 @@ export const inheritAttributes = (mpd, options = {}) => {
 
   return {
     locations: mpdAttributes.locations,
-    representationInfo: flatten(periods.map(toAdaptationSets(mpdAttributes, mpdBaseUrls)))
+    contentSteeringInfo: generateContentSteeringInformation(contentSteeringNodes, eventHandler),
+    // TODO: There are occurences where this `representationInfo` array contains undesired
+    // duplicates. This generally occurs when there are multiple BaseURL nodes that are
+    // direct children of the MPD node. When we attempt to resolve URLs from a combination of the
+    // parent BaseURL and a child BaseURL, and the value does not resolve,
+    // we end up returning the child BaseURL multiple times.
+    // We need to determine a way to remove these duplicates in a safe way.
+    // See: https://github.com/videojs/mpd-parser/pull/17#discussion_r162750527
+    representationInfo: flatten(periods.map(toAdaptationSets(mpdAttributes, mpdBaseUrls))),
+    eventStream: flatten(periods.map(toEventStream))
   };
 };

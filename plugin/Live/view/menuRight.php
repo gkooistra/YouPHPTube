@@ -1,10 +1,15 @@
 <?php
 $obj = AVideoPlugin::getDataObject("Live");
-
-$buttonTitle = $this->getButtonTitle();
-$obj = $this->getDataObject();
+$o = AVideoPlugin::loadPlugin('Live');
+$buttonTitle = $o->getButtonTitle();
+$obj = $o->getDataObject();
 $isLive = isLive();
-$liveInfo = Live::getInfo($isLive['key'], $isLive['live_servers_id']);
+if(empty($isLive)){
+    $liveInfo = array();
+    $liveInfo['isLive'] = false;
+}else{
+    $liveInfo = Live::getInfo($isLive['key'], $isLive['live_servers_id']);
+}
 if (User::canStream()) {
     if (empty($obj->doNotShowGoLiveButton)) {
         ?>
@@ -111,7 +116,7 @@ if (!empty($obj->playLiveInFullScreenOnIframe)) {
         }, 200);
     }
 
-    function getStatsMenu(recurrentCall) {
+    async function getStatsMenu(recurrentCall) {
         if (avideoSocketIsActive()) {
             return false;
         }
@@ -218,6 +223,10 @@ if (!empty($obj->playLiveInFullScreenOnIframe)) {
         user = application.user;
         photo = application.photo;
 
+        if(/Restream test/.test(title)){
+            return false;
+        }
+
         if (!empty(application.expires) && application.expires < _serverTime) {
             return false;
         }
@@ -319,11 +328,6 @@ if (!empty($obj->playLiveInFullScreenOnIframe)) {
     }
 
     function processUserNotificationFromApplication(application) {
-<?php
-if ($obj->doNotProcessNotifications) {
-    echo 'return false;';
-}
-?>
         if (typeof addTemplateFromArray !== 'function') {
             return false;
         }
@@ -337,7 +341,7 @@ if ($obj->doNotProcessNotifications) {
         itemsArray.icon = 'fas fa-video';
         itemsArray.type = 'info';
         itemsArray.html = '<span class="label label-danger liveNow faa-flash faa-slow animated" style="display:inline-block; float:right;">LIVE NOW</span>';
-        addTemplateFromArray(itemsArray);
+        addTemplateFromArray(itemsArray, false);
     }
 
 <?php

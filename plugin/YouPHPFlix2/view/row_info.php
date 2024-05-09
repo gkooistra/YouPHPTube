@@ -1,3 +1,8 @@
+<?php
+$timeLog6Limit = 0.4;
+$timeLog6 = "row_info.php {$value['clean_title']}";
+TimeLogStart($timeLog6);
+?>
 <!-- row_info start -->
 <div class="infoDetails">
     <?php
@@ -24,6 +29,7 @@
         <span class="label label-success"><a style="color: inherit;" class="tile__cat" cat="<?php echo $value['clean_category']; ?>" href="<?php echo $global['webSiteRootURL'] . "cat/" . $value['clean_category']; ?>"><i class="<?php echo $value['iconClass']; ?>"></i> <?php echo $value['category']; ?></a></span>
     <?php } ?>
     <?php
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     foreach ($value['tags'] as $value2) {
         $value2 = (object) $value2;
         if (!empty($advancedCustom) && empty($advancedCustom->doNotDisplayGroupsTags)) {
@@ -33,7 +39,7 @@
                 <?php
             }
         }
-        if ($advancedCustom->paidOnlyFreeLabel && !empty($value2->label) && $value2->label === __("Paid Content")) {
+        if ($advancedCustom->paidOnlyFreeLabel && !empty($value2->label) && $value2->label === __("Paid Content") && !empty($value2->type) && !empty($value2->text)) {
             ?><span class="label label-<?php echo $value2->type; ?>"><?php echo $value2->text; ?></span><?php
         }
         if (!empty($advancedCustom) && empty($advancedCustom->doNotDisplayPluginsTags)) {
@@ -45,32 +51,29 @@
             }
         }
     }
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     ?>
     <?php
-    if (!empty($value['rrating'])) {
-        include $global['systemRootPath'] . 'view/rrating/rating-' . $value['rrating'] . '.php';
-    } else if (!empty($advancedCustom) && $advancedCustom->showNotRatedLabel) {
-        include $global['systemRootPath'] . 'view/rrating/notRated.php';
-    }
+    Video::getRratingHTML($value['rrating'] );
     ?>
 </div>
 <div class="row">
     <?php
-    if (!empty($images->posterPortrait) && basename($images->posterPortrait) !== 'notfound_portrait.jpg' && basename($images->posterPortrait) !== 'pdf_portrait.png' && basename($images->posterPortrait) !== 'article_portrait.png') {
+    if (!empty($images->posterPortrait) && !ImagesPlaceHolders::isDefaultImage($images->posterPortrait)) {
         ?>
         <!-- row video 1 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
+                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
-    } else if (!empty($images->poster) && basename($images->poster) !== 'notfound.jpg' && basename($images->poster) !== 'pdf.png' && basename($images->poster) !== 'article.png') {
+    } else if (!empty($images->poster) && !ImagesPlaceHolders::isDefaultImage($images->poster)) {
         ?>
         <!-- row video 2 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo $value['title']; ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
+                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -79,7 +82,7 @@
         <!-- row video 3 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo $value['title']; ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
+                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -88,7 +91,7 @@
         <!-- row video 4 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo $value['title']; ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
+                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -98,16 +101,18 @@
         <h4 class="mainInfoText" itemprop="description">
             <?php
             if (strip_tags($value['description']) != $value['description']) {
-                echo $value['description'];
+                echo strip_specific_tags($value['description']);
             } else {
                 echo nl2br(textToLink(htmlentities($value['description'])));
             }
             ?>
         </h4>
         <?php
+        TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
         if (AVideoPlugin::isEnabledByName("VideoTags")) {
             echo VideoTags::getLabels($value['id']);
         }
+        TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
         ?>
     </div>
 </div>
@@ -115,6 +120,7 @@
     <?php
     $canWatchPlayButton = "";
     $get = $_GET;
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     if (User::canWatchVideoWithAds($value['id'])) {
         $canWatchPlayButton = "canWatchPlayButton";
     } else if ($obj->hidePlayButtonIfCannotWatch) {
@@ -131,6 +137,7 @@
             <?php
         }
     }
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     $_GET = $get;
     ?>
     <a class="btn btn-danger playBtn <?php echo $canWatchPlayButton; ?>" 
@@ -150,8 +157,11 @@
     }
     ?>
     <?php
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     echo AVideoPlugin::getNetflixActionButton($value['id']);
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     getSharePopupButton($value['id']);
+    TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     ?>
 </div>
 <!-- row_info end -->

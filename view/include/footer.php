@@ -39,11 +39,6 @@ if (empty($advancedCustom)) {
     }
     ?>
 </footer>
-<?php
-if(isBot()){
-    return false;
-}
-?>
 <script>
     $(function () {
         /** showAlertMessage **/
@@ -54,12 +49,11 @@ if(isBot()){
 </script>
 <script src="<?php echo getURL('node_modules/jquery-lazy/jquery.lazy.min.js'); ?>" type="text/javascript"></script>
 <script src="<?php echo getURL('node_modules/jquery-lazy/jquery.lazy.plugins.min.js'); ?>" type="text/javascript"></script>
-<script src="<?php echo getURL('node_modules/moment/min/moment.min.js'); ?>"></script>
-<?php 
-echo getTagIfExists('node_modules/moment/locale/'. getLanguage().'.js');
+<?php
+include $global['systemRootPath'] . 'view/include/moment.js.php';
 ?>
-<script src="<?php echo getURL('node_modules/moment-timezone/builds/moment-timezone-with-data.min.js'); ?>"></script>
 <script src="<?php echo getURL('view/js/script.js'); ?>" type="text/javascript"></script>
+<script src="<?php echo getURL('view/js/addView.js'); ?>" type="text/javascript"></script>
 <script src="<?php echo getURL('node_modules/jquery-ui-dist/jquery-ui.min.js'); ?>" type="text/javascript"></script>
 <?php
 include $global['systemRootPath'] . 'view/include/bootstrap.js.php';
@@ -79,8 +73,8 @@ $jsFiles[] = "view/js/webui-popover/jquery.webui-popover.min.js";
 $jsFiles[] = "view/js/bootstrap-list-filter/bootstrap-list-filter.min.js";
 $jsFiles[] = "node_modules/js-cookie/dist/js.cookie.js";
 $jsFiles[] = "node_modules/jquery-toast-plugin/dist/jquery.toast.min.js";
-$jsFiles[] = "view/bootstrap/jquery-bootstrap-scrolling-tabs/jquery.scrolling-tabs.min.js";
 $jsFiles[] = "view/js/BootstrapMenu.min.js";
+//$jsFiles[] = "view/js/ajaxLoad.js";
 
 $jsFiles = array_merge($jsFiles, AVideoPlugin::getJSFiles());
 echo combineFilesHTML($jsFiles, "js", true);
@@ -134,14 +128,17 @@ if (isFirstPage()) {
     });
     function checkFooter() {
         $("#mainFooter").fadeIn();
-        if (getPageHeight() <= $(window).height()) {
+        var height = $("#mainFooter").height();
+        if (height < 150 && getPageHeight() <= $(window).height()) {
             clearTimeout(checkFooterTimout);
             checkFooterTimout = setTimeout(function () {
                 checkFooter();
             }, 1000);
             $("#mainFooter").css("position", "fixed");
+            $('body').css('padding-bottom', height+'px');
         } else {
             $("#mainFooter").css("position", "relative");
+            $('body').css('padding-bottom', '');
         }
     }
 

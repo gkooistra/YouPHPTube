@@ -19,6 +19,8 @@ class Live_schedule extends ObjectYPT
     protected $showOnTV;
     protected $scheduled_password;
     protected $users_id_company;
+    protected $json;
+    protected $scheduled_php_time;
 
     public static function getSearchFieldsNames()
     {
@@ -36,6 +38,54 @@ class Live_schedule extends ObjectYPT
 
     function setUsers_id_company($users_id_company): void {
         $this->users_id_company = intval($users_id_company);
+    }
+
+    function getJson(){
+        return $this->json;
+    }
+
+    function setJson($json){
+        if(!is_string($json)){
+            $json = _json_encode($json);
+        }
+        $this->json = $json;
+    }
+
+
+    function getUserGroups(){
+        $content = $this->getJson();
+        if(empty($content)){
+            return array();
+        }else{
+            $json = _json_decode($content);
+            if(empty($json)){
+                return array();
+            }else{
+                $json = object_to_array($json);
+                if(isset($json['usergoups'])){
+                    return $json['usergoups'];
+                } else{
+                    return array();
+                }
+            } 
+        }        
+    }
+
+    function setUserGroups($usergroups){
+        $content = $this->getJson();
+        if(empty($content)){
+            $json = array();
+        }else{
+            $json = _json_decode($content);
+            if(empty($json)){
+                $json = array();
+            }else{
+                $json = object_to_array($json);
+            } 
+        } 
+        
+        $json['usergoups'] = $usergroups;
+        $this->setJson($json);
     }
 
     public static function getAllUsers()
@@ -137,9 +187,14 @@ class Live_schedule extends ObjectYPT
             $sql .= " AND users_id = $users_id ";
         }
         if ($activeHoursAgo) {
-            $sql .= " AND scheduled_time > DATE_SUB(NOW(), INTERVAL {$activeHoursAgo} HOUR) ";
+            $sql .= " AND (scheduled_time > DATE_SUB(NOW(), INTERVAL {$activeHoursAgo} HOUR) OR (scheduled_php_time >= ".time()."))";
         }
         $sql .= self::getSqlFromPost();
+        
+        if(!preg_match('/order by/i', $sql)){
+            $sql .= ' ORDER BY scheduled_time ASC';
+        }
+        //echo $sql;exit;
         $res = sqlDAL::readSql($sql);
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
@@ -151,6 +206,14 @@ class Live_schedule extends ObjectYPT
                 //var_dump($row['secondsIntervalHuman']);exit;
                 $row['posterURL'] = self::getPosterURL($row['id']);
                 $row['serverURL'] = Live::getServerURL($row['key'], $row['users_id']);
+                if(empty($row['json'])){
+                    $row['json'] = array();
+                }else{
+                    $row['json'] = object_to_array(_json_decode($row['json']));
+                }
+                if(empty($row['json']['usergoups'])){
+                    $row['json']['usergoups'] = array();
+                }
 
                 $rows[] = $row;
             }
@@ -158,7 +221,7 @@ class Live_schedule extends ObjectYPT
         return $rows;
     }
 
-    public static function getAllActiveLimit($users_id=0,$limit = 10)
+    public static function getAllActiveLimit($users_id=0,$limit = 100)
     {
         global $global;
         if (!static::isTableInstalled()) {
@@ -175,7 +238,7 @@ class Live_schedule extends ObjectYPT
             $sql .= " AND users_id = $users_id ";
         }
         
-        $sql .= " AND (CONVERT_TZ(scheduled_time, timezone, @@session.time_zone ) > NOW() || scheduled_time > NOW()) "
+        $sql .= " AND ((CONVERT_TZ(scheduled_time, timezone, @@session.time_zone ) > NOW() || scheduled_time > NOW()) OR (scheduled_php_time >= ".time().")) "
                 . " ORDER BY scheduled_time ASC LIMIT {$limit} ";
         //echo $sql;
         $res = sqlDAL::readSql($sql);
@@ -228,6 +291,13 @@ class Live_schedule extends ObjectYPT
         $this->scheduled_time = $scheduled_time;
     }
 
+    public function setScheduledPHPtime($scheduled_time)
+    {
+        if(!empty($scheduled_time)){
+            $this->scheduled_php_time = strtotime($scheduled_time);
+        }
+    }
+
     private function _setTimezone($timezone)
     {
         $this->timezone = $timezone;
@@ -267,6 +337,12 @@ class Live_schedule extends ObjectYPT
     {
         return $this->title;
     }
+
+    public function getDinamicTitle()
+    {
+        return Live::getTitleFromKey($this->key, $this->title);
+    }
+
 
     public function getDescription()
     {
@@ -348,6 +424,10 @@ class Live_schedule extends ObjectYPT
         if (empty($this->users_id_company)) {
             $this->users_id_company = 'NULL';
         }
+        
+        if ($this->status != 'i') {
+            $this->status = 'a';
+        }
 
         if (empty($this->key)) {
             $this->key = uniqid();
@@ -392,7 +472,7 @@ class Live_schedule extends ObjectYPT
         deleteStatsNotifications();
         //ObjectYPT::deleteAllSessionCache();
         ObjectYPT::deleteALLCache();
-        Live::deleteStatsCache(true);
+        deleteStatsNotifications(true);
     }
 
     public static function keyExists($key)
@@ -415,7 +495,7 @@ class Live_schedule extends ObjectYPT
         $res = sqlDAL::readSql($sql);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
-        if ($res) {
+        if (!empty($data)) {
             $row = $data;
             $row = cleanUpRowFromDatabase($row);
             $row['scheduled_password'] = $data['scheduled_password'];
@@ -458,12 +538,14 @@ class Live_schedule extends ObjectYPT
         if(!empty($password) && !Live::passwordIsGood($this->getKey())){
             return false;
         }
-         *
-         */
         $ltRow = LiveTransmition::getFromDbByUser($this->getUsers_id());
         $lt = new LiveTransmition($ltRow['id']);
         $transmitionGroups = $lt->getGroups();
+         *
+         */
+        $transmitionGroups = $this->getUserGroups();
         if (!empty($transmitionGroups)) {
+            _error_log('LiveSchedule::userCanSeeTransmition usergroup not empty - '.json_encode($transmitionGroups));
             if (empty($this->id)) {
                 return false;
             }

@@ -1,5 +1,8 @@
 
 var seachFormIsRunning = 0;
+var youTubeMenuIsOpened = false;
+var youTubeMenuIsCompressed = false;
+
 $(document).ready(function () {
     setTimeout(function () {
         $('.nav li.navsub-toggle a:not(.selected) + ul').hide();
@@ -25,7 +28,7 @@ $(document).ready(function () {
 
     $('.nav').on('click', 'li.navsub-toggle a:not(.selected)', function (e) {
         var a = $(this),
-                b = a.next();
+            b = a.next();
         if (b.length) {
             e.preventDefault();
 
@@ -39,7 +42,7 @@ $(document).ready(function () {
         }
     });
 
-    $('#searchForm').submit(function (event) {
+    $('#searchForm').on('submit', function (event) {
         if (seachFormIsRunning) {
             event.preventDefault();
             return false;
@@ -53,7 +56,8 @@ $(document).ready(function () {
             return false;
         } else {
             console.log("searchForm submit " + str);
-            document.location = webSiteRootURL + "?search=" + str;
+            this.submit();
+            //document.location = webSiteRootURL + "?search=" + str;
         }
     });
 
@@ -98,13 +102,13 @@ $(document).ready(function () {
 
     $(window).resize(function () {
         if (!isScreeWidthCollapseSize()) {
-            $("#myNavbar").css({display:''});
+            $("#myNavbar").css({ display: '' });
             $("#myNavbar").removeClass('animate__bounceOutRight');
             var selector = '#buttonMyNavbar svg';
             $(selector).removeClass('active');
             $(selector).attr('aria-expanded', 'false');
-            
-            $("#mysearch").css({display:''});
+
+            $("#mysearch").css({ display: '' });
             $("#mysearch").removeClass('animate__bounceOutUp');
         }
     });
@@ -115,17 +119,17 @@ function isScreeWidthCollapseSize() {
 }
 
 async function closeLeftMenu() {
+    console.log('closeLeftMenu');
     var selector = '#buttonMenu svg';
     $(selector).removeClass('active');
     YPTSidebarClose();
 }
 async function openLeftMenu() {
+    console.log('openLeftMenu');
     if (isScreeWidthCollapseSize()) {
         closeRightMenu();
         closeSearchMenu();
     }
-    var selector = '#buttonMenu svg';
-    $(selector).addClass('active');
     YPTSidebarOpen();
 }
 
@@ -184,12 +188,12 @@ async function seachFormPlayURL(url) {
                 if (typeof linksToEmbed === 'function') {
                     document.location = response.playEmbedLink;
                 } else
-                if (typeof flixFullScreen == 'function') {
-                    flixFullScreen(response.playEmbedLink, response.playLink);
-                    modal.hidePleaseWait();
-                } else {
-                    document.location = response.playLink;
-                }
+                    if (typeof flixFullScreen == 'function') {
+                        flixFullScreen(response.playEmbedLink, response.playLink);
+                        modal.hidePleaseWait();
+                    } else {
+                        document.location = response.playLink;
+                    }
             }
         }
     });
@@ -212,22 +216,76 @@ function YPTSidebarIsOpen() {
     return $('body').hasClass('youtube');
 }
 async function YPTSidebarOpen() {
+    console.log('YPTSidebarOpen');
+    var selector = '#buttonMenu svg';
+    $(selector).addClass('active');
+    $('body').addClass('youtube');
     $("#sidebar").removeClass('animate__bounceOutLeft');
     $("#sidebar").show();
     $("#sidebar").addClass('animate__animated animate__bounceInLeft');
+    Cookies.set("menuOpen", true, { expires: 365, path: '/' });
     setTimeout(function () {
-        $('body').addClass('youtube');
+        setTimeout(function () {
+            flickityReload();
+        }, 500);
     }, 500);
     youTubeMenuIsOpened = true;
 }
+
+async function flickityReload() {
+    var flickityEnabledElements = $('.flickity-enabled');
+    if (flickityEnabledElements.data('flickity')) {
+        // Execute the 'reposition' method only if Flickity is enabled
+        flickityEnabledElements.flickity('resize');
+    }
+}
+
 async function YPTSidebarClose() {
+    console.log('YPTSidebarClose');
     $("#sidebar").removeClass('animate__bounceInLeft');
     $("#sidebar").addClass('animate__bounceOutLeft');
+    Cookies.set("menuOpen", false, { expires: 365, path: '/' });
     setTimeout(function () {
+        YPTSidebarUncompress();
         $('body').removeClass('youtube');
         $("#sidebar").hide();
+        setTimeout(function () {
+            flickityReload();
+        }, 500);
     }, 500);
     youTubeMenuIsOpened = false;
+}
+
+
+async function YPTSidebarCompress() {
+    console.log('YPTSidebarCompress');
+    Cookies.set("menuCompressed", true, { expires: 365, path: '/' });
+    $('body').addClass('compressedMenu');
+    setTimeout(function () {
+        flickityReload();
+    }, 500);
+    youTubeMenuIsCompressed = true;
+}
+async function YPTSidebarUncompress() {
+    console.log('YPTSidebarUncompress');
+    Cookies.set("menuCompressed", false, { expires: 365, path: '/' });
+    $('body').removeClass('compressedMenu');
+    setTimeout(function () {
+        flickityReload();
+    }, 500);
+    youTubeMenuIsCompressed = false;
+}
+
+function YPTSidebarIsCompressed() {
+    return $('body').hasClass('compressedMenu');
+}
+
+async function YPTSidebarCompressToggle() {
+    if (YPTSidebarIsCompressed()) {
+        YPTSidebarUncompress();
+    } else {
+        YPTSidebarCompress();
+    }
 }
 
 async function YPTHidenavbar() {
@@ -242,3 +300,23 @@ async function YPTHidenavbar() {
         }
     }
 }
+
+$(document).ready(function () {
+    var menuCompressed = Cookies.get("menuCompressed");
+    if (menuCompressed === "true" && !inIframe()) {
+        YPTSidebarCompress();
+    } else {
+        YPTSidebarUncompress();
+    }
+
+    var menuOpen = Cookies.get("menuOpen");
+    if (menuOpen === "true" && !inIframe()) {
+        YPTSidebarOpen();
+    } else {
+        YPTSidebarClose();
+    }
+
+    setTimeout(function () {
+        flickityReload();
+    }, 5000);
+});

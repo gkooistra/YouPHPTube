@@ -6,14 +6,18 @@ use React\EventLoop\Loop;
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Amp\Loop as AMPLoop;
+use User;
 
 require_once dirname(__FILE__) . '/../../videos/configuration.php';
 require_once $global['systemRootPath'] . 'plugin/YPTSocket/functions.php';
 
 class Message implements MessageComponentInterface {
 
+    static $mem_usage;
+    static $mem;
     protected $clients;
     protected $clientsLoggedConnections = 0;
+    protected $disconnectAfter = 14400;//4 hours
     protected $clientsInVideos = array();
     protected $clientsInLives = array();
     protected $clientsInLivesLinks = array();
@@ -33,6 +37,7 @@ class Message implements MessageComponentInterface {
     }
 
     public function onOpen(ConnectionInterface $conn) {
+        global $global;
         $start = microtime(true);
         $query = $conn->httpRequest->getUri()->getQuery();
         parse_str($query, $wsocketGetVars);
@@ -56,8 +61,11 @@ class Message implements MessageComponentInterface {
             $live_key['live_servers_id'] = 0;
             $live_key['liveLink'] = '';
         }
+
+        //_error_log(json_encode(array($json, $wsocketGetVars)));
         //var_dump($live_key);
         $client = array();
+        $client['time'] = time();
         $client['resourceId'] = intval($conn->resourceId);
         $client['users_id'] = intval($json->from_users_id);
         $client['room_users_id'] = intval(@$json->room_users_id);
@@ -68,6 +76,7 @@ class Message implements MessageComponentInterface {
         $client['live_key'] = $live_key['key'];
         $client['live_servers_id'] = intval($live_key['live_servers_id']);
         $client['user_name'] = $json->user_name;
+        $client['identification'] = User::getNameIdentificationById($client['users_id']);
         $client['browser'] = $json->browser;
         $client['yptDeviceId'] = $json->yptDeviceId;
         $client['client'] = deviceIdToObject($json->yptDeviceId);
@@ -91,7 +100,22 @@ class Message implements MessageComponentInterface {
         $client['browser'] = $client['client']->browser;
         $client['os'] = $client['client']->os;
         $client['data'] = $json;
-        
+
+        if(empty($client['room_users_id'])){
+            $queryString = parse_url($client['selfURI'], PHP_URL_QUERY);
+            parse_str($queryString, $params);
+            if(!empty($params['room_users_id'])){
+                $client['room_users_id'] = intval($params['room_users_id']);
+            }
+        }
+        $client['chat_is_banned'] = 0;
+        if(!empty($client['room_users_id']) && !empty($client['users_id'])){
+            require_once $global['systemRootPath'] . 'plugin/Chat2/Objects/ChatBan.php';
+            if(\ChatBan::isUserBanned($client['room_users_id'], $client['users_id'])){
+                $client['chat_is_banned'] = 1;
+            }
+        }
+        //var_dump($client, $json, $wsocketGetVars);
         //var_dump($client['liveLink'], $live_key);
         
         $this->setClient($conn, $client);
@@ -101,13 +125,28 @@ class Message implements MessageComponentInterface {
             _log_message("Test detected and received from ($conn->resourceId) " . PHP_EOL . "\e[1;32;40m*** SUCCESS TEST CONNECION {$json->test_msg} ***\e[0m");
             $this->msgToResourceId($json, $conn->resourceId, \SocketMessageType::TESTING);
         } else if ($this->shouldPropagateInfo($client)) {
-            //_log_message("shouldPropagateInfo {$json->yptDeviceId}");
-            $this->msgToAll($conn, array('users_id' => $client['users_id'], 'user_name' => $client['user_name'], 'yptDeviceId' => $client['yptDeviceId']), \SocketMessageType::NEW_CONNECTION, true);
+            $this->msgToAll(
+                $conn, 
+                array(
+                    'users_id' => $client['users_id'], 
+                    'yptDeviceId' => $client['yptDeviceId'], 
+                    'live_key_servers_id' => $client['live_key_servers_id'], 
+                    'identification' => $client['identification'], 
+                    'videos_id' => $client['videos_id'], 
+                    'room_users_id' => $client['room_users_id'], 
+                    'chat_is_banned' => $client['chat_is_banned'], 
+                    'resourceId' => $client['resourceId']), 
+                    \SocketMessageType::NEW_CONNECTION, 
+                    true);
         } else {
             //_log_message("NOT shouldPropagateInfo ");
         }
         $end = number_format(microtime(true) - $start, 4);
-        _log_message("Connection opened in {$end} seconds");
+        _log_message("Connection opened in {$end} seconds users_id={$client['users_id']} selfURI={$client['selfURI']} isCommandLine={$client['isCommandLine']} page_title={$client['page_title']} browser={$client['browser']} ");
+        //if(!empty($client['isCommandLine'])){
+            //_error_log("isCommandLine close it {$client['browser']} {$client['selfURI']}");
+            //$conn->close();
+        //}
     }
 
     public function onClose(ConnectionInterface $conn) {
@@ -123,8 +162,8 @@ class Message implements MessageComponentInterface {
         dbDeleteConnection($conn->resourceId);
         _log_message("onClose {$conn->resourceId} has deleted");
         $this->unsetClient($conn, $client);
-        if ($this->shouldPropagateInfo($client)) {
-            $this->msgToAll($conn, array('users_id' => $client['users_id'], 'disconnected'=>$conn->resourceId), \SocketMessageType::NEW_DISCONNECTION);
+        if ($this->shouldPropagateInfo($client)) {            
+            $this->msgToAllLogged($conn, array('users_id' => $client['users_id'], 'disconnected'=>$conn->resourceId), \SocketMessageType::NEW_DISCONNECTION);
         }
         _log_message("Connection {$conn->resourceId} has disconnected");
     }
@@ -239,13 +278,22 @@ class Message implements MessageComponentInterface {
     }
 
     private function shouldPropagateInfo($row) {
+        global $_shouldPropagateInfoLastMessage;
         if (!empty($row['yptDeviceId']) && preg_match('/^unknowDevice.*/', $row['yptDeviceId'])) {
+            $_shouldPropagateInfoLastMessage = 'unknowDevice';
             return false;
         }
-        if (!empty($row['isCommandLine'])) {
+        if (!empty($row['selfURI']) && preg_match('/.*getConfiguration.json.php$/', $row['selfURI'])) {
+            $_shouldPropagateInfoLastMessage = 'getConfiguration';
             return false;
         }
         return true;
+    }
+
+    
+    private function getShouldPropagateInfoLastMessage() {
+        global $_shouldPropagateInfoLastMessage;
+        return $_shouldPropagateInfoLastMessage;
     }
 
     public function msgToResourceId($msg, $resourceId, $type = "", $totals = array()) {
@@ -254,14 +302,26 @@ class Message implements MessageComponentInterface {
             return false;
         }
 
+        if(empty($this->clients[$resourceId])){
+            _log_message("msgToResourceId: resourceId=({$resourceId}) is empty");
+            return false;
+        }
+
         $row = dbGetRowFromResourcesId($resourceId);
+
+        if(!self::isValidSelfURI($row['selfURI'])){
+            _log_message("msgToResourceId: resourceId=({$resourceId}) selfURI is invalid {$row['selfURI']}");
+            return false;
+        }
 
         if (empty($row)) {
             _log_message("msgToResourceId: resourceId=({$resourceId}) NOT found");
+            return false;
         }
 
         if (!$this->shouldPropagateInfo($row)) {
-            _log_message("msgToResourceId: we wil NOT send the message to resourceId=({$resourceId}) {$type}");
+            _log_message("msgToResourceId: we wil NOT send the message to resourceId=({$resourceId}) [{$type}] ".$this->getShouldPropagateInfoLastMessage());
+            return false;
         }
 
         if (!is_array($msg)) {
@@ -311,6 +371,7 @@ class Message implements MessageComponentInterface {
 
         $info = array(
             'webSocketServerVersion' => $SocketDataObj->serverVersion,
+            'socket_mem' => Message::$mem,
             'socket_users_id' => $users_id,
             'socket_resourceId' => $resourceId,
         );
@@ -321,10 +382,12 @@ class Message implements MessageComponentInterface {
         //$obj['users_uri'] = $return['users_uri'];
         $obj['resourceId'] = $resourceId;
         $obj['users_id_online'] = dbGetUniqueUsers();
+        $obj['mem'] = Message::$mem;
 
         $msgToSend = json_encode($obj);
-        _log_message("msgToResourceId: resourceId=({$resourceId}) {$type}");
+        //_log_message("msgToResourceId: resourceId=({$resourceId}) {$type} users_id={$obj['users_id']}");
         $this->clients[$resourceId]->send($msgToSend);
+        return true;
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
@@ -353,8 +416,8 @@ class Message implements MessageComponentInterface {
                     $this->msgToResourceId($msg, $row['resourceId'], $type);
                 }
             }
-        } catch (Exception $exc) {
-            echo $exc->getTraceAsString();
+        } catch (\Throwable $th) {
+            echo $th->getTraceAsString();
         }
 
         _log_message("msgToUsers_id: sent to ($count) clients users_id=" . json_encode($users_id));
@@ -405,8 +468,45 @@ class Message implements MessageComponentInterface {
         $rows = dbGetAll();
 
         $totals = $this->getTotals();
+        $time = time();
+        foreach ($rows as $key => $client) {
+            if($client['time']+$this->disconnectAfter < $time){
+                _error_log("resourceId={$client['resourceId']} is too old, close it");
+                if(!empty($this->clients[$client['resourceId']])){
+                    $this->clients[$client['resourceId']]->close();
+                }
+                unset($this->clients[$client['resourceId']]);
+            }
+            if($client['isCommandLine']){
+                if($client['time']+60 < $time){
+                    _error_log("resourceId={$client['resourceId']} disconnect commandline after 1 min");
+                    $this->clients[$client['resourceId']]->close();
+                    unset($this->clients[$client['resourceId']]);
+                }
+                //_error_log("msgToAll continue");
+                continue;
+            }
+            $this->msgToResourceId($msg, $client['resourceId'], $type, $totals);
+        }
+        $end = number_format(microtime(true) - $start, 4);
+        _log_message("msgToAll FROM ({$from->resourceId}) {$type} Total Clients: " . count($rows) . " in {$end} seconds");
+    }
+
+    
+    public function msgToAllLogged(ConnectionInterface $from, $msg, $type = "", $includeMe = false) {
+        $start = microtime(true);
+        $rows = dbGetAll();
+
+        $totals = $this->getTotals();
 
         foreach ($rows as $key => $client) {
+            if($client['isCommandLine']){
+                //_error_log("msgToAllLogged continue");
+                continue;
+            }
+            if(empty($client['users_id'])){
+                continue;
+            }
             $this->msgToResourceId($msg, $client['resourceId'], $type, $totals);
         }
         $end = number_format(microtime(true) - $start, 4);
@@ -423,6 +523,10 @@ class Message implements MessageComponentInterface {
         _log_message("msgToAllSameVideo: {$videos_id}");
         $totals = $this->getTotals();
         foreach (dbGetAllResourcesIdFromVideosId($videos_id) as $client) {
+            if($client['isCommandLine']){
+                _error_log("msgToAllSameVideo continue");
+                continue;
+            }
             $this->msgToResourceId($msg, $client['resourceId'], \SocketMessageType::ON_VIDEO_MSG, $totals);
         }
     }
@@ -437,17 +541,13 @@ class Message implements MessageComponentInterface {
         }
 
         $rows = dbGetAllResourcesIdFromLive($live_key, $live_servers_id);
-        $return = $this->getTotals();
-
-        $info = array(
-            'webSocketServerVersion' => $SocketDataObj->serverVersion,
-            'socket_users_id' => $users_id,
-            'socket_resourceId' => $resourceId,
-        );
-
-        $autoUpdateOnHTML = array_merge($info, $return);
+        $totals = $this->getTotals();
+        
         foreach ($rows as $value) {
-            $this->msgToResourceId($msg, $value['resourceId'], \SocketMessageType::ON_LIVE_MSG);
+            if($value['isCommandLine']){
+                continue;
+            }
+            $this->msgToResourceId($msg, $value['resourceId'], \SocketMessageType::ON_LIVE_MSG, $totals);
         }
     }
 
@@ -481,15 +581,28 @@ class Message implements MessageComponentInterface {
         return dbIsUserOnLine($users_id);
     }
 
+    static function isValidSelfURI($selfURI){
+        if(preg_match('/MobileYPT\/getConfiguration\.json\.php/', $selfURI)){
+            return true;
+        }
+        if(preg_match('/\.json/i', $selfURI)){
+            return false;
+        }
+        if(preg_match('/plugin\/Live\/on_/i', $selfURI)){
+            return false;
+        }
+        return true;
+    }
+
 }
 
 function _log_message($msg, $type = "") {
     global $SocketDataObj;
     if (!empty($SocketDataObj->debugAllUsersSocket) || !empty($SocketDataObj->debugSocket)) {
         //_error_log($msg, \AVideoLog::$SOCKET);
-        $mem_usage = memory_get_usage();
-        $mem = humanFileSize($mem_usage);
-        echo date('Y-m-d H:i:s') . " Using: {$mem} RAM " . $msg . PHP_EOL;
+        Message::$mem_usage = memory_get_usage();
+        Message::$mem = humanFileSize(Message::$mem_usage);
+        echo date('Y-m-d H:i:s') . " Using: ".Message::$mem." RAM " . $msg . PHP_EOL;
     } else if ($type == \AVideoLog::$ERROR) {
         _error_log($msg, \AVideoLog::$SOCKET);
         echo "\e[1;31;40m" . date('Y-m-d H:i:s') . ' ' . $msg . "\e[0m" . PHP_EOL;

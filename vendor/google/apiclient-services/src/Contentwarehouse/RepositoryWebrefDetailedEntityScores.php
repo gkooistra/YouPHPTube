@@ -22,23 +22,11 @@ class RepositoryWebrefDetailedEntityScores extends \Google\Model
   /**
    * @var float
    */
-  public $anchorScore;
-  /**
-   * @var float
-   */
-  public $bodyScore;
-  /**
-   * @var float
-   */
   public $connectedness;
   /**
    * @var float
    */
   public $docScore;
-  /**
-   * @var float
-   */
-  public $geoTopicNormalizedScore;
   /**
    * @var bool
    */
@@ -54,23 +42,11 @@ class RepositoryWebrefDetailedEntityScores extends \Google\Model
   /**
    * @var float
    */
-  public $localEntityLocationConfidence;
-  /**
-   * @var float
-   */
-  public $nbScore;
-  /**
-   * @var float
-   */
-  public $newConfidenceExperimentalDontUse;
-  /**
-   * @var float
-   */
-  public $newsTopicalityScore;
-  /**
-   * @var float
-   */
   public $normalizedTopicality;
+  /**
+   * @var string
+   */
+  public $profileUrl;
   protected $referencePageScoresType = RepositoryWebrefReferencePageScores::class;
   protected $referencePageScoresDataType = '';
   /**
@@ -78,34 +54,6 @@ class RepositoryWebrefDetailedEntityScores extends \Google\Model
    */
   public $relevanceScore;
 
-  /**
-   * @param float
-   */
-  public function setAnchorScore($anchorScore)
-  {
-    $this->anchorScore = $anchorScore;
-  }
-  /**
-   * @return float
-   */
-  public function getAnchorScore()
-  {
-    return $this->anchorScore;
-  }
-  /**
-   * @param float
-   */
-  public function setBodyScore($bodyScore)
-  {
-    $this->bodyScore = $bodyScore;
-  }
-  /**
-   * @return float
-   */
-  public function getBodyScore()
-  {
-    return $this->bodyScore;
-  }
   /**
    * @param float
    */
@@ -133,20 +81,6 @@ class RepositoryWebrefDetailedEntityScores extends \Google\Model
   public function getDocScore()
   {
     return $this->docScore;
-  }
-  /**
-   * @param float
-   */
-  public function setGeoTopicNormalizedScore($geoTopicNormalizedScore)
-  {
-    $this->geoTopicNormalizedScore = $geoTopicNormalizedScore;
-  }
-  /**
-   * @return float
-   */
-  public function getGeoTopicNormalizedScore()
-  {
-    return $this->geoTopicNormalizedScore;
   }
   /**
    * @param bool
@@ -193,62 +127,6 @@ class RepositoryWebrefDetailedEntityScores extends \Google\Model
   /**
    * @param float
    */
-  public function setLocalEntityLocationConfidence($localEntityLocationConfidence)
-  {
-    $this->localEntityLocationConfidence = $localEntityLocationConfidence;
-  }
-  /**
-   * @return float
-   */
-  public function getLocalEntityLocationConfidence()
-  {
-    return $this->localEntityLocationConfidence;
-  }
-  /**
-   * @param float
-   */
-  public function setNbScore($nbScore)
-  {
-    $this->nbScore = $nbScore;
-  }
-  /**
-   * @return float
-   */
-  public function getNbScore()
-  {
-    return $this->nbScore;
-  }
-  /**
-   * @param float
-   */
-  public function setNewConfidenceExperimentalDontUse($newConfidenceExperimentalDontUse)
-  {
-    $this->newConfidenceExperimentalDontUse = $newConfidenceExperimentalDontUse;
-  }
-  /**
-   * @return float
-   */
-  public function getNewConfidenceExperimentalDontUse()
-  {
-    return $this->newConfidenceExperimentalDontUse;
-  }
-  /**
-   * @param float
-   */
-  public function setNewsTopicalityScore($newsTopicalityScore)
-  {
-    $this->newsTopicalityScore = $newsTopicalityScore;
-  }
-  /**
-   * @return float
-   */
-  public function getNewsTopicalityScore()
-  {
-    return $this->newsTopicalityScore;
-  }
-  /**
-   * @param float
-   */
   public function setNormalizedTopicality($normalizedTopicality)
   {
     $this->normalizedTopicality = $normalizedTopicality;
@@ -259,6 +137,20 @@ class RepositoryWebrefDetailedEntityScores extends \Google\Model
   public function getNormalizedTopicality()
   {
     return $this->normalizedTopicality;
+  }
+  /**
+   * @param string
+   */
+  public function setProfileUrl($profileUrl)
+  {
+    $this->profileUrl = $profileUrl;
+  }
+  /**
+   * @return string
+   */
+  public function getProfileUrl()
+  {
+    return $this->profileUrl;
   }
   /**
    * @param RepositoryWebrefReferencePageScores

@@ -23,9 +23,11 @@ if (!empty($_GET['type'])) {
 }
 require_once $global['systemRootPath'] . 'objects/category.php';
 $currentCat;
-if (!empty($_GET['catName'])) {
-    $currentCat = Category::getCategoryByName($_GET['catName']);
-    array_push($siteTitle, $currentCat['name']);
+if (!empty($_REQUEST['catName'])) {
+    $currentCat = Category::getCategoryByName($_REQUEST['catName']);
+    if(!empty($currentCat)){
+        array_push($siteTitle, $currentCat['name']);
+    }
 }
 
 require_once $global['systemRootPath'] . 'objects/video.php';
@@ -39,26 +41,17 @@ if ($obj->sortReverseable) {
     $orderString = str_replace("&&", "&", $orderString);
     $orderString = str_replace("//", "/", $orderString);
 }
-$video = Video::getVideo("", "viewable", !$obj->hidePrivateVideos, false, true);
+$video = Video::getVideo("", Video::SORT_TYPE_VIEWABLE, !$obj->hidePrivateVideos, false, true);
 $debugLastGetVideoSQL = $lastGetVideoSQL;
 if (empty($video)) {
-    $video = Video::getVideo("", "viewable", !$obj->hidePrivateVideos, true);
+    $video = Video::getVideo("", Video::SORT_TYPE_VIEWABLE, !$obj->hidePrivateVideos, true);
     $debugLastGetVideoSQL = $lastGetVideoSQL;
-}
-if (empty($_GET['page'])) {
-    $_GET['page'] = 1;
-} else {
-    $_GET['page'] = intval($_GET['page']);
-}
+}//var_dump(!empty($video), debug_backtrace());exit;
 $total = 0;
 $totalPages = 0;
 $url = '';
-$args = '';
 $metaDescription = "";
 if (!empty($video)) {
-    if (strpos($_SERVER['REQUEST_URI'], "?") != false) {
-        $args = substr($_SERVER['REQUEST_URI'], strpos($_SERVER['REQUEST_URI'], "?"), strlen($_SERVER['REQUEST_URI']));
-    }
     if (strpos($_SERVER['REQUEST_URI'], "/cat/") === false) {
         $url = $global['webSiteRootURL'] . "page/";
     } else {

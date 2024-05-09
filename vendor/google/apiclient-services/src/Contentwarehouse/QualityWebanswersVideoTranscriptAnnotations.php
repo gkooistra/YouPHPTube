@@ -23,6 +23,8 @@ class QualityWebanswersVideoTranscriptAnnotations extends \Google\Model
    * @var string
    */
   public $amarnaDocid;
+  protected $asrRepairType = IndexingVideosAsrTranscriptRepairAnnotation::class;
+  protected $asrRepairDataType = '';
   /**
    * @var string
    */
@@ -37,6 +39,10 @@ class QualityWebanswersVideoTranscriptAnnotations extends \Google\Model
   protected $saftSentenceBoundaryDataType = '';
   protected $timingInfoType = QualityWebanswersVideoYouTubeCaptionTimingInfoAnnotations::class;
   protected $timingInfoDataType = '';
+  /**
+   * @var string
+   */
+  public $transcriptSource;
   protected $webrefEntitiesType = RepositoryWebrefWebrefEntities::class;
   protected $webrefEntitiesDataType = '';
 
@@ -53,6 +59,20 @@ class QualityWebanswersVideoTranscriptAnnotations extends \Google\Model
   public function getAmarnaDocid()
   {
     return $this->amarnaDocid;
+  }
+  /**
+   * @param IndexingVideosAsrTranscriptRepairAnnotation
+   */
+  public function setAsrRepair(IndexingVideosAsrTranscriptRepairAnnotation $asrRepair)
+  {
+    $this->asrRepair = $asrRepair;
+  }
+  /**
+   * @return IndexingVideosAsrTranscriptRepairAnnotation
+   */
+  public function getAsrRepair()
+  {
+    return $this->asrRepair;
   }
   /**
    * @param string
@@ -123,6 +143,20 @@ class QualityWebanswersVideoTranscriptAnnotations extends \Google\Model
   public function getTimingInfo()
   {
     return $this->timingInfo;
+  }
+  /**
+   * @param string
+   */
+  public function setTranscriptSource($transcriptSource)
+  {
+    $this->transcriptSource = $transcriptSource;
+  }
+  /**
+   * @return string
+   */
+  public function getTranscriptSource()
+  {
+    return $this->transcriptSource;
   }
   /**
    * @param RepositoryWebrefWebrefEntities

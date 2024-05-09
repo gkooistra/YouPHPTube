@@ -8,7 +8,7 @@ require_once $global['systemRootPath'] . 'objects/comment.php';
 
 $obj = new stdClass();
 $obj->error = true;
-$obj->msg = true;
+$obj->msg = '';
 $obj->id = intval(@$_REQUEST['id']);
 $obj->status = false;
 
@@ -29,7 +29,7 @@ if(!empty($obj->status)){
     $obj->error = false;
     //$obj->comments = Comment::getAllComments($obj->videos_id);
     //$obj->comments = Comment::addExtraInfo($obj->comments);
-    
+
 }
 
 die(_json_encode($obj));

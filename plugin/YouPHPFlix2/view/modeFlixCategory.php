@@ -3,13 +3,13 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../../../videos/configuration.php';
 }
-session_write_close();
+_session_write_close();
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/category.php';
 
 $_REQUEST['rowCount'] = 2;
 if (empty($_GET['current'])) {
-    $_REQUEST['current'] = 1;
+    unsetCurrentPage();
 } else {
     $_REQUEST['current'] = intval($_GET['current']);
 }
@@ -17,6 +17,8 @@ if (empty($_GET['current'])) {
 $uid = '{serie_uid}';
 
 $cacheName = "modeFlixCategory" . md5(json_encode($_GET)) . User::getId();
+$cacheName .= isForKidsSet()?'forKids':'';
+
 $cache = ObjectYPT::getCache($cacheName, 600);
 if (!empty($cache)) {
     echo str_replace('{serie_uid}', uniqid(), $cache);
@@ -67,7 +69,7 @@ $videosCounter = 0;
             $categories = array(Category::getCategoryByName($_REQUEST['catName']));
         } else {
             $categories = Category::getAllCategories(false, true);
-            $_REQUEST['current'] = 1;
+            unsetCurrentPage();
         }
         if (empty($categories)) {
             echo "</div>";
@@ -80,23 +82,23 @@ $videosCounter = 0;
             $obj2 = AVideoPlugin::getObjectData("YouPHPFlix2");
             $timeLog2 = __FILE__ . " - Category {$value['clean_name']}";
             TimeLogStart($timeLog2);
-            $oldCatName = @$_GET['catName'];
-            if (!empty($_GET['catName']) && $value['clean_name'] !== $_GET['catName']) {
+            $oldCatName = @$_REQUEST['catName'];
+            if (!empty($_REQUEST['catName']) && $value['clean_name'] !== $_REQUEST['catName']) {
                 continue;
             } else {
-                $_GET['catName'] = $value['clean_name'];
+                $_REQUEST['catName'] = $value['clean_name'];
             }
             unset($_POST['sort']);
             $_POST['sort']['v.created'] = "DESC";
             $_POST['sort']['likes'] = "DESC";
 
             TimeLogStart("modeFlixCategory.php getAllVideos");
-            $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj2->hidePrivateVideos);
+            $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj2->hidePrivateVideos);
             TimeLogEnd("modeFlixCategory.php getAllVideos", __LINE__);
 
             TimeLogEnd($timeLog2, __LINE__);
             if (empty($videos)) {
-                $_GET['catName'] = $oldCatName;
+                $_REQUEST['catName'] = $oldCatName;
                 continue;
             }
             if (!empty($ads2)) {
@@ -126,7 +128,7 @@ $videosCounter = 0;
                 ?>
             </div>
             <?php
-            $_GET['catName'] = $oldCatName;
+            $_REQUEST['catName'] = $oldCatName;
             TimeLogEnd($timeLog2, __LINE__);
         }
     }
@@ -143,8 +145,8 @@ $videosCounter = 0;
 <p class="pagination">
     <?php
     $url = "{$global['webSiteRootURL']}plugin/YouPHPFlix2/view/modeFlixCategory.php";
-    if (!empty($_GET['catName'])) {
-        $url = addQueryStringParameter($url, 'catName', $_GET['catName']);
+    if (!empty($_REQUEST['catName'])) {
+        $url = addQueryStringParameter($url, 'catName', $_REQUEST['catName']);
     }
     $search = getSearchVar();
     if (!empty($search)) {

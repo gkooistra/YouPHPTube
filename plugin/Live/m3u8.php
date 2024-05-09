@@ -3,7 +3,7 @@
 $recheckTolerance = 600; // 10 min
 require_once dirname(__FILE__) . '/../../videos/configuration.php';
 error_reporting(0);
-session_write_close();
+_session_write_close();
 
 if (empty($_GET['uuid'])) {
     die("uuid empty");
@@ -50,7 +50,7 @@ if (true || empty($_SESSION['playerServer'][$live_servers_id])) {
     $_SESSION['playerServer'][$live_servers_id] = Live::getPlayerServer();
     $_SESSION['useAadaptiveMode'][$live_servers_id] = Live::getUseAadaptiveMode();
 } else {
-    @$global['mysqli']->close();
+    _mysql_close();
 }
 if ($_SESSION['useAadaptiveMode'][$live_servers_id]) {
     $complement = $_SESSION['playerServer'][$live_servers_id] . "/";

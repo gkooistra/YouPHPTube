@@ -10,7 +10,7 @@ $obj = AVideoPlugin::getDataObject('MobileManager');
 if (empty($obj->pwa_display->value)) {
     $obj->pwa_display->value = 'fullscreen';
 }
-
+_session_write_close();
 
 $pwa = new stdClass();
 
@@ -69,16 +69,16 @@ function pwaIconsArray()
     $icon = [];
 
     $favicon = Configuration::_getFavicon(true);
-    $faviconICO = Configuration::_getFavicon(false);
+    //$faviconICO = Configuration::_getFavicon(false);
 
     $sizes = [72, 96, 120, 128, 144, 152, 180, 192, 384, 512];
 
     foreach ($sizes as $value) {
         $pwaIcon = "faviconPWA{$value}.png";
         if (!file_exists(getVideosDir() . $pwaIcon)) {
-            im_resizePNG($favicon['file'], getVideosDir() . $pwaIcon, $value, $value);
+            im_resize($favicon['file'], getVideosDir() . $pwaIcon, $value, $value);
         }
-        $icon[] = pwaIcon(getCDN() . 'videos/' . $pwaIcon, 'image/png', "{$value}x{$value}");
+        $icon[] = pwaIcon(getURL('videos/' . $pwaIcon), 'image/png', "{$value}x{$value}");
     }
     //$icon[] = pwaIcon($favicon['url'], 'image/png', '180x180');
     //$icon[] = pwaIcon($faviconICO['url'], 'image/x-icon', '16x16,24x24,32x32,48x48,144x144');

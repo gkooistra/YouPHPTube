@@ -4,7 +4,10 @@ if (file_exists("../videos/configuration.php")) {
     exit;
 }
 
-$installationVersion = "12.4";
+
+$installationVersion = "14.3";
+
+require_once '../objects/functionsSecurity.php';
 
 error_log("Installation: ".__LINE__." ". json_encode($_POST));
 header('Content-Type: application/json');
@@ -198,6 +201,7 @@ if(!empty(\$_SERVER['SERVER_NAME']) && \$_SERVER['SERVER_NAME']!=='localhost' &&
 }
 \$global['systemRootPath'] = '{$_POST['systemRootPath']}';
 \$global['salt'] = '{$_POST['salt']}';
+\$global['saltV2'] = '"._uniqid()."';
 \$global['disableTimeFix'] = 0;
 \$global['enableDDOSprotection'] = 1;
 \$global['ddosMaxConnections'] = 40;
@@ -252,6 +256,15 @@ if ($return_val !== 0) {
     exit;
 }
 */
+
+/*
+FOR WWBNIndex Plugin
+*/
+$systemRootPath = __DIR__ . DIRECTORY_SEPARATOR . '../';
+$file = "{$systemRootPath}plugin/WWBNIndex/submitIndex.php";
+if (file_exists($file)) {
+    include $file;
+}
 error_log("Installation: ".__LINE__);
 $obj->success = true;
 echo json_encode($obj);

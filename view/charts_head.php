@@ -1,7 +1,7 @@
 <?php
 $limitVideos = 50;
 global $global, $config;
-session_write_close();
+_session_write_close();
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
@@ -30,7 +30,7 @@ if (!User::isAdmin()) {
 }
 
 ?>
-<script src="<?php echo getURL('node_modules/chart.js/dist/chart.min.js'); ?>" type="text/javascript"></script>
+<script src="<?php echo getURL('node_modules/chart.js/dist/chart.umd.js'); ?>" type="text/javascript"></script>
 <link rel="stylesheet" type="text/css" href="<?php echo getCDN(); ?>view/css/DataTables/datatables.min.css"/>
 <style>
     /* Custom Colored Panels */

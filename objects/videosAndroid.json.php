@@ -3,12 +3,12 @@ global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
-session_write_close();
+_session_write_close();
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/comment.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
-header('Access-Control-Allow-Origin: *');
+allowOrigin();
 header('Content-Type: application/json');
 if (empty($_POST['current']) && !empty($_GET['current'])) {
     $_POST['current'] = $_GET['current'];
@@ -29,18 +29,18 @@ if (!empty($_GET['user']) && !empty($_GET['pass'])) {
 
 $objMob = AVideoPlugin::getObjectData("MobileManager");
 if (!empty($random)) {
-    $video = Video::getVideo("", "viewableNotUnlisted", true, false, true);
+    $video = Video::getVideo("", Video::SORT_TYPE_VIEWABLENOTUNLISTED, true, false, true);
     if (empty($video)) {
-        $video = Video::getVideo("", "viewableNotUnlisted", true, true);
+        $video = Video::getVideo("", Video::SORT_TYPE_VIEWABLENOTUNLISTED, true, true);
     }
     $videos = [$video];
     $total = 1;
 } elseif ($objMob->netflixStyle) {
-    $videos = Video::getAllVideos("viewableNotUnlisted", false, true);
-    $total = Video::getTotalVideos("viewableNotUnlisted", false, true);
+    $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, true);
+    $total = Video::getTotalVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, true);
 } else {
-    $videos = Video::getAllVideos("viewable");
-    $total = Video::getTotalVideos("viewable");
+    $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLE);
+    $total = Video::getTotalVideos(Video::SORT_TYPE_VIEWABLE);
 }
 
 foreach ($videos as $key => $value) {
@@ -53,7 +53,7 @@ foreach ($videos as $key => $value) {
     $videos[$key]['VideoUrl'] = getVideosURL($videos[$key]['filename']);
     $videos[$key]['createdHumanTiming'] = humanTiming(strtotime($videos[$key]['created']));
     $videos[$key]['pageUrl'] = "{$global['webSiteRootURL']}video/" . $videos[$key]['clean_title'];
-    $videos[$key]['embedUrl'] = "{$global['webSiteRootURL']}videoEmbeded/" . $videos[$key]['clean_title'];
+    $videos[$key]['embedUrl'] = "{$global['webSiteRootURL']}videoEmbed/" . $videos[$key]['clean_title'];
     unset($_POST['sort'], $_POST['current'], $_POST['searchPhrase']);
     $_REQUEST['rowCount'] = 10;
     $_POST['sort']['created'] = "desc";

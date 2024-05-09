@@ -9,7 +9,7 @@ require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_schedule.php';
 require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_schedule_has_users_groups.php';
 require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_join_log.php';
-User::loginFromRequest();
+User::loginFromRequestIfNotLogged();
 
 //require_once $global['systemRootPath'] . 'objects/firebase/php-jwt/src/JWT.php';
 //use \Firebase\JWT\JWT;
@@ -79,13 +79,13 @@ Passcode: {password}
         $o = new stdClass();
         $o->type = [
             'ca1.ypt.me' => "North America 1",
-            'eu1.ypt.me' => "Europe 1",
+            //'eu1.ypt.me' => "Europe 1",
             'custom' => "Custom Jitsi",
             'ca2.ypt.me' => "Test Server do not use it",];
         $o->value = 'ca1.ypt.me';
         $obj->server = $o;
 
-        $obj->CUSTOM_JITSI_DOMAIN = "jitsi.eu1.ypt.me";
+        $obj->CUSTOM_JITSI_DOMAIN = "jitsi.ca1.ypt.me";
         $obj->JWT_APP_ID = "my_jitsi_app_id";
         $obj->JWT_APP_SECRET = "my_jitsi_app_secret";
         $obj->hideTopButton = true;
@@ -129,6 +129,7 @@ Passcode: {password}
             "sub" => "meet.jitsi",
             "room" => $room,
             "exp" => strtotime("+30 hours"),
+            "nbf" => strtotime("-24 hours"),
             "moderator" => $isModerator,
         ];
         return $jitsiPayload; // HS256
@@ -250,7 +251,10 @@ Passcode: {password}
             $json->msg = "From Cache";
         } else {
             $url = $meetServer . "api/checkMeet.json.php?webSiteRootURL=" . urlencode($global['webSiteRootURL']) . "&secret=" . $secret;
-            $content = url_get_contents($url);
+            _error_log("serverlabels getMeetServerStatus $url ");
+            $content = url_get_contents($url, '', 10, !empty($_REQUEST['debug']));
+            _error_log("serverlabels getMeetServerStatus done $url ");
+            
             $json = _json_decode($content);
             if (!empty($json)) {
                 $json->time = time();

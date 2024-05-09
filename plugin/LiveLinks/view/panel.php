@@ -138,7 +138,7 @@
         </button>
     </div>    
 </div>
-<script type="text/javascript" src="<?php echo getCDN(); ?>view/css/DataTables/datatables.min.js"></script>
+<script type="text/javascript" src="<?php echo getURL('view/css/DataTables/datatables.min.js'); ?>"></script>
 <script src="<?php echo getCDN(); ?>js/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js" type="text/javascript"></script>
 <script type="text/javascript">
     $(document).ready(function () {
@@ -175,7 +175,7 @@
             e.preventDefault();
             modal.showPleaseWait();
             $.ajax({
-                url: '<?php echo $global['webSiteRootURL']; ?>plugin/LiveLinks/view/addLiveLink.php',
+                url: webSiteRootURL+'plugin/LiveLinks/view/addLiveLink.php',
                 data: $('#liveLinksForm').serialize(),
                 type: 'post',
                 success: function (response) {

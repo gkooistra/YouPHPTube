@@ -12,7 +12,7 @@ class Scheduler_commands extends ObjectYPT {
     protected $id, $callbackURL, $parameters, $date_to_execute, $executed_in,
             $status, $callbackResponse, $timezone,
             $repeat_minute, $repeat_hour, $repeat_day_of_month, $repeat_month,
-            $repeat_day_of_week, $type, $videos;
+            $repeat_day_of_week, $type, $videos_id, $time_to_execute;
 
     static function getSearchFieldsNames() {
         return array('callbackURL', 'parameters');
@@ -39,7 +39,7 @@ class Scheduler_commands extends ObjectYPT {
         }
         $sql = "SELECT * FROM " . static::getTableName() . " WHERE  videos_id = ? LIMIT 1";
         // I had to add this because the about from customize plugin was not loading on the about page http://127.0.0.1/AVideo/about
-        $res = sqlDAL::readSql($sql, "i", [$videos_id], true);
+        $res = sqlDAL::readSql($sql, "i", [$videos_id]);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {
@@ -90,8 +90,6 @@ class Scheduler_commands extends ObjectYPT {
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
     }
@@ -101,7 +99,7 @@ class Scheduler_commands extends ObjectYPT {
         if (!static::isTableInstalled()) {
             return false;
         }
-        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE status='" . self::$statusActive . "' AND date_to_execute <= now() ";
+        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE status='" . self::$statusActive . "' AND time_to_execute <= now() ";
 
         //echo $sql;
         $res = sqlDAL::readSql($sql);
@@ -112,8 +110,6 @@ class Scheduler_commands extends ObjectYPT {
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
     }
@@ -135,12 +131,15 @@ class Scheduler_commands extends ObjectYPT {
         
         $this->parameters = $parameters;
     }
-
+    
     function setDate_to_execute($date_to_execute) {
         if (is_numeric($date_to_execute)) {
             $date_to_execute = date('Y-m-d H:i:s', $date_to_execute);
         }
         $this->date_to_execute = $date_to_execute;
+        if(empty($this->time_to_execute)){
+            $this->time_to_execute = strtotime($date_to_execute);
+        }
     }
 
     function setExecuted_in($executed_in) {
@@ -205,14 +204,15 @@ class Scheduler_commands extends ObjectYPT {
         $this->timezone = $timezone;
     }
     
-    public function getVideos() {
-        return $this->videos;
+    public function getVideos_id() {
+        return $this->videos_id;
     }
 
-    public function setVideos($videos): void {
-        $this->videos = $videos;
+    public function setVideos_id($videos_id): void {
+        $this->videos_id = $videos_id;
     }
-    
+
+        
     public function save() {
         if (empty($this->date_to_execute)) {
             $this->date_to_execute = 'NULL';
@@ -328,8 +328,6 @@ class Scheduler_commands extends ObjectYPT {
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
     }
@@ -354,10 +352,18 @@ class Scheduler_commands extends ObjectYPT {
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $rows;
     }
+    
+    public function getTime_to_execute() {
+        return $this->time_to_execute;
+    }
+
+    public function setTime_to_execute($time_to_execute): void {
+        $this->time_to_execute = $time_to_execute;
+    }
+
+
 
 }

@@ -7,7 +7,7 @@ if (!isset($global['systemRootPath'])) {
 require_once $global['systemRootPath'] . 'objects/Channel.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/video_statistic.php';
-session_write_close();
+_session_write_close();
 $from = date("Y-m-d 00:00:00", strtotime($_POST['dateFrom']));
 $to = date('Y-m-d 23:59:59', strtotime($_POST['dateTo']));
 $users_id = 0;
@@ -21,7 +21,7 @@ if ($config->getAuthCanViewChart() == 0) {
         }
     } elseif (User::isLogged()) {
         $users_id = User::getId();
-    } 
+    }
 } elseif ($config->getAuthCanViewChart() == 1) {
     if ((!empty($_SESSION['user']['canViewChart']))||(User::isAdmin())) {
         if(empty($_REQUEST['users_id'])){
@@ -35,7 +35,7 @@ if ($config->getAuthCanViewChart() == 0) {
 $obj = new stdClass();
 
 
-$obj->data = array();
+$obj->data = [];
 
 
 if(empty($users_id)){

@@ -6,7 +6,7 @@ require_once '../../objects/user.php';
 $obj = new stdClass();
 $obj->error = true;
 if (!User::canStream()) {
-    $obj->msg = __("Permition denied");
+    $obj->msg = __('Permission denied');
     die(json_encode($obj));
 }
 
@@ -30,8 +30,8 @@ $l->setDescription($_POST['description']);
 $l->setPassword($_POST['password']);
 $l->setKey($_POST['key']);
 $l->setCategories_id($categories_id);
-$l->setPublic((empty($_POST['listed'])|| $_POST['listed']==='false') ? 0 : 1);
-$l->setSaveTransmition((empty($_POST['saveTransmition'])|| $_POST['saveTransmition']==='false') ? 0 : 1);
+$l->setPublicAutomatic();
+$l->setSaveTransmitionAutomatic();
 $l->setUsers_id($users_id);
 $id = $l->save();
 $l = new LiveTransmition($id);

@@ -1,5 +1,4 @@
 <?php
-
 /*
   tester-execution-code
   $sql = "SELECT * FROM users WHERE id=?;";
@@ -20,9 +19,9 @@
  */
 
 /**
- * 
+ *
  * @var array $global
- * @var object $global['mysqli'] 
+ * @var object $global['mysqli']
  */
 
 class iimysqli_result
@@ -65,12 +64,16 @@ class sqlDAL
                 // Perform the query
 
                 /**
-                 * 
+                 *
                  * @var array $global
-                 * @var object $global['mysqli'] 
+                 * @var object $global['mysqli']
                  */
-                if (!$global['mysqli']->query($templine)) {
-                    _error_log('sqlDAL::executeFile ' . $filename . ' Error performing query \'<strong>' . $templine . '\': ' . $global['mysqli']->error . '<br /><br />', AVideoLog::$ERROR);
+                try {
+                    if (!$global['mysqli']->query($templine)) {
+                        _error_log('sqlDAL::executeFile ' . $filename . ' Error performing query \'<strong>' . $templine . '\': ' . $global['mysqli']->error . '<br /><br />', AVideoLog::$ERROR);
+                    }
+                } catch (\Throwable $th) {
+                    _error_log('sqlDAL::executeFile ' . $filename . ' Error performing query \'<strong>' . $templine . '\': ' . $global['mysqli']->error . '<br /><br /> '.$th->getMessage(), AVideoLog::$ERROR);
                 }
                 // Reset temp variable to empty
                 $templine = '';
@@ -86,21 +89,31 @@ class sqlDAL
      * @return boolean                   true on success, false on fail
      */
 
-    public static function writeSql($preparedStatement, $formats = "", $values = [])
+    public static function writeSql($preparedStatement, $formats = "", $values = [], $try=0)
     {
         global $global, $disableMysqlNdMethods;
         if (empty($preparedStatement)) {
+            _error_log("writeSql empty(preparedStatement)");
             return false;
         }
+
+        /**
+         *
+         * @var array $global
+         * @var object $global['mysqli']
+         */
         // make sure it does not store autid transactions
-        $debug = debug_backtrace();
-        if (empty($debug[2]['class']) || $debug[2]['class'] !== "AuditTable") {
-            $audit = AVideoPlugin::loadPluginIfEnabled('Audit');
-            if (!empty($audit)) {
-                try {
-                    $audit->exec(@$debug[1]['function'], @$debug[1]['class'], $preparedStatement, $formats, json_encode($values), User::getId());
-                } catch (Exception $exc) {
-                    log_error($exc->getTraceAsString());
+        if(strpos($preparedStatement, 'CachesInDB')===false){
+            $debug = debug_backtrace();
+            if (empty($debug[2]['class']) || $debug[2]['class'] !== "AuditTable" && class_exists('AVideoPlugin')) {
+                $audit = AVideoPlugin::loadPluginIfEnabled('Audit');
+                if (!empty($audit)) {
+                    try {
+                        $audit->exec(@$debug[1]['function'], @$debug[1]['class'], $preparedStatement, $formats, json_encode($values), User::getId());
+                    } catch (Exception $exc) {
+                        _error_log('Error in writeSql: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
+                        log_error($exc->getTraceAsString());
+                    }
                 }
             }
         }
@@ -108,6 +121,7 @@ class sqlDAL
         if (preg_match('/^update plugins/i', $preparedStatement) || preg_match('/^insert into plugins/i', $preparedStatement) || preg_match('/^delete from plugins/i', $preparedStatement)) {
             _error_log("Plugin updated {$preparedStatement}:" . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
             if (!empty($global['lockPlugins'])) {
+                _error_log("writeSql lockPlugins");
                 return false;
             }
         }
@@ -115,12 +129,6 @@ class sqlDAL
         if (!_mysql_is_open()) {
             _mysql_connect();
         }
-
-        /**
-         * 
-         * @var array $global
-         * @var object $global['mysqli'] 
-         */
         if (!($stmt = $global['mysqli']->prepare($preparedStatement))) {
             log_error("[sqlDAL::writeSql] Prepare failed: (" . $global['mysqli']->errno . ") " . $global['mysqli']->error .
                 " preparedStatement = " . json_encode($preparedStatement) .
@@ -135,10 +143,51 @@ class sqlDAL
         try {
             $stmt->execute();
         } catch (Exception $exc) {
-            log_error($exc->getTraceAsString());
-            log_error('Error in writeSql stmt->execute: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
-            if (preg_match('/playlists_has_videos/', $preparedStatement)) {
+            if (empty($try) && $stmt->errno == 2006) { //MySQL server has gone away
+                _mysql_close();
+                _mysql_connect();
+                return self::writeSql($preparedStatement, $formats, $values, $try+1);
+            }else if (preg_match('/playlists_has_videos/', $preparedStatement)) {
                 log_error('Error in writeSql values: ' . json_encode($values));
+            }else if (preg_match('/Illegal mix of collations.*and \(utf8mb4/i', $global['mysqli']->error)) {
+                try {
+                    // Set the MySQL connection character set to UTF-8
+                    $global['mysqli']->query("SET NAMES 'utf8mb4'");
+                    $global['mysqli']->query("SET CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                    $stmt = $global['mysqli']->prepare($preparedStatement);
+                    sqlDAL::eval_mysql_bind($stmt, $formats, $values);
+                    $stmt->execute();
+                } catch (Exception $exc) {
+                    log_error($exc->getTraceAsString());
+                }
+            }else if(preg_match('/Conversion from collation/i', $global['mysqli']->error)){
+                $values2 = $values;
+                foreach ($values2 as $key => $value) {
+                    if(!is_numeric($value) && strlen($value)>20){
+                        $values2[$key] = "CONVERT('{$value}' USING latin1)";
+                    }
+                }
+                sqlDAL::eval_mysql_bind($stmt, $formats, $values2);
+                try {
+                    log_error('try again 1');
+                    $stmt->execute();
+                    log_error('try again 1 SUCCESS');
+                } catch (Exception $exc) {
+                    foreach ($values as $key => $value) {
+                        if(strlen($value)){
+                            $values[$key] = preg_replace("/[^A-Za-z0-9 ._:-]+/", ' ', $value);
+                        }
+                    }
+                    sqlDAL::eval_mysql_bind($stmt, $formats, $values);
+                    try {
+                        log_error('try again 2');
+                        $stmt->execute();
+                        log_error('try again 2 SUCCESS');
+                    } catch (Exception $exc) {
+                        log_error($exc->getTraceAsString());
+                        log_error('Error in writeSql stmt->execute: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
+                    }
+                }
             }
         }
 
@@ -151,9 +200,20 @@ class sqlDAL
               _mysql_connect();
               return self::writeSql($preparedStatement, $formats, $values);
               }
-             * 
+             *
              */
 
+             _error_log("writeSql [{$stmt->errno}] {$stmt->error} ".' '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS))) . " userAgent=[{$_SERVER['HTTP_USER_AGENT']}]";
+             if($stmt->errno == 1205 && preg_match('/CachesInDB/', $preparedStatement)){//Lock wait timeout exceeded; try restarting transaction
+                _error_log("writeSql Recreate CachesInDB ");
+                $sql = 'DROP TABLE IF EXISTS `CachesInDB`';
+                $global['mysqli']->query($sql);
+                $file = $global['systemRootPath'] . 'plugin/Cache/install/install.sql';
+                sqlDal::executeFile($file);
+             }
+             if(preg_match('/Data truncated for column/i', $stmt->error)){
+                _error_log("writeSql values = ".' '.json_encode($values));
+             }
             $stmt->close();
             return false;
         }
@@ -165,6 +225,36 @@ class sqlDAL
             return $iid;
         } else {
             return true;
+        }
+    }
+
+    public static function writeSqlTry($preparedStatement, $formats = "", $values = [])
+    {
+        global $global;
+        
+        /**
+         * @var array $global
+         * @var object $global['mysqli']
+         */
+        try {
+            $return = self::writeSql($preparedStatement, $formats, $values);
+            if(!$return){
+                _error_log('Error in writeSqlTry return: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
+            }
+            return $return;
+        } catch (\Throwable $th) {
+            _error_log('Error in writeSqlTry: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
+            _error_log('writeSqlTry: '.$th->getMessage(), AVideoLog::$ERROR);
+            $search = array('COLUMN IF NOT EXISTS', 'IF NOT EXISTS');
+            $replace = array('COLUMN', 'COLUMN');
+            $preparedStatement = str_ireplace($search, $replace, $preparedStatement);
+            try {
+                return self::writeSql($preparedStatement, $formats, $values);
+            } catch (\Throwable $th) {
+                _error_log('Error in writeSqlTry retry: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
+                _error_log('writeSqlTry retry: '.$th->getMessage(), AVideoLog::$ERROR);
+                return false;
+            }
         }
     }
 
@@ -183,7 +273,7 @@ class sqlDAL
      * @return Object                    Depend if mysqlnd is active or not, a object, but always false on fail
      */
 
-    public static function readSql($preparedStatement, $formats = "", $values = [], $refreshCache = false)
+    public static function readSql($preparedStatement, $formats = '', $values = [], $refreshCache = false)
     {
         // $refreshCache = true;
         global $global, $disableMysqlNdMethods, $readSqlCached, $crc, $wasSTMTError;
@@ -203,9 +293,9 @@ class sqlDAL
                 // When not cached
 
                 /**
-                 * 
+                 *
                  * @var array $global
-                 * @var object $global['mysqli'] 
+                 * @var object $global['mysqli']
                  */
                 $readSqlCached[$crc] = "false";
                 _mysql_connect();
@@ -216,8 +306,7 @@ class sqlDAL
                         " preparedStatement = " . json_encode($preparedStatement) .
                         " formats = " . json_encode($formats) .
                         " values = " . json_encode($values) .
-                        " refreshCache = " . json_encode($refreshCache) .
-                        " stmt = " . json_encode($stmt));
+                        " refreshCache = " . json_encode($refreshCache));
                     //log_error("[sqlDAL::readSql] trying close and reconnect");
                     _mysql_close();
                     _mysql_connect();
@@ -290,9 +379,9 @@ class sqlDAL
             // Mysqlnd-fallback
 
             /**
-             * 
+             *
              * @var array $global
-             * @var object $global['mysqli'] 
+             * @var object $global['mysqli']
              */
             if (!($stmt = $global['mysqli']->prepare($preparedStatement))) {
                 log_error("[sqlDAL::readSql] (no mysqlnd) Prepare failed: (" . $global['mysqli']->errno . ") " . $global['mysqli']->error . " ({$preparedStatement})");
@@ -402,7 +491,25 @@ class sqlDAL
         // here, a cache is more/too difficult, because fetch gives always a next. with this kind of cache, we would give always the same.
         if ((function_exists('mysqli_fetch_all')) && ($disableMysqlNdMethods == false)) {
             if ($result !== false) {
-                return $result->fetch_assoc();
+                try {
+                    return $result->fetch_assoc();
+                } catch (\Throwable $th) {
+                    if (preg_match('/playlists_has_videos/', $th->getMessage())) {
+                        try {
+                            return $result->fetch_assoc();
+                        } catch (\Throwable $th) {
+                            if (preg_match('/MySQL server has gone away/i', $th->getMessage())) {
+                                _mysql_close();
+                                _mysql_connect();
+                                return $result->fetch_assoc();
+                            }
+                            _error_log('fetchAssoc Error1: '.$th->getMessage(), AVideoLog::$ERROR);
+                            return false;
+                        }
+                    }
+                    _error_log('fetchAssoc Error2: '.$th->getMessage(), AVideoLog::$ERROR);
+                    return false;
+                }
             }
         } else {
             return self::iimysqli_result_fetch_assoc($result);

@@ -16,7 +16,8 @@ $vastCampaingVideos = new VastCampaignsVideos($_GET['campaign_has_videos_id']);
 $video = new Video("", "", $vastCampaingVideos->getVideos_id());
 
 $adsCount = 0;
-?><?xml version="1.0" encoding="UTF-8"?>
+echo '<?xml version="1.0" encoding="UTF-8"?>';
+?>
 <VAST xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vast.xsd" version="4.0">
     <Ad id="<?php echo date('YmdHis'); ?>">
         <InLine>
@@ -33,7 +34,13 @@ $adsCount = 0;
                         $files2 = getVideosURL($video->getFilename());
                         //var_dump($files2);exit;
                         if (!empty($files2['m3u8'])) {
-                            $files = array($files2['m3u8']);
+                            $files = array();
+                            foreach ($files2 as $key => $value) {
+                                if(preg_match('/m3u8_/', $key)){
+                                    $files[] = $value;
+                                }
+                            }
+                            $files[] = $files2['m3u8'];
                         } else if (!empty($files2['jpg'])) {
                             $files = $files2;
                             $_REQUEST['imagesOnly'] = 1;
@@ -81,7 +88,13 @@ $adsCount = 0;
                                     <?php
                                     foreach ($files as $key => $value) {
                                         $adsCount++;
-                                        echo PHP_EOL . '<MediaFile id="AdSense' . ($key) . '" delivery="progressive" type="video/mp4" scalable="true" maintainAspectRatio="true"><![CDATA[' . ($value['url']) . ']]></MediaFile>';
+                                        $type = ' type="video/mp4" delivery="progressive" ';
+                                        if(preg_match('/m3u8/', $value['url'])){
+                                            $type = ' type="application/x-mpegURL" delivery="streaming" minBitrate="49" maxBitrate="258" ';
+                                        }
+                                        echo PHP_EOL . '<MediaFile id="AdSense' . ($key) . '" '.$type.' scalable="true" maintainAspectRatio="true"><![CDATA[' . ($value['url']) . ']]></MediaFile>';
+                                        //echo PHP_EOL . '<MediaFile id="AdSense' . ($key) . '" type="video/mp4" delivery="progressive" scalable="true" maintainAspectRatio="true"><![CDATA[' . ($value['url']) . ']]></MediaFile>';
+                                        //echo PHP_EOL . '<MediaFile id="AdSense' . ($key) . '" type="application/vnd.apple.mpegurl" minBitrate="49" maxBitrate="258"  delivery="streaming" scalable="true" maintainAspectRatio="true"><![CDATA[' . ($value['url']) . ']]></MediaFile>';
                                     }
                                     if (!$adsCount) {
                                         echo PHP_EOL . '<MediaFile id="AdSense' . ($key) . '" delivery="progressive" type="video/mp4" scalable="true" maintainAspectRatio="true"><![CDATA[' . $global['webSiteRootURL'] . 'plugin/AD_Server/view/adswarning.mp4]]></MediaFile>';

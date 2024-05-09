@@ -49,6 +49,10 @@ class AssistantVerticalsHomeautomationProtoHomeAutomationMetaData extends \Googl
    */
   public $gcmExecutionAddress;
   /**
+   * @var string[]
+   */
+  public $groupIds;
+  /**
    * @var string
    */
   public $hashValue;
@@ -56,6 +60,8 @@ class AssistantVerticalsHomeautomationProtoHomeAutomationMetaData extends \Googl
    * @var bool
    */
   public $lanscanOptedIn;
+  protected $matterUniqueIdType = AssistantVerticalsHomeautomationProtoMatterUniqueId::class;
+  protected $matterUniqueIdDataType = '';
   /**
    * @var string
    */
@@ -104,6 +110,10 @@ class AssistantVerticalsHomeautomationProtoHomeAutomationMetaData extends \Googl
    * @var string
    */
   public $primaryName;
+  /**
+   * @var string
+   */
+  public $reportStateStatus;
   protected $roleInformationType = AssistantVerticalsHomeautomationProtoRoleInformation::class;
   protected $roleInformationDataType = '';
   /**
@@ -270,6 +280,20 @@ class AssistantVerticalsHomeautomationProtoHomeAutomationMetaData extends \Googl
     return $this->gcmExecutionAddress;
   }
   /**
+   * @param string[]
+   */
+  public function setGroupIds($groupIds)
+  {
+    $this->groupIds = $groupIds;
+  }
+  /**
+   * @return string[]
+   */
+  public function getGroupIds()
+  {
+    return $this->groupIds;
+  }
+  /**
    * @param string
    */
   public function setHashValue($hashValue)
@@ -296,6 +320,20 @@ class AssistantVerticalsHomeautomationProtoHomeAutomationMetaData extends \Googl
   public function getLanscanOptedIn()
   {
     return $this->lanscanOptedIn;
+  }
+  /**
+   * @param AssistantVerticalsHomeautomationProtoMatterUniqueId
+   */
+  public function setMatterUniqueId(AssistantVerticalsHomeautomationProtoMatterUniqueId $matterUniqueId)
+  {
+    $this->matterUniqueId = $matterUniqueId;
+  }
+  /**
+   * @return AssistantVerticalsHomeautomationProtoMatterUniqueId
+   */
+  public function getMatterUniqueId()
+  {
+    return $this->matterUniqueId;
   }
   /**
    * @param string
@@ -478,6 +516,20 @@ class AssistantVerticalsHomeautomationProtoHomeAutomationMetaData extends \Googl
   public function getPrimaryName()
   {
     return $this->primaryName;
+  }
+  /**
+   * @param string
+   */
+  public function setReportStateStatus($reportStateStatus)
+  {
+    $this->reportStateStatus = $reportStateStatus;
+  }
+  /**
+   * @return string
+   */
+  public function getReportStateStatus()
+  {
+    return $this->reportStateStatus;
   }
   /**
    * @param AssistantVerticalsHomeautomationProtoRoleInformation

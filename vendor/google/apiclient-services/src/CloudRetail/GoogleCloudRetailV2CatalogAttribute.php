@@ -27,6 +27,8 @@ class GoogleCloudRetailV2CatalogAttribute extends \Google\Model
    * @var string
    */
   public $exactSearchableOption;
+  protected $facetConfigType = GoogleCloudRetailV2CatalogAttributeFacetConfig::class;
+  protected $facetConfigDataType = '';
   /**
    * @var bool
    */
@@ -39,6 +41,10 @@ class GoogleCloudRetailV2CatalogAttribute extends \Google\Model
    * @var string
    */
   public $key;
+  /**
+   * @var string
+   */
+  public $retrievableOption;
   /**
    * @var string
    */
@@ -75,6 +81,20 @@ class GoogleCloudRetailV2CatalogAttribute extends \Google\Model
   public function getExactSearchableOption()
   {
     return $this->exactSearchableOption;
+  }
+  /**
+   * @param GoogleCloudRetailV2CatalogAttributeFacetConfig
+   */
+  public function setFacetConfig(GoogleCloudRetailV2CatalogAttributeFacetConfig $facetConfig)
+  {
+    $this->facetConfig = $facetConfig;
+  }
+  /**
+   * @return GoogleCloudRetailV2CatalogAttributeFacetConfig
+   */
+  public function getFacetConfig()
+  {
+    return $this->facetConfig;
   }
   /**
    * @param bool
@@ -117,6 +137,20 @@ class GoogleCloudRetailV2CatalogAttribute extends \Google\Model
   public function getKey()
   {
     return $this->key;
+  }
+  /**
+   * @param string
+   */
+  public function setRetrievableOption($retrievableOption)
+  {
+    $this->retrievableOption = $retrievableOption;
+  }
+  /**
+   * @return string
+   */
+  public function getRetrievableOption()
+  {
+    return $this->retrievableOption;
   }
   /**
    * @param string

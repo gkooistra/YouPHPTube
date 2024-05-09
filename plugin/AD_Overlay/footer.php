@@ -24,15 +24,17 @@
 
 
 <script>
+    
+    var modalAdsUser = getPleaseWait();
     var ad_overlay_users_id
     function adsUser(users_id){
-        modal.showPleaseWait();
+        modalAdsUser.showPleaseWait();
         $('.adsStatus').hide();
         $( "#addOverlayCode" ).text('');
         ad_overlay_users_id = users_id;
         $('#adsFormModal').modal();
         $.ajax({
-            url: '<?php echo $global['webSiteRootURL']; ?>plugin/AD_Overlay/getCode.json.php?users_id=' + users_id,
+            url: webSiteRootURL+'plugin/AD_Overlay/getCode.json.php?users_id=' + users_id,
             success: function (response) {
                 $( "#addOverlayCode" ).text(response.msg);
                 if(response.status == 'a'){
@@ -40,7 +42,7 @@
                 }else{
                     $('.adsStatus.label-danger').fadeIn();
                 }
-                modal.hidePleaseWait();
+                modalAdsUser.hidePleaseWait();
             }
         });
     }
@@ -48,7 +50,7 @@
     function saveCode(approveAd, deleteAd) {
         modal.showPleaseWait();
         $.ajax({
-            url: '<?php echo $global['webSiteRootURL']; ?>plugin/AD_Overlay/saveCode.json.php',
+            url: webSiteRootURL+'plugin/AD_Overlay/saveCode.json.php',
             data: {
                 "addOverlayCode": $('#addOverlayCode').val(),
                 "users_id": ad_overlay_users_id,
@@ -58,10 +60,10 @@
             type: 'post',
             success: function (response) {
                 if (response.error) {
-                    avideoAlert("<?php echo __("Sorry!"); ?>", response.error, "error");
+                    avideoAlertError(response.error);
                     modal.hidePleaseWait();
                 } else {
-                    avideoAlert("<?php echo __("Congratulations!"); ?>", "<?php echo __("Your code has been saved!"); ?>", "success");
+                    avideoAlertSuccess(__("Your code has been saved!"));
                     adsUser(ad_overlay_users_id);
                 }
                 //modal.hidePleaseWait();

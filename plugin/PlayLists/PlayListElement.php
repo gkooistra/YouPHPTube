@@ -2,7 +2,7 @@
 
 class PlayListElement {
 
-    public $name, $description, $duration, $sources, $thumbnail, $poster, $videoStartSeconds, $created, $likes, $views, $videos_id;
+    public $name, $description, $duration, $sources, $thumbnail, $poster, $videoStartSeconds, $created, $likes, $views, $videos_id, $className, $tracks;
 
     function __construct($name, $description, $duration, $playListSource, $playListThumbnail, $poster, $videoStartSeconds, $created, $likes, $views, $videos_id, $className='', $tracks=array()) {
         $this->name = $name;
@@ -12,7 +12,7 @@ class PlayListElement {
         $this->thumbnail = $playListThumbnail;
         $this->poster = $poster;
         $this->videoStartSeconds = intval($videoStartSeconds);
-        $this->created = strtotime($created);
+        $this->created = empty($created)?0:strtotime($created);
         $this->likes = $likes;
         $this->views = $views;
         $this->videos_id = $videos_id;
@@ -38,7 +38,7 @@ class PlayListElement {
     }
 
     function getPlayListThumbnail() {
-        return $this->playListThumbnail;
+        return $this->thumbnail;
     }
 
     function setName($name) {
@@ -133,11 +133,17 @@ class PlayListElement {
 
 class playListSource {
 
-    public $src, $type;
+    public $src, $type, $label;
+    static $videoHLSObj;
     
     function __construct($src, $youtube = false) {
+        $TimeLogLimit = 0.1;
+        $timelogname = __FILE__.'::playListSource::__construct';
+        TimeLogStart($timelogname);
         $this->src = $src;
-        $this->label = getResolutionFromFilename($src);
+        
+        $this->label = getResolutionFromFilename($src, false);
+        TimeLogEnd($timelogname, __LINE__, $TimeLogLimit);
         if(empty($this->label)){
             $this->label = 'Auto';
         }else{
@@ -148,14 +154,20 @@ class playListSource {
         }else{
             $this->type = mime_content_type_per_filename($src);
         }
+        TimeLogEnd($timelogname, __LINE__, $TimeLogLimit);
         if($this->type=="application/x-mpegURL"){
-            $obj = AVideoPlugin::getDataObject('VideoHLS');
-            if(!empty($obj->downloadProtection)){
+            TimeLogEnd($timelogname, __LINE__, $TimeLogLimit);
+            if(!isset(playListSource::$videoHLSObj)){
+                playListSource::$videoHLSObj = AVideoPlugin::getDataObject('VideoHLS');
+            }
+            TimeLogEnd($timelogname, __LINE__, $TimeLogLimit);
+            if(!empty(playListSource::$videoHLSObj->downloadProtection)){
                 if(!preg_match('/token=/', $this->src)){
                     $this->src = addQueryStringParameter($this->src, 'token', VideoHLS::getToken());
                 }
             }
         }
+        TimeLogEnd($timelogname, __LINE__, $TimeLogLimit);
     }
 
 

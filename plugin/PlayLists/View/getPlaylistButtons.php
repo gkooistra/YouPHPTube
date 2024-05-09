@@ -6,9 +6,12 @@ if (empty($playlists_id)) {
 }
 
 $program = PlayList::getFromDbFromId($playlists_id);
-//var_dump($playlists_id, $program);
-$isMyChannel = $program['users_id'] == User::getId();
+if(empty($program)){
+    echo 'program not found';
+    return;
+}
 
+$plObj = AVideoPlugin::getDataObject('PlayLists');
 $playListButtons = AVideoPlugin::getPlayListButtons($playlists_id);
 $link = PlayLists::getLink($program['id']);
 
@@ -18,14 +21,18 @@ if (empty($isASerie)) {
 } else {
     $currentSerieVideos_id = $isASerie['id'];
 }
+
+getSharePopupButton(0, "{$global['webSiteRootURL']}viewProgram/{$program['id']}/".urlencode($program['name']), $program['name'], 'btn-xs');
 ?>
 <a href="<?php echo $link; ?>" class="btn btn-xs btn-default playAll hrefLink"  data-toggle="tooltip" title="<?php echo __("Play All"); ?>" >
     <span class="fa fa-play"></span> <span class="hidden-sm hidden-xs"><?php echo __("Play All"); ?></span>
 </a>
 <?php echo $playListButtons; ?>
 <?php
-echo PlayLists::getPlayLiveButton($program['id']);
-if ($isMyChannel) {
+//echo PlayLists::getPlayLiveButton($program['id']);
+echo PlayLists::scheduleLiveButton($program['id']);
+if (PlayLists::canManagePlaylist($playlists_id)) {
+    if(!isMobile()){
     ?>
     <script>
         $(function () {
@@ -39,6 +46,9 @@ if ($isMyChannel) {
             $("#sortable<?php echo $program['id']; ?>").disableSelection();
         });
     </script>
+    <?php
+    }
+    ?>
     <div class="dropdown" style="display: inline-block;">
         <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown">
             <i class="fas fa-sort-amount-down"></i> 
@@ -53,10 +63,12 @@ if ($isMyChannel) {
         </ul>
     </div>
     <?php 
-    $rss =  "{$global['webSiteRootURL']}feed/?program_id={$program['id']}";
-    $mrss =  "{$global['webSiteRootURL']}mrss/?program_id={$program['id']}";
-    $roku =  "{$global['webSiteRootURL']}roku.json?program_id={$program['id']}";
-    echo getFeedButton($rss, $mrss, $roku);
+    if(!empty($plObj->showFeed)){
+        $rss =  "{$global['webSiteRootURL']}feed/?program_id={$program['id']}";
+        $mrss =  "{$global['webSiteRootURL']}mrss/?program_id={$program['id']}";
+        $roku =  "{$global['webSiteRootURL']}roku.json?program_id={$program['id']}";
+        echo getFeedButton($rss, $mrss, $roku);
+    }
     ?>
     <div class="pull-right btn-group"  style="display: inline-flex;">
         <?php

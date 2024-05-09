@@ -10,7 +10,7 @@ if (!isset($global['systemRootPath'])) {
 
 //_error_log("HLS.php: session_id = ".  session_id()." IP = ".  getRealIpAddr()." URL = ".($actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]"));
 
-session_write_close();
+_session_write_close();
 if (empty($_GET['videoDirectory'])) {
     forbiddenPage("No directory set");
 }
@@ -70,7 +70,7 @@ if (!empty($_GET['token'])) {
 }
 $newContent = '';
 // if is using a CDN I can not check if the user is logged
-if (isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->videosCDN) || User::canWatchVideo($video['id']) || User::canWatchVideoWithAds($video['id']) || isCDN()) {
+if (isAVideoUserAgent() || isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->videosCDN) || User::canWatchVideo($video['id']) || User::canWatchVideoWithAds($video['id']) || isCDN()) {
     if (!empty($_GET['download'])) {
         downloadHLS($_GET['file']);
     } elseif (!empty($_GET['playHLSasMP4'])) {
@@ -81,7 +81,11 @@ if (isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->vi
         } else {
             $filename = pathToRemoteURL($filename);
         }
-        $content = file_get_contents($filename);
+        if (!preg_match('/index.m3u8$/', $filename)) {
+            $filename .= '/index.m3u8';
+        }
+        $context = stream_context_create(array('http' => array('timeout' => 30)));
+        $content = file_get_contents($filename, false, $context);
         $newContent = str_replace('{$pathToVideo}', "{$global['webSiteRootURL']}videos/{$_GET['videoDirectory']}/../", $content);
         if (!empty($_GET['token'])) {
             $newContent = str_replace('/index.m3u8', "/index.m3u8?token={$_GET['token']}", $newContent);
@@ -94,6 +98,7 @@ if (isAVideoEncoderOnSameDomain() || $tokenIsValid || !empty($advancedCustom->vi
     $newContent .= $tokenIsValid ? "" : " tokenInvalid";
     $newContent .= User::canWatchVideo($video['id']) ? "" : " cannot watch ({$video['id']})";
     $newContent .= " " . date("Y-m-d H:i:s");
+    _error_log($newContent);
 }
 header("Content-Type: text/plain");
 //header('Content-Type:');

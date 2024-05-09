@@ -1,4 +1,5 @@
 <?php
+set_time_limit(10);
 $facebookSizeRecomendationW = 1200;
 $facebookSizeRecomendationH = 630;
 
@@ -20,26 +21,35 @@ if (empty($_REQUEST['format'])) {
     header('Content-Type: image/x-png');
 }
 
-
-$f = md5(@$_REQUEST['u'] . @$_REQUEST['live_servers_id'] . @$_REQUEST['live_index']);
+$f = md5(@$_REQUEST['u'] .'_'. @$_REQUEST['live_servers_id'] .'_'. @$_REQUEST['live_index'] .'_'. @$_REQUEST['playlists_id_live']);
 $cacheFileImageName = dirname(__FILE__) . "/../../videos/cache/liveImage_{$f}.{$_REQUEST['format']}";
 $cacheFileImageNameResized = dirname(__FILE__) . "/../../videos/cache/liveImage_{$f}_{$facebookSizeRecomendationW}X{$facebookSizeRecomendationH}.{$_REQUEST['format']}";
 if (file_exists($cacheFileImageName) && (time() - $lifetime <= filemtime($cacheFileImageName))) {
-    if(!file_exists($cacheFileImageNameResized)){
-        //im_resizeV2($cacheFileImageName, $cacheFileImageNameResized, $facebookSizeRecomendationW, $facebookSizeRecomendationH);
-        scaleUpImage($cacheFileImageName, $cacheFileImageNameResized, $facebookSizeRecomendationW, $facebookSizeRecomendationH);
+    if(file_exists($cacheFileImageNameResized)){
+        $content = file_get_contents($cacheFileImageNameResized);
+        if (!empty($content)) {
+            echo $content;
+            exit;
+        }
+    }else if(file_exists($cacheFileImageName)){
+        $content = file_get_contents($cacheFileImageName);
+        if (!empty($content)) {
+            echo $content;
+            exit;
+        }
     }
-    $content = file_get_contents($cacheFileImageNameResized);
-    if (!empty($content)) {
-        echo $content;
-        exit;
+}else{
+    if(file_exists($cacheFileImageName)){
+        unlink($cacheFileImageName);
     }
-}else if(file_exists($cacheFileImageName) && (time() - ($lifetime/2) <= filemtime($cacheFileImageName))){
-    unlink($cacheFileImageNameResized);
+    if(file_exists($cacheFileImageNameResized)){
+        unlink($cacheFileImageNameResized);
+    }
 }
 
 require_once dirname(__FILE__) . '/../../videos/configuration.php';
-session_write_close();
+_session_write_close();
+_error_log('Get Image');
 require_once $global['systemRootPath'] . 'plugin/Live/Objects/LiveTransmition.php';
 $_REQUEST['live_servers_id'] = Live::getLiveServersIdRequest();
 if (!empty($_GET['c'])) {
@@ -145,7 +155,7 @@ if (!empty($result) && !Live::isDefaultImage($result)) {
 
     //_error_log("Live:getImage $url");
     //header('Content-Type: text/plain');var_dump($url);exit;
-    session_write_close();
+    _session_write_close();
     _mysql_close();
     $content = url_get_contents($url, '', 2);
 

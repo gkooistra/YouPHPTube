@@ -18,7 +18,7 @@ class LiveLinks extends PluginAbstract {
     public function getDescription() {
         $desc = "Register Livestreams external Links from any HLS provider, Wowza and others";
         $desc .= $this->isReadyLabel(array('Live'));
-        $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/LiveLinks-Plugin' target='__blank'><i class='fas fa-question-circle'></i> Help</a></small>";
+        $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/LiveLinks-Plugin' target='_blank'><i class='fas fa-question-circle'></i> Help</a></small>";
 
         return $desc . $help;
     }
@@ -73,7 +73,7 @@ class LiveLinks extends PluginAbstract {
         include $global['systemRootPath'] . 'plugin/LiveLinks/view/menuRight.php';
     }
 
-    static function getAllActive($future = false, $activeOnly = true, $notStarted = false) {
+    static function getAllActive($future = false, $activeOnly = true, $notStarted = false, $users_id=0, $categories_id=0) {
         global $global;
         _mysql_connect();
         $sql = "SELECT * FROM  LiveLinks WHERE 1=1 ";
@@ -88,6 +88,14 @@ class LiveLinks extends PluginAbstract {
 
         if (!empty($notStarted)) {
             $sql .= " AND start_date >= now() ";
+        }
+
+        if (!empty($users_id)) {
+            $sql .= " AND users_id = " . intval($users_id);
+        }
+
+        if (!empty($categories_id)) {
+            $sql .= " AND categories_id = " . intval($categories_id);
         }
 
         $sql .= " ORDER BY start_date ";
@@ -325,14 +333,14 @@ class LiveLinks extends PluginAbstract {
             $sql .= " AND u.status = 'a' ";
         }
 
-        if ($status == "publicOnly") {
+        if ($status == Video::SORT_TYPE_PUBLICONLY) {
             $sql .= " AND v.`type` = 'public' ";
         } elseif (!empty($status)) {
             $sql .= " AND v.`status` = '{$status}'";
         }
 
-        if (!empty($_GET['catName'])) {
-            $catName = ($_GET['catName']);
+        if (!empty($_REQUEST['catName'])) {
+            $catName = ($_REQUEST['catName']);
             $sql .= " AND (c.clean_name = '{$catName}' OR c.parentId IN (SELECT cs.id from categories cs where cs.clean_name =  '{$catName}' ))";
         }
 

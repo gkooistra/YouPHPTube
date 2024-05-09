@@ -24,7 +24,7 @@ use Google\Service\Recommender\GoogleCloudRecommenderV1InsightTypeConfig;
  * Typical usage is:
  *  <code>
  *   $recommenderService = new Google\Service\Recommender(...);
- *   $insightTypes = $recommenderService->insightTypes;
+ *   $insightTypes = $recommenderService->billingAccounts_locations_insightTypes;
  *  </code>
  */
 class BillingAccountsLocationsInsightTypes extends \Google\Service\Resource
@@ -42,6 +42,7 @@ class BillingAccountsLocationsInsightTypes extends \Google\Service\Resource
    * ig`
    * @param array $optParams Optional parameters.
    * @return GoogleCloudRecommenderV1InsightTypeConfig
+   * @throws \Google\Service\Exception
    */
   public function getConfig($name, $optParams = [])
   {
@@ -62,6 +63,7 @@ class BillingAccountsLocationsInsightTypes extends \Google\Service\Resource
    * @opt_param bool validateOnly If true, validate the request and preview the
    * change, but do not actually update it.
    * @return GoogleCloudRecommenderV1InsightTypeConfig
+   * @throws \Google\Service\Exception
    */
   public function updateConfig($name, GoogleCloudRecommenderV1InsightTypeConfig $postBody, $optParams = [])
   {

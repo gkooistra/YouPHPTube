@@ -21,6 +21,8 @@ class VideoStatistic extends ObjectYPT {
     protected $session_id;
     protected $seconds_watching_video;
     protected $json;
+    protected $rewarded;
+    protected $created_php_time;
 
     public static function getSearchFieldsNames() {
         return ['json', 'ip', 'when', 'user', 'name', 'email', 'channelName'];
@@ -46,28 +48,44 @@ class VideoStatistic extends ObjectYPT {
         if (empty($videos_id)) {
             die(__("You need a video to generate statistics"));
         }
-
-        $userId = empty($_SESSION["user"]["id"]) ? "NULL" : $_SESSION["user"]["id"];
+        
+        if(empty($_SESSION["user"]["id"])){
+            $userId = 0;
+        }else{
+            $userId = $_SESSION["user"]["id"];
+        }
 
         $lastVideoTime = 0;
         if (empty($currentTime)) {
-            $lastStatistic = self::getLastStatistics($videos_id, $userId);
+            $lastStatistic = self::getLastStatistics($videos_id, $userId, getRealIpAddr(), session_id());
             if (empty($currentTime) && !empty($lastStatistic)) {
                 $lastVideoTime = intval($lastStatistic['lastVideoTime']);
             }
         } else {
             $lastVideoTime = intval($currentTime);
         }
-
-        $sql = "INSERT INTO videos_statistics "
-                . "(`when`,ip, users_id, videos_id, lastVideoTime, created, modified, session_id) values "
-                . "(now(),?," . $userId . ",?,{$lastVideoTime},now(),now(),'" . session_id() . "')";
-        $insert_row = sqlDAL::writeSql($sql, "si", [getRealIpAddr(), $videos_id]);
+        
+        $columns = array('`when`','ip','videos_id','lastVideoTime','created','modified','session_id','timezone','created_php_time');
+        $values = array('now()','?','?','?','now()','now()','?','?','?');
+        $formatValues = [getRealIpAddr(), $videos_id, $lastVideoTime, session_id(), date_default_timezone_get(), time()];
+        $formats = 'siissi';
+        
+        if(!empty($userId)){
+            $columns[] = 'users_id';
+            $values[] = '?';
+            $formats .= 'i';
+            $formatValues[] = $userId;
+        }
+        
+        $sql = "INSERT INTO videos_statistics (".implode(',', $columns).") values "
+                . "(".implode(',', $values).")";
+        //var_dump($sql, $formats, $formatValues, $columns, $values);
+        $insert_row = sqlDAL::writeSql($sql, $formats, $formatValues);
         //if($videos_id==4){_error_log($sql);}
         /**
-         * 
+         *
          * @var array $global
-         * @var object $global['mysqli'] 
+         * @var object $global['mysqli']
          */
         if (!empty($global['mysqli']->insert_id)) {
             return $global['mysqli']->insert_id;
@@ -77,21 +95,38 @@ class VideoStatistic extends ObjectYPT {
     }
 
     public static function updateStatistic($videos_id, $users_id, $lastVideoTime, $seconds_watching_video = 0) {
+        //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
         if(isBot()){
+            //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
             return false;
         }
-        $lastStatistic = self::getLastStatistics($videos_id, $users_id);
+        $lastStatistic = self::getLastStatistics($videos_id, $users_id, getRealIpAddr(), session_id());
         if (empty($lastStatistic)) {
+            //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
             $vs = new VideoStatistic(0);
             $vs->setUsers_id($users_id);
             $vs->setVideos_id($videos_id);
             $vs->setWhen(date("Y-m-d h:i:s"));
         } else {
+            //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
             $vs = new VideoStatistic($lastStatistic['id']);
+            $elapsedTime = time() - $vs->created_php_time;
+            if ($seconds_watching_video > $elapsedTime) {
+                $seconds_watching_video = $elapsedTime;
+            }
         }
-        $vs->setLastVideoTime($lastVideoTime);
+        if(empty($lastVideoTime) && empty($seconds_watching_video) && !empty($lastStatistic)){
+            //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
+            // do not save because there is already a record and it is saving 0
+        }else{
+            //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
+            $vs->setLastVideoTime($lastVideoTime);
+        }
+        //var_dump($lastVideoTime);exit;
+        $vs->setIp(getRealIpAddr());
 
         if (!empty($seconds_watching_video) && $seconds_watching_video > 0) {
+            //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
             $totalVideoWatched = $vs->getSeconds_watching_video() + $seconds_watching_video;
             //_error_log("updateStatistic: add more [$seconds_watching_video] to video [$videos_id] " . get_browser_name());
             $vs->setSeconds_watching_video($totalVideoWatched);
@@ -101,6 +136,7 @@ class VideoStatistic extends ObjectYPT {
             //$totalVideoSeconds = timeToSeconds($hms);
             //Video::addViewPercent();
         }
+        //error_log("updateStatistic: videos_id=$videos_id lastVideoTime=$lastVideoTime, seconds_watching_video=$seconds_watching_video line=" . __LINE__);
         //if($videos_id==4){ _error_log("updateStatistic $videos_id, $users_id, $lastVideoTime, $seconds_watching_video ".json_encode($lastStatistic));}
         $id = $vs->save();
         /*
@@ -131,7 +167,8 @@ class VideoStatistic extends ObjectYPT {
         $this->json = ($this->json);
         
         if(empty($this->id)){
-            $row = self::getLastStatistics($this->videos_id, $this->users_id);
+            $this->rewarded = 0;
+            $row = self::getLastStatistics($this->videos_id, $this->users_id, getRealIpAddr(), session_id());
             if(!empty($row)){
                 $this->id = $row['id'];
             }
@@ -140,22 +177,53 @@ class VideoStatistic extends ObjectYPT {
         return parent::save();
     }
 
-    public static function getLastStatistics($videos_id, $users_id = 0) {
+    public static function getLastStatistics($videos_id, $users_id = 0, $ip = '', $session_id = '') {
+    
+        if(empty($videos_id)){
+            return false;
+        }
+        
+        $sql = "SELECT * FROM videos_statistics WHERE 1=1 ";
+
+        $conditions = [];
+        $params = [];
+    
+        $sql .= " AND videos_id = ? AND ";
+        $formats = 'i';
+        $params[] = $videos_id;
+
         if (!empty($users_id)) {
-            $sql = "SELECT * FROM videos_statistics WHERE videos_id = ? AND (users_id = ? OR session_id = ?) ORDER BY id DESC LIMIT 1 ";
-            $res = sqlDAL::readSql($sql, 'iis', [$videos_id, $users_id, session_id()], true);
-        } else {
-            $sql = "SELECT * FROM videos_statistics WHERE videos_id = ? AND session_id = ? ORDER BY id DESC LIMIT 1 ";
-            $res = sqlDAL::readSql($sql, 'is', [$videos_id, session_id()], true);
+            $sql .= " users_id = ? ";
+            $formats .= 'i';
+            $params[] = $users_id;
+        } else{
+            $sql .= " users_id IS NULL ";
+            if (!empty($session_id)) {
+                $conditions[] = "session_id = ? ";
+                $formats .= 's';
+                $params[] = $session_id;
+            }
+            if (!empty($ip)) {
+                $conditions[] = " ip = ? ";
+                $formats .= 's';
+                $params[] = $ip;
+            }
+            if(!empty($conditions)){
+                $sql .= " AND ( ";
+                $sql .= implode(' OR ',$conditions);
+                $sql .= " ) ";
+            }
         }
+
+        $sql .= " ORDER BY id DESC LIMIT 1";
+    
+        $res = sqlDAL::readSql($sql, $formats, $params, true);
         $result = sqlDAL::fetchAssoc($res);
-        //if($videos_id==4){_error_log($sql." $videos_id, $users_id, ".session_id().' => '. json_encode($result));}
         sqlDAL::close($res);
-        if (!empty($result)) {
-            return $result;
-        }
-        return false;
+    
+        return !empty($result) ? $result : false;
     }
+    
 
     public static function getLastVideoTimeFromVideo($videos_id, $users_id) {
         $row = self::getLastStatistics($videos_id, $users_id);
@@ -321,17 +389,16 @@ class VideoStatistic extends ObjectYPT {
 
     public static function getChannelsWithMoreViews($daysLimit = 0) {
         global $global, $advancedCustom;
-        
+
         if(empty($daysLimit)){
             $daysLimit = getTrendingLimit();
         }
-        
+
         //$dateDaysLimit = getTrendingLimitDate();
-        
         $cacheName3 = "getChannelsWithMoreViews{$daysLimit}" . DIRECTORY_SEPARATOR . md5(json_encode([$_GET, $_POST]));
-        $cache = ObjectYPT::getCache($cacheName3, 3600); // 1 hour cache
+        $cache = ObjectYPT::getCacheGlobal($cacheName3, 3600); // 1 hour cache
         if (!empty($cache)) {
-            _error_log('getChannelsWithMoreViews cache found ' . $cacheName3);
+            //_error_log('getChannelsWithMoreViews cache found ' . $cacheName3);
             return object_to_array($cache);
         } else {
             _error_log('getChannelsWithMoreViews no cache found ' . $cacheName3);
@@ -362,7 +429,7 @@ class VideoStatistic extends ObjectYPT {
                     $channelsPerUser[$users_id][] = $row['videos_id'];
                 }
             }
-            $response = ObjectYPT::setCache($cacheName2, $channelsPerUser);
+            $response = ObjectYPT::setCacheGlobal($cacheName2, $channelsPerUser);
         }
 
         if (!empty($channelsPerUser)) {
@@ -392,13 +459,13 @@ class VideoStatistic extends ObjectYPT {
 
     public static function getVideosWithMoreViews($status, $showOnlyLoggedUserVideos, $showUnlisted, $suggestedOnly, $daysLimit = 0) {
         global $global, $advancedCustom;
-        
+
         if(empty($daysLimit)){
             $daysLimit = getTrendingLimit();
         }
-        
+
         $dateDaysLimit = getTrendingLimitDate();
-        
+
         // get unique videos ids from the requested timeframe
         $sql = "SELECT distinct(videos_id) as videos_id FROM videos_statistics s "
                 . " LEFT JOIN videos v ON v.id = videos_id "
@@ -413,15 +480,17 @@ class VideoStatistic extends ObjectYPT {
 
         if (!empty($_GET['channelName'])) {
             $user = User::getChannelOwner($_GET['channelName']);
-            $sql .= " AND v.users_id = '{$user['id']}' ";
+            if(!empty($user)){
+                $sql .= " AND v.users_id = '{$user['id']}' ";
+            }
         }
-        if ($status == "viewable") {
+        if ($status == Video::SORT_TYPE_VIEWABLE) {
             if (User::isLogged()) {
                 $sql .= " AND (v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "') OR (v.status='u' AND v.users_id ='" . User::getId() . "'))";
             } else {
                 $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus($showUnlisted)) . "')";
             }
-        } elseif ($status == "viewableNotUnlisted") {
+        } elseif ($status == Video::SORT_TYPE_VIEWABLENOTUNLISTED) {
             $sql .= " AND v.status IN ('" . implode("','", Video::getViewableStatus(false)) . "') ";
         } elseif (!empty($status)) {
             $sql .= " AND v.status = '{$status}'";
@@ -479,13 +548,13 @@ class VideoStatistic extends ObjectYPT {
 
     public static function getChannelsTotalViews($users_id, $daysLimit = 0) {
         global $global, $advancedCustom;
-                
+
         if(empty($daysLimit)){
             $daysLimit = getTrendingLimit();
         }
-        
+
         $dateDaysLimit = getTrendingLimitDate();
-        
+
         $cacheName = "getChannelsTotalViews($users_id, $daysLimit)";
         $cache = ObjectYPT::getCache($cacheName, 3600); // 1 hour cache
         if (!empty($cache)) {
@@ -531,7 +600,6 @@ class VideoStatistic extends ObjectYPT {
             //_error_log("Delete Query: ".$sql);
             return sqlDAL::writeSql($sql, "i", [$days]);
         }
-        _error_log("Id for table " . static::getTableName() . " not defined for deletion", AVideoLog::$ERROR);
         return false;
     }
 
@@ -566,7 +634,9 @@ class VideoStatistic extends ObjectYPT {
             return false;
         }
 
-        $sql = "SELECT u.*, vs.* FROM  " . static::getTableName() . " vs LEFT JOIN users u ON vs.users_id = u.id WHERE videos_id=$videos_id ";
+        $sql = "SELECT u.*, vs.* FROM  " . static::getTableName() . " vs ";
+        $sql .= " LEFT JOIN users u ON vs.users_id = u.id ";
+        $sql .= " WHERE videos_id=$videos_id ";
 
         $sql .= self::getSqlFromPost('', 'vs');
         //var_dump($_POST['searchPhrase'], $_GET['search']['value'], $sql);exit;
@@ -579,7 +649,7 @@ class VideoStatistic extends ObjectYPT {
 
             foreach ($fullData as $row) {
                 $row['users'] = User::getNameIdentificationById($row['users_id']);
-                $row['when_human'] = humanTimingAgo($row['when']);
+                $row['when_human'] = humanTimingAgo($row['created_php_time'], 0, false);
                 $row['seconds_watching_video_human'] = seconds2human($row['seconds_watching_video']);
                 if ($isPluginEnabled) {
                     $json = _json_decode($row['json']);
@@ -606,7 +676,7 @@ class VideoStatistic extends ObjectYPT {
             }
         } else {
             //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
-            $rows = array();
+            $rows = [];
         }
         return $rows;
     }
@@ -663,11 +733,11 @@ class VideoStatistic extends ObjectYPT {
             $formats .= "s";
             $values[] = $endDate;
         }
-
+        $sql .= " LIMIT 10000 ";
         $res = sqlDAL::readSql($sql, $formats, $values);
         $fullData = sqlDAL::fetchAllAssoc($res);
         sqlDAL::close($res);
-        $rows = array();
+        $rows = [];
         if ($res != false) {
             $totalViews = 0;
             $totalWatchingTime = 0;
@@ -692,7 +762,7 @@ class VideoStatistic extends ObjectYPT {
                     $formats .= "s";
                     $values[] = $endDate;
                 }
-
+                $sql .= " LIMIT 10000 ";
                 $res2 = sqlDAL::readSql($sql, $formats, $values);
                 $fullData2 = sqlDAL::fetchAllAssoc($res2);
                 sqlDAL::close($res2);

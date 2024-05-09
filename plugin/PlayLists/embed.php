@@ -6,13 +6,18 @@ $isPlayList = 1;
 if (!isset($global['systemRootPath'])) {
     require_once '../../videos/configuration.php';
 }
+$timelogname = __FILE__;
+TimeLogStart($timelogname);
 $objSecure = AVideoPlugin::loadPluginIfEnabled('SecureVideosDirectory');
 if (!empty($objSecure)) {
     $objSecure->verifyEmbedSecurity();
 }
 
+TimeLogEnd($timelogname, __LINE__);
 require_once $global['systemRootPath'] . 'objects/playlist.php';
+TimeLogEnd($timelogname, __LINE__);
 require_once $global['systemRootPath'] . 'plugin/PlayLists/PlayListElement.php';
+TimeLogEnd($timelogname, __LINE__);
 
 if (!User::isAdmin() && !PlayList::canSee($_GET['playlists_id'], User::getId())) {
     die('{"error":"' . __("Permission denied") . '"}');
@@ -20,21 +25,29 @@ if (!User::isAdmin() && !PlayList::canSee($_GET['playlists_id'], User::getId()))
 
 $playlist_index = intval(@$_REQUEST['playlist_index']);
 
+TimeLogEnd($timelogname, __LINE__);
 $pl = new PlayList($_GET['playlists_id']);
 
+TimeLogEnd($timelogname, __LINE__);
 $playList = PlayList::getVideosFromPlaylist($_GET['playlists_id']);
 
+TimeLogEnd($timelogname, __LINE__);
 $playListData = array();
 $playListData_videos_id = array();
 $collectionsList = PlayList::showPlayListSelector($playList);
+TimeLogEnd($timelogname, __LINE__);
 $videoStartSeconds = array();
 
 $users_id = User::getId();
 
 setPlayListIndex(0);
 
+TimeLogEnd($timelogname, __LINE__);
+$TimeLogLimit = 0.2;
 foreach ($playList as $key => $value) {
     $oldValue = $value;
+    $timelognameF = __FILE__.'::foreach';
+    TimeLogStart($timelognameF);
 
     if (!User::isAdmin() && !Video::userGroupAndVideoGroupMatch($users_id, $value['videos_id'])) {
         unset($playList[$key]);
@@ -45,13 +58,18 @@ foreach ($playList as $key => $value) {
         setPlayListIndex(count($playListData));
     }
 
+    TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
     if ($oldValue['type'] === 'serie' && !empty($oldValue['serie_playlists_id'])) {
         $subPlayList = PlayList::getVideosFromPlaylist($value['serie_playlists_id']);
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         foreach ($subPlayList as $value) {
+            $timelognameFF = __FILE__.'::foreach::foreach';
+            TimeLogStart($timelognameFF);
             $sources = getVideosURL($value['filename']);
             $images = Video::getImageFromFilename($value['filename'], $value['type']);
             $externalOptions = _json_decode($value['externalOptions']);
 
+            TimeLogEnd($timelognameFF, __LINE__, $TimeLogLimit);
             $src = new stdClass();
             $src->src = $images->thumbsJpg;
             $thumbnail = array();
@@ -63,26 +81,33 @@ foreach ($playList as $key => $value) {
                     continue;
                 }
                 $playListSources[] = new playListSource($value2['url']);
+                break;
             }
+            TimeLogEnd($timelognameFF, __LINE__, $TimeLogLimit);
             if (empty($playListSources)) {
                 continue;
             }
             if (User::isLogged()) {
                 $videoStartSeconds = Video::getLastVideoTimePosition($value['videos_id']);
             }
+            TimeLogEnd($timelognameFF, __LINE__, $TimeLogLimit);
 
             if (empty($videoStartSeconds)) {
                 $videoStartSeconds = parseDurationToSeconds(@$externalOptions->videoStartSeconds);
             }
+            TimeLogEnd($timelognameFF, __LINE__, $TimeLogLimit);
 
-            $playListData[] = new PlayListElement($value['title'], $value['description'], $value['duration'], $playListSources, $thumbnail, $images->poster, $videoStartSeconds, $value['cre'], $value['likes'], $value['views_count'], $value['videos_id'], "embedPlayList subPlaylistCollection-{$oldValue['serie_playlists_id']}");
+            $playListData[] = new PlayListElement(@$value['title'], @$value['description'], @$value['duration'], $playListSources, $thumbnail, $images->poster, $videoStartSeconds, $value['cre'], @$value['likes'], @$value['views_count'], @$value['videos_id'], "embedPlayList subPlaylistCollection-{$oldValue['serie_playlists_id']}");
             //$playListData_videos_id[] = $value['id'];
         }
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
     } else {
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         $sources = getVideosURL($value['filename']);
         $images = Video::getImageFromFilename($value['filename'], $value['type']);
         $externalOptions = _json_decode($value['externalOptions']);
 
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         $src = new stdClass();
         $src->src = $images->thumbsJpg;
         $thumbnail = array();
@@ -94,37 +119,48 @@ foreach ($playList as $key => $value) {
                 continue;
             }
             $playListSources[] = new playListSource($value2['url']);
+            break;
         }
 
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         if (function_exists('getVTTTracks')) {
             $subtitleTracks = getVTTTracks($value['filename'], true);
         }
 
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         if (empty($playListSources)) {
             continue;
         }
 
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         if (User::isLogged()) {
             $videoStartSeconds = Video::getLastVideoTimePosition($value['videos_id']);
         }
 
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         if (empty($videoStartSeconds)) {
             $videoStartSeconds = parseDurationToSeconds(@$externalOptions->videoStartSeconds);
         }
-        $playListData[] = new PlayListElement($value['title'], $value['description'], $value['duration'], $playListSources, $thumbnail, $images->poster, $videoStartSeconds, $value['cre'], $value['likes'], $value['views_count'], $value['videos_id'], "embedPlayList ", $subtitleTracks);
+        TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
+        $playListData[] = new PlayListElement(@$value['title'], @$value['description'], @$value['duration'], $playListSources, $thumbnail, $images->poster, $videoStartSeconds, $value['cre'],@$value['likes'], @$value['views_count'], @$value['videos_id'], "embedPlayList ", $subtitleTracks);
         //$playListData_videos_id[] = $value['videos_id'];
     }
+    TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
 }
 
+TimeLogEnd($timelogname, __LINE__);
 $playListData_videos_id = getPlayListDataVideosId();
 
+TimeLogEnd($timelogname, __LINE__);
 if (empty($playListData)) {
     forbiddenPage(__("The program is empty"));
 }
 
 $url = PlayLists::getLink($pl->getId());
+TimeLogEnd($timelogname, __LINE__);
 $title = $pl->getName();
 
+TimeLogEnd($timelogname, __LINE__);
 if ($serie = PlayLists::isPlayListASerie($pl->getId())) {
     setVideos_id($serie['id']);
 } else if (!empty($playListData_videos_id[getPlayListIndex()])) {
@@ -132,11 +168,12 @@ if ($serie = PlayLists::isPlayListASerie($pl->getId())) {
 }
 $_REQUEST['hideAutoplaySwitch'] = 1;
 //var_dump($playListData_videos_id);exit;
-
 $pl_index = getPlayListIndex();
 $str = file_get_contents($global['systemRootPath'] . 'plugin/PlayLists/getStartPlayerJS.js');
 $str = str_replace('{$pl_index}', $pl_index, $str);
+TimeLogEnd($timelogname, __LINE__);
 PlayerSkins::getStartPlayerJS($str);
+TimeLogEnd($timelogname, __LINE__);
 ?>
 
 <!DOCTYPE html>
@@ -151,13 +188,13 @@ PlayerSkins::getStartPlayerJS($str);
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="icon" href="view/img/favicon.ico">
         <title><?php echo $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>view/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('view/bootstrap/css/bootstrap.min.css'); ?>" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getCDN(); ?>view/css/social.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('view/css/social.css'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getURL('node_modules/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
 
-        <link href="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.css" rel="stylesheet">
+        <link href="<?php echo getCDN(); ?>node_modules/videojs-playlist-ui/dist/videojs-playlist-ui.css" rel="stylesheet">
 
         <script src="<?php echo getURL('node_modules/jquery/dist/jquery.min.js'); ?>" type="text/javascript"></script>
         <?php
@@ -172,12 +209,6 @@ PlayerSkins::getStartPlayerJS($str);
                 padding: 0 !important;
                 margin: 0 !important;
                 overflow: hidden;
-                <?php
-                if (!empty($customizedAdvanced->embedBackgroundColor)) {
-                    echo "background-color: $customizedAdvanced->embedBackgroundColor !important;";
-                }
-                ?>
-
             }
             .vjs-control-bar{
                 z-index: 1;
@@ -241,6 +272,7 @@ PlayerSkins::getStartPlayerJS($str);
         //$jsFiles[] = "view/js/bootgrid/jquery.bootgrid.js";
         //$jsFiles[] = "view/bootstrap/bootstrapSelectPicker/js/bootstrap-select.min.js";
         $jsFiles[] = "view/js/script.js";
+        $jsFiles[] = "view/js/addView.js";
         $jsFiles[] = "node_modules/js-cookie/dist/js.cookie.js";
         //$jsFiles[] = "view/css/flagstrap/js/jquery.flagstrap.min.js";
         $jsFiles[] = "node_modules/jquery-lazy/jquery.lazy.min.js";
@@ -255,13 +287,11 @@ PlayerSkins::getStartPlayerJS($str);
         include $global['systemRootPath'] . 'view/include/video.min.js.php';
         ?>
         <script src="<?php echo getURL('node_modules/jquery-ui-dist/jquery-ui.min.js'); ?>" type="text/javascript"></script>
-        <script src="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist/videojs-playlist.js"></script>
-        <script src="<?php echo getCDN(); ?>plugin/PlayLists/videojs-playlist-ui/videojs-playlist-ui.js"></script>
-        <script src="<?php echo getURL('node_modules/moment/min/moment.min.js'); ?>"></script>
+        <script src="<?php echo getURL('node_modules/videojs-playlist/dist/videojs-playlist.min.js'); ?>" type="text/javascript"></script>
+        <script src="<?php echo getURL('node_modules/videojs-playlist-ui/dist/videojs-playlist-ui.min.js'); ?>" type="text/javascript"></script>
         <?php
-        echo getTagIfExists('node_modules/moment/locale/' . getLanguage() . '.js');
+        include $global['systemRootPath'] . 'view/include/moment.js.php';
         ?>
-        <script src="<?php echo getURL('node_modules/moment-timezone/builds/moment-timezone-with-data.min.js'); ?>"></script>
         <script>
             var embed_playerPlaylist = <?php echo json_encode($playListData); ?>;
             var originalPlayerPlaylist = embed_playerPlaylist;
@@ -297,6 +327,10 @@ PlayerSkins::getStartPlayerJS($str);
                     console.log('updatePLSources', _index);
                     //player.src(embed_playerPlaylist[_index].sources);
                     player.updateSrc(embed_playerPlaylist[_index].sources);
+                    console.log('player.currentTime', embed_playerPlaylist[_index].videoStartSeconds);
+                    currentTime = embed_playerPlaylist[_index].videoStartSeconds;
+                    startCurrentTime = currentTime;
+                    forceCurrentTime = currentTime;
                     player.currentTime(embed_playerPlaylist[_index].videoStartSeconds);
                     //player.currentResolution(embed_playerPlaylist[_index].sources[0].label);
                     //player.currentResolution(embed_playerPlaylist[_index].sources[0].label);
@@ -321,7 +355,8 @@ PlayerSkins::getStartPlayerJS($str);
                                     }
                                 }, 1000);
                             }
-
+                            console.log('player.playlist.currentItem', _index);
+                            player.playlist.currentItem(_index);
                         }, 1000);
                     }
                 } else {
@@ -375,6 +410,8 @@ PlayerSkins::getStartPlayerJS($str);
                 $('#mainVideo').bind('contextmenu', function () {
                     return false;
                 });
+                
+                addCloseButtonInVideo();
             });
 
             function compare(a, b, type) {
@@ -410,35 +447,6 @@ PlayerSkins::getStartPlayerJS($str);
                 s2 = (s2 + '').toLowerCase();
                 return s1 > s2 ? 1 : (s1 < s2 ? -1 : 0);
             }
-        </script>
-        <script>
-            var topInfoTimeout;
-            $(document).ready(function () {
-                setInterval(function () {
-                    if (typeof player !== 'undefined') {
-                        if (!player.paused() && (!player.userActive() || !$('.vjs-control-bar').is(":visible") || $('.vjs-control-bar').css('opacity') == "0")) {
-                            $('#topInfo').fadeOut();
-                        } else {
-                            $('#topInfo').fadeIn();
-                        }
-                    }
-                }, 200);
-
-                $("iframe, #topInfo").mouseover(function (e) {
-                    clearTimeout(topInfoTimeout);
-                    $('#mainVideo').addClass("vjs-user-active");
-                    topInfoTimeout = setTimeout(function () {
-                        $('#mainVideo').removeClass("vjs-user-active");
-                    }, 5000);
-                });
-
-                $("iframe").mouseout(function (e) {
-                    topInfoTimeout = setTimeout(function () {
-                        $('#mainVideo').removeClass("vjs-user-active");
-                    }, 500);
-                });
-
-            });
         </script>
         <?php
         echo AVideoPlugin::getFooterCode();

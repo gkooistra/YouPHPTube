@@ -106,7 +106,9 @@ if (empty($global['logfile'])) {
     die("Log variable does not exists");
 }
 
-if (!file_exists($global['logfile'])) {
+if(isDocker()){
+    die("Your log is on Docker output");
+}else if (!file_exists($global['logfile'])) {
     die("you may have problems on the write permission for the log file");
 }
 
@@ -333,7 +335,7 @@ $outputText .= $collapsibleClose;
                 $(".archiveLog").click(function () {
                     modal.showPleaseWait();
                     $.ajax({
-                        url: '<?php echo $global['webSiteRootURL']; ?>view/logArchive.json.php',
+                        url: webSiteRootURL+'view/logArchive.json.php',
                         success: function (response) {
                             modal.hidePleaseWait();
                             avideoResponse(response);

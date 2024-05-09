@@ -1,9 +1,4 @@
 @media all and (max-width: 767px) {
-    .vjs-picture-in-picture-control,
-    .player-logo,
-    .vjs-seek-button{
-        display: none !important;
-    }
     .vjs-paused #seekBG{
         background-size: contain;
     }
@@ -27,6 +22,9 @@
     transition: width .1s;
     border-right: solid 2px #FF000099;
 }
+.vjs-audio .vjs-poster{
+    opacity: 0.8;
+}
 .img-portrait {
     transform: scale(0.56) rotate(90deg);
 }
@@ -42,4 +40,30 @@
 }
 .vjs-thumbnail-holder {
     margin-bottom: 10px;
+}
+
+.vjs-has-started.vjs-paused .vjs-big-play-button{
+    display: none !important;
+}
+
+
+@media all and (max-width: 900px) {
+    div.vjs-control-bar{
+        font-size: 0.9em !important;
+    }
+}
+@media all and (max-width: 800px) {
+    div.vjs-control-bar{
+        font-size: 0.85em !important;
+    }
+}
+@media all and (max-width: 700px) {
+    div.vjs-control-bar{
+        font-size: 0.8em !important;
+    }
+}
+@media all and (max-width: 600px) {
+    div.vjs-control-bar{
+        font-size: 0.7em !important;
+    }
 }

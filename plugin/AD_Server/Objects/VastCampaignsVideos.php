@@ -1,8 +1,10 @@
 <?php
 
 require_once dirname(__FILE__) . '/../../../videos/configuration.php';
+/*
 require_once dirname(__FILE__) . '/../../../objects/user.php';
 require_once dirname(__FILE__) . '/../../../objects/video.php';
+*/
 require_once $global['systemRootPath'] . 'plugin/AD_Server/Objects/VastCampaignsLogs.php';
 
 class VastCampaignsVideos extends ObjectYPT
@@ -31,7 +33,8 @@ class VastCampaignsVideos extends ObjectYPT
             return false;
         }
         foreach ($row as $key => $value) {
-            $this->$key = $value;
+            @$this->$key = $value;
+            //$this->properties[$key] = $value;
         }
         return true;
     }
@@ -108,9 +111,7 @@ class VastCampaignsVideos extends ObjectYPT
                 $row['link'] = Video::getLink($row['videos_id'], $row['clean_title']);
                 $rows[] = $row;
             }
-        } else {
-            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
-        }
+        } 
         return $rows;
     }
 

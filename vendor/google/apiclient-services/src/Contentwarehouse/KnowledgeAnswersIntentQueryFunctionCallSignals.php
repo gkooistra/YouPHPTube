@@ -30,6 +30,8 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
    * @var string
    */
   public $conceptEntityMid;
+  protected $conceptSignalsType = KnowledgeAnswersIntentQueryConceptSignals::class;
+  protected $conceptSignalsDataType = '';
   /**
    * @var string
    */
@@ -77,6 +79,14 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
   /**
    * @var bool
    */
+  public $isNeuralCategoricalInterpretation;
+  /**
+   * @var bool
+   */
+  public $isRefinedMeaning;
+  /**
+   * @var bool
+   */
   public $isUiCompositionIntent;
   protected $localSignalsType = KnowledgeAnswersIntentQueryLocalSignals::class;
   protected $localSignalsDataType = '';
@@ -102,6 +112,8 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
    * @var string
    */
   public $refxSummaryNodeId;
+  protected $responseMeaningSignalsType = KnowledgeAnswersIntentQueryResponseMeaningSignalsResponseMeaningSignals::class;
+  protected $responseMeaningSignalsDataType = '';
   protected $resultSupportType = UniversalsearchNewPackerKnowledgeResultSupport::class;
   protected $resultSupportDataType = 'array';
   /**
@@ -116,6 +128,10 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
   protected $shoppingIdsDataType = '';
   protected $signalsFallbackIntentsType = KnowledgeAnswersIntentQuerySignalComputationFallbackIntent::class;
   protected $signalsFallbackIntentsDataType = 'array';
+  /**
+   * @var bool
+   */
+  public $usesPrefulfillmentRanker;
 
   /**
    * @param string
@@ -158,6 +174,20 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
   public function getConceptEntityMid()
   {
     return $this->conceptEntityMid;
+  }
+  /**
+   * @param KnowledgeAnswersIntentQueryConceptSignals
+   */
+  public function setConceptSignals(KnowledgeAnswersIntentQueryConceptSignals $conceptSignals)
+  {
+    $this->conceptSignals = $conceptSignals;
+  }
+  /**
+   * @return KnowledgeAnswersIntentQueryConceptSignals
+   */
+  public function getConceptSignals()
+  {
+    return $this->conceptSignals;
   }
   /**
    * @param string
@@ -344,6 +374,34 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
   /**
    * @param bool
    */
+  public function setIsNeuralCategoricalInterpretation($isNeuralCategoricalInterpretation)
+  {
+    $this->isNeuralCategoricalInterpretation = $isNeuralCategoricalInterpretation;
+  }
+  /**
+   * @return bool
+   */
+  public function getIsNeuralCategoricalInterpretation()
+  {
+    return $this->isNeuralCategoricalInterpretation;
+  }
+  /**
+   * @param bool
+   */
+  public function setIsRefinedMeaning($isRefinedMeaning)
+  {
+    $this->isRefinedMeaning = $isRefinedMeaning;
+  }
+  /**
+   * @return bool
+   */
+  public function getIsRefinedMeaning()
+  {
+    return $this->isRefinedMeaning;
+  }
+  /**
+   * @param bool
+   */
   public function setIsUiCompositionIntent($isUiCompositionIntent)
   {
     $this->isUiCompositionIntent = $isUiCompositionIntent;
@@ -468,6 +526,20 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
     return $this->refxSummaryNodeId;
   }
   /**
+   * @param KnowledgeAnswersIntentQueryResponseMeaningSignalsResponseMeaningSignals
+   */
+  public function setResponseMeaningSignals(KnowledgeAnswersIntentQueryResponseMeaningSignalsResponseMeaningSignals $responseMeaningSignals)
+  {
+    $this->responseMeaningSignals = $responseMeaningSignals;
+  }
+  /**
+   * @return KnowledgeAnswersIntentQueryResponseMeaningSignalsResponseMeaningSignals
+   */
+  public function getResponseMeaningSignals()
+  {
+    return $this->responseMeaningSignals;
+  }
+  /**
    * @param UniversalsearchNewPackerKnowledgeResultSupport[]
    */
   public function setResultSupport($resultSupport)
@@ -536,6 +608,20 @@ class KnowledgeAnswersIntentQueryFunctionCallSignals extends \Google\Collection
   public function getSignalsFallbackIntents()
   {
     return $this->signalsFallbackIntents;
+  }
+  /**
+   * @param bool
+   */
+  public function setUsesPrefulfillmentRanker($usesPrefulfillmentRanker)
+  {
+    $this->usesPrefulfillmentRanker = $usesPrefulfillmentRanker;
+  }
+  /**
+   * @return bool
+   */
+  public function getUsesPrefulfillmentRanker()
+  {
+    return $this->usesPrefulfillmentRanker;
   }
 }
 

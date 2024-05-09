@@ -24,7 +24,7 @@ use Google\Service\Integrations\GoogleCloudIntegrationsV1alphaCertificate;
  * Typical usage is:
  *  <code>
  *   $integrationsService = new Google\Service\Integrations(...);
- *   $certificates = $integrationsService->certificates;
+ *   $certificates = $integrationsService->projects_locations_certificates;
  *  </code>
  */
 class ProjectsLocationsCertificates extends \Google\Service\Resource
@@ -36,6 +36,7 @@ class ProjectsLocationsCertificates extends \Google\Service\Resource
    * projects/{project}/locations/{location}/certificates/{certificate}
    * @param array $optParams Optional parameters.
    * @return GoogleCloudIntegrationsV1alphaCertificate
+   * @throws \Google\Service\Exception
    */
   public function get($name, $optParams = [])
   {

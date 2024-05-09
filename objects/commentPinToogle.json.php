@@ -1,11 +1,11 @@
 <?php
-header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json');
 global $global, $config;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
+allowOrigin();
 
 $obj = new stdClass();
 $obj->error = true;
@@ -31,7 +31,7 @@ $obj->save = $objC->save();
 if (!empty($obj->save)) {
     $obj->error = false;
     $obj->comment = Comment::getComment($obj->comments_id);
-    $obj->comment = Comment::addExtraInfo2($obj->comment);    
+    $obj->comment = Comment::addExtraInfo2($obj->comment);
     if($obj->new_pin_value){
         $obj->msg = __("Your comment is pinned");
     }else{

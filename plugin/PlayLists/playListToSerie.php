@@ -21,7 +21,7 @@ if (empty($serie_playlists_id)) {
 }
 
 $pl = new PlayList($serie_playlists_id);
-if (User::getId() != $pl->getUsers_id()) {
+if (!PlayLists::canManagePlaylist($playlists_id)) {
     die('{"error":"' . __("Permission denied") . '"}');
 }
 $msg = "";
@@ -55,7 +55,7 @@ if (!empty($_GET['action'])) {
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="icon" href="view/img/favicon.ico">
         <title><?php echo $config->getWebSiteTitle(); ?></title>
-        <link href="<?php echo getCDN(); ?>view/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('view/bootstrap/css/bootstrap.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getURL('node_modules/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <style>
 

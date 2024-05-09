@@ -7,33 +7,32 @@ $percent = 90;
      background: -webkit-linear-gradient(bottom, rgba(<?php echo $obj->backgroundRGB; ?>,1) <?php echo $percent; ?>%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
      background: -o-linear-gradient(top, rgba(<?php echo $obj->backgroundRGB; ?>,1) <?php echo $percent; ?>%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
      background: linear-gradient(top, rgba(<?php echo $obj->backgroundRGB; ?>,1) <?php echo $percent; ?>%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
-     background: -moz-linear-gradient(to top, rgba(<?php echo $obj->backgroundRGB; ?>,1) <?php echo $percent; ?>%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);
-     ">
-         <?php
-         $_REQUEST['current'] = 1;
-         $_REQUEST['rowCount'] = $obj->maxVideos;
+     background: -moz-linear-gradient(to top, rgba(<?php echo $obj->backgroundRGB; ?>,1) <?php echo $percent; ?>%, rgba(<?php echo $obj->backgroundRGB; ?>,0) 100%);">
+    <?php
+    unsetCurrentPage();
+    $_REQUEST['rowCount'] = $obj->maxVideos;
 
-         if ($obj->Suggested) {
-             $dataFlickirty = new stdClass();
-             $dataFlickirty->wrapAround = true;
-             $dataFlickirty->pageDots = !empty($obj->pageDots);
-             $dataFlickirty->lazyLoad = 15;
-             $dataFlickirty->setGallerySize = false;
-             $dataFlickirty->cellAlign = 'left';
-             $dataFlickirty->groupCells = true;
-             if ($obj->SuggestedAutoPlay) {
-                 $dataFlickirty->autoPlay = 10000;
-             }
+    if ($obj->Suggested) {
+        $dataFlickirty = new stdClass();
+        $dataFlickirty->wrapAround = true;
+        $dataFlickirty->pageDots = !empty($obj->pageDots);
+        $dataFlickirty->lazyLoad = 15;
+        $dataFlickirty->setGallerySize = false;
+        $dataFlickirty->cellAlign = 'left';
+        $dataFlickirty->groupCells = true;
+        if ($obj->SuggestedAutoPlay) {
+            $dataFlickirty->autoPlay = 10000;
+        }
 
-             //getAllVideos($status = "viewable", $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true, $suggestedOnly = false)
-             $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos, array(), false, false, true, true);
-             if (!empty($videos)) {
-                 ?>
+        //getAllVideos($status = Video::SORT_TYPE_VIEWABLE, $showOnlyLoggedUserVideos = false, $ignoreGroup = false, $videosArrayId = array(), $getStatistcs = false, $showUnlisted = false, $activeUsersOnly = true, $suggestedOnly = false)
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos, array(), false, false, true, true);
+        if (!empty($videos)) {
+    ?>
             <div class="row topicRow">
                 <h2>
                     <i class="glyphicon glyphicon-sort-by-attributes"></i> <?php
-                    echo __("Suggested");
-                    ?>
+                                                                            echo __($obj->SuggestedCustomTitle);
+                                                                            ?>
                 </h2>
                 <!-- Date Added -->
                 <?php
@@ -44,9 +43,27 @@ $percent = 90;
             <?php
         }
     }
-
+    $channels = $users_id_array = array();
+    require_once $global['systemRootPath'] . 'objects/Channel.php';
     if ($obj->Channels) {
-        require_once $global['systemRootPath'] . 'objects/Channel.php';
+        $users_id_array = VideoStatistic::getUsersIDFromChannelsWithMoreViews();
+        $channels = Channel::getChannels(true, "u.id, '" . implode(",", $users_id_array) . "'");
+    }
+    
+    foreach ($obj as $key => $value) {
+        if ($value === true && preg_match('/Channel_([0-9]+)_$/', $key, $matches)) {
+            $users_id = intval($matches[1]);
+            if (in_array($users_id, $users_id_array)) {
+                continue;
+            }
+            $users_id_array[] = $users_id;
+        }
+    }
+    if (!empty($users_id_array)) {
+        $channels2 = Channel::getChannels(true, '', $users_id_array);
+        $channels = array_merge($channels, $channels2);
+    }
+    if (!empty($channels)) {
         $dataFlickirty = new stdClass();
         $dataFlickirty->wrapAround = true;
         $dataFlickirty->pageDots = !empty($obj->pageDots);
@@ -57,24 +74,28 @@ $percent = 90;
         if ($obj->ChannelsAutoPlay) {
             $dataFlickirty->autoPlay = 10000;
         }
-        $users_id_array = VideoStatistic::getUsersIDFromChannelsWithMoreViews();
-        $channels = Channel::getChannels(true, "u.id, '" . implode(",", $users_id_array) . "'");
-        if (!empty($channels)) {
+        $countChannels = 0;
             foreach ($channels as $channel) {
+                if ($countChannels > 5) {
+                    break;
+                }
                 $_POST['sort']['created'] = "DESC";
-                $videos = Video::getAllVideos("viewable", $channel['id']);
+                $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLE, $channel['id']);
                 unset($_POST['sort']['created']);
+                if (empty($videos)) {
+                    continue;
+                }
+                $countChannels++;
                 $link = User::getChannelLinkFromChannelName($channel["channelName"]);
-                ?>
-                <div class="row topicRow">
+            ?>
+                <div class="row topicRow channelRow channel_<?php echo $channel["id"]; ?>">
                     <h2>
                         <a href="<?php echo $link; ?>">
-                            <img src="<?php echo $global['webSiteRootURL'] . $channel["photoURL"]; ?>" class="img img-responsive pull-left" style="max-width: 18px; max-height: 18px; margin-right: 5px;"> <?php
-                            echo $channel["channelName"];
-                            ?>
+                            <img src="<?php echo User::getPhoto($channel["id"]); ?>" class="img img-responsive pull-left" style="max-width: 18px; max-height: 18px; margin-right: 5px;">
+                            <?php echo $channel["channelName"]; ?>
                         </a>
                     </h2>
-                    <!-- Date Programs/Playlists -->
+                    <!-- Date Programs/Playlists 1 -->
                     <?php
                     include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
                     ?>
@@ -82,64 +103,97 @@ $percent = 90;
 
                 <?php
             }
-        }
     }
 
 
-    $plObj = AVideoPlugin::getDataObjectIfEnabled('PlayLists');
-    if ($obj->PlayList && !empty($plObj)) {
-        $dataFlickirty = new stdClass();
-        $dataFlickirty->wrapAround = true;
-        $dataFlickirty->pageDots = !empty($obj->pageDots);
-        $dataFlickirty->lazyLoad = 15;
-        $dataFlickirty->setGallerySize = false;
-        $dataFlickirty->cellAlign = 'left';
-        $dataFlickirty->groupCells = true;
-        if ($obj->PlayListAutoPlay) {
-            $dataFlickirty->autoPlay = 10000;
-        }
+    $search = getSearchVar();
+    if (empty($search)) {
+        $plObj = AVideoPlugin::getDataObjectIfEnabled('PlayLists');
+        if (!empty($plObj)) {
 
-        $programs = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos, array(), false, false, true, false, true);
-        cleanSearchVar();
-        if (!empty($programs)) {
-            foreach ($programs as $serie) {
-                $videos = PlayList::getAllFromPlaylistsID($serie['serie_playlists_id']);
-
-                foreach ($videos as $key => $value) {
-                    $videos[$key]['title'] = "{$value['icon']} {$value['title']}";
-                }
-
-                $link = PlayLists::getLink($serie['serie_playlists_id']);
-                $linkEmbed = PlayLists::getLink($serie['serie_playlists_id'], true);
-                $canWatchPlayButton = "";
-                if (User::canWatchVideoWithAds($value['id'])) {
-                    $canWatchPlayButton = "canWatchPlayButton";
-                } else if ($obj->hidePlayButtonIfCannotWatch) {
-                    $canWatchPlayButton = "hidden";
-                }
+            $dataFlickirty = new stdClass();
+            $dataFlickirty->wrapAround = true;
+            $dataFlickirty->pageDots = !empty($obj->pageDots);
+            $dataFlickirty->lazyLoad = 15;
+            $dataFlickirty->setGallerySize = false;
+            $dataFlickirty->cellAlign = 'left';
+            $dataFlickirty->groupCells = true;
+            if ($obj->PlayListAutoPlay) {
+                $dataFlickirty->autoPlay = 10000;
+            }
+            $plRows = PlayList::getAllToShowOnFirstPage();
+            //var_dump(count($plRows));exit;
+            if (!empty($plRows)) {
+                $rowCount = getRowCount();
+                foreach ($plRows as $pl) {
+                    $videos = PlayList::getAllFromPlaylistsID($pl['id']);
+                    if (empty($videos)) {
+                        continue;
+                    }
+                    $link = PlayLists::getLink($pl['id']);
+                    $linkEmbed = PlayLists::getLink($pl['id'], true);
                 ?>
-                <div class="row topicRow">
-                    <h2>
-                        <a href="<?php echo $link; ?>" embed="<?php echo $linkEmbed; ?>" class="<?php echo $canWatchPlayButton; ?>">
-                            <i class="fas fa-list"></i> <?php
-                            echo $serie['title'];
-                            ?>
-                        </a>
-                    </h2>
-                    <!-- Date Programs/Playlists -->
+                    <div class="row topicRow">
+                        <h2>
+                            <a href="<?php echo $link; ?>" embed="<?php echo $linkEmbed; ?>">
+                                <i class="fas fa-list"></i> <?php echo __($pl['name']); ?>
+                            </a>
+                        </h2>
+                        <!-- Date Programs/Playlists 2 -->
+                        <?php
+                        include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
+                        ?>
+                    </div>
                     <?php
-                    $rowPlayListLink = PlayLists::getLink($serie['serie_playlists_id']);
-                    $rowPlayListLinkEmbed = PlayLists::getLink($serie['serie_playlists_id'], true);
-                    include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
-                    unset($rowPlayListLink);
-                    unset($rowPlayListLinkEmbed);
-                    ?>
-                </div>
+                }
+            }
+            if ($obj->PlayList) {
+                $programs = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos, array(), false, false, true, false, true);
+                cleanSearchVar();
+                if (!empty($programs)) {
+                    foreach ($programs as $serie) {
+                        $videos = PlayList::getAllFromPlaylistsID($serie['serie_playlists_id']);
 
-                <?php
+                        foreach ($videos as $key => $value) {
+                            $videos[$key]['title'] = "{$value['icon']} {$value['title']}";
+                        }
+
+                        if (empty($videos)) {
+                            continue;
+                        }
+                        $link = PlayLists::getLink($serie['serie_playlists_id']);
+                        $linkEmbed = PlayLists::getLink($serie['serie_playlists_id'], true);
+                        $canWatchPlayButton = "";
+                        if (User::canWatchVideoWithAds($value['id'])) {
+                            $canWatchPlayButton = "canWatchPlayButton";
+                        } else if ($obj->hidePlayButtonIfCannotWatch) {
+                            $canWatchPlayButton = "hidden";
+                        }
+                    ?>
+                        <div class="row topicRow">
+                            <h2>
+                                <a href="<?php echo $link; ?>" embed="<?php echo $linkEmbed; ?>" class="<?php echo $canWatchPlayButton; ?>">
+                                    <i class="fas fa-list"></i> <?php
+                                                                echo $serie['title'];
+                                                                ?>
+                                </a>
+                            </h2>
+                            <!-- Date Programs/Playlists 3 -->
+                            <?php
+                            $rowPlayListLink = PlayLists::getLink($serie['serie_playlists_id']);
+                            $rowPlayListLinkEmbed = PlayLists::getLink($serie['serie_playlists_id'], true);
+                            include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
+                            unset($rowPlayListLink);
+                            unset($rowPlayListLinkEmbed);
+                            ?>
+                        </div>
+
+            <?php
+                    }
+                }
+                reloadSearchVar();
             }
         }
-        reloadSearchVar();
     }
 
     if ($obj->Trending) {
@@ -156,15 +210,15 @@ $percent = 90;
 
         $_POST['sort']['trending'] = "";
 
-        $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos);
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
         unset($_POST['sort']['trending']);
         if (!empty($videos)) {
             ?>
             <div class="row topicRow">
                 <h2>
                     <i class="glyphicon glyphicon-sort-by-attributes"></i> <?php
-                    echo __("Trending");
-                    ?>
+                                                                            echo __($obj->TrendingCustomTitle);
+                                                                            ?>
                 </h2>
                 <!-- Date Added -->
                 <?php
@@ -172,7 +226,7 @@ $percent = 90;
                 ?>
             </div>
 
-            <?php
+        <?php
         }
     }
     if ($obj->DateAdded) {
@@ -190,14 +244,14 @@ $percent = 90;
         unset($_POST['sort']);
         $_POST['sort']['created'] = "DESC";
 
-        $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos);
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
         if (!empty($videos)) {
-            ?>
+        ?>
             <div class="row topicRow">
                 <h2>
                     <i class="glyphicon glyphicon-sort-by-attributes"></i> <?php
-                    echo __("Date added (newest)");
-                    ?>
+                                                                            echo __($obj->DateAddedCustomTitle);
+                                                                            ?>
                 </h2>
                 <!-- Date Added -->
                 <?php
@@ -205,7 +259,7 @@ $percent = 90;
                 ?>
             </div>
 
-            <?php
+        <?php
         }
     }
     if ($obj->MostPopular) {
@@ -226,12 +280,12 @@ $percent = 90;
         unset($_POST['sort']);
         $_POST['sort']['likes'] = "DESC";
         $_POST['sort']['v.created'] = "DESC";
-        $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos);
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
         ?>
         <div class="row topicRow">
             <span class="md-col-12">&nbsp;</span>
             <h2>
-                <i class="glyphicon glyphicon-thumbs-up"></i> <?php echo __("Most popular"); ?>
+                <i class="glyphicon glyphicon-thumbs-up"></i> <?php echo __($obj->MostPopularCustomTitle); ?>
             </h2>
             <!-- Most Popular -->
             <?php
@@ -240,7 +294,7 @@ $percent = 90;
         </div>
 
 
-        <?php
+    <?php
     }
     if ($obj->MostWatched) {
         $_REQUEST['rowCount'] = $obj->maxVideos;
@@ -260,19 +314,19 @@ $percent = 90;
         unset($_POST['sort']);
         $_POST['sort']['views_count'] = "DESC";
         $_POST['sort']['created'] = "DESC";
-        $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos);
-        ?>
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
+    ?>
         <span class="md-col-12">&nbsp;</span>
         <div class="row topicRow">
             <h2>
-                <i class="glyphicon glyphicon-eye-open"></i> <?php echo __("Most watched"); ?>
+                <i class="glyphicon glyphicon-eye-open"></i> <?php echo __($obj->MostWatchedCustomTitle); ?>
             </h2>
             <!-- Most watched -->
             <?php
             include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
             ?>
         </div>
-        <?php
+    <?php
     }
     if ($obj->SortByName) {
         $_REQUEST['rowCount'] = $obj->maxVideos;
@@ -292,24 +346,24 @@ $percent = 90;
         unset($_POST['sort']);
         $_POST['sort']['title'] = "ASC";
         $_POST['sort']['created'] = "DESC";
-        $videos = Video::getAllVideos("viewableNotUnlisted", false, !$obj->hidePrivateVideos);
-        ?>
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
+    ?>
         <span class="md-col-12">&nbsp;</span>
         <div class="row topicRow">
             <h2>
-                <i class="fas fa-sort-alpha-down"></i> <?php echo __("Alphabetical"); ?>
+                <i class="fas fa-sort-alpha-down"></i> <?php echo __($obj->SortByNameCustomTitle); ?>
             </h2>
             <!-- Most watched -->
             <?php
             include $global['systemRootPath'] . 'plugin/YouPHPFlix2/view/row.php';
             ?>
         </div>
-        <?php
+    <?php
     }
     if ($obj->Categories) {
         $url = "{$global['webSiteRootURL']}plugin/YouPHPFlix2/view/modeFlixCategory.php";
-        if (!empty($_GET['catName'])) {
-            $url = addQueryStringParameter($url, 'catName', $_GET['catName']);
+        if (!empty($_REQUEST['catName'])) {
+            $url = addQueryStringParameter($url, 'catName', $_REQUEST['catName']);
         }
         $search = getSearchVar();
         if (!empty($search)) {
@@ -317,10 +371,10 @@ $percent = 90;
         }
         $url = addQueryStringParameter($url, 'tags_id', intval(@$_GET['tags_id']));
         $url = addQueryStringParameter($url, 'current', 1);
-        if(!empty($_REQUEST['search'])){
+        if (!empty($_REQUEST['search'])) {
             $url = addQueryStringParameter($url, 'search', $_REQUEST['search']);
         }
-        ?>
+    ?>
         <div id="categoriesContainer"></div>
         <p class="pagination infiniteScrollPagination">
             <a class="pagination__next" href="<?php echo $url; ?>"></a>
@@ -332,7 +386,7 @@ $percent = 90;
         </div>
         <script src="<?php echo getCDN(); ?>node_modules/infinite-scroll/dist/infinite-scroll.pkgd.min.js" type="text/javascript"></script>
         <script>
-            $(document).ready(function () {
+            $(document).ready(function() {
                 $container = $('#categoriesContainer').infiniteScroll({
                     path: '.pagination__next',
                     append: '.categoriesContainerItem',
@@ -341,13 +395,13 @@ $percent = 90;
                     prefill: true,
                     history: false
                 });
-                $container.on('request.infiniteScroll', function (event, path) {
+                $container.on('request.infiniteScroll', function(event, path) {
                     //console.log('Loading page: ' + path);
                 });
-                $container.on('append.infiniteScroll', function (event, response, path, items) {
+                $container.on('append.infiniteScroll', function(event, response, path, items) {
                     //console.log('Append page: ' + path);
 
-                    $("img.thumbsJPG").not('flickity-lazyloaded').each(function (index) {
+                    $("img.thumbsJPG").not('flickity-lazyloaded').each(function(index) {
                         $(this).attr('src', $(this).attr('data-flickity-lazyload'));
                         $(this).addClass('flickity-lazyloaded');
                     });
@@ -358,7 +412,7 @@ $percent = 90;
                         transformLinksToEmbed('a.canWatchPlayButton');
                     }
                 });
-                setTimeout(function () {
+                setTimeout(function() {
                     lazyImage();
                     if (typeof transformLinksToEmbed === 'function') {
                         transformLinksToEmbed('a.galleryLink');
@@ -366,8 +420,9 @@ $percent = 90;
                 }, 500);
             });
         </script>
-        <?php
+    <?php
     }
+
     unset($_POST['sort']);
     unset($_REQUEST['current']);
     unset($_REQUEST['rowCount']);

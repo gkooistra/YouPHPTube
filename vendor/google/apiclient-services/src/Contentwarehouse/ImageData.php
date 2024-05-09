@@ -57,6 +57,10 @@ class ImageData extends \Google\Collection
    */
   public $clipartDetectorVersion;
   /**
+   * @var string
+   */
+  public $clusterId;
+  /**
    * @var int
    */
   public $codomainStrength;
@@ -152,6 +156,8 @@ class ImageData extends \Google\Collection
    * @var int
    */
   public $imagerank;
+  protected $indexedVerticalsType = ImageDataVerticalIndexingInfoImage::class;
+  protected $indexedVerticalsDataType = 'array';
   /**
    * @var bool
    */
@@ -196,6 +202,10 @@ class ImageData extends \Google\Collection
    * @var int
    */
   public $lineartDetectorVersion;
+  /**
+   * @var string
+   */
+  public $linkinfoType;
   protected $multibangKgEntitiesType = ImageDataMultibangEntities::class;
   protected $multibangKgEntitiesDataType = '';
   /**
@@ -236,6 +246,8 @@ class ImageData extends \Google\Collection
    * @var string
    */
   public $onPageAlternateUrl;
+  protected $orbitIntentsType = QualityOrbitOrbitImageIntents::class;
+  protected $orbitIntentsDataType = '';
   protected $packedFullFaceInfoType = FaceIndexing::class;
   protected $packedFullFaceInfoDataType = '';
   protected $personAttributesType = LensDiscoveryStylePersonAttributes::class;
@@ -460,6 +472,20 @@ class ImageData extends \Google\Collection
   public function getClipartDetectorVersion()
   {
     return $this->clipartDetectorVersion;
+  }
+  /**
+   * @param string
+   */
+  public function setClusterId($clusterId)
+  {
+    $this->clusterId = $clusterId;
+  }
+  /**
+   * @return string
+   */
+  public function getClusterId()
+  {
+    return $this->clusterId;
   }
   /**
    * @param int
@@ -896,6 +922,20 @@ class ImageData extends \Google\Collection
     return $this->imagerank;
   }
   /**
+   * @param ImageDataVerticalIndexingInfoImage[]
+   */
+  public function setIndexedVerticals($indexedVerticals)
+  {
+    $this->indexedVerticals = $indexedVerticals;
+  }
+  /**
+   * @return ImageDataVerticalIndexingInfoImage[]
+   */
+  public function getIndexedVerticals()
+  {
+    return $this->indexedVerticals;
+  }
+  /**
    * @param bool
    */
   public function setIsIipInScope($isIipInScope)
@@ -1048,6 +1088,20 @@ class ImageData extends \Google\Collection
   public function getLineartDetectorVersion()
   {
     return $this->lineartDetectorVersion;
+  }
+  /**
+   * @param string
+   */
+  public function setLinkinfoType($linkinfoType)
+  {
+    $this->linkinfoType = $linkinfoType;
+  }
+  /**
+   * @return string
+   */
+  public function getLinkinfoType()
+  {
+    return $this->linkinfoType;
   }
   /**
    * @param ImageDataMultibangEntities
@@ -1230,6 +1284,20 @@ class ImageData extends \Google\Collection
   public function getOnPageAlternateUrl()
   {
     return $this->onPageAlternateUrl;
+  }
+  /**
+   * @param QualityOrbitOrbitImageIntents
+   */
+  public function setOrbitIntents(QualityOrbitOrbitImageIntents $orbitIntents)
+  {
+    $this->orbitIntents = $orbitIntents;
+  }
+  /**
+   * @return QualityOrbitOrbitImageIntents
+   */
+  public function getOrbitIntents()
+  {
+    return $this->orbitIntents;
   }
   /**
    * @param FaceIndexing

@@ -1,6 +1,10 @@
 <?php
 
+includeConfigLog(__LINE__, basename(__FILE__));
+require_once $global['systemRootPath'] . 'locale/function.php';
+includeConfigLog(__LINE__, basename(__FILE__));
 require_once $global['systemRootPath'] . 'objects/plugin.php';
+includeConfigLog(__LINE__, basename(__FILE__));
 
 abstract class PluginAbstract {
 
@@ -33,7 +37,87 @@ abstract class PluginAbstract {
     }
 
     public function updateScript() {
-        return true;
+        global $global;
+        $pluginName = $this->getName();
+
+        $pattern = '/updateV([\d\.]+)\.sql$/'; // This pattern will match files like "updateV2.0.sql" and capture the version "2.0"
+
+        $dir = $global['systemRootPath'] . "plugin/{$pluginName}/install/";
+        //var_dump($dir);exit;
+        if(is_dir($dir)){
+            $files = scandir($dir);        
+        
+            $versions = [];
+            
+            foreach ($files as $file) {
+                if (preg_match($pattern, $file, $matches)) {
+                    $versions[] = [
+                        'version' => $matches[1], // This captures the version number
+                        'filename' => $file       // This captures the entire filename
+                    ];
+                }
+            }
+            
+            // Sort by version (optional)
+            usort($versions, function ($a, $b) {
+                return version_compare($a['version'], $b['version']);
+            });
+            
+            // Iterate through sorted files
+            foreach ($versions as $entry) {
+                //var_dump($pluginName, $entry['version'], AVideoPlugin::compareVersion($pluginName, $entry['version']) < 0);
+                if (AVideoPlugin::compareVersion($pluginName, $entry['version']) < 0) {
+                    _error_log("Update plugin {$pluginName} to version {$entry['version']}");
+                    $filename = $dir . '/' . $entry['filename'];
+                    $sqls = file_get_contents($filename);
+                    $sqlParts = explode(";", $sqls);
+                    //var_dump($sqlParts);
+                    foreach ($sqlParts as $value) {
+                        $sql = trim($value);
+                        if(empty($sql)){
+                            continue;
+                        }
+                        if(sqlDal::writeSqlTry($sql)){
+                            _error_log("Update plugin {$pluginName} to version {$entry['version']} SQL success");
+                        }else{
+                            _error_log("Update plugin {$pluginName} to version {$entry['version']} SQL error: {$value}");
+                        }
+                    }
+                }
+            }
+            $files = scandir($dir);        
+        
+            $versions = [];
+            
+            foreach ($files as $file) {
+                if (preg_match($pattern, $file, $matches)) {
+                    $versions[] = [
+                        'version' => $matches[1], // This captures the version number
+                        'filename' => $file       // This captures the entire filename
+                    ];
+                }
+            }
+            
+            // Sort by version (optional)
+            usort($versions, function ($a, $b) {
+                return version_compare($a['version'], $b['version']);
+            });
+            
+            // Iterate through sorted files
+            foreach ($versions as $entry) {
+                if (AVideoPlugin::compareVersion($pluginName, $entry['version']) < 0) {
+                    _error_log("Update plugin {$pluginName} to version {$entry['version']}");
+                    $filename = $dir . '/' . $entry['filename'];
+                    $sqls = file_get_contents($filename);
+                    $sqlParts = explode(";", $sqls);
+                    foreach ($sqlParts as $value) {
+                        sqlDal::writeSqlTry(trim($value));
+                    }
+                }
+            }
+        }
+        
+        return true; 
     }
 
     public function getFooterCode() {
@@ -102,6 +186,9 @@ abstract class PluginAbstract {
         $o = array();
         if (!empty($obj['object_data'])) {
             $o = _json_decode(stripslashes($obj['object_data']));
+            if(empty($o)){
+                $o = _json_decode($obj['object_data']);
+            }
         }
         return $o;
     }
@@ -113,9 +200,12 @@ abstract class PluginAbstract {
             //echo $obj['object_data'];
             $o = self::getObjectDataFromDatabase($uuid);
             $eo = $this->getEmptyDataObject();
+            if(empty($eo)){
+                $eo = array();
+            }
             // check if the plugin define any array for the select option, if does, overwrite it
             foreach ($eo as $key => $value) {
-                if (empty($o->$key)) {
+                if (!isset($o->$key)) {
                     continue;
                 }
                 $teo = gettype($value);
@@ -124,6 +214,8 @@ abstract class PluginAbstract {
                     if (!is_numeric($value) || !is_numeric($o->$key)) {
                         if (!(is_int($value) && is_bool($o->$key)) && !(is_bool($value) && is_int($o->$key))) {
                             //_error_log("getDataObject - type is different $teo !== $to uuid = $uuid");
+                            $o->$key = $value;
+                        }else if(empty($o->$key) && $teo == 'object' && $to='string'){
                             $o->$key = $value;
                         }
                     }
@@ -146,9 +238,9 @@ abstract class PluginAbstract {
                 }
             }
 
-            PluginAbstract::$dataObject[$this->getUUID()] = $wholeObjects;
+            PluginAbstract::$dataObject[$uuid] = $wholeObjects;
         } else {
-            $wholeObjects = PluginAbstract::$dataObject[$this->getUUID()];
+            $wholeObjects = PluginAbstract::$dataObject[$uuid];
         }
         //var_dump($obj['object_data']);
         //var_dump($eo, $o, (object) array_merge((array) $eo, (array) $o));exit;
@@ -157,6 +249,9 @@ abstract class PluginAbstract {
 
     public function getDataObjectInfo() {
         $eo = $this->getEmptyDataObject();
+        if(empty($eo)){
+            $eo = array();
+        }
         $return = array();
         foreach ($eo as $key => $value) {
             $return[$key] = array(
@@ -254,6 +349,10 @@ abstract class PluginAbstract {
     }
 
     public function onUpdateVideo($videos_id) {
+        return false;
+    }
+
+    public function onDeleteVideo($videos_id) {
         return false;
     }
 
@@ -356,10 +455,6 @@ abstract class PluginAbstract {
         return array();
     }
 
-    public function addRoutes() {
-        return false;
-    }
-
     public function addView($videos_id, $total) {
         return false;
     }
@@ -433,11 +528,15 @@ abstract class PluginAbstract {
         $return = array('ready' => array(), 'missing' => array());
         foreach ($pluginsList as $name) {
             $plugin = AVideoPlugin::loadPlugin($name);
-            $uuid = $plugin->getUUID();
-            if (!AVideoPlugin::isEnabled($uuid)) {
-                $return['missing'][] = array('name' => $name, 'uuid' => $uuid);
-            } else {
-                $return['ready'][] = array('name' => $name, 'uuid' => $uuid);
+            if(!empty($plugin)){
+                $uuid = $plugin->getUUID();
+                if (!AVideoPlugin::isEnabled($uuid)) {
+                    $return['missing'][] = array('name' => $name, 'uuid' => $uuid);
+                } else {
+                    $return['ready'][] = array('name' => $name, 'uuid' => $uuid);
+                }
+            }else{
+                _error_log("isReady Error on load plugin {$name}");
             }
         }
         return $return;
@@ -519,11 +618,15 @@ abstract class PluginAbstract {
         return null;
     }
 
-    public function onLiveStream($users_id, $live_servers_id) {
+    public function on_publish($users_id, $live_servers_id, $liveTransmitionHistory_id, $key, $isReconnection) {
         return null;
     }
 
     public function on_publish_done($live_transmitions_history_id, $users_id, $key, $live_servers_id) {
+        return null;
+    }
+
+    public function on_publish_denied($key) {
         return null;
     }
 
@@ -624,10 +727,6 @@ abstract class PluginAbstract {
     }
 
     function onVideoSetFilepath($video_id, $oldValue, $newValue) {
-        
-    }
-
-    function onVideoSetFilesize($video_id, $oldValue, $newValue) {
         
     }
 
@@ -738,6 +837,22 @@ abstract class PluginAbstract {
     function onVideoSetRrating($video_id, $oldValue, $newValue) {
         
     }
+    
+    function executeEveryMinute() {
+        
+    }
+    
+    function executeEveryHour() {
+        
+    }
+    
+    function executeEveryDay() {
+        
+    }
+    
+    function executeEveryMonth() {
+        
+    }
 
     /**
      * @param type $file = [
@@ -750,7 +865,7 @@ abstract class PluginAbstract {
       ]
      * @return $file
      */
-    function modifyURL($file) {
+    function modifyURL($file, $videos_id=0) {
         return $file;
     }
 

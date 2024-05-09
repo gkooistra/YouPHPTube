@@ -34,14 +34,22 @@ $o->setTitle($_POST['title']);
 $o->setDescription($_POST['description']);
 //$o->setKey($_POST['key']);
 $o->setUsers_id(User::getId());
-$o->setLive_servers_id($_POST['live_servers_id']);
-$o->setScheduled_time($_POST['scheduled_time']);
-$o->setStatus($_POST['status']);
-$o->setScheduled_password($_POST['scheduled_password']);
+$o->setLive_servers_id(@$_POST['live_servers_id']);
+$o->setScheduled_time(@$_POST['scheduled_time']);
+$o->setScheduledPHPtime(@$_POST['scheduled_time']);
+$o->setStatus(@$_POST['status']);
+$o->setScheduled_password(@$_POST['scheduled_password']);
 //$o->setPoster($_POST['poster']);
 //$o->setPublic($_POST['public']);
 //$o->setSaveTransmition($_POST['saveTransmition']);
 //$o->setShowOnTV($_POST['showOnTV']);
+
+
+if(empty($_REQUEST['userGroupsSchedule']) || !is_array($_REQUEST['userGroupsSchedule'])){
+    $o->setUserGroups(array());
+}else{
+    $o->setUserGroups($_REQUEST['userGroupsSchedule']);
+}
 
 if(!empty($_REQUEST['users_id_company'])){
     $myAffiliation = CustomizeUser::getAffiliateCompanies(User::getId());
@@ -60,7 +68,5 @@ if ($id = $o->save()) {
 } else {
     $obj->msg = __('Error on save')." {$_POST['title']}";
 }
-
-
 
 echo json_encode($obj);

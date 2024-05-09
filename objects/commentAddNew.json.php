@@ -1,5 +1,4 @@
 <?php
-header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json');
 global $global, $config;
@@ -7,6 +6,7 @@ if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 
+allowOrigin();
 $_REQUEST['comments_id'] = intval(@$_REQUEST['comments_id']);
 
 require_once $global['systemRootPath'] . 'objects/user.php';
@@ -124,9 +124,9 @@ if (!empty($_REQUEST['id'])) {
 $obj->comments_id = $objC->save();
 if (!empty($obj->comments_id)) {
     $obj->error = false;
-    $obj->comment = Comment::getComment($obj->comments_id);
+    $obj->comment = Comment::getComment($obj->comments_id, true);
     $obj->comment = Comment::addExtraInfo2($obj->comment);
-    
+
     $obj->msg = __("Your comment has been saved!");
 } else {
     $obj->msg = __("Your comment has NOT been saved!");

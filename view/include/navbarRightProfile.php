@@ -59,7 +59,8 @@ if (empty($advancedCustomUser->doNotShowRightProfile) && (User::isLogged() || em
                                 <li>
                                     <a href="#" onclick="avideoLogoff(true);" >
                                         <?php
-                                        if (!empty($_COOKIE['user']) && !empty($_COOKIE['pass'])) {
+                                        $userCookie = User::getUserCookieCredentials();
+                                        if ((!empty($userCookie))) {
                                             ?>
                                             <i class="fas fa-lock text-muted" style="opacity: 0.2;"></i>    
                                             <?php
@@ -87,8 +88,8 @@ if (empty($advancedCustomUser->doNotShowRightProfile) && (User::isLogged() || em
                                 <li>
                                     <a href="#" onclick="avideoModalIframeFull(webSiteRootURL + 'mvideos');
                                                         return false;">
-                                        <span class="glyphicon glyphicon-film"></span>
-                                        <span class="glyphicon glyphicon-headphones"></span>
+                                        <i class="fa-solid fa-film"></i> 
+                                        <i class="fa-solid fa-headphones"></i>
                                         <?php echo __("My videos"); ?>
                                     </a>
                                 </li>
@@ -131,7 +132,7 @@ if (empty($advancedCustomUser->doNotShowRightProfile) && (User::isLogged() || em
                                     <li>
                                         <a href="#" onclick="avideoModalIframeFull(webSiteRootURL + 'categories');
                                                                 return false;">
-                                            <span class="glyphicon glyphicon-list"></span>
+                                            <i class="fa-solid fa-list"></i>
                                             <?php echo __($advancedCustom->CategoryLabel); ?>
                                         </a>
 

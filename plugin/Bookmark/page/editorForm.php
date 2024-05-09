@@ -2,12 +2,9 @@
     <input type="hidden" id="inputId" name="id" >
     <input id="videos_id" name="videos_id" type="hidden">
     <div class="row">
-        <div class="col-md-4">
-            <img id="inputVideo-poster" src="<?php echo $global['webSiteRootURL']; ?>img/notfound.jpg" class="ui-state-default img-responsive" alt="">
-        </div>
-        <div class="col-md-8">
-            <input id="inputVideo" placeholder="<?php echo __("Video"); ?>" class="form-control">
-        </div>
+        <?php
+        $autoComplete = Layout::getVideoAutocomplete(0, 'videoAutocomplete');
+        ?>
     </div>
     <div class="form-group">
         <label for="inputBookmark">Bookmark</label>
@@ -37,7 +34,7 @@
             evt.preventDefault();
             modal.showPleaseWait();
             $.ajax({
-                url: '<?php echo $global['webSiteRootURL']; ?>plugin/Bookmark/page/bookmarkSave.json.php',
+                url: webSiteRootURL+'plugin/Bookmark/page/bookmarkSave.json.php',
                 data: $('#bookmarkForm').serializeArray(),
                 type: 'post',
                 success: function (response) {
@@ -87,6 +84,6 @@
 
     function clearBookmarkForm() {
         $('#bookmarkForm')[0].reset();
-        $('#inputVideo-poster').attr('src','<?php echo $global['webSiteRootURL']; ?>img/notfound.jpg');
+        $('#inputVideo-poster').attr('src','<?php echo ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_URL); ?>');
     }
 </script>

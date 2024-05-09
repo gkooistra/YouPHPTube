@@ -16,7 +16,7 @@ if (defaultIsPortrait()) {
 } else {
     $width = 1280;
     $height = 720;
-    $path = empty($images->posterLandscapePath) ? "{$global['systemRootPath']}view/img/notfound.jpg" : $images->posterLandscapePath;
+    $path = empty($images->posterLandscapePath) ? ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH) : $images->posterLandscapePath;
     $portreait = 0;
 }
 
@@ -29,7 +29,7 @@ echo $croppie1['html'];
 ?>
 <hr>
 <button class="btn btn-success btn-lg btn-block" onclick="closeWindowAfterImageSave=true;<?php echo $croppie1['getCroppieFunction']; ?>"><i class="fas fa-save"></i> <?php echo __('Save'); ?></button>
-    
+
 <script>
     var closeWindowAfterImageSave = false;
     function saveVideo(image) {

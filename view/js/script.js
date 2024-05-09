@@ -20,7 +20,6 @@ try {
     var mouseX;
     var mouseY;
     var videoContainerDragged = false;
-    var youTubeMenuIsOpened = false;
     var userIsControling = false;
     var playerCurrentTime;
     var mediaId;
@@ -28,6 +27,9 @@ try {
     var avideoIsOnline = false;
     var userLang = navigator.language || navigator.userLanguage;
     var iframeAllowAttributes = 'allow="fullscreen;autoplay;camera *;microphone *;" allowfullscreen="allowfullscreen" mozallowfullscreen="mozallowfullscreen" msallowfullscreen="msallowfullscreen" oallowfullscreen="oallowfullscreen" webkitallowfullscreen="webkitallowfullscreen"';
+    
+    // make sure it does not close all the windows in cascade
+    var _justPropagateClose = false;
 
     // Create browser compatible event handler.
     var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
@@ -44,15 +46,18 @@ try {
             if (!height) {
                 height = $('body').height();
             }
-            parent.postMessage({height: height}, '*');
-        }else if (e.data.play) {
+            parent.postMessage({ height: height }, '*');
+        } else if (e.data.play) {
             var currentTime = e.data.play.currentTime;
             var muted = !empty(e.data.play.muted);
-            if(!muted){
+            if (!muted) {
                 playerPlay(currentTime);
-            }else{
+            } else {
                 tryToPlayMuted(currentTime);
             }
+        }
+        if(!_justPropagateClose && e.data !== 'closeFullscreen'){
+            forwardToIframe(e.data);
         }
     }, false);
 
@@ -70,12 +75,25 @@ try {
 } catch (e) {
     //console.log('Variable declaration ERROR', e);
 }
+//add the class pwa in the <body> tag if is a pwa app
+if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
+    document.body.classList.add('pwa');
+}
 
 var queryString = window.location.search;
 var urlParams = new URLSearchParams(queryString);
 
 if (urlParams.has('debug')) {
     isDebuging = false;
+}
+
+function forwardToIframe(data) {
+    var iframe = document.getElementById('avideoModalIframe'); // Get the iframe by ID
+    if (iframe && iframe.contentWindow) {
+        console.trace('forwardToIframe');
+        console.log('forwardToIframe', data);
+        iframe.contentWindow.postMessage(data, '*'); // Send the message to the iframe, replace '*' with the iframe's origin for security
+    }
 }
 
 function escapeRegExp(string) {
@@ -232,6 +250,7 @@ async function lazyImage() {
                 afterLoad: function (element) {
 
                     element.addClass('gifNotLoaded');
+                    element.addClass('lazyloadLoaded');
                     element.removeClass('blur');
                     element.mouseover(function () {
 
@@ -266,20 +285,17 @@ async function lazyImage() {
 }
 
 var pauseIfIsPlayinAdsInterval;
-var seconds_watching_video = 0;
-var _startCountPlayingTime;
 async function setPlayerListners() {
     if (typeof player !== 'undefined') {
         player.on('pause', function () {
-            clearTimeout(promisePlayTimeout);
+            cancelAllPlaybackTimeouts();
             //console.log("setPlayerListners: pause");
             //userIsControling = true;
             clearInterval(pauseIfIsPlayinAdsInterval);
-            clearInterval(_startCountPlayingTime);
         });
         player.on('play', function () {
             isTryingToPlay = false;
-            clearTimeout(promisePlayTimeout);
+            cancelAllPlaybackTimeouts();
             if (startCurrentTime) {
                 setTimeout(function () {
                     setCurrentTime(startCurrentTime);
@@ -291,10 +307,6 @@ async function setPlayerListners() {
             pauseIfIsPlayinAdsInterval = setInterval(function () {
                 pauseIfIsPlayinAds();
             }, 500);
-            clearInterval(_startCountPlayingTime);
-            _startCountPlayingTime = setInterval(function () {
-                seconds_watching_video++;
-            }, 1000);
         });
         $("#mainVideo .vjs-mute-control").click(function () {
             Cookies.set('muted', player.muted(), {
@@ -376,7 +388,7 @@ function reloadAds() {
     setTimeout(function () {
         isReloadingAds = false;
     }, 500);
-    clearTimeout(_reloadAdsTimeout);
+    cancelAllPlaybackTimeouts();
     //console.log('reloadAds ');
     if (playerIsReady() && player.ima) {
         try {
@@ -464,25 +476,40 @@ function subscribeNotify(email, user_id) {
         }
     });
 }
+
+var _mouseEffectTimeout;
 async function mouseEffect() {
-    $(".thumbsImage").on("mouseenter", function () {
-        var gif = $(this).find(".thumbsGIF");
-        var jpg = $(this).find(".thumbsJPG");
-        try {
-            gif.lazy({effect: 'fadeIn'});
-            setTimeout(function () {
-                gif.height(jpg.height());
-                gif.width(jpg.width());
-            }, 100);
-        } catch (e) {
-        }
-        gif.height(jpg.height());
-        gif.width(jpg.width());
-        gif.stop(true, true).fadeIn();
-    });
-    $(".thumbsImage").on("mouseleave", function () {
-        $(this).find(".thumbsGIF").stop(true, true).fadeOut();
-    });
+    //return false;
+    clearTimeout(_mouseEffectTimeout);
+    _mouseEffectTimeout = setTimeout(function () {
+        $(".thumbsImage").off("mouseenter");
+        $(".thumbsImage").off("mouseleave");
+        $(".thumbsImage").on("mouseenter", function () {
+            //console.log('mouseEffect()');
+            var gif = $(this).find(".thumbsGIF");
+            var jpg = $(this).find(".thumbsJPG");
+            try {
+                gif.lazy({
+                    effect: 'fadeIn',
+                    afterLoad: function (element) {
+                        element.removeClass('lazyload');
+                        element.addClass('lazyloadLoaded');
+                    }
+                });
+                setTimeout(function () {
+                    gif.height(jpg.height());
+                    gif.width(jpg.width());
+                }, 100);
+            } catch (e) {
+            }
+            gif.height(jpg.height());
+            gif.width(jpg.width());
+            gif.stop(true, true).fadeIn();
+        });
+        $(".thumbsImage").on("mouseleave", function () {
+            $(this).find(".thumbsGIF").stop(true, true).fadeOut();
+        });
+    }, 100);
 }
 
 function isMobile() {
@@ -494,134 +521,6 @@ function isMobile() {
     return check;
 }
 
-var last_videos_id = 0;
-var last_currentTime = -1;
-var videoViewAdded = false;
-var addViewBeaconTimeout;
-var _addViewCheck = false;
-function addView(videos_id, currentTime) {
-    addViewSetCookie(PHPSESSID, videos_id, currentTime, seconds_watching_video);
-    if (_addViewCheck) {
-        return false;
-    }
-    if (last_videos_id == videos_id && last_currentTime == currentTime) {
-        return false;
-    }
-    if (currentTime > 5 && currentTime % 30 !== 0) { // only update each 30 seconds
-        return false;
-    }
-    _addViewCheck = true;
-    last_videos_id = videos_id;
-    last_currentTime = currentTime;
-    _addView(videos_id, currentTime, seconds_watching_video);
-    setTimeout(function () {
-        _addViewCheck = false
-    }, 1000);
-    return true;
-}
-
-var isVideoAddViewCount = false;
-function _addView(videos_id, currentTime, seconds_watching_video) {
-    if(isVideoAddViewCount){
-        return false;
-    }
-    isVideoAddViewCount = true;
-    if (typeof PHPSESSID == 'undefined') {
-        PHPSESSID = '';
-    }
-    var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
-    if (empty(PHPSESSID)) {
-        return false;
-    }
-    url = addGetParam(url, 'PHPSESSID', PHPSESSID);
-    //console.log('_addView', videos_id, currentTime);
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: {
-            id: videos_id,
-            currentTime: currentTime,
-            seconds_watching_video: seconds_watching_video
-        },
-        success: function (response) {
-            isVideoAddViewCount = false;
-            $('.view-count' + videos_id).text(response.countHTML);
-        }
-    });
-}
-
-var _addViewAsyncSent = false;
-function _addViewAsync() {
-    if (_addViewAsyncSent || typeof webSiteRootURL == 'undefined' || typeof player == 'undefined') {
-        return false;
-    }
-    if (typeof PHPSESSID == 'undefined') {
-        PHPSESSID = '';
-    }
-    //console.log('_addViewAsync', mediaId, playerCurrentTime);
-    var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
-    url = addGetParam(url, 'PHPSESSID', PHPSESSID);
-    _addViewAsyncSent = true;
-    _addView(mediaId, playerCurrentTime, seconds_watching_video);
-    setTimeout(function () {
-        _addViewAsyncSent = false;
-    }, 2000);
-}
-
-var _addViewFromCookie_addingtime = false;
-async function addViewFromCookie() {
-    if (typeof webSiteRootURL == 'undefined') {
-        return false;
-    }
-    if (_addViewFromCookie_addingtime) {
-        return false;
-    }
-    _addViewFromCookie_addingtime = true;
-    var addView_PHPSESSID = Cookies.get('addView_PHPSESSID');
-    var addView_videos_id = Cookies.get('addView_videos_id');
-    var addView_playerCurrentTime = Cookies.get('addView_playerCurrentTime');
-    var addView_seconds_watching_video = Cookies.get('addView_seconds_watching_video');
-    if (!addView_PHPSESSID || addView_PHPSESSID === 'false' ||
-            !addView_videos_id || addView_videos_id === 'false' ||
-            !addView_playerCurrentTime || addView_playerCurrentTime === 'false' ||
-            !addView_seconds_watching_video || addView_seconds_watching_video === 'false') {
-        return false;
-    }
-    //console.log('addViewFromCookie', addView_videos_id, addView_playerCurrentTime, addView_seconds_watching_video);
-    var url = webSiteRootURL + 'objects/videoAddViewCount.json.php';
-    url = addGetParam(url, 'PHPSESSID', addView_PHPSESSID);
-    if (mediaId == addView_videos_id) {
-        // it is the same video, play at the last moment
-        forceCurrentTime = addView_playerCurrentTime;
-    }
-
-    _addView(addView_videos_id, addView_playerCurrentTime, addView_seconds_watching_video)
-    setTimeout(function () {
-        _addViewFromCookie_addingtime = false;
-    }, 2000);
-    addViewSetCookie(false, false, false, false);
-
-}
-
-async function addViewSetCookie(PHPSESSID, videos_id, playerCurrentTime, seconds_watching_video) {
-    ////console.log('addViewSetCookie', videos_id, playerCurrentTime, seconds_watching_video, new Error().stack);
-    Cookies.set('addView_PHPSESSID', PHPSESSID, {
-        path: '/',
-        expires: 1
-    });
-    Cookies.set('addView_videos_id', videos_id, {
-        path: '/',
-        expires: 1
-    });
-    Cookies.set('addView_playerCurrentTime', playerCurrentTime, {
-        path: '/',
-        expires: 1
-    });
-    Cookies.set('addView_seconds_watching_video', seconds_watching_video, {
-        path: '/',
-        expires: 1
-    });
-}
 
 function getPlayerButtonIndex(name) {
     var children = player.getChild('controlBar').children();
@@ -633,15 +532,24 @@ function getPlayerButtonIndex(name) {
     return children.length;
 }
 
-async function copyToClipboard(text) {
-    $('body').append('<textarea id="elementToCopyAvideo" style="filter: alpha(opacity=0);-moz-opacity: 0;-khtml-opacity: 0; opacity: 0;position: absolute;z-index: -9999;top: 0;left: 0;pointer-events: none;"></textarea>');
-    $('#elementToCopyAvideo').css({'top': mouseY, 'left': 0}).fadeIn('slow');
-    $('#elementToCopyAvideo').val(text);
-    $('#elementToCopyAvideo').focus();
-    $('#elementToCopyAvideo').select();
-    document.execCommand('copy');
-    $('#elementToCopyAvideo').remove();
-    $.toast("Copied to Clipboard");
+function copyToClipboard(text, mouseY) {
+    var $temp = $('<textarea>', {
+        id: "elementToCopyAvideo",
+        style: "opacity: 0; position: absolute; top: " + mouseY + "px; left: 0; pointer-events: none;"
+    }).appendTo('body').val(text).select();
+
+    try {
+        var successful = document.execCommand('copy');
+        if (successful) {
+            avideoToastSuccess("Copied to Clipboard");
+        } else {
+            avideoToastError("Copy failed");
+        }
+    } catch (err) {
+        avideoToastError("Unable to copy");
+    }
+
+    $temp.remove();
 }
 
 function nl2br(str, is_xhtml) {
@@ -697,7 +605,7 @@ var isTryingToPlay = false;
 var promisePlaytryNetworkFailTimeout;
 function playerPlay(currentTime) {
     isTryingToPlay = true;
-    clearTimeout(playerPlayTimeout);
+    cancelAllPlaybackTimeouts();
     if (playerIsPlayingAds()) {
         return false;
     }
@@ -757,7 +665,7 @@ function playerPlay(currentTime) {
                         promisePlaytry = 20;
                         promisePlaytryNetworkFail++;
                         //console.log("playerPlay: Network error detected, trying again", promisePlaytryNetworkFail);
-                        clearTimeout(promisePlaytryNetworkFailTimeout);
+                        cancelAllPlaybackTimeouts();
                         promisePlaytryNetworkFailTimeout = setTimeout(function () {
                             player.src(player.currentSources());
                             userIsControling = false;
@@ -766,7 +674,7 @@ function playerPlay(currentTime) {
                     } else {
                         if (promisePlaytryNetworkFail >= 5) {
                             userIsControling = true;
-                            //console.log("playerPlay: (promisePlaytryNetworkFail) Autoplay was prevented");
+                            console.log("playerPlay: (promisePlaytryNetworkFail) Autoplay was prevented player.pause()");
                             player.pause();
                         } else if (promisePlaytry <= 10) {
                             //console.log("playerPlay: (" + promisePlaytry + ") Autoplay was prevented, trying to mute and play ***");
@@ -831,7 +739,7 @@ function showUnmutePopup() {
 }
 
 function tryToPlay(currentTime) {
-    clearTimeout(promisePlayTimeout);
+    cancelAllPlaybackTimeouts();
     promisePlayTimeout = setTimeout(function () {
         if (player.paused()) {
             playerPlayTimeout = setTimeout(function () {
@@ -884,7 +792,7 @@ async function showMuteTooltip() {
         $("#mainVideo .vjs-volume-panel").attr("data-toggle", "tooltip");
         $("#mainVideo .vjs-volume-panel").attr("data-placement", "top");
         $("#mainVideo .vjs-volume-panel").attr("title", "Click to activate the sound");
-        $('#mainVideo .vjs-volume-panel[data-toggle="tooltip"]').tooltip({container: '.vjs-control-bar', html: true});
+        $('#mainVideo .vjs-volume-panel[data-toggle="tooltip"]').tooltip({ container: '.vjs-control-bar', html: true });
         $('#mainVideo .vjs-volume-panel[data-toggle="tooltip"]').tooltip('show');
         $("#mainVideo .vjs-volume-panel").click(function () {
             //console.log("remove unmute tooltip");
@@ -907,7 +815,38 @@ async function showMuteTooltip() {
     }, 5000);
 }
 
+function playVideoSegment(startTime, endTime) {
+    // Ensure only one 'timeupdate' event listener is active
+    // Remove the previous listener if exists
+    if (typeof player._timeUpdateHandler === 'function') {
+        player.off('timeupdate', player._timeUpdateHandler);
+    }
+
+    // Define a new 'timeupdate' handler
+    player._timeUpdateHandler = function () {
+        if (player.currentTime() >= endTime) {
+            console.log('playVideoSegment endTime', endTime);
+            player.pause();
+
+            // Optionally, remove the listener to prevent potential memory leaks
+            player.off('timeupdate', player._timeUpdateHandler);
+            player._timeUpdateHandler = null;
+        }
+    };
+
+    // Attach the new 'timeupdate' event listener
+    player.on('timeupdate', player._timeUpdateHandler);
+    forceCurrentTime = startTime;
+    console.log('playVideoSegment startTime', startTime);
+    // Start playing the video at the specified start time
+    player.currentTime(startTime);
+    player.play();
+}
+
+
+
 function playerPlayIfAutoPlay(currentTime) {
+    console.log("playerPlayIfAutoPlay: forceCurrentTime:", currentTime);
     if (isWebRTC()) {
         return false;
     }
@@ -930,6 +869,15 @@ function playerPlayIfAutoPlay(currentTime) {
     //console.log('playerPlayIfAutoPlay false', currentTime);
     //$.toast("Autoplay disabled");
     return false;
+}
+
+function cancelAllPlaybackTimeouts() {
+    clearTimeout(playerPlayTimeout);
+    clearTimeout(promisePlayTimeout);
+    clearTimeout(promisePlaytryNetworkFailTimeout);
+    clearTimeout(_reloadAdsTimeout);
+    clearTimeout(videoJSRecreateSourcesTimeout);
+    clearTimeout(setPlayerLoopSetTimeout);
 }
 
 function playerPlayMutedIfAutoPlay(currentTime) {
@@ -967,7 +915,11 @@ function playNext(url) {
         }, 1000);
     } else if (isPlayNextEnabled()) {
         modal.showPleaseWait();
-        if (typeof autoPlayAjax == 'undefined' || !autoPlayAjax) {
+        if (window.parent && typeof window.parent.playNextShorts === 'function') {
+            // Function exists, send a message to call it
+            console.log(" window.parent.postMessage(playNextShorts ");
+            window.parent.postMessage('playNextShorts', '*');
+        } else if (typeof autoPlayAjax == 'undefined' || !autoPlayAjax) {
             //console.log("playNext changing location " + url);
             document.location = url;
         } else {
@@ -985,7 +937,6 @@ function playNext(url) {
                         }
                     } else {
                         //console.log("playNext ajax success");
-                        $('topInfo').hide();
                         playNextURL = (typeof isEmbed !== 'undefined' && isEmbed) ? response.nextURLEmbed : response.nextURL;
                         //console.log("New playNextURL", playNextURL);
                         var cSource = false;
@@ -1002,7 +953,7 @@ function playNext(url) {
                         webSocketVideos_id = mediaId;
                         $('video, #mainVideo').attr('poster', response.poster);
                         player.poster(response.poster);
-                        history.pushState(null, null, url);
+                        avideoPushState(url);
                         $('.topInfoTitle, title').text(response.title);
                         $('#topInfo img').attr('src', response.userPhoto);
                         $('#topInfo a').attr('href', response.url);
@@ -1033,9 +984,9 @@ function formatBytes(bytes, decimals) {
     if (bytes == 0)
         return '0 Bytes';
     var k = 1024,
-            dm = decimals <= 0 ? 0 : decimals || 2,
-            sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
-            i = Math.floor(Math.log(bytes) / Math.log(k));
+        dm = decimals <= 0 ? 0 : decimals || 2,
+        sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+        i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
@@ -1045,7 +996,7 @@ async function tooglePlayerLoop() {
 
 var setPlayerLoopSetTimeout;
 async function setPlayerLoop(loop) {
-    clearTimeout(setPlayerLoopSetTimeout);
+    cancelAllPlaybackTimeouts();
     if (typeof player === 'undefined' && $('#mainVideo').length) {
         setPlayerLoopSetTimeout = setTimeout(function () {
             setPlayerLoop(loop)
@@ -1189,31 +1140,31 @@ function isAutoplayEnabled() {
         consoleLog("isAutoplayEnabled always autoplay live contents");
         return true;
     } else
-    if ($("#autoplay").length) {
-        autoplay = $("#autoplay").is(":checked");
-        consoleLog("isAutoplayEnabled #autoplay said " + ((autoplay) ? "Yes" : "No"));
-        setAutoplay(autoplay);
-        return autoplay;
-    } else if (
-            typeof Cookies !== 'undefined' &&
-            typeof Cookies.get('autoplay') !== 'undefined'
-            ) {
-        if (Cookies.get('autoplay') === 'true' || Cookies.get('autoplay') == true) {
-            consoleLog("isAutoplayEnabled Cookie said Yes ");
-            setAutoplay(true);
-            return true;
-        } else {
-            consoleLog("isAutoplayEnabled Cookie said No ");
-            setAutoplay(false);
-            return false;
-        }
-    } else {
-        if (typeof autoplay !== 'undefined') {
-            consoleLog("isAutoplayEnabled autoplay said " + ((autoplay) ? "Yes" : "No"));
+        if ($("#autoplay").length) {
+            autoplay = $("#autoplay").is(":checked");
+            consoleLog("isAutoplayEnabled #autoplay said " + ((autoplay) ? "Yes" : "No"));
             setAutoplay(autoplay);
             return autoplay;
+        } else if (
+            typeof Cookies !== 'undefined' &&
+            typeof Cookies.get('autoplay') !== 'undefined'
+        ) {
+            if (Cookies.get('autoplay') === 'true' || Cookies.get('autoplay') == true) {
+                consoleLog("isAutoplayEnabled Cookie said Yes ");
+                setAutoplay(true);
+                return true;
+            } else {
+                consoleLog("isAutoplayEnabled Cookie said No ");
+                setAutoplay(false);
+                return false;
+            }
+        } else {
+            if (typeof autoplay !== 'undefined') {
+                consoleLog("isAutoplayEnabled autoplay said " + ((autoplay) ? "Yes" : "No"));
+                setAutoplay(autoplay);
+                return autoplay;
+            }
         }
-    }
     setAutoplay(false);
     consoleLog("isAutoplayEnabled Default is No ");
     return false;
@@ -1236,11 +1187,15 @@ async function showAutoPlayVideoDiv() {
 }
 
 function enableAutoPlay() {
+    forceNotautoplay = false;
+    forceautoplay = true;
     setAutoplay(true);
     checkAutoPlay();
 }
 
 function disableAutoPlay() {
+    forceautoplay = false;
+    forceNotautoplay = true;
     setAutoplay(false);
     checkAutoPlay();
 }
@@ -1274,7 +1229,7 @@ function avideoAlert(title, msg, type) {
     avideoAlertHTMLText(title, msg, type);
 }
 
-function avideoAlertOnce(title, msg, type, uid) {
+function avideoAlertWithCookie(title, msg, type, uid, expires) {
     var cookieName = 'avideoAlertOnce' + uid;
     if (!Cookies.get(cookieName)) {
         var span = document.createElement("span");
@@ -1289,16 +1244,33 @@ function avideoAlertOnce(title, msg, type, uid) {
             if (okay) {
                 Cookies.set(cookieName, 1, {
                     path: '/',
-                    expires: 365
+                    expires: expires
                 });
             }
         });
     }
 }
 
+function avideoAlertOnce(title, msg, type, uid) {
+    avideoAlertWithCookie(title, msg, type, uid, 365);
+}
+
+function avideoAlertOnceADay(title, msg, type, uid) {
+    // Calculate time until midnight
+    var now = new Date();
+    var midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    var timeUntilMidnight = (midnight - now) / 1000 / 60 / 60; // time in hours
+
+    // Call the main function with the calculated expiration
+    avideoAlertWithCookie(title, msg, type, uid, timeUntilMidnight / 24); // Convert time from hours to a fraction of a day
+}
+
+
+
 async function avideoConfirm(msg) {
     var span = document.createElement("span");
-    span.innerHTML = msg;
+    span.innerHTML = __(msg);
     var response = await swal({
         title: 'Confrim',
         content: span,
@@ -1332,12 +1304,28 @@ function avideoAlertOnceForceConfirm(title, msg, type) {
 }
 
 function _avideoToast(msg, icon) {
-    var options = {text: msg, hideAfter: 7000};
-    if (icon) {
-        options.icon = icon;
+    if (empty(msg)) {
+        msg = '';
     }
-    $.toast(options);
+    try {
+        // Average reading speed: around 200 words per minute (or 3.3 words per second)
+        var wordsPerSecond = 2;
+        var words = msg.split(' ').length;
+        var readingTimeInSeconds = words / wordsPerSecond;
+
+        // Convert reading time to milliseconds and add a buffer time
+        var displayTime = Math.max(readingTimeInSeconds * 1000 + 2000, 7000); // Minimum display time of 7000ms
+
+        var options = { text: msg, hideAfter: displayTime };
+        if (icon) {
+            options.icon = icon;
+        }
+        $.toast(options);
+    } catch (error) {
+
+    }
 }
+
 function avideoToast(msg) {
     _avideoToast(msg, null);
 }
@@ -1378,6 +1366,16 @@ function avideoAlertAJAX(url) {
 
 function avideoAlertHTMLText(title, msg, type) {
     var isErrorOrWarning = (type == 'error' || type == 'warning');
+    var className = "btn btn-primary btn-block";
+    if (type == 'error') {
+        var className = "btn btn-danger btn-block";
+    } else if (type == 'warning') {
+        var className = "btn btn-warning btn-block";
+    } else if (type == 'info') {
+        var className = "btn btn-info btn-block";
+    } else if (type == 'success') {
+        var className = "btn btn-success btn-block";
+    }
     var span = document.createElement("span");
     span.innerHTML = msg;
     swal({
@@ -1386,25 +1384,67 @@ function avideoAlertHTMLText(title, msg, type) {
         icon: type,
         closeModal: true,
         closeOnClickOutside: !isErrorOrWarning,
-        buttons: isErrorOrWarning ? null : (empty(type) ? false : true),
+        buttons: {
+            confirm: {
+                text: "OK",
+                value: true,
+                visible: isErrorOrWarning,
+                className: className
+            }
+        }
     });
+    $(".swal-button--confirm").removeClass("swal-button");
+    $(".swal-button-container").removeClass("swal-button-container");
+
 }
 
 function avideoModalIframeClose() {
-    //console.log('avideoModalIframeClose');
-    try {
-        swal.close();
-    } catch (e) {
+    if (fullscreenIframe) {
+        fullscreenIframe.remove();
+        fullscreenIframe = null;
+        $('body').removeClass('fullscreen');
 
+        // Revert the browser's address bar to the original URL
+        if (originalURL) {
+            history.pushState({}, null, originalURL);
+        }
+    } else {
+        if (typeof swal === 'function') {
+            $('.swal-overlay iframe').attr('src', 'about:blank');
+            try {
+                swal.close();
+            } catch (e) {
+
+            }
+        }
     }
     try {
-        if (inIframe()) {
+        if (!_justPropagateClose && inIframe()) {
+            console.trace('window.parent.swal.close()');
+            console.log('window.parent.swal.close() _justPropagateClose', _justPropagateClose);
             window.parent.swal.close();
         }
     } catch (e) {
 
     }
 }
+
+function avideoModalIframeFullScreenClose() {
+    avideoModalIframeClose();
+}
+
+function closeFullscreenVideo() {
+    console.trace('closeFullscreenVideo');
+    avideoModalIframeClose();
+}
+
+// Listen for messages from child frames
+window.addEventListener('message', function (event) {
+    if (event.data === 'closeFullscreen') {
+        // Call the function to close fullscreen video
+        closeFullscreenVideo();
+    }
+});
 
 function avideoModalIframeCloseToastSuccess(msg) {
     avideoModalIframeClose();
@@ -1448,7 +1488,9 @@ function avideoModalIframeLarge(url) {
 function avideoModalIframeFullScreen(url) {
     avideoModalIframeWithClassName(url, 'swal-modal-iframe-full', true);
 }
-
+function avideoModalIframeFullScreenNoBar(url) {
+    avideoModalIframeWithClassName(url, 'swal-modal-iframe-full-no-bar', true);
+}
 function avideoModalIframeFullWithMinimize(url) {
     if (false && typeof parent.openWindow === 'function') {
         parent.openWindow(url, iframeAllowAttributes, '', true);
@@ -1467,33 +1509,6 @@ function avideoModalIframeFullScreenMinimize() {
 
 function avideoModalIframeFullScreenMaximize() {
     $('.swal-modal-iframe-full-with-minimize').closest('.swal-overlay').removeClass('swal-offline-video-compress');
-}
-
-function avideoModalIframeFullScreenClose() {
-    if (typeof swal === 'function') {
-        $('.swal-overlay iframe').attr('src', 'about:blank');
-        try {
-            /*
-             $('.swal-overlay').slideUp();
-             setTimeout(function(){
-             swal.close();
-             },500);
-             */
-            swal.close();
-        } catch (e) {
-
-        }
-    }
-}
-// this is to make sure when the use click on the back page button it will close the iframe
-window.onload = function () {
-    if (typeof history.pushState === "function") {
-        ////console.log('history.pushState loaded');
-        window.onpopstate = function (e) {
-            ////console.log('onpopstate', e.state, history.state);
-            avideoModalIframeFullScreenClose();
-        };
-    }
 }
 
 function avideoModalIframeFull(url) {
@@ -1526,7 +1541,7 @@ function avideoWindowIframe(url) {
     html += '</div>';
     html += '</div>';
     $('body').append(html);
-    $("#draggable").draggable({handle: ".panel-heading", containment: "parent"});
+    $("#draggable").draggable({ handle: ".panel-heading", containment: "parent" });
     //$( "div, p" ).disableSelection();
     $("#draggable").resizable();
 }
@@ -1644,11 +1659,18 @@ function avideoModalIframeWithClassName(url, className, updateURL) {
 }
 
 function avideoPushState(url) {
-    window.history.pushState("", "", url);
+    if (!validURL(url)) {
+        return false;
+    }
+    window.history.pushState(null, null, url);
     if (typeof parent.updatePageSRC == 'funciton') {
         console.log('avideoPushState', url);
         parent.updatePageSRC(url);
     }
+    // Then we set up the popstate event listener
+    window.onpopstate = function (event) {
+        avideoModalIframeClose();
+    };
 }
 
 function checkIframeLoaded(id) {
@@ -1706,10 +1728,22 @@ function avideoModalIframeRemove() {
     }
 }
 
+function json_decode(jsonString) {
+    if (typeof jsonString === 'string') {
+        try {
+            return JSON.parse(jsonString);
+        } catch (error) {
+            console.error('Invalid JSON string:', error);
+        }
+    }
+    return jsonString;
+
+}
+
 function avideoResponse(response) {
     //console.log('avideoResponse', response);
     if (typeof response === 'string') {
-        response = JSON.parse(response);
+        response = json_decode(response);
     }
     //console.log('avideoResponse', response);
     if (response.error) {
@@ -1717,13 +1751,13 @@ function avideoResponse(response) {
             if (typeof response.error === 'string') {
                 response.msg = response.error;
             } else {
-                response.msg = 'Error';
+                response.msg = __('Error');
             }
         }
         avideoAlertError(response.msg);
     } else {
         if (!response.msg) {
-            response.msg = 'Success';
+            response.msg = __('Success');
         }
         if (response.warning) {
             avideoToastWarning(response.msg);
@@ -1740,21 +1774,21 @@ function avideoAlertText(msg) {
 }
 
 function avideoAlertInfo(msg) {
-    avideoAlert("Info", msg, 'info');
+    avideoAlert("", msg, 'info');
 }
 
 function avideoAlertError(msg) {
-    avideoAlert("Error", msg, 'error');
+    avideoAlert("", msg, 'error');
 }
 function avideoAlertSuccess(msg) {
-    avideoAlert("Success", msg, 'success');
+    avideoAlert("", msg, 'success');
 }
 
 function avideoTooltip(selector, text) {
     $(selector).attr('title', text);
     $(selector).attr('data-toggle', 'tooltip');
     $(selector).attr('data-original-title', text);
-    $(selector).tooltip({html: true});
+    $(selector).tooltip({ html: true });
 }
 
 function fixAdSize() {
@@ -1762,13 +1796,13 @@ function fixAdSize() {
     if (ad_container.length) {
         height = ad_container.css('height');
         width = ad_container.css('width');
-        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({'height': height});
-        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({'width': width});
+        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({ 'height': height });
+        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({ 'width': width });
     }
 }
 
 function playerIsPlayingAds() {
-    return ($("#mainVideo_ima-ad-container").length && $("#mainVideo_ima-ad-container").is(':visible')) && player.ima.getAdsManager().getRemainingTime() > 0;
+    return ($("#mainVideo_ima-ad-container").length && $("#mainVideo_ima-ad-container").is(':visible')) && player.ima.getAdsManager() != null && player.ima.getAdsManager().getRemainingTime() > 0;
 }
 
 function playerHasAds() {
@@ -1885,11 +1919,11 @@ function clearCache(showPleaseWait, FirstPage, sessionOnly) {
 
 function validURL(str) {
     var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
-            '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
-            '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
-            '(\\:\\d+)?(\\/[-a-z\\d%_.~+:]*)*' + // port and path
-            '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
-            '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+        '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+        '(\\:\\d+)?(\\/[-a-z\\d%_.~+:@]*)*' + // port and path
+        '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+        '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
     return !!pattern.test(str);
 }
 
@@ -2110,6 +2144,20 @@ function checkMoment() {
      */
 }
 
+function searchInList(inputSelector, filterElementSelector) {
+    $(inputSelector).on('keyup', function () {
+        var searchText = $(this).val().toLowerCase();
+        $(filterElementSelector).each(function () {
+            var categoryText = $(this).text().toLowerCase();
+            if (categoryText.indexOf(searchText) === -1) {
+                $(this).hide();
+            } else {
+                $(this).show();
+            }
+        });
+    });
+}
+
 function addGetParam(_url, _key, _value) {
     if (typeof _url !== 'string') {
         return false;
@@ -2130,6 +2178,7 @@ function addGetParam(_url, _key, _value) {
     }
     _url += sep + param;
     _url = removeDuplicatedGetParam(_url);
+    _url = _url.replace("#?", "?");
     return _url;
 }
 
@@ -2143,11 +2192,11 @@ function removeDuplicatedGetParam(_url) {
         return _url;
     }
     var params = queryParam.split('&'),
-            results = {};
+        results = {};
     for (var i = 0; i < params.length; i++) {
         var temp = params[i].split('='),
-                key = temp[0],
-                val = temp[1];
+            key = temp[0],
+            val = temp[1];
         results[key] = val;
     }
 
@@ -2165,11 +2214,11 @@ function removeGetParam(_url, parameter) {
         return _url;
     }
     var params = queryParam.split('&'),
-            results = {};
+        results = {};
     for (var i = 0; i < params.length; i++) {
         var temp = params[i].split('='),
-                key = temp[0],
-                val = temp[1];
+            key = temp[0],
+            val = temp[1];
         if (key !== parameter) {
             results[key] = val;
         }
@@ -2201,48 +2250,52 @@ function readFileCroppie(input, crop) {
 
         reader.readAsDataURL($(input)[0].files[0]);
     } else {
-        avideoAlert("Sorry - you're browser doesn't support the FileReader API");
+        avideoAlertError("Sorry - you're browser doesn't support the FileReader API");
     }
 }
 
-function getCroppie(uploadCropObject, callback, width, height) {
-    //console.log('getCroppie 1', uploadCropObject);
-    var ret = uploadCropObject.croppie('result', {type: 'base64', size: {width: width, height: height}, format: 'png'}).then(function (resp) {
-        ////console.log('getCroppie 2 ' + callback, resp);
-        eval(callback + "(resp);");
-    }).catch(function (err) {
-        //console.log('cropieError getCroppie => ' + callback, err);
-        eval(callback + "(null);");
-    });
-    //console.log('getCroppie 3', ret);
-}
+let tooltipTimeout = null;
+let isExecutingTooltip = false;
 
 async function setToolTips() {
-    var selector = '[data-toggle="tooltip"]';
-    if (!$(selector).not('.alreadyTooltip').length) {
-        return false;
+    if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
     }
-    try {
-        $(selector).not('.alreadyTooltip').tooltip({container: 'body', html: true});
-        $(selector).not('.alreadyTooltip').on('click', function () {
-            var t = this;
-            setTimeout(function () {
+
+    if (isExecutingTooltip) {
+        return;
+    }
+
+    isExecutingTooltip = true;
+
+    tooltipTimeout = setTimeout(function () {
+        const selector = '[data-toggle="tooltip"]';
+        if (!$(selector).not('.alreadyTooltip').length) {
+            isExecuting = false;
+            return false;
+        }
+
+        try {
+            $(selector).not('.alreadyTooltip').tooltip({ container: 'body', html: true });
+            $(selector).not('.alreadyTooltip').on('click', function () {
+                const t = this;
                 try {
                     $(t).tooltip('hide');
-                } catch (e) {
+                } catch (e) { }
+            });
+            $(selector).addClass('alreadyTooltip');
+        } catch (e) {
+            console.log('setToolTips', e);
+            setTimeout(function () {
+                setToolTips();
+            }, 1000);
+        }
 
-                }
-            }, 2000);
-        });
-        $(selector).addClass('alreadyTooltip');
-    } catch (e) {
-        console.log('setToolTips', e);
-        setTimeout(function () {
-            setToolTips();
-        }, 1000);
-    }
-
+        isExecutingTooltip = false;
+    }, 2000);
 }
+
 
 function avideoSocketIsActive() {
     if (typeof isSocketActive == 'function') {
@@ -2255,17 +2308,18 @@ function avideoSocketIsActive() {
 function isMediaSiteURL(url) {
     if (validURL(url)) {
         if (url.match(/youtube/i) ||
-                url.match(/youtu\.be/i) ||
-                url.match(/vimeo/i) ||
-                url.match(/dailymotion/i) ||
-                url.match(/metacafe/i) ||
-                url.match(/vid\.me/i) ||
-                url.match(/rutube\.ru/i) ||
-                url.match(/ok\.ru/i) ||
-                url.match(/streamable/i) ||
-                url.match(/twitch/i) ||
-                url.match(/evideoEmbed/i) ||
-                url.match(/videoEmbeded/i)) {
+            url.match(/youtu\.be/i) ||
+            url.match(/vimeo/i) ||
+            url.match(/dailymotion/i) ||
+            url.match(/metacafe/i) ||
+            url.match(/vid\.me/i) ||
+            url.match(/rutube\.ru/i) ||
+            url.match(/ok\.ru/i) ||
+            url.match(/streamable/i) ||
+            url.match(/twitch/i) ||
+            url.match(/evideoEmbed/i) ||
+            url.match(/videoEmbed/i) ||
+            url.match(/videoEmbeded/i)) {
             return true;
         }
     }
@@ -2282,7 +2336,7 @@ function changeVideoStatus(videos_id, status) {
     modal.showPleaseWait();
     $.ajax({
         url: webSiteRootURL + 'objects/videoStatus.json.php',
-        data: {"id": [videos_id], "status": status},
+        data: { "id": [videos_id], "status": status },
         type: 'post',
         success: function (response) {
             modal.hidePleaseWait();
@@ -2306,11 +2360,14 @@ function changeVideoStatus(videos_id, status) {
 }
 
 function avideoAjax(url, data) {
+    if (!url.startsWith('http')) {
+        url = webSiteRootURL + url;
+    }
     avideoAjax2(url, data, true);
 }
 
 function avideoAjax2(url, data, pleaseWait) {
-    if(pleaseWait){
+    if (pleaseWait) {
         modal.showPleaseWait();
     }
     $.ajax({
@@ -2318,9 +2375,6 @@ function avideoAjax2(url, data, pleaseWait) {
         data: data,
         type: 'post',
         success: function (response) {
-            if(pleaseWait){
-                modal.hidePleaseWait();
-            }
             if (response.error) {
                 avideoAlertError(response.msg);
             } else {
@@ -2328,6 +2382,19 @@ function avideoAjax2(url, data, pleaseWait) {
                 if (typeof response.eval !== 'undefined') {
                     eval(response.eval);
                 }
+            }
+        },
+        error: function (response) {
+            //console.error('avideoAjax2', url, data, pleaseWait, response.responseJSON);
+            if (response.responseJSON.error) {
+                avideoAlertError(response.responseJSON.msg);
+            } else {
+                avideoToastError(response.responseJSON.msg);
+            }
+        },
+        complete: function (response) {
+            if (pleaseWait) {
+                modal.hidePleaseWait();
             }
         }
     });
@@ -2337,15 +2404,6 @@ function isPlayerUserActive() {
     return $('#mainVideo').hasClass("vjs-user-active");
 }
 
-eventer('beforeunload', function (e) {
-    ////console.log('window.addEventListener(beforeunload');
-    _addViewAsync();
-}, false);
-eventer('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') {
-        _addViewAsync();
-    }
-});
 function socketClearSessionCache(json) {
     //console.log('socketClearSessionCache', json);
     clearCache(false, 0, 1);
@@ -2389,137 +2447,74 @@ function goToURLOrAlertError(jsonURL, data) {
     });
 }
 
+var downloadModal = getPleaseWait();
 function downloadURL(url, filename) {
+
+    downloadModal.showPleaseWait();
     filename = clean_name(filename) + '.' + clean_name(url.split(/[#?]/)[0].split('.').pop().trim());
     console.log('downloadURL start ', url, filename);
     var loaded = 0;
     var contentLength = 0;
     fetch(url)
-            .then(response => {
-                avideoToastSuccess('Download Start');
-                const contentEncoding = response.headers.get('content-encoding');
-                const contentLength = response.headers.get(contentEncoding ? 'x-file-size' : 'content-length');
-                if (contentLength === null) {
-                    throw Error('Response size header unavailable');
-                }
+        .then(response => {
+            avideoToastSuccess('Download Start');
+            const contentEncoding = response.headers.get('content-encoding');
+            const contentLength = response.headers.get(contentEncoding ? 'x-file-size' : 'content-length');
+            if (contentLength === null) {
+                throw Error('Response size header unavailable');
+            }
 
-                const total = parseInt(contentLength, 10);
-                let loaded = 0;
-                return new Response(
-                        new ReadableStream({
-                            start(controller) {
-                                const reader = response.body.getReader();
-                                read();
-                                function read() {
-                                    reader.read().then(({ done, value }) => {
-                                        if (done) {
-                                            controller.close();
-                                            return;
-                                        }
-                                        loaded += value.byteLength;
-                                        var percentageLoaded = Math.round(loaded / total * 100);
-                                        ////console.log(percentageLoaded);
-                                        modal.setProgress(percentageLoaded);
-                                        modal.setText('Downloading ... ' + percentageLoaded + '%');
-                                        controller.enqueue(value);
-                                        read();
-                                    }).catch(error => {
-                                        console.error(error);
-                                        controller.error(error)
-                                    })
+            const total = parseInt(contentLength, 10);
+            let loaded = 0;
+            return new Response(
+                new ReadableStream({
+                    start(controller) {
+                        const reader = response.body.getReader();
+                        read();
+                        function read() {
+                            reader.read().then(({ done, value }) => {
+                                if (done) {
+                                    controller.close();
+                                    return;
                                 }
-                            }
-                        })
-                        );
-            })
-            .then(response => response.blob())
-            .then(blob => {
-                const urlFromBlob = window.URL.createObjectURL(blob);
-                console.log('downloadURL', url, filename, blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = urlFromBlob;
-                // the filename you want
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                modal.hidePleaseWait();
-                avideoToastSuccess('Download complete ' + filename);
-            })
-            .catch(function (err) {
-                //avideoAlertError('Error on download ');
-                console.log(err);
-                addQueryStringParameter(url, 'download', 1);
-                addQueryStringParameter(url, 'title', filename);
-                document.location = url;
-            });
-}
-
-var downloadURLOrAlertErrorInterval;
-function downloadURLOrAlertError(jsonURL, data, filename, FFMpegProgress) {
-    if (empty(jsonURL)) {
-        console.log('downloadURLOrAlertError error empty jsonURL', jsonURL, data, filename, FFMpegProgress);
-        return false;
-    }
-    modal.showPleaseWait();
-    avideoToastInfo('Converting');
-    console.log('downloadURLOrAlertError 1', jsonURL, FFMpegProgress);
-    checkFFMPEGProgress(FFMpegProgress);
-    $.ajax({
-        url: jsonURL,
-        method: 'POST',
-        data: data,
-        success: function (response) {
-            clearInterval(downloadURLOrAlertErrorInterval);
-            if (response.error) {
-                avideoAlertError(response.msg);
-                modal.hidePleaseWait();
-            } else if (response.url) {
-                if (response.msg) {
-                    avideoAlertInfo(response.msg);
-                }
-                if (
-                        isMobile()
-                        //|| /cdn.ypt.me/.test(response.url)
-                        ) {
-                    window.open(response.url, '_blank');
-                    avideoToastInfo('Opening file');
-                    //document.location = response.url
-                } else {
-                    downloadURL(response.url, filename);
-                }
-            } else {
-                avideoResponse(response);
-                modal.hidePleaseWait();
-            }
-        }
-    });
-}
-
-function checkFFMPEGProgress(FFMpegProgress) {
-    if (empty(FFMpegProgress)) {
-        return false;
-    }
-    $.ajax({
-        url: FFMpegProgress,
-        success: function (response) {
-            //console.log(response);
-            if (typeof response.progress.progress !== 'undefined') {
-                var text = 'Converting ...';
-                if (typeof response.progress.progress !== 'undefined') {
-                    text += response.progress.progress + '% ';
-                    modal.setProgress(response.progress.progress);
-                }
-                modal.setText(text);
-                if (response.progress.progress !== 100) {
-                    setTimeout(function () {
-                        checkFFMPEGProgress(FFMpegProgress);
-                    }, 1000);
-                }
-            }
-        }
-    });
+                                loaded += value.byteLength;
+                                var percentageLoaded = Math.round(loaded / total * 100);
+                                ////console.log(percentageLoaded);
+                                downloadModal.setProgress(percentageLoaded);
+                                downloadModal.setText('Downloading ... ' + percentageLoaded + '%');
+                                controller.enqueue(value);
+                                read();
+                            }).catch(error => {
+                                console.error(error);
+                                controller.error(error)
+                            })
+                        }
+                    }
+                })
+            );
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const urlFromBlob = window.URL.createObjectURL(blob);
+            console.log('downloadURL', url, filename, blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = urlFromBlob;
+            // the filename you want
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            downloadModal.hidePleaseWait();
+            avideoToastSuccess('Download complete ' + filename);
+        })
+        .catch(function (err) {
+            //avideoAlertError('Error on download ');
+            console.log(err);
+            addQueryStringParameter(url, 'download', 1);
+            addQueryStringParameter(url, 'title', filename);
+            document.location = url;
+        });
 }
 
 function startGoogleAd(selector) {
@@ -2619,6 +2614,10 @@ function empty(data) {
     } else if (type === 'boolean') {
         return !data;
     } else if (type === 'string') {
+        if (data == 0) {
+            return true;
+        }
+        data = data.trim();
         return /^[\s]*$/.test(data);
     } else if (type !== 'undefined') {
         return Object.keys(data).length == 0;
@@ -2669,7 +2668,7 @@ function getCursorPos(input) {
                 len++;
             }
             rng.setEndPoint("StartToStart", input.createTextRange());
-            for (var pos = {start: 0, end: len}; rng.compareEndPoints("EndToStart", rng) > 0; rng.moveEnd("character", -1)) {
+            for (var pos = { start: 0, end: len }; rng.compareEndPoints("EndToStart", rng) > 0; rng.moveEnd("character", -1)) {
                 pos.start++;
                 pos.end++;
             }
@@ -2687,20 +2686,16 @@ function getCursorPos(input) {
 
 function isUserOnline(users_id) {
     users_id = parseInt(users_id);
-    if (typeof users_id_online === 'undefined' || empty(users_id_online)) {
+    if (typeof users_id_online === 'undefined' || empty(users_id_online) || !Array.isArray(users_id_online)) {
+        console.log('isUserOnline', users_id);
         return false;
     }
-    if (typeof users_id_online[users_id] === 'undefined' || empty(users_id_online[users_id])) {
-        return false;
-    }
-    if (empty(users_id_online[users_id].resourceId)) {
-        return false;
-    }
-    return users_id_online[users_id];
+
+    return users_id_online.find((u) => u.users_id == users_id);
 }
 
 function isReadyToCheckIfIsOnline() {
-    return !empty(users_id_online);
+    return typeof users_id_online !== 'undefined' && !empty(users_id_online);
 }
 
 var addAtMentionActive = false;
@@ -2716,10 +2711,10 @@ function addAtMention(selector) {
     $(selector).on("keydown", function (event) {
         if (!$(this).autocomplete("instance").menu.active) {
             if (
-                    event.keyCode === SpaceKeyCode ||
-                    event.keyCode === $.ui.keyCode.TAB ||
-                    event.keyCode === $.ui.keyCode.ENTER ||
-                    event.keyCode === $.ui.keyCode.ESCAPE) {
+                event.keyCode === SpaceKeyCode ||
+                event.keyCode === $.ui.keyCode.TAB ||
+                event.keyCode === $.ui.keyCode.ENTER ||
+                event.keyCode === $.ui.keyCode.ESCAPE) {
                 $(this).autocomplete("close");
             }
         } else {
@@ -2728,77 +2723,77 @@ function addAtMention(selector) {
             }
         }
     })
-            .autocomplete({
-                minLength: 2,
-                source: function (request, response) {
+        .autocomplete({
+            minLength: 2,
+            source: function (request, response) {
 
-                    var pos = getCursorPos($(selector)[0]);
-                    stringStart = request.term.substring(0, pos.end);
+                var pos = getCursorPos($(selector)[0]);
+                stringStart = request.term.substring(0, pos.end);
 
-                    var term = stringStart.split(/\s+/).pop();
-                    //console.log('autocomplete', request.term, term, AtMatcher.test(term));
-                    if (AtMatcher.test(term)) {
-                        $.ajax({
-                            url: webSiteRootURL + "objects/mention.json.php",
-                            data: {
-                                term: term
-                            },
-                            success: function (data) {
-                                response(data);
-                            }
-                        });
-                    } else {
-                        return false;
-                    }
-                },
-                focus: function () {
-                    // prevent value inserted on focus
+                var term = stringStart.split(/\s+/).pop();
+                //console.log('autocomplete', request.term, term, AtMatcher.test(term));
+                if (AtMatcher.test(term)) {
+                    $.ajax({
+                        url: webSiteRootURL + "objects/mention.json.php",
+                        data: {
+                            term: term
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                } else {
                     return false;
-                },
-                select: function (event, ui) {
-                    addAtMentionActive = true;
+                }
+            },
+            focus: function () {
+                // prevent value inserted on focus
+                return false;
+            },
+            select: function (event, ui) {
+                addAtMentionActive = true;
+                setTimeout(function () {
+                    addAtMentionActive = false;
+                }, 200);
+                if (emojioneArea) {
+                    this.value = $(emojioneArea).data("emojioneArea").getText();
+                }
+                //console.log('addAtMention', this, this.value);
+                var pos = getCursorPos($(selector)[0]);
+                stringStart = this.value.substring(0, pos.end);
+                stringEnd = this.value.substring(pos.end);
+
+                var terms = stringStart.split(/\s+/);
+                // remove the current input
+                var word = terms.pop();
+                // add the selected item
+                //terms.push('@' + ui.item.value);
+                // add placeholder to get the comma-and-space at the end
+                //terms.push("");
+                replace = '@' + ui.item.value;
+
+                this.value = replaceLast(word, '@' + ui.item.value, stringStart) + stringEnd;
+                if (emojioneArea) {
+                    $(emojioneArea).data("emojioneArea").setText(this.value);
                     setTimeout(function () {
-                        addAtMentionActive = false;
-                    }, 200);
-                    if (emojioneArea) {
-                        this.value = $(emojioneArea).data("emojioneArea").getText();
-                    }
-                    //console.log('addAtMention', this, this.value);
-                    var pos = getCursorPos($(selector)[0]);
-                    stringStart = this.value.substring(0, pos.end);
-                    stringEnd = this.value.substring(pos.end);
-
-                    var terms = stringStart.split(/\s+/);
-                    // remove the current input
-                    var word = terms.pop();
-                    // add the selected item
-                    //terms.push('@' + ui.item.value);
-                    // add placeholder to get the comma-and-space at the end
-                    //terms.push("");
-                    replace = '@' + ui.item.value;
-
-                    this.value = replaceLast(word, '@' + ui.item.value, stringStart) + stringEnd;
-                    if (emojioneArea) {
-                        $(emojioneArea).data("emojioneArea").setText(this.value);
-                        setTimeout(function () {
-                            contentEditableElement = document.getElementsByClassName("emojionearea-editor")[0];
-                            range = document.createRange();//Create a range (a range is a like the selection but invisible)
-                            range.selectNodeContents(contentEditableElement);//Select the entire contents of the element with the range
-                            range.collapse(false);//collapse the range to the end point. false means collapse to end rather than the start
-                            selection = window.getSelection();//get the selection object (allows you to change selection)
-                            selection.removeAllRanges();//remove any selections already made
-                            selection.addRange(range);//make the range you have just created the visible selection
-                        }, 50);
-                    }
-                    return false;
-                },
-                create: function () {
-                    $(this).data('ui-autocomplete')._renderItem = function (ul, item) {
-                        return $('<li>' + item.label + '</li>').appendTo(ul); // customize your HTML
-                    };
-                },
-                position: {collision: "flip"}
-            });
+                        contentEditableElement = document.getElementsByClassName("emojionearea-editor")[0];
+                        range = document.createRange();//Create a range (a range is a like the selection but invisible)
+                        range.selectNodeContents(contentEditableElement);//Select the entire contents of the element with the range
+                        range.collapse(false);//collapse the range to the end point. false means collapse to end rather than the start
+                        selection = window.getSelection();//get the selection object (allows you to change selection)
+                        selection.removeAllRanges();//remove any selections already made
+                        selection.addRange(range);//make the range you have just created the visible selection
+                    }, 50);
+                }
+                return false;
+            },
+            create: function () {
+                $(this).data('ui-autocomplete')._renderItem = function (ul, item) {
+                    return $('<li>' + item.label + '</li>').appendTo(ul); // customize your HTML
+                };
+            },
+            position: { collision: "flip" }
+        });
 }
 /*
  async function selectAElements() {
@@ -2882,27 +2877,17 @@ function getPleaseWait() {
 
 $(document).ready(function () {
     getServerTime();
-    addViewFromCookie();
     checkDescriptionArea();
     setInterval(function () {// check for the carousel
         checkDescriptionArea();
     }, 3000);
-    Cookies.set('timezone', timezone, {
-        path: '/',
-        expires: 365
-    });
-    tabsCategoryDocumentHeight = $(document).height();
-    if (typeof $('.nav-tabs-horizontal').scrollingTabs == 'function') {
-        $('.nav-tabs-horizontal').scrollingTabs();
-        //$('.nav-tabs-horizontal').fadeIn();
+    if (typeof Cookies != 'undefined') {
+        Cookies.set('timezone', timezone, {
+            path: '/',
+            expires: 365
+        });
     }
-    setInterval(function () {
-        if (tabsCategoryDocumentHeightChanged()) {
-            if (typeof $('.nav-tabs-horizontal').scrollingTabs == 'function') {
-                $('.nav-tabs-horizontal').scrollingTabs('refresh');
-            }
-        }
-    }, 2000);
+    tabsCategoryDocumentHeight = $(document).height();
     modal = getPleaseWait();
     try {
         $('[data-toggle="popover"]').popover();
@@ -2931,12 +2916,12 @@ $(document).ready(function () {
             url: webSiteRootURL + 'objects/configurationGenerateSiteMap.json.php',
             success: function (response) {
                 if (!response.error) {
-                    avideoAlert("Congratulations!", "File created!", "success");
+                    avideoAlertSuccess(__("File created!"));
                 } else {
                     if (response.msg) {
-                        avideoAlert("Sorry!", response.msg, "error");
+                        avideoAlertError(response.msg);
                     } else {
-                        avideoAlert("Sorry!", "File NOT created!", "error");
+                        avideoAlertError("File NOT created!");
                     }
                 }
                 modal.hidePleaseWait();
@@ -2978,81 +2963,84 @@ $(document).ready(function () {
  * @param  {Boolean}         nodes If true, returns HTML nodes instead of a string
  * @return {String|NodeList}       The sanitized string or nodes
  */
-function cleanHTML (str, nodes) {
+function cleanHTML(str, nodes) {
 
-	/**
-	 * Convert the string to an HTML document
-	 * @return {Node} An HTML document
-	 */
-	function stringToHTML () {
-		let parser = new DOMParser();
-		let doc = parser.parseFromString(str, 'text/html');
-		return doc.body || document.createElement('body');
-	}
+    /**
+     * Convert the string to an HTML document
+     * @return {Node} An HTML document
+     */
+    function stringToHTML() {
+        let parser = new DOMParser();
+        let doc = parser.parseFromString(str, 'text/html');
+        return doc.body || document.createElement('body');
+    }
 
-	/**
-	 * Remove <script> elements
-	 * @param  {Node} html The HTML
-	 */
-	function removeScripts (html) {
-		let scripts = html.querySelectorAll('script');
-		for (let script of scripts) {
-			script.remove();
-		}
-	}
+    /**
+     * Remove <script> elements
+     * @param  {Node} html The HTML
+     */
+    function removeScripts(html) {
+        let scripts = html.querySelectorAll('script');
+        for (let script of scripts) {
+            script.remove();
+        }
+    }
 
-	/**
-	 * Check if the attribute is potentially dangerous
-	 * @param  {String}  name  The attribute name
-	 * @param  {String}  value The attribute value
-	 * @return {Boolean}       If true, the attribute is potentially dangerous
-	 */
-	function isPossiblyDangerous (name, value) {
-		let val = value.replace(/\s+/g, '').toLowerCase();
-		if (['src', 'href', 'xlink:href'].includes(name)) {
-			if (val.includes('javascript:') || val.includes('data:text/html')) return true;
-		}
-		if (name.startsWith('on')) return true;
-	}
+    /**
+     * Check if the attribute is potentially dangerous
+     * @param  {String}  name  The attribute name
+     * @param  {String}  value The attribute value
+     * @return {Boolean}       If true, the attribute is potentially dangerous
+     */
+    function isPossiblyDangerous(name, value) {
+        let val = value.replace(/\s+/g, '').toLowerCase();
+        if (['src', 'href', 'xlink:href'].includes(name)) {
+            if (val.includes('javascript:') || val.includes('data:text/html'))
+                return true;
+        }
+        if (name.startsWith('on'))
+            return true;
+    }
 
-	/**
-	 * Remove potentially dangerous attributes from an element
-	 * @param  {Node} elem The element
-	 */
-	function removeAttributes (elem) {
+    /**
+     * Remove potentially dangerous attributes from an element
+     * @param  {Node} elem The element
+     */
+    function removeAttributes(elem) {
 
-		// Loop through each attribute
-		// If it's dangerous, remove it
-		let atts = elem.attributes;
-		for (let {name, value} of atts) {
-			if (!isPossiblyDangerous(name, value)) continue;
-			elem.removeAttribute(name);
-		}
+        // Loop through each attribute
+        // If it's dangerous, remove it
+        let atts = elem.attributes;
+        for (let { name, value } of atts) {
+            if (!isPossiblyDangerous(name, value))
+                continue;
+            elem.removeAttribute(name);
+        }
 
-	}
+    }
 
-	/**
-	 * Remove dangerous stuff from the HTML document's nodes
-	 * @param  {Node} html The HTML document
-	 */
-	function clean (html) {
-		let nodes = html.children;
-		for (let node of nodes) {
-			removeAttributes(node);
-			clean(node);
-		}
-	}
+    /**
+     * Remove dangerous stuff from the HTML document's nodes
+     * @param  {Node} html The HTML document
+     */
+    function clean(html) {
+        let nodes = html.children;
+        for (let node of nodes) {
+            removeAttributes(node);
+            clean(node);
+        }
+    }
 
-	// Convert the string to HTML
-	let html = stringToHTML();
+    // Convert the string to HTML
+    let html = stringToHTML();
 
-	// Sanitize it
-	removeScripts(html);
-	clean(html);
+    // Sanitize it
+    removeScripts(html);
+    clean(html);
 
-	// If the user wants HTML nodes back, return them
-	// Otherwise, pass a sanitized string back
-	return nodes ? html.childNodes : html.innerHTML;
+    // If the user wants HTML nodes back, return them
+    // Otherwise, pass a sanitized string back
+    return nodes ? html.childNodes : html.innerHTML;
 
 }
 
@@ -3078,7 +3066,7 @@ async function _alertFromGet(type) {
                     break;
             }
             var url = removeGetParam(window.location.href, type);
-            window.history.pushState({}, document.title, url);
+            avideoPushState(url);
         }
     }
 }
@@ -3144,8 +3132,8 @@ function fixAdSize() {
     if (ad_container.length) {
         height = ad_container.css('height');
         width = ad_container.css('width');
-        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({'height': height});
-        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({'width': width});
+        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({ 'height': height });
+        $($('#mainVideo_ima-ad-container div:first-child')[0]).css({ 'width': width });
     }
 }
 
@@ -3155,7 +3143,7 @@ function fixAdSize() {
  */
 var videoJSRecreateSourcesTimeout;
 async function videoJSRecreateSources(defaultSource) {
-    clearTimeout(videoJSRecreateSourcesTimeout);
+    cancelAllPlaybackTimeouts();
     if (empty(player) || empty(player.options_)) {
         videoJSRecreateSourcesTimeout = setTimeout(function () {
             videoJSRecreateSources(defaultSource);
@@ -3430,7 +3418,7 @@ function passStrengthCheck(selector) {
     } else {
         strengthMsg.push('Special chars');
     }
-    return {strength: strength, strengthMsg: strengthMsg};
+    return { strength: strength, strengthMsg: strengthMsg };
 }
 
 function passStrengthCheckInput(selector) {
@@ -3575,7 +3563,7 @@ async function setVideoSuggested(videos_id, isSuggested) {
     return new Promise((resolve, reject) => {
         $.ajax({
             url: webSiteRootURL + 'objects/videoSuggest.php',
-            data: {"id": videos_id, "isSuggested": isSuggested},
+            data: { "id": videos_id, "isSuggested": isSuggested },
             type: 'post',
             success: function (data) {
                 modal.hidePleaseWait();
@@ -3793,37 +3781,46 @@ function addScript(src) {
 }
 
 function avideoLogoff(redirect) {
-    sendAVideoMobileLiveStreamerMessage('logoff', '');
+    sendAVideoMobileMessage('logoff', '');
     if (redirect) {
         document.location = webSiteRootURL + 'logoff';
     }
 }
 
-async function sendAVideoMobileLiveStreamerMessage(type, value){
+async function sendAVideoMobileMessage(type, value) {
+    return sendAVideoMobileMessage(type, value);
+}
+
+async function sendAVideoMobileMessage(type, value) {
     if (typeof window.flutter_inappwebview !== 'undefined') {
+        //console.log('sendAVideoMobileMessage flutter_inappwebview', typeof window.flutter_inappwebview, window.flutter_inappwebview);
         if (typeof window.flutter_inappwebview.callHandler == 'function') {
-            for (i = 0; i < 10; i++) {
-                response = await window.flutter_inappwebview.callHandler('AVideoMobileLiveStreamer' + i, {type: type, value: value, instanceIndex: i});
-                if(response!==null){
-                    console.log('sendAVideoMobileLiveStreamerMessage executed', i, response, type, value);
+            response = await window.flutter_inappwebview.callHandler('AVideoMobileLiveStreamer3', { type: type, value: value, instanceIndex: 3 });
+            console.log('sendAVideoMobileMessage test', response);
+            for (var i = 0; i < 10; i++) {
+                var name = 'AVideoMobileLiveStreamer' + i;
+                response = await window.flutter_inappwebview.callHandler(name, { type: type, value: value, instanceIndex: i });
+                if (response !== null) {
+                    console.log('sendAVideoMobileMessage executed', name, response, type, value);
                     break;
-                }else{
-                    console.log('sendAVideoMobileLiveStreamerMessage not found', i, type, value);
+                } else {
+                    console.log('sendAVideoMobileMessage not found', name, type, value);
                 }
             }
         } else {
-            console.log('sendAVideoMobileLiveStreamerMessage will try again', type, value);
+            console.log('sendAVideoMobileMessage will try again', type, value);
             setTimeout(function () {
-                sendAVideoMobileLiveStreamerMessage(type, value);
+                sendAVideoMobileMessage(type, value);
             }, 1000);
         }
     } else {
         //window.parent.postMessage({type: type, value: value}, '*');
-        window.top.postMessage({type: type, value: value}, '*');
+        window.top.postMessage({ type: type, value: value }, '*');
     }
 }
 window.addEventListener("flutterInAppWebViewPlatformReady", function (event) {
-    sendAVideoMobileLiveStreamerMessage('APPIsReady', 1);
+    console.log('flutterInAppWebViewPlatformReady Platform ready, sending APPIsReady message');
+    sendAVideoMobileMessage('APPIsReady', 1);
 });
 
 function getUser() {
@@ -3833,3 +3830,400 @@ function getUser() {
         async: false
     }).responseText;
 }
+
+function getUniqueValuesFromArray(items) {
+    return [...new Set(items)];
+}
+
+//autoPlayTime 
+// if === false it will not play
+// if === -1 it will play as the api response (last position)
+// if is any positive int or 0 it will play at that position 
+function updateVideoPlayer(videos_id, autoPlayTime) {
+    modal.showPleaseWait();
+    $.ajax({
+        url: webSiteRootURL + 'plugin/API/get.json.php?APIName=video',
+        type: "POST",
+        data: {
+            videos_id: videos_id,
+            noRelated: 1
+        },
+        success: function (data) {
+            if (!data.error) {
+                if (data.response.rows.length) {
+                    var video = data.response.rows[0];
+                    if (video.sources.length) {
+                        player.src(video.sources);
+                        player.poster(video.images.poster);
+                        $('.videoTitle').text(video.title);
+                        $('.videoDescription').text(video.description);
+                        player.load();
+                        if (autoPlayTime !== false) {
+                            if (autoPlayTime === -1) {
+                                currentTime = 0;
+                            } else {
+                                currentTime = autoPlayTime;
+                            }
+                            tryToPlay(currentTime);
+                        }
+                    }
+                }
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error("AJAX request failed: " + textStatus);
+        }, complete: function (resp) {
+            modal.hidePleaseWait();
+        },
+    });
+}
+
+function isIframe() {
+    return window.self !== window.top;
+}
+//custom jQuery function to check if an element is visible
+$.fn.isVisible = function () {
+    try {
+        var elementTop = $(this).offset().top;
+        var elementBottom = elementTop + $(this).outerHeight();
+        var viewportTop = $(window).scrollTop();
+        var viewportBottom = viewportTop + $(window).height();
+        return elementBottom > viewportTop && elementTop < viewportBottom;
+    } catch (error) {
+        return true;
+    }
+};
+let fullscreenIframe;
+let originalURL; // to store the original URL
+
+function openFullscreenVideosId(videos_id) {
+    var url = webSiteRootURL + 'video/' + videos_id + '/-';
+    openFullscreenVideo(url, url);
+}
+
+function openFullscreenEmbedVideosId(videos_id) {
+    var url = webSiteRootURL + 'videoEmbed/' + videos_id + '/-';
+    var urlBar = webSiteRootURL + 'video/' + videos_id + '/-';
+    openFullscreenVideo(url, urlBar);
+}
+
+function openFullscreenVideo(url, urlBar) {
+
+    $('body').addClass('fullScreen');
+    // Store the current URL
+    originalURL = window.location.href;
+
+    // If there's an existing iframe, close it first
+    if (fullscreenIframe) {
+        closeFullscreenIframe();
+    }
+
+    url = addQueryStringParameter(url, 'autoplay', 1);
+
+    fullscreenIframe = $('<iframe ' + iframeAllowAttributes + '>', {
+        src: url,
+        id: 'fullscreenIframe'
+    });
+
+    fullscreenIframe.attr('src', url);
+    // Apply styles and other attributes
+    fullscreenIframe.css({
+        'position': 'fixed',
+        'top': 0,
+        'left': 0,
+        'width': '100%',
+        'height': '100%',
+        'z-index': 9999,
+        'border': 'none',
+        'background-color': 'black'
+    });
+
+    avideoPushState(urlBar);
+    // Append the iframe to the body
+    fullscreenIframe.appendTo('body');
+}
+
+function addCloseButtonInVideo() {
+    try {
+        // If either function exists, add a close button inside videojs
+        if (window.self !== window.top) {
+            if (typeof player !== 'object') {
+                setTimeout(function () { addCloseButtonInVideo(); }, 2000);
+                return false;
+            }
+            addCloseButton($(player.el()));
+        }
+    } catch (error) {
+
+    }
+}
+
+function addCloseButtonInPage() {
+    try {
+        // If either function exists, add a close button inside videojs
+        if (window.self !== window.top) {
+            addCloseButton($('body'));
+        }
+    } catch (error) {
+
+    }
+}
+
+function addCloseButton(elementToAppend) {
+    // If either function exists, add a close button inside videojs
+    if (window.self !== window.top) {
+        var closeButton = $('<button>', {
+            'id': 'CloseButtonInVideo',
+        });
+        closeButton.addClass('btn');
+        closeButton.addClass('pull-right');
+        closeButton.addClass('hideOnPlayerUserInactive');
+        closeButton.html('<i class="fas fa-times"></i>');
+        // Add event listener
+        closeButton.on('click', function () {
+            if (window.self !== window.top) {
+                //window.parent.closeFullscreenVideo();
+                if(!_justPropagateClose){
+                    _justPropagateClose = true;
+                    console.log('close parent iframe _justPropagateClose = true');
+                    setTimeout(function(){
+                        _justPropagateClose = false;
+                        console.log('_justPropagateClose = false');
+                    },10000);
+                    window.parent.postMessage('closeFullscreen', '*');
+                }else{
+                    console.log('close parent iframe _justPropagateClose');
+                }
+            } else {
+                console.log('close history.back');
+                window.history.back();
+            }
+        });
+        // Append the close button to the Video.js player
+        elementToAppend.append(closeButton);
+
+    }
+}
+
+
+function __(str, allowHTML = false) {
+    if (typeof translations == 'undefined') {
+        return str;
+    }
+    let returnStr = str;
+
+    // Check if translation exists for exact string
+    if (translations.hasOwnProperty(str)) {
+        returnStr = translations[str];
+    } else {
+        // Case insensitive check
+        let lowerCaseKey = Object.keys(translations).find(key => key.toLowerCase() === str.toLowerCase());
+        if (lowerCaseKey) {
+            returnStr = translations[lowerCaseKey];
+        }
+    }
+
+    if (allowHTML) {
+        return returnStr;
+    }
+
+    // Escape certain characters for security
+    return returnStr.replace(/'/g, "&apos;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function playChapter(seconds) {
+    if (typeof player != 'undefined') {
+        player.currentTime(seconds);
+        var currentURL = window.location.href;
+        newURL = addQueryStringParameter(currentURL, 't', seconds);
+        history.replaceState({}, "", newURL);
+    }
+}
+
+function randomColor() {
+    var r = Math.floor(Math.random() * 255);
+    var g = Math.floor(Math.random() * 255);
+    var b = Math.floor(Math.random() * 255);
+    return r + "," + g + "," + b;
+}
+
+
+function secondsToTime(sec) {
+    var rest = parseInt((sec % 1) * 100);
+    var date = new Date(null);
+    date.setSeconds(sec); // specify value for SECONDS here
+    var timeString = date.toISOString().substr(11, 8);
+    return (timeString + '.' + rest);
+}
+
+
+function timeToSeconds(hms) {
+    var a = hms.split(':'); // split it at the colons
+    // minutes are worth 60 seconds. Hours are worth 60 minutes.
+    var seconds = (+a[0]) * 60 * 60 + (+a[1]) * 60 + (+a[2]);
+    return (seconds);
+}
+
+function templateSelectionAndResult(state) {
+    var text = state.text;
+    if (state.id && /fa/.test(state.id)) {
+        text = '<i class=\"' + state.id + '\"></i> - ' + state.text;
+    }
+    return $('<span>' + text + '</span>');
+};
+
+function preloadVmapAndUpdateAdTag(adTagUrl) {
+    console.log('ADS: preloadVmapAndUpdateAdTag:', adTagUrl);
+
+    fetch(adTagUrl)
+        .then(response => response.text())
+        .then(vmapXml => {
+            console.log('ADS: preloadVmapAndUpdateAdTag: VMAP Loaded');
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(vmapXml, "text/xml");
+            // Extracting the VAST URL from <vmap:AdTagURI>
+            const vastUrlElement = xmlDoc.querySelector('AdTagURI');
+            if (vastUrlElement) {
+                const vastUrl = vastUrlElement.textContent;
+                console.log('ADS: preloadVmapAndUpdateAdTag: VMAP vastUrl', vastUrl);
+                return fetch(vastUrl);
+            } else {
+                throw new Error("Failed to find <AdTagURI> element in VMAP");
+            }
+        })
+        .then(response => response.text())
+        .then(vastXml => {
+            console.log('ADS: preloadVmapAndUpdateAdTag: VAST Loaded');
+
+            const inlineVmapTag = 'data:text/xml;charset=utf-8,' + encodeURIComponent(vastXml);
+
+            player.ima.setContentWithAdTag(null, inlineVmapTag, false);
+
+            setTimeout(() => {
+                console.log('ADS: preloadVmapAndUpdateAdTag: Requesting Ads');
+                player.ima.requestAds();
+            }, 5000);
+        })
+        .catch(error => {
+            console.error("Error preloading and updating adTagUrl:", error);
+        });
+}
+
+function windowIsfXs() {
+    var screenWidth = $(window).width();
+    if (screenWidth < 768) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function humanFileSize(bytes) {
+    if (typeof bytes !== 'number') {
+        return '';
+    }
+
+    if (bytes >= 1000000000) {
+        return (bytes / 1000000000).toFixed(2) + ' GB';
+    }
+
+    if (bytes >= 1000000) {
+        return (bytes / 1000000).toFixed(2) + ' MB';
+    }
+
+    return (bytes / 1000).toFixed(2) + ' KB';
+}
+
+function durationToSeconds(duration) {
+    // Split the duration by the colon
+    const parts = duration.split(':');
+
+    // Calculate hours, minutes, and seconds
+    let hours = 0, minutes = 0, seconds = 0;
+
+    // Based on the parts length, calculate the duration in seconds
+    if (parts.length === 3) {
+        hours = parseInt(parts[0], 10);
+        minutes = parseInt(parts[1], 10);
+        seconds = parseInt(parts[2], 10);
+    } else if (parts.length === 2) {
+        // If the duration is in MM:SS format
+        minutes = parseInt(parts[0], 10);
+        seconds = parseInt(parts[1], 10);
+    } else if (parts.length === 1) {
+        // If the duration is in SS format
+        seconds = parseInt(parts[0], 10);
+    }
+
+    // Convert everything to seconds
+    return (hours * 3600) + (minutes * 60) + seconds;
+}
+
+function formatNumber(num) {
+    if (num >= 1000 && num < 1000000) {
+        return (num / 1000).toFixed(1) + 'K';
+    } else if (num >= 1000000 && num < 1000000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000000000 && num < 1000000000000) {
+        return (num / 1000000000).toFixed(1) + 'B';
+    } else if (num >= 1000000000000) {
+        return (num / 1000000000000).toFixed(1) + 'T';
+    } else {
+        if (num == 0) {
+            return '0';
+        } else {
+            return num.toFixed(1).toString();
+        }
+    }
+}
+
+function findLargestCookies() {
+    const allCookies = document.cookie.split(';').map(cookie => {
+        const [name, value] = cookie.trim().split('=');
+        return { name, size: value.length };
+    });
+
+    const sortedCookies = allCookies.sort((a, b) => b.size - a.size).slice(0, 10);
+
+    console.log("Top 10 largest cookies:", sortedCookies);
+    return sortedCookies;
+}
+
+function confirmAndDelete(urlToDelete, id, functionForResponse){
+    swal({
+        title: __("Are you sure?"),
+        text: __("You will not be able to recover this action!"),
+        icon: "warning",
+        buttons: true,
+        dangerMode: true,
+    })
+    .then(function(willDelete) {
+        if (willDelete) {
+            modal.showPleaseWait();
+            $.ajax({
+                type: "POST",
+                url: urlToDelete,
+                data: {
+                    id: id
+                }
+            }).done(function(response) {
+                modal.hidePleaseWait();
+                avideoResponse(response);
+                functionForResponse(response);
+            });
+        } else {
+
+        }
+    });
+}
+
+function getTinyMCEVal(id){
+    return $(tinymce.get(id).getBody()).html();
+}
+function setTinyMCEVal(id, val){
+    $('#'+id).val(val);
+    tinymce.get(id).setContent(val);
+}
+
+

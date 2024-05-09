@@ -3,7 +3,8 @@ class BootGrid
 {
     public static function getSqlFromPost($searchFieldsNames = [], $keyPrefix = "", $alternativeOrderBy = "", $doNotSearch=false, $FIND_IN_SET = "")
     {
-        if (empty($doNotSearch)) {
+        global $global;
+        if (empty($doNotSearch) && empty($global['doNotSearch']) ) {
             $sql = self::getSqlSearchFromPost($searchFieldsNames);
         } else {
             $sql = '';
@@ -24,12 +25,21 @@ class BootGrid
                 $direction = "ASC";
                 if (strtoupper($value)==="DESC") {
                     $direction = "DESC";
+                }else 
+                if (strtoupper($value)==="IS NULL") {
+                    $direction = "IS NULL";
+                }else if (strtoupper($value)==="IS NOT NULL DESC") {
+                    $direction = "IS NOT NULL DESC";
                 }
                 $key = preg_replace("/[^A-Za-z0-9._ ]/", '', $key);
                 if ($key=='order') {
                     $key = '`order`';
                 }
-                $orderBy[] = " {$keyPrefix}{$key} {$direction} ";
+                if (strpos($key, $keyPrefix) === 0) {
+                    $orderBy[] = " {$key} {$direction} ";
+                } else {
+                    $orderBy[] = " {$keyPrefix}{$key} {$direction} ";
+                }
             }
             $sql .= " ORDER BY ".implode(",", $orderBy);
         } else {
@@ -40,6 +50,7 @@ class BootGrid
         $current = getCurrentPage();
         $currentP = ($current-1)*$rowCount;
         $currentP = $currentP < 0 ? 0 : $currentP;
+
         if ($rowCount>0) {
             $sql .= " LIMIT $currentP, {$rowCount} ";
         }

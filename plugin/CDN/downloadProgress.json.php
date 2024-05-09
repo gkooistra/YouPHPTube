@@ -1,7 +1,7 @@
 <?php
 
 require_once dirname(__FILE__) . '/../../videos/configuration.php';
-session_write_close();
+_session_write_close();
 header('Content-Type: application/json');
 $resp = new stdClass();
 $resp->error = true;
@@ -49,7 +49,9 @@ if (!User::canWatchVideo($json->videos_id)) {
 
 set_time_limit(7200); // 2 hours
 ini_set('max_execution_time', 7200);
-$progress = CDNStorage::convertCDNHLSVideoToDownlaodProgress($json->videos_id, $json->format);
+$resp->videos_id = $json->videos_id;
+$resp->format = $json->format;
+$progress = CDNStorage::convertCDNHLSVideoToDownloadProgress($json->videos_id, $json->format);
 
 if(empty($progress)){
     $resp->msg = ("CDN/downloadProgress.json.php Error on get download URL for videos_id={$json->videos_id}, format={$json->format}");
@@ -59,6 +61,7 @@ $resp->error = false;
 //var_dump($url);exit;
 _error_log('download from CDN ' . json_encode($progress));
 
-$resp->progress = $progress;
+$resp->progress = $progress['progress'];
+$resp->file = $progress['file'];
 
 die(json_encode($resp));

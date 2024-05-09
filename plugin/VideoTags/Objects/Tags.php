@@ -22,7 +22,8 @@ class Tags extends ObjectYPT {
         if (empty($row))
             return false;
         foreach ($row as $key => $value) {
-            $this->$key = $value;
+            @$this->$key = $value;
+            //$this->properties[$key] = $value;
         }
         return true;
     }
@@ -146,10 +147,8 @@ class Tags extends ObjectYPT {
         global $global;
         $fullData = self::getAllTags($tags_types_id);
         $rows = array();
-        if ($res!=false) {
-            foreach ($fullData as $row) {
-                $rows[] = $row['name'];
-            }
+        foreach ($fullData as $row) {
+            $rows[] = $row['name'];
         }
         return $rows;
     }   

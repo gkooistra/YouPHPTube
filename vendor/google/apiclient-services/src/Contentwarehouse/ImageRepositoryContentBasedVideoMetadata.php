@@ -38,6 +38,8 @@ class ImageRepositoryContentBasedVideoMetadata extends \Google\Collection
   protected $featureSetDataDataType = '';
   protected $golden7SoapboxSummaryType = DrishtiFeatureSetData::class;
   protected $golden7SoapboxSummaryDataType = '';
+  protected $golden7SoapboxTracksBlobInfoType = ImageRepositoryAmarnaSignalsBlobInfo::class;
+  protected $golden7SoapboxTracksBlobInfoDataType = '';
   protected $inlinePlaybackType = VideoCrawlVideoInlinePlaybackMetadata::class;
   protected $inlinePlaybackDataType = '';
   protected $languageIdentificationType = VideoTimedtextS4ALIResults::class;
@@ -50,8 +52,12 @@ class ImageRepositoryContentBasedVideoMetadata extends \Google\Collection
   protected $loudnessDataDataType = '';
   protected $mediaInfoType = VideoMediaInfo::class;
   protected $mediaInfoDataType = '';
+  protected $multiThumbnailsFramePerdocsType = ImageRepositoryFramePerdocs::class;
+  protected $multiThumbnailsFramePerdocsDataType = '';
   protected $representativeFrameDataType = ImageData::class;
   protected $representativeFrameDataDataType = '';
+  protected $s3AsrType = ImageRepositoryAmarnaCloudSpeechSignals::class;
+  protected $s3AsrDataType = '';
   protected $s3LanguageIdentificationType = ImageRepositoryS3LangIdSignals::class;
   protected $s3LanguageIdentificationDataType = '';
   protected $safesearchVideoContentSignalsType = SafesearchVideoContentSignals::class;
@@ -191,6 +197,20 @@ class ImageRepositoryContentBasedVideoMetadata extends \Google\Collection
     return $this->golden7SoapboxSummary;
   }
   /**
+   * @param ImageRepositoryAmarnaSignalsBlobInfo
+   */
+  public function setGolden7SoapboxTracksBlobInfo(ImageRepositoryAmarnaSignalsBlobInfo $golden7SoapboxTracksBlobInfo)
+  {
+    $this->golden7SoapboxTracksBlobInfo = $golden7SoapboxTracksBlobInfo;
+  }
+  /**
+   * @return ImageRepositoryAmarnaSignalsBlobInfo
+   */
+  public function getGolden7SoapboxTracksBlobInfo()
+  {
+    return $this->golden7SoapboxTracksBlobInfo;
+  }
+  /**
    * @param VideoCrawlVideoInlinePlaybackMetadata
    */
   public function setInlinePlayback(VideoCrawlVideoInlinePlaybackMetadata $inlinePlayback)
@@ -275,6 +295,20 @@ class ImageRepositoryContentBasedVideoMetadata extends \Google\Collection
     return $this->mediaInfo;
   }
   /**
+   * @param ImageRepositoryFramePerdocs
+   */
+  public function setMultiThumbnailsFramePerdocs(ImageRepositoryFramePerdocs $multiThumbnailsFramePerdocs)
+  {
+    $this->multiThumbnailsFramePerdocs = $multiThumbnailsFramePerdocs;
+  }
+  /**
+   * @return ImageRepositoryFramePerdocs
+   */
+  public function getMultiThumbnailsFramePerdocs()
+  {
+    return $this->multiThumbnailsFramePerdocs;
+  }
+  /**
    * @param ImageData
    */
   public function setRepresentativeFrameData(ImageData $representativeFrameData)
@@ -287,6 +321,20 @@ class ImageRepositoryContentBasedVideoMetadata extends \Google\Collection
   public function getRepresentativeFrameData()
   {
     return $this->representativeFrameData;
+  }
+  /**
+   * @param ImageRepositoryAmarnaCloudSpeechSignals
+   */
+  public function setS3Asr(ImageRepositoryAmarnaCloudSpeechSignals $s3Asr)
+  {
+    $this->s3Asr = $s3Asr;
+  }
+  /**
+   * @return ImageRepositoryAmarnaCloudSpeechSignals
+   */
+  public function getS3Asr()
+  {
+    return $this->s3Asr;
   }
   /**
    * @param ImageRepositoryS3LangIdSignals

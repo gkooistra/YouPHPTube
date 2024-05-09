@@ -6,7 +6,7 @@
         "platform-check": false,
         "vendor-dir": "vendor",
         "platform": {
-            "php": "7.3"
+            "php": "8" 
         }
     },
     "require": {
@@ -24,8 +24,8 @@
         "james-heinrich/getid3": "^1.9",
         "monolog/monolog": "^2.6",
         "phpmailer/phpmailer": "^6.2",
-        "psr/cache": "^1.0",
-        "psr/http-message": "^1.0",
+        "psr/cache": "^3.0",
+        "psr/http-message": "^2.0",
         "cboden/ratchet": "^0.4.3",
         "ratchet/pawl": "^0.4.1",
         "singpolyma/openpgp-php": "^0.6.0",
@@ -37,14 +37,16 @@
         "emojione/assets": "^4.5",
         "mervick/emojionearea": "^3.4",
         "emojione/emojione": "^4.5",
-        "abraham/twitteroauth": "^3.1",
+        "abraham/twitteroauth": "^7.0",
         "symfony/http-client": "^5.3",
         "nyholm/psr7": "^1.4",
         "norkunas/onesignal-php-api": "^2.7",
-        "stripe/stripe-php": "^10.0",
+        "stripe/stripe-php": "^14.1",
         "symfony/translation": "^5.3",
         "amphp/amp": "^2.6",
         "scssphp/scssphp": "^1.11",
-        "vimeo/vimeo-api": "^3.0"
+        "vimeo/vimeo-api": "^3.0",
+        "phpseclib/phpseclib": "^3.0",
+        "bunnycdn/storage": "^3.0"
     }
 }

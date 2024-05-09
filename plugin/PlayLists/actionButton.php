@@ -2,11 +2,12 @@
 global $advancedCustom;
 $crc = uniqid();
 doNOTOrganizeHTMLIfIsPagination();
+$global['laodPlaylistScript'] = 1;
 ?>
     <?php if ((empty($_POST['disableAddTo'])) && (( ($advancedCustom != false) && ($advancedCustom->disableShareAndPlaylist == false)) || ($advancedCustom == false))) { ?>
        <a href="#" class="<?php echo $btnClass; ?>" id="addBtn<?php echo $videos_id . $crc; ?>" onclick="loadPlayLists('<?php echo $videos_id; ?>', '<?php echo $crc; ?>');return false;" data-toggle="tooltip" title="<?php echo __("Add to"); ?>">
             <span class="fa fa-plus"></span> 
-            <span class="hidden-sm hidden-xs"><?php echo __("Add to"); ?></span>
+            <?php echo __("Add to"); ?>
         </a>
         <div class="webui-popover-content" >
             <?php if (User::isLogged()) { ?>
@@ -14,8 +15,7 @@ doNOTOrganizeHTMLIfIsPagination();
                     <div class="form-group">
                         <input class="form-control" id="searchinput<?php echo $videos_id.$crc; ?>" type="search" placeholder="<?php echo __("Search"); ?>..." />
                     </div>
-                    <div class="PlayListList searchlist<?php echo $videos_id.$crc; ?> list-group">
-                    </div>
+                    <div class="PlayListList searchlist<?php echo $videos_id.$crc; ?> list-group"><i class="fas fa-spinner fa-spin"></i></div>
                 </form>
                 <div>
                     <div class="form-group">
@@ -44,7 +44,9 @@ doNOTOrganizeHTMLIfIsPagination();
         </div>
         <script>
             $(document).ready(function () {
-                loadPL('<?php echo $videos_id; ?>','<?php echo $crc; ?>');
+                if(typeof loadPL !== 'undefined'){
+                    loadPL('<?php echo $videos_id; ?>','<?php echo $crc; ?>');
+                }
             });
         </script>
     <?php } ?>

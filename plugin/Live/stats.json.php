@@ -1,5 +1,5 @@
 <?php
-
+//exit;
 header('Content-Type: application/json');
 require_once '../../videos/configuration.php';
 
@@ -13,7 +13,7 @@ require_once '../../videos/configuration.php';
 
 ini_set('max_execution_time', 10);
 set_time_limit(10);
-session_write_close();
+//_session_write_close();
 $pobj = AVideoPlugin::getDataObjectIfEnabled("Live");
 if (empty($pobj->server_type->value)) {
     ini_set('max_execution_time', 180);
@@ -22,17 +22,16 @@ if (empty($pobj->server_type->value)) {
 if (empty($pobj)) {
     die(json_encode("Plugin disabled"));
 }
-$live_servers_id = Live::getLiveServersIdRequest();
-$cacheName = "getStats" . DIRECTORY_SEPARATOR . "live_servers_id_{$live_servers_id}" . DIRECTORY_SEPARATOR . "_statsCache_" . md5($global['systemRootPath'] . json_encode($_REQUEST));
 
-$json = ObjectYPT::getCache($cacheName, $pobj->cacheStatsTimout, true);
-if (empty($json)) {
-    $json = getStatsNotifications();
-    ObjectYPT::setCache($cacheName, $json);
-}
+$timeName = "stats.json.php";
+TimeLogStart($timeName);
+$json = getStatsNotifications();
+TimeLogEnd($timeName, __LINE__);
 $json = object_to_array($json);
-// check if application is online
+TimeLogEnd($timeName, __LINE__);
+
 if (!empty($_REQUEST['name'])) {
+    TimeLogEnd($timeName, __LINE__);
     $json['msg'] = 'OFFLINE';
     $json['name'] = $_REQUEST['name'];
     if (!empty($json['applications'])) {
@@ -43,6 +42,7 @@ if (!empty($_REQUEST['name'])) {
             }
         }
     }
+    TimeLogEnd($timeName, __LINE__);
     if (!empty($json['hidden_applications'])) {
         foreach ($json['hidden_applications'] as $value) {
             if (!empty($value['key']) && $value['key'] == $_REQUEST['name']) {
@@ -51,6 +51,6 @@ if (!empty($_REQUEST['name'])) {
             }
         }
     }
+    TimeLogEnd($timeName, __LINE__);
 }
-
 echo json_encode($json);

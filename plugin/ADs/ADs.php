@@ -31,7 +31,7 @@ class ADs extends PluginAbstract
     {
         $txt = "Handle the ads system, like Adsense or similar";
         $help = "";
-        $help .= "<br><small><a href='https://github.com/WWBN/AVideo/wiki/ADs-plugin' target='__blank'>"
+        $help .= "<br><small><a href='https://github.com/WWBN/AVideo/wiki/ADs-plugin' target='_blank'>"
             . "<i class='fas fa-question-circle'></i> Help</a></small>";
 
         return $txt . $help;
@@ -96,7 +96,8 @@ class ADs extends PluginAbstract
 
             $o = new stdClass();
             $o->type = "textarea";
-            $o->value = empty($adsense) ? "<center><img src='{$global['webSiteRootURL']}plugin/ADs/sample{$size}.jpg'></center>" : $adsense;
+            //$o->value = empty($adsense) ? "<center><img src='{$global['webSiteRootURL']}plugin/ADs/sample{$size}.jpg'></center>" : $adsense;
+            $o->value = '';
             eval("\$obj->$value[0] = \$o;");
 
             $width = 728;
@@ -114,6 +115,7 @@ class ADs extends PluginAbstract
 
         $obj->tags3rdParty = "<script> window.abkw = '{ChannelName},{Category}'; </script>";
         $obj->doNotShowAdsForPaidUsers = true;
+        $obj->bannerIntervalInSeconds = 5;
 
 
         return $obj;
@@ -128,6 +130,9 @@ class ADs extends PluginAbstract
 
     public function getHeadCode()
     {
+        if (isInfiniteScroll()) {
+            return '';
+        }
         $head = "";
         //$head .= "<script> var adsbygoogleTimeout = []; </script>";
         if (!empty($_GET['abkw'])) {
@@ -148,9 +153,9 @@ class ADs extends PluginAbstract
                 }
             }
         }
-        if (!empty($_GET['catName'])) {
+        if (!empty($_REQUEST['catName'])) {
             if (!empty($obj->tags3rdParty)) {
-                $v = Category::getCategoryByName($_GET['catName']);
+                $v = Category::getCategoryByName($_REQUEST['catName']);
                 if (!empty($v)) {
                     $head .= str_replace([',', '{ChannelName}', '{Category}'], ['', '', addcslashes($v["name"], "'")], $obj->tags3rdParty);
                     return $head;
@@ -186,7 +191,7 @@ class ADs extends PluginAbstract
 
     public static function addLabel($adCode, $label)
     {
-        if (!empty($label) && User::isAdmin()) {
+        if (!empty($label) && !empty($adCode) && User::isAdmin()) {
             $adCode = "<span data-toggle=\"tooltip\" title=\"{$label}\">{$adCode}</span>";
         }
         return $adCode;
@@ -224,7 +229,7 @@ class ADs extends PluginAbstract
         }
 
         make_path($videosDir);
-
+        //$videosURL = addQueryStringParameter($videosURL, 'cache', 1);
         return ['path' => $videosDir, 'url' => $videosURL];
     }
 
@@ -245,80 +250,153 @@ class ADs extends PluginAbstract
     {
         global $global;
         if (isBot()) {
-            return false;
+            return array();
         }
         $paths = self::getAdsPath($type, $is_regular_user);
 
         if (empty($paths)) {
-            return false;
+            return array();
         }
 
         $files = _glob($paths['path'], '/.png$/');
         $return = [];
         foreach ($files as $value) {
-            $fileName = str_replace($paths['path'], '', $value);
-            $fileName = str_replace('.png', '', $fileName);
-            $fileName = str_replace('\\', '', $fileName);
+            $fileName = self::getFileName($paths['path'], $value);
             if (empty($fileName)) {
                 continue;
             }
+            $txt = self::getTXT("{$paths['path']}{$fileName}.txt");
             $return[] = [
                 'type' => $type,
                 'fileName' => $fileName,
-                'url' => file_get_contents("{$paths['path']}{$fileName}.txt"),
+                'txt' => $txt,
+                'url' => $txt['url'],
+                'title' => $txt['title'],
+                'order' => $txt['order'],
                 'imageURL' => "{$paths['url']}{$fileName}.png",
                 'imagePath' => $value
             ];
             $fileName = '';
         }
 
+        // Sort the array based on txt.order
+        usort($return, function ($a, $b) {
+            if (empty($a['txt']['order'])) {
+                return 1;
+            } else if (empty($b['txt']['order'])) {
+                return -1;
+            }
+            return $a['txt']['order'] - $b['txt']['order'];
+        });
+
         return $return;
     }
 
+    public static function getFileName($dir, $path)
+    {
+        $fileName = str_replace($dir, '', $path);
+        $fileName = str_replace('.png', '', $fileName);
+        $fileName = str_replace('\\', '', $fileName);
+        return $fileName;
+    }
+
+    public static function getTXT($path)
+    {
+        $content = file_get_contents($path);
+        $json = json_decode($content);
+        if (empty($json)) {
+            return array(
+                'url' => isValidURL($content) ? $content : '',
+                'title' => '',
+                'order' => 0,
+            );
+        }
+        return object_to_array($json);
+    }
+
+    public static function setTXT($path, $url, $title, $order)
+    {
+        if (!isValidURL($url)) {
+            $url = '';
+        }
+        $title = xss_esc($title);
+        $array = array(
+            'url' => $url,
+            'title' => $title,
+            'order' => intval($order),
+        );
+        return file_put_contents($path, json_encode($array));
+    }
 
     public static function getAdsFromVideosId($type, $videos_id = 0)
     {
         global $global;
+
         if (isBot()) {
-            return false;
+            return ['adCode' => '', 'label' => '', 'paths' => array()];
         }
 
         if (empty($videos_id)) {
             $videos_id = getVideos_id();
         }
-        
-        if(!empty($videos_id)){
+
+        if (!empty($videos_id)) {
             $users_id = Video::getOwner($videos_id);
-        }else if(!empty($global['isChannel'])){
+        } else if (!empty($global['isChannel'])) {
             $users_id = $global['isChannel'];
-        }else{
+        } else {
             $users_id = 0;
         }
-        
+
+
+        return self::getAdsFromUsersId($type, $users_id);
+    }
+
+    public static function getAdsFromUsersId($type, $users_id)
+    {
         $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
+        if (empty($ad->$type)) {
+            return ['adCode' => '', 'label' => '', 'paths' => array()];
+        }
         $label = '';
         eval("\$label = \$ad->{$type}Label;");
         $label = "{$label} [$users_id] [{$type}]";
 
         $array = self::getAdsHTML($type, $users_id);
-        $adCode = $array['html'];
-
-        if (empty($adCode)) {
+        if (empty($array)) {
             eval("\$adCode = \$ad->{$type}->value;");
-        }
-        if (empty($adCode)) {
-            $array = self::getAdsHTML($type);
+            $array = array('paths' => array());
+        } else {
             $adCode = $array['html'];
+
+            if (empty($adCode)) {
+                eval("\$adCode = \$ad->{$type}->value;");
+            }
+            if (empty($adCode)) {
+                $array = self::getAdsHTML($type);
+                $adCode = $array['html'];
+            }
         }
 
         return ['adCode' => $adCode, 'label' => $label, 'paths' => $array['paths']];
     }
 
+    private static function debug($line, $desc = '')
+    {
+        if (empty($_REQUEST['debug'])) {
+            return '';
+        }
+        var_dump('ADs debug line=' . $line, $desc);
+    }
 
     public static function getAdsCode($type)
     {
         global $global;
+        if (isInfiniteScroll()) {
+            return false;
+        }
         if (isBot()) {
+            self::debug(__LINE__);
             return false;
         }
         $videos_id = 0;
@@ -328,14 +406,64 @@ class ADs extends PluginAbstract
         $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
         $adCode = '';
         if (!empty($ad)) {
+            self::debug(__LINE__);
             if (isMobile()) {
                 $type = $type . 'Mobile';
             }
-            $adC = self::getAdsFromVideosId($type, $videos_id);
+            $users_id = getUsers_idOwnerFromRequest();
+            //var_dump($users_id);exit;
+            $adC =  self::getAdsFromUsersId($type, $users_id);
+            if (_empty($adC['adCode'])) {
+                self::debug(__LINE__);
+                $adC = self::getAdsHTML($type);
+                if (!_empty($adC['html'])) {
+                    return $adC['html'];
+                }
+            } else {
+                self::debug(__LINE__);
+            }
             $adCode = ADs::giveGoogleATimeout($adC['adCode']);
             $adCode = ADs::addLabel($adCode, $adC['label']);
         }
+        self::debug(__LINE__);
         return $adCode;
+    }
+
+    public static function getAdsCodeReason($type)
+    {
+        $reasons = array();
+        if (isBot()) {
+            $reasons[] = 'Is a bot';
+        }
+        $videos_id = 0;
+        if (empty($videos_id)) {
+            $videos_id = getVideos_id();
+        }
+        $reasons[] = 'videos_id=' . $videos_id;
+        $ad = AVideoPlugin::getObjectDataIfEnabled('ADs');
+        if (!empty($ad)) {
+            if (isMobile()) {
+                $type = $type . 'Mobile';
+            }
+            if (!empty($live) && !empty($live['users_id'])) {
+                $reasons[] = 'from live users_id=' . $live['users_id'];
+                $adC = self::getAdsFromUsersId($type, $live['users_id']);
+            } else {
+                $reasons[] = 'not from live videos_id=' . $videos_id;
+                $adC = self::getAdsFromVideosId($type, $videos_id);
+            }
+            $reasons[] = 'type=' . $type;
+            $reasons[] = 'label=' . $adC['label'];
+            if (!empty($live) && !empty($live['users_id'])) {
+                $reasons[] = 'It was a live';
+            }
+            if (empty($adC['adCode'])) {
+                $reasons[] = 'adCode is empty';
+            }
+        } else {
+            $reasons[] = 'ADs plugin disabled';
+        }
+        return $reasons;
     }
 
     public static function getSize($type)
@@ -363,13 +491,15 @@ class ADs extends PluginAbstract
             return $label;
         }
     }
-
+    
     public static function getAdsHTML($type, $is_regular_user = false)
     {
         global $global;
+        self::debug(__LINE__, "users_id={$is_regular_user}");
         $paths = self::getAds($type, $is_regular_user);
 
         if (empty($paths)) {
+            self::debug(__LINE__, "users_id={$is_regular_user}");
             return false;
         }
 
@@ -385,8 +515,10 @@ class ADs extends PluginAbstract
             //$style = "width: {$width}px; height: {$height}px;";
         }
 
+        $obj = AVideoPlugin::getDataObject('ADs');
+        $interval = $obj->bannerIntervalInSeconds * 1000;
 
-        $html = "<div id=\"{$id}\" class=\"carousel slide\" data-ride=\"carousel{$id}\" style=\"{$style}\">"
+        $html = "<div id=\"{$id}\" class=\"carousel slide\" data-ride=\"carousel{$id}\" style=\"{$style}\" data-interval=\"{$interval}\">"
             . "<div class=\"carousel-inner\">";
 
         $active = 'active';
@@ -398,14 +530,14 @@ class ADs extends PluginAbstract
             }
             $validPaths++;
             $html .= "<div class=\"item {$active}\">";
-            if (isValidURL($value['url'])) {
-                $html .= "<a href=\"{$value['url']}\" target=\"_blank\">";
+            if (isValidURL($value['txt']['url'])) {
+                $html .= "<a href=\"{$value['txt']['url']}\" target=\"_blank\">";
                 $html .= "<!-- getAdsHTML::isValidURL -->";
-                $html .= "<img src=\"{$value['imageURL']}\" class=\"img img-responsive\" style=\"width:100%;\" title=\"{$fsize}\" >";
+                $html .= "<img src=\"{$value['imageURL']}\" class=\"img img-responsive\" style=\"width:100%;\" title=\"{$value['txt']['title']}\" >";
                 $html .= "</a>";
             } else {
                 $html .= "<!-- getAdsHTML -->";
-                $html .= "<img src=\"{$value['imageURL']}\" class=\"img img-responsive\" style=\"width:100%;\"  title=\"{$fsize}\" >";
+                $html .= "<img src=\"{$value['imageURL']}\" class=\"img img-responsive\" style=\"width:100%;\"  title=\"{$value['txt']['title']}\" >";
             }
             $html .= "</div>";
             $active = '';
@@ -425,20 +557,28 @@ class ADs extends PluginAbstract
             $html .= "<div class='alert alert-warning'>{$type} ADs Area</div>";
         }
         $html .= "</div></div>";
+
+        self::debug(__LINE__, $html);
         return array('html' => $html, 'paths' => $paths);
     }
 
     public function getFooterCode()
     {
         global $global;
+
+        if (isInfiniteScroll()) {
+            return '';
+        }
+
+        $obj = $this->getDataObject();
+        $interval = $obj->bannerIntervalInSeconds * 1000;
         $js = "<script>$(function(){
             $('.carousel').carousel({
-              interval: 5000
+              interval: {$interval}
             });
         });</script>";
         return $js;
     }
-
     public static function saveAdsHTML($type)
     {
         $p = new ADs();
