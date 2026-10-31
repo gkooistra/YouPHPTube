@@ -23,8 +23,12 @@ class GoogleCloudAiplatformV1Retrieval extends \Google\Model
    * @var bool
    */
   public $disableAttribution;
+  protected $externalApiType = GoogleCloudAiplatformV1ExternalApi::class;
+  protected $externalApiDataType = '';
   protected $vertexAiSearchType = GoogleCloudAiplatformV1VertexAISearch::class;
   protected $vertexAiSearchDataType = '';
+  protected $vertexRagStoreType = GoogleCloudAiplatformV1VertexRagStore::class;
+  protected $vertexRagStoreDataType = '';
 
   /**
    * @param bool
@@ -41,6 +45,20 @@ class GoogleCloudAiplatformV1Retrieval extends \Google\Model
     return $this->disableAttribution;
   }
   /**
+   * @param GoogleCloudAiplatformV1ExternalApi
+   */
+  public function setExternalApi(GoogleCloudAiplatformV1ExternalApi $externalApi)
+  {
+    $this->externalApi = $externalApi;
+  }
+  /**
+   * @return GoogleCloudAiplatformV1ExternalApi
+   */
+  public function getExternalApi()
+  {
+    return $this->externalApi;
+  }
+  /**
    * @param GoogleCloudAiplatformV1VertexAISearch
    */
   public function setVertexAiSearch(GoogleCloudAiplatformV1VertexAISearch $vertexAiSearch)
@@ -53,6 +71,20 @@ class GoogleCloudAiplatformV1Retrieval extends \Google\Model
   public function getVertexAiSearch()
   {
     return $this->vertexAiSearch;
+  }
+  /**
+   * @param GoogleCloudAiplatformV1VertexRagStore
+   */
+  public function setVertexRagStore(GoogleCloudAiplatformV1VertexRagStore $vertexRagStore)
+  {
+    $this->vertexRagStore = $vertexRagStore;
+  }
+  /**
+   * @return GoogleCloudAiplatformV1VertexRagStore
+   */
+  public function getVertexRagStore()
+  {
+    return $this->vertexRagStore;
   }
 }
 

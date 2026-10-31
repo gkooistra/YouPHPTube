@@ -12,7 +12,7 @@ global $Schedulecount;
     </div>
     <div class="panel-body">
 
-        <ul class="nav nav-tabs">
+        <ul class="nav nav-tabs workspace-tabs">
             <li class="active">
                 <a data-toggle="tab" href="#newSchedule"><i class="far fa-file"></i> <?php echo __('New Schedule'); ?></a>
             </li>
@@ -27,6 +27,9 @@ global $Schedulecount;
                 ?>
             </div>
             <div id="savedSchedule" class="tab-pane fade" style="padding: 5px; max-height: 300px; overflow-y: auto;">
+                <div class="workspace-empty-state text-muted" id="scheduleLiveStatus" role="status">
+                    <?php echo __('Loading...'); ?>
+                </div>
                 <div class="list-group" id="schedule_live_list">
                 </div>
             </div>
@@ -59,15 +62,6 @@ global $Schedulecount;
             </button>
         </div>
         <div class="btn-group  btn-group-justified futureButtons" style="margin-top: 10px;">
-            <?php
-            if (Live::canStreamWithWebRTC()) {
-            ?>
-                <button class="btn btn-default faa-parent animated-hover " onclick="avideoModalIframeLarge(webSiteRootURL + 'plugin/Live/webcamFullscreen.php?live_schedule_id=' + $(this).attr('schedule_id'));" data-toggle="tooltip" title=<?php printJSString(__("Go Live With Webcam")); ?>>
-                    <i class="fas fa-circle faa-flash" style="color:red;"></i> <span class=""><?php echo __("Go Live With Webcam"); ?></span>
-                </button>
-            <?php
-            }
-            ?>
             <button class="btn btn-primary" onclick="editSchedule($(this).attr('schedule_id'));" data-toggle="tooltip" title="<?php echo __('Edit') ?>">
                 <i class="fa fa-edit"></i> <span class=""><?php echo __('Edit'); ?></span>
             </button>
@@ -111,7 +105,9 @@ global $Schedulecount;
                 if (willDelete) {
                     modal.showPleaseWait();
                     $.ajax({
-                        url: webSiteRootURL + "plugin/Live/view/Live_schedule/delete.json.php?id=" + schedule_id
+                        type: "POST",
+                        url: webSiteRootURL + "plugin/Live/view/Live_schedule/delete.json.php",
+                        data: {id: schedule_id, globalToken: '<?php echo getToken(300); ?>'}
                     }).done(function(resposta) {
                         if (resposta.error) {
                             avideoAlert("<?php echo __("Sorry!"); ?>", resposta.msg, "error");
@@ -136,7 +132,11 @@ global $Schedulecount;
     function removePosterSchedule(schedule_id) {
         modal.showPleaseWait();
         $.ajax({
-            url: webSiteRootURL + "plugin/Live/removePoster.php?live_servers_id=<?php echo $_REQUEST['live_servers_id']; ?>&live_schedule_id=" + schedule_id,
+            url: webSiteRootURL + "plugin/Live/removePoster.php?live_servers_id=<?php echo intval($_REQUEST['live_servers_id'] ?? 0); ?>&live_schedule_id=" + schedule_id,
+            type: 'post',
+            data: {
+                globalToken: '<?php echo getToken(); ?>'
+            },
             success: function(response) {
                 modal.hidePleaseWait();
                 if (response.error) {

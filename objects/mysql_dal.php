@@ -36,6 +36,11 @@ global $disableMysqlNdMethods;
 // this is only to test both methods more easy.
 $disableMysqlNdMethods = false;
 
+if(function_exists('isDocker') && isDocker()){
+    ini_set('mysql.connect_timeout', 300);
+    ini_set('default_socket_timeout', 300);
+}
+
 /*
  * This class exists for making servers avaible, which have no mysqlnd, withouth cause a performance-issue for those who have the driver.
  * It wouldn't be possible without Daan on https://stackoverflow.com/questions/31562359/workaround-for-mysqlnd-missing-driver
@@ -44,9 +49,26 @@ $disableMysqlNdMethods = false;
 class sqlDAL
 {
 
-    public static function executeFile($filename)
+    // A provider payment must abort on SQL failure even if a plugin catches the exception.
+    private static function throwPaymentError($message, $code = 0, $stmt = null)
     {
         global $global;
+        if (isset($global['mysqlTransactionConnection'])) {
+            $global['mysqlTransactionError'] = true;
+            if ($stmt) {
+                $stmt->close();
+            }
+            throw new mysqli_sql_exception($message, (int) $code);
+        }
+    }
+
+    public static function executeFile($filename)
+    {
+        global $global, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
         $templine = '';
         // Read in entire file
         $lines = file($filename);
@@ -81,17 +103,23 @@ class sqlDAL
         }
     }
 
-    /*
-     * For Sql like INSERT and UPDATE. The special point about this method: You do not need to close it (more direct).
-     * @param string $preparedStatement  The Sql-command
-     * @param string $formats            i=int,d=doube,s=string,b=blob (http://www.php.net/manual/en/mysqli-stmt.bind-param.php)
-     * @param array  $values             A array, containing the values for the prepared statement.
-     * @return boolean                   true on success, false on fail
+    /**
+     * This method is used to write to the database. It is used for INSERT, UPDATE and DELETE.
+     *
+     * @param [String] $preparedStatement The Sql-command
+     * @param string $formats  i=int,d=doube,s=string,b=blob (http://www.php.net/manual/en/mysqli-stmt.bind-param.php)
+     * @param array  $values   A array, containing the values for the prepared statement.
+     * @param integer $try     A integer, used to retry the command if the MySQL server has gone away.
+     * @return void
      */
-
     public static function writeSql($preparedStatement, $formats = "", $values = [], $try=0)
     {
-        global $global, $disableMysqlNdMethods;
+        global $global, $disableMysqlNdMethods, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
+
         if (empty($preparedStatement)) {
             _error_log("writeSql empty(preparedStatement)");
             return false;
@@ -103,16 +131,25 @@ class sqlDAL
          * @var object $global['mysqli']
          */
         // make sure it does not store autid transactions
-        if(strpos($preparedStatement, 'CachesInDB')===false){
+        // re-entrancy guard: writing the audit row itself must never trigger another audit write.
+        // (the old debug_backtrace()[2]==='AuditTable' check never matches here because frame 2 is
+        // 'Audit' (Audit::exec), not 'AuditTable' - that caused unbounded recursion / OOM.)
+        static $isLoggingAudit = false;
+        // rate_limits is written on nearly every request (see enforceRateLimit()); auditing it
+        // would be pure noise, same reasoning as the existing CachesInDB exclusion below.
+        if (!$isLoggingAudit && strpos($preparedStatement, 'CachesInDB')===false && strpos($preparedStatement, 'rate_limits')===false){
             $debug = debug_backtrace();
             if (empty($debug[2]['class']) || $debug[2]['class'] !== "AuditTable" && class_exists('AVideoPlugin')) {
                 $audit = AVideoPlugin::loadPluginIfEnabled('Audit');
                 if (!empty($audit)) {
+                    $isLoggingAudit = true;
                     try {
                         $audit->exec(@$debug[1]['function'], @$debug[1]['class'], $preparedStatement, $formats, json_encode($values), User::getId());
                     } catch (Exception $exc) {
                         _error_log('Error in writeSql: ' . $global['mysqli']->errno . " " . $global['mysqli']->error . ' ' . $preparedStatement);
                         log_error($exc->getTraceAsString());
+                    } finally {
+                        $isLoggingAudit = false;
                     }
                 }
             }
@@ -129,7 +166,26 @@ class sqlDAL
         if (!_mysql_is_open()) {
             _mysql_connect();
         }
-        if (!($stmt = $global['mysqli']->prepare($preparedStatement))) {
+
+        try {
+            $stmt = $global['mysqli']->prepare($preparedStatement);
+        } catch (mysqli_sql_exception $e) {
+            self::throwPaymentError($e->getMessage(), $e->getCode());
+            if (preg_match('/Table .*rate_limits.* doesn\'t exist/i', $e->getMessage())) {
+                // Silent - rateLimitIncrementAndGet() already logs this condition
+                // itself, throttled to once per 5 minutes.
+                return false;
+            }
+            if (preg_match('/Table .*CachesInDB.* doesn\'t exist/i', $e->getMessage())) {
+                _error_log("writeSql: Skipping missing table 'CachesInDB'");
+                return true;
+            }
+            _error_log("writeSql: Exception in prepare: " . $e->getMessage());
+            return false;
+        }
+
+        if (!$stmt) {
+            self::throwPaymentError($global['mysqli']->error, $global['mysqli']->errno);
             log_error("[sqlDAL::writeSql] Prepare failed: (" . $global['mysqli']->errno . ") " . $global['mysqli']->error .
                 " preparedStatement = " . json_encode($preparedStatement) .
                 " formats = " . json_encode($formats));
@@ -137,12 +193,14 @@ class sqlDAL
         }
         //var_dump($preparedStatement, $formats, $values);exit;
         if (!sqlDAL::eval_mysql_bind($stmt, $formats, $values)) {
+            self::throwPaymentError('Cannot bind payment database write');
             log_error("[sqlDAL::writeSql]  eval_mysql_bind failed: values and params in stmt don't match ({$preparedStatement}) with formats ({$formats})");
             return false;
         }
         try {
             $stmt->execute();
         } catch (Exception $exc) {
+            self::throwPaymentError($exc->getMessage(), $exc->getCode());
             if (empty($try) && $stmt->errno == 2006) { //MySQL server has gone away
                 _mysql_close();
                 _mysql_connect();
@@ -152,6 +210,18 @@ class sqlDAL
             }else if (preg_match('/Illegal mix of collations.*and \(utf8mb4/i', $global['mysqli']->error)) {
                 try {
                     // Set the MySQL connection character set to UTF-8
+                    $global['mysqli']->query("SET NAMES 'utf8mb4'");
+                    $global['mysqli']->query("SET CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                    $stmt = $global['mysqli']->prepare($preparedStatement);
+                    sqlDAL::eval_mysql_bind($stmt, $formats, $values);
+                    $stmt->execute();
+                } catch (Exception $exc) {
+                    log_error($exc->getTraceAsString());
+                }
+            }else if (preg_match('/Incorrect string value/i', $stmt->error)) {
+                try {
+                    // Connection may still be on a non-Unicode charset (ex: latin1),
+                    // retry once with utf8mb4 for the current statement.
                     $global['mysqli']->query("SET NAMES 'utf8mb4'");
                     $global['mysqli']->query("SET CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
                     $stmt = $global['mysqli']->prepare($preparedStatement);
@@ -175,7 +245,9 @@ class sqlDAL
                 } catch (Exception $exc) {
                     foreach ($values as $key => $value) {
                         if(strlen($value)){
-                            $values[$key] = preg_replace("/[^A-Za-z0-9 ._:-]+/", ' ', $value);
+                            // $values[$key] = preg_replace("/[^A-Za-z0-9 ._:\{\}\[\]-]+/", ' ', $value);
+                            $values[$key] = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $values[$key]);
+                            $values[$key] = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $values[$key]);
                         }
                     }
                     sqlDAL::eval_mysql_bind($stmt, $formats, $values);
@@ -192,6 +264,7 @@ class sqlDAL
         }
 
         if ($stmt->errno !== 0) {
+            self::throwPaymentError($stmt->error, $stmt->errno, $stmt);
             //log_error('Error in writeSql : (' . $stmt->errno . ') ' . $stmt->error . ", SQL-CMD:" . $preparedStatement);
             /*
               if(empty($global['mysqli_charset']) && preg_match('/collation utf8/', $stmt->error)){
@@ -203,13 +276,11 @@ class sqlDAL
              *
              */
 
-             _error_log("writeSql [{$stmt->errno}] {$stmt->error} ".' '.json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS))) . " userAgent=[{$_SERVER['HTTP_USER_AGENT']}]";
-             if($stmt->errno == 1205 && preg_match('/CachesInDB/', $preparedStatement)){//Lock wait timeout exceeded; try restarting transaction
-                _error_log("writeSql Recreate CachesInDB ");
-                $sql = 'DROP TABLE IF EXISTS `CachesInDB`';
-                $global['mysqli']->query($sql);
-                $file = $global['systemRootPath'] . 'plugin/Cache/install/install.sql';
-                sqlDal::executeFile($file);
+             _error_log(sprintf('writeSql [%s] {%s}  %s userAgent=[%s]', $stmt->errno, $stmt->error, json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)), $_SERVER['HTTP_USER_AGENT'] ?? '-'));
+             if($stmt->errno == 1205 && preg_match('/CachesInDB/', $preparedStatement)){
+                // A lock timeout is transient. Dropping the shared cache table here
+                // amplifies contention and can discard valid cache entries.
+                _error_log("writeSql CachesInDB lock wait timeout; cache write skipped");
              }
              if(preg_match('/Data truncated for column/i', $stmt->error)){
                 _error_log("writeSql values = ".' '.json_encode($values));
@@ -230,8 +301,12 @@ class sqlDAL
 
     public static function writeSqlTry($preparedStatement, $formats = "", $values = [])
     {
-        global $global;
-        
+        global $global, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
+
         /**
          * @var array $global
          * @var object $global['mysqli']
@@ -276,7 +351,17 @@ class sqlDAL
     public static function readSql($preparedStatement, $formats = '', $values = [], $refreshCache = false)
     {
         // $refreshCache = true;
-        global $global, $disableMysqlNdMethods, $readSqlCached, $crc, $wasSTMTError;
+        global $global, $disableMysqlNdMethods, $readSqlCached, $crc, $wasSTMTError, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
+
+        if($refreshCache){
+            $random = uniqid();
+            $preparedStatement .= " /* {$random} */ ";
+        }
+
         $wasSTMTError = false;
         // need to add dechex because some times it return an negative value and make it fails on javascript playlists
         $crc = (md5($preparedStatement . implode($values)));
@@ -298,10 +383,13 @@ class sqlDAL
                  * @var object $global['mysqli']
                  */
                 $readSqlCached[$crc] = "false";
-                _mysql_connect();
+                if(!_mysql_is_open()){
+                    _mysql_connect();
+                }
                 try {
                     $stmt = $global['mysqli']->prepare($preparedStatement);
                 } catch (Exception $exc) {
+                    self::throwPaymentError($exc->getMessage(), $exc->getCode());
                     log_error("[sqlDAL::readSql] (mysqlnd) Prepare failed: ({$global['mysqli']->errno}) ({$global['mysqli']->error}) " .
                         " preparedStatement = " . json_encode($preparedStatement) .
                         " formats = " . json_encode($formats) .
@@ -320,20 +408,28 @@ class sqlDAL
                 }
 
                 if (empty($stmt)) {
+                    self::throwPaymentError($global['mysqli']->error, $global['mysqli']->errno);
                     log_error("[sqlDAL::readSql] (stmt) is empty {$preparedStatement} with formats {$formats}");
                     $wasSTMTError = true;
                     return false;
                 }
 
                 if (!sqlDAL::eval_mysql_bind($stmt, $formats, $values)) {
+                    self::throwPaymentError('Cannot bind payment database read');
                     log_error("[sqlDAL::readSql] (mysqlnd) eval_mysql_bind failed: values and params in stmt don't match {$preparedStatement} with formats {$formats}");
                     return false;
                 }
                 $TimeLog = "[$preparedStatement], $formats, " . json_encode($values) . ", $refreshCache";
                 TimeLogStart($TimeLog);
-                $stmt->execute();
-                $readSqlCached[$crc] = $stmt->get_result();
+                try {
+                    $stmt->execute();
+                    $readSqlCached[$crc] = $stmt->get_result();
+                } catch (mysqli_sql_exception $error) {
+                    self::throwPaymentError($error->getMessage(), $error->getCode());
+                    throw $error;
+                }
                 if ($stmt->errno !== 0) {
+                    self::throwPaymentError($stmt->error, $stmt->errno, $stmt);
                     log_error('Error in readSql (mysqlnd): (' . $stmt->errno . ') ' . $stmt->error . ", SQL-CMD:" . $preparedStatement);
                     $stmt->close();
                     $disableMysqlNdMethods = true;
@@ -383,19 +479,41 @@ class sqlDAL
              * @var array $global
              * @var object $global['mysqli']
              */
-            if (!($stmt = $global['mysqli']->prepare($preparedStatement))) {
+            try {
+                $stmt = $global['mysqli']->prepare($preparedStatement);
+            } catch (mysqli_sql_exception $error) {
+                self::throwPaymentError($error->getMessage(), $error->getCode());
+                throw $error;
+            }
+            if (!$stmt) {
+                self::throwPaymentError($global['mysqli']->error, $global['mysqli']->errno);
                 log_error("[sqlDAL::readSql] (no mysqlnd) Prepare failed: (" . $global['mysqli']->errno . ") " . $global['mysqli']->error . " ({$preparedStatement})");
                 return false;
             }
 
             if (!sqlDAL::eval_mysql_bind($stmt, $formats, $values)) {
+                self::throwPaymentError('Cannot bind payment database read');
                 log_error("[sqlDAL::readSql] (no mysqlnd) eval_mysql_bind failed: values and params in stmt don't match {$preparedStatement} with formats {$formats}");
                 return false;
             }
 
-            $stmt->execute();
-            $result = self::iimysqli_stmt_get_result($stmt);
+            try {
+                $stmt->execute();
+            } catch (mysqli_sql_exception $error) {
+                self::throwPaymentError($error->getMessage(), $error->getCode());
+                throw $error;
+            }
             if ($stmt->errno !== 0) {
+                self::throwPaymentError($stmt->error, $stmt->errno, $stmt);
+            }
+            try {
+                $result = self::iimysqli_stmt_get_result($stmt);
+            } catch (mysqli_sql_exception $error) {
+                self::throwPaymentError($error->getMessage(), $error->getCode());
+                throw $error;
+            }
+            if ($stmt->errno !== 0) {
+                self::throwPaymentError($stmt->error, $stmt->errno, $stmt);
                 log_error('Error in readSql (no mysqlnd): (' . $stmt->errno . ') ' . $stmt->error . ", SQL-CMD:" . $preparedStatement);
                 $stmt->close();
                 $readSqlCached[$crc] = false;
@@ -413,7 +531,11 @@ class sqlDAL
 
     public static function close($result)
     {
-        global $disableMysqlNdMethods, $global;
+        global $disableMysqlNdMethods, $global, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
         if ((!function_exists('mysqli_fetch_all')) || ($disableMysqlNdMethods !== false)) {
             if (!empty($result->stmt)) {
                 $result->stmt->close();
@@ -429,7 +551,11 @@ class sqlDAL
 
     public static function num_rows($res)
     {
-        global $global, $disableMysqlNdMethods, $crc, $num_row_cache;
+        global $global, $disableMysqlNdMethods, $crc, $num_row_cache, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
         if (!isset($num_row_cache)) {
             $num_row_cache = [];
         }
@@ -464,7 +590,11 @@ class sqlDAL
 
     public static function fetchAllAssoc($result)
     {
-        global $crc, $fetchAllAssoc_cache;
+        global $crc, $fetchAllAssoc_cache, $isStandAlone;
+
+        if($isStandAlone){
+            return array();
+        }
         if (!isset($fetchAllAssoc_cache)) {
             $fetchAllAssoc_cache = [];
         }
@@ -486,7 +616,11 @@ class sqlDAL
 
     public static function fetchAssoc($result)
     {
-        global $global, $disableMysqlNdMethods;
+        global $global, $disableMysqlNdMethods, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
         ini_set('memory_limit', '-1');
         // here, a cache is more/too difficult, because fetch gives always a next. with this kind of cache, we would give always the same.
         if ((function_exists('mysqli_fetch_all')) && ($disableMysqlNdMethods == false)) {
@@ -525,7 +659,11 @@ class sqlDAL
 
     public static function fetchAllArray($result)
     {
-        global $crc, $fetchAllArray_cache;
+        global $crc, $fetchAllArray_cache, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
         if (!isset($fetchAllArray_cache)) {
             $fetchAllArray_cache = [];
         }
@@ -550,7 +688,11 @@ class sqlDAL
 
     public static function fetchArray($result)
     {
-        global $global, $disableMysqlNdMethods;
+        global $global, $disableMysqlNdMethods, $isStandAlone;
+
+        if($isStandAlone){
+            return false;
+        }
         if ((function_exists('mysqli_fetch_all')) && ($disableMysqlNdMethods == false)) {
             return $result->fetch_array();
         } else {
@@ -585,6 +727,7 @@ class sqlDAL
         $ret = new iimysqli_result();
         $field_array = [];
         if (!$metadata) {
+            self::throwPaymentError($stmt->error, $stmt->errno, $stmt);
             die("Execute query error, because: {$stmt->error}");
         }
         $tmpFields = $metadata->fetch_fields();
@@ -620,7 +763,16 @@ class sqlDAL
         if (!eval($code)) {
             return false;
         };
-        if (!mysqli_stmt_fetch($result->stmt)) {
+        try {
+            $fetched = mysqli_stmt_fetch($result->stmt);
+        } catch (mysqli_sql_exception $error) {
+            self::throwPaymentError($error->getMessage(), $error->getCode(), $result->stmt);
+            throw $error;
+        }
+        if (!$fetched) {
+            if ($result->stmt->errno !== 0) {
+                self::throwPaymentError($result->stmt->error, $result->stmt->errno, $result->stmt);
+            }
             return false;
         };
         return $ret;
@@ -639,7 +791,16 @@ class sqlDAL
         if (!eval($code)) {
             return false;
         };
-        if (!mysqli_stmt_fetch($result->stmt)) {
+        try {
+            $fetched = mysqli_stmt_fetch($result->stmt);
+        } catch (mysqli_sql_exception $error) {
+            self::throwPaymentError($error->getMessage(), $error->getCode(), $result->stmt);
+            throw $error;
+        }
+        if (!$fetched) {
+            if ($result->stmt->errno !== 0) {
+                self::throwPaymentError($result->stmt->error, $result->stmt->errno, $result->stmt);
+            }
             return false;
         };
         return $ret;
@@ -648,6 +809,7 @@ class sqlDAL
 
 function log_error($err)
 {
+    global $global;
     if (!empty($global['debug']) || isCommandLineInterface()) {
         echo $err;
     }

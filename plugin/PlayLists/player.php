@@ -10,7 +10,7 @@ $isPlayList = true;
 
 $plp = new PlayListPlayer(@$_GET['playlists_id'], @$_GET['tags_id'], true);
 if (!$plp->canSee()) {
-    forbiddenPage(_('You cannot see this playlist').' '.basename(__FILE__).' '.implode(', ', $plp->canNotSeeReason()));
+    forbiddenPage(_('You cannot see this playlist') . ' ' . basename(__FILE__) . ' ' . implode(', ', $plp->canNotSeeReason()));
 }
 $playListData = $plp->getPlayListData();
 
@@ -62,11 +62,7 @@ $_page->setExtraScripts(
 </style>
 <?php
 if (!empty($advancedCustomUser->showChannelBannerOnModeYoutube)) {
-?>
-    <div class="container" style="margin-bottom: 10px;">
-        <img src="<?php echo User::getBackground($video['users_id']); ?>" class="img img-responsive" />
-    </div>
-<?php
+    User::getBackGroundHTML($user_id);
 }
 ?>
 <div class="container-fluid principalContainer" style="overflow: hidden;">
@@ -90,10 +86,6 @@ if (!empty($advancedCustomUser->showChannelBannerOnModeYoutube)) {
     ?>
     <!-- playlist player -->
     <?php
-    $htmlMediaTag = '<video ' . PlayerSkins::getPlaysinline() . ' preload="auto"
-                                       controls class="embed-responsive-item video-js vjs-default-skin vjs-big-play-centered" id="mainVideo"
-                                       data-setup=\'{"techOrder": ["youtube","html5"]}\'>
-                                </video>';
     echo PlayerSkins::getMediaTag($video['filename'], $htmlMediaTag);
     ?>
     <!-- playlist player END -->
@@ -155,6 +147,12 @@ echo AVideoPlugin::afterVideoJS();
         if (time >= 5 && time % 5 === 0) {
             addView(videos_id, time);
         }
+        if (this.liveTracker && this.liveTracker.atLiveEdge()) {
+            // Reset speed to 1x when reaching the live edge
+            if (this.playbackRate() !== 1) {
+                this.playbackRate(1);
+            }
+        }
     });
 
     player.on('ended', function() {
@@ -203,6 +201,7 @@ echo AVideoPlugin::afterVideoJS();
             return false;
         });
 
+        console.log('currentTime player 1');
         player.currentTime(playerPlaylist[0].videoStartSeconds);
         $("#modeYoutubeBottomContent").load("<?php echo $global['webSiteRootURL']; ?>view/modeYoutubeBottom.php?videos_id=" + playerPlaylist[0].videos_id);
         $(".vjs-playlist-item ").click(function() {
@@ -215,6 +214,7 @@ echo AVideoPlugin::afterVideoJS();
             $("#modeYoutubeBottomContent").load("<?php echo $global['webSiteRootURL']; ?>view/modeYoutubeBottom.php?videos_id=" + playerPlaylist[index].videos_id);
             if (playerPlaylist[index] && playerPlaylist[index].videoStartSeconds) {
                 setTimeout(function() {
+                    console.log('currentTime player 2');
                     player.currentTime(playerPlaylist[index].videoStartSeconds);
                 }, 500);
             }
@@ -223,7 +223,7 @@ echo AVideoPlugin::afterVideoJS();
             }
         });
         setTimeout(function() {
-            if (typeof player == 'undefined') {
+            if (typeof player == 'undefined' && typeof videoJsId != 'undefined') {
                 player = videojs(videoJsId);
             }
 

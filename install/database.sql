@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `suggested` TINYINT(1) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_categories_users1_idx` (`users_id` ASC),
+  INDEX `category_parent_idx` (`parentId` ASC),
   INDEX `clean_name_INDEX2` (`clean_name` ASC),
   INDEX `sortcategoryOrderIndex` (`order` ASC),
   INDEX `category_name_idx` (`name` ASC),
@@ -134,9 +135,9 @@ ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS `videos` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(190) NOT NULL,
-  `clean_title` VARCHAR(190) NOT NULL,
-  `description` TEXT NULL DEFAULT NULL,
+  `title` VARCHAR(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `clean_title` VARCHAR(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `views_count` INT(11) NOT NULL DEFAULT 0,
   `views_count_25` INT(11) NULL DEFAULT 0,
   `views_count_50` INT(11) NULL DEFAULT 0,
@@ -169,7 +170,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `only_for_paid` TINYINT(1) NULL DEFAULT NULL,
   `serie_playlists_id` INT(11) NULL DEFAULT NULL,
   `sites_id` INT(11) NULL DEFAULT NULL,
-  `video_password` VARCHAR(45) NULL DEFAULT NULL,
+  `video_password` VARCHAR(255) NULL DEFAULT NULL,
   `encoderURL` VARCHAR(255) NULL DEFAULT NULL,
   `filepath` VARCHAR(255) NULL DEFAULT NULL,
   `filesize` BIGINT(19) UNSIGNED NULL DEFAULT 0,
@@ -183,6 +184,9 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `publish_datetime` DATETIME NULL,
   `notification_datetime` DATETIME NULL,
   `made_for_kids` TINYINT(1) NOT NULL DEFAULT 0,
+  `isChannelSuggested` INT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `created_php_time` BIGINT UNSIGNED NULL,
+  `modified_php_time` BIGINT UNSIGNED NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `clean_title_UNIQUE` (`clean_title` ASC),
   INDEX `fk_videos_users_idx` (`users_id` ASC),
@@ -208,6 +212,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
   INDEX `index25_publish` (`publish_datetime` ASC),
   INDEX `index26_publish` (`notification_datetime` ASC),
   INDEX `index_made_for_kids` (`made_for_kids` ASC),
+  INDEX `is_channel_suggested` (`isChannelSuggested` ASC),
   CONSTRAINT `fk_videos_categories1`
     FOREIGN KEY (`categories_id`)
     REFERENCES `categories` (`id`)
@@ -258,25 +263,28 @@ CREATE TABLE IF NOT EXISTS `videos_metadata` (
     ON UPDATE CASCADE
 ) ENGINE = InnoDB;
 
--- -----------------------------------------------------
--- Table `comments`
--- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `comments` (
-  `id` INT NOT NULL AUTO_INCREMENT,
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
   `comment` TEXT NOT NULL,
-  `videos_id` INT NOT NULL,
-  `users_id` INT NOT NULL,
+  `videos_id` INT(11) NOT NULL,
+  `users_id` INT(11) NOT NULL,
   `created` DATETIME NOT NULL,
   `modified` DATETIME NOT NULL,
-  `comments_id_pai` INT NULL,
+  `comments_id_pai` INT(11) NULL DEFAULT NULL,
   `pin` INT(1) NOT NULL DEFAULT 0 COMMENT 'If = 1 will be on the top',
+  `live_transmitions_history_id` INT(11) NULL DEFAULT NULL,
+  `created_php_time` BIGINT UNSIGNED NULL,
+  `modified_php_time` BIGINT UNSIGNED NULL,
+  `chat_messages_id` INT(11) UNSIGNED NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_comments_videos1_idx` (`videos_id` ASC),
   INDEX `fk_comments_users1_idx` (`users_id` ASC),
   INDEX `fk_comments_comments1_idx` (`comments_id_pai` ASC),
-  CONSTRAINT `fk_comments_videos1`
-    FOREIGN KEY (`videos_id`)
-    REFERENCES `videos` (`id`)
+  INDEX `fk_comments_live_transmitions_history1_idx` (`live_transmitions_history_id` ASC),
+  INDEX `chat_messages_comments` (`chat_messages_id` ASC),
+  CONSTRAINT `fk_comments_comments1`
+    FOREIGN KEY (`comments_id_pai`)
+    REFERENCES `comments` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE,
   CONSTRAINT `fk_comments_users1`
@@ -284,11 +292,16 @@ CREATE TABLE IF NOT EXISTS `comments` (
     REFERENCES `users` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE,
-  CONSTRAINT `fk_comments_comments1`
-    FOREIGN KEY (`comments_id_pai`)
-    REFERENCES `comments` (`id`)
+  CONSTRAINT `fk_comments_videos1`
+    FOREIGN KEY (`videos_id`)
+    REFERENCES `videos` (`id`)
     ON DELETE CASCADE
-    ON UPDATE CASCADE)
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_comments_live_transmitions_history1`
+    FOREIGN KEY (`live_transmitions_history_id`)
+    REFERENCES `live_transmitions_history` (`id`)
+    ON DELETE SET NULL
+    ON UPDATE SET NULL)
 ENGINE = InnoDB;
 
 
@@ -357,11 +370,13 @@ CREATE TABLE IF NOT EXISTS `videos_statistics` (
   `modified` DATETIME NULL DEFAULT NULL,
   `lastVideoTime` INT(11) NULL DEFAULT NULL,
   `session_id` VARCHAR(45) NOT NULL,
-  `seconds_watching_video` INT NULL,
-  `json` TEXT NULL,
-  `timezone` VARCHAR(255) NULL,
-  `created_php_time` INT(11) NULL,
+  `seconds_watching_video` INT(11) NULL DEFAULT NULL,
+  `json` TEXT NULL DEFAULT NULL,
+  `timezone` VARCHAR(255) NULL DEFAULT NULL,
+  `created_php_time` INT(11) NULL DEFAULT NULL,
   `rewarded` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `user_agent` VARCHAR(255) NULL,
+  `app` VARCHAR(45) NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_videos_statistics_users1_idx` (`users_id` ASC),
   INDEX `fk_videos_statistics_videos1_idx` (`videos_id` ASC),
@@ -370,6 +385,8 @@ CREATE TABLE IF NOT EXISTS `videos_statistics` (
   INDEX `sec_watchin_videos` (`seconds_watching_video` ASC),
   INDEX `videos_statistics_php_time` (`created_php_time` ASC),
   INDEX `videos_statistics_rewarded` (`rewarded` ASC),
+  INDEX `video_statistics_ua` (`user_agent` ASC),
+  INDEX `video_statistics_app` (`app` ASC),
   CONSTRAINT `fk_videos_statistics_users1`
     FOREIGN KEY (`users_id`)
     REFERENCES `users` (`id`)
@@ -380,7 +397,9 @@ CREATE TABLE IF NOT EXISTS `videos_statistics` (
     REFERENCES `videos` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
-ENGINE = InnoDB;
+ENGINE = InnoDB
+AUTO_INCREMENT = 199
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
@@ -416,6 +435,7 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `users_groups` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `group_name` VARCHAR(255) NULL,
+  `allowed_resolutions` TEXT NULL DEFAULT NULL COMMENT 'JSON array of allowed video resolutions for this user group',
   `created` DATETIME NULL,
   `modified` DATETIME NULL,
   PRIMARY KEY (`id`))
@@ -591,7 +611,7 @@ CREATE TABLE IF NOT EXISTS `category_type_cache` (
   `categoryId` int(11) NOT NULL,
   `type` int(2) NOT NULL COMMENT '0=both, 1=audio, 2=video' DEFAULT 0,
   `manualSet` int(1) NOT NULL COMMENT '0=auto, 1=manual' DEFAULT 0
-) 
+)
 ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS `categories_has_users_groups` (
@@ -630,6 +650,17 @@ CREATE TABLE IF NOT EXISTS `users_extra_info` (
   PRIMARY KEY (`id`),
   INDEX `ordersortusers_extra_info` USING BTREE (`order`))
 ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Table `rate_limits`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rate_limits` (
+  `ratelimit_key` BINARY(32) NOT NULL,
+  `attempts` INT(11) NOT NULL DEFAULT 1,
+  `expires_at` DATETIME NOT NULL,
+  PRIMARY KEY (`ratelimit_key`),
+  KEY `rate_limits_expires_at` (`expires_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 ALTER TABLE `category_type_cache`
   ADD UNIQUE KEY `categoryId` (`categoryId`);

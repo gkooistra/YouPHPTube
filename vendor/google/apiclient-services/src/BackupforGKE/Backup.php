@@ -76,6 +76,10 @@ class Backup extends \Google\Model
    */
   public $name;
   /**
+   * @var bool
+   */
+  public $permissiveMode;
+  /**
    * @var int
    */
   public $podCount;
@@ -91,6 +95,14 @@ class Backup extends \Google\Model
    * @var string
    */
   public $retainExpireTime;
+  /**
+   * @var bool
+   */
+  public $satisfiesPzi;
+  /**
+   * @var bool
+   */
+  public $satisfiesPzs;
   protected $selectedApplicationsType = NamespacedNames::class;
   protected $selectedApplicationsDataType = '';
   protected $selectedNamespacesType = Namespaces::class;
@@ -331,6 +343,20 @@ class Backup extends \Google\Model
     return $this->name;
   }
   /**
+   * @param bool
+   */
+  public function setPermissiveMode($permissiveMode)
+  {
+    $this->permissiveMode = $permissiveMode;
+  }
+  /**
+   * @return bool
+   */
+  public function getPermissiveMode()
+  {
+    return $this->permissiveMode;
+  }
+  /**
    * @param int
    */
   public function setPodCount($podCount)
@@ -385,6 +411,34 @@ class Backup extends \Google\Model
   public function getRetainExpireTime()
   {
     return $this->retainExpireTime;
+  }
+  /**
+   * @param bool
+   */
+  public function setSatisfiesPzi($satisfiesPzi)
+  {
+    $this->satisfiesPzi = $satisfiesPzi;
+  }
+  /**
+   * @return bool
+   */
+  public function getSatisfiesPzi()
+  {
+    return $this->satisfiesPzi;
+  }
+  /**
+   * @param bool
+   */
+  public function setSatisfiesPzs($satisfiesPzs)
+  {
+    $this->satisfiesPzs = $satisfiesPzs;
+  }
+  /**
+   * @return bool
+   */
+  public function getSatisfiesPzs()
+  {
+    return $this->satisfiesPzs;
   }
   /**
    * @param NamespacedNames

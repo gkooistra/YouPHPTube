@@ -7,6 +7,15 @@ $isModeYouTube = 1;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
+
+
+if(isBot()){
+    // timeout will be max 5 seconds
+    set_time_limit(5);
+    ini_set('max_execution_time', 5);
+}
+
+
 //var_dump(Video::getVideo(73, Video::SORT_TYPE_VIEWABLE, false, false, false, true));
 //var_dump(Video::userGroupAndVideoGroupMatch(User::getId(), 73));exit;
 //var_dump(Video::getUserGroups());
@@ -28,7 +37,7 @@ if (!empty($_GET['evideo'])) {
     $evideo = $v['evideo'];
 }
 
-$videos_id = getVideos_id();
+$videos_id = getVideos_id(!empty($_REQUEST['playlist_id']));
 TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
 $playlist_index = 0;
 if (!empty($evideo)) {
@@ -91,6 +100,17 @@ if (!empty($evideo)) {
         $playListData = $plp->getPlayListData();
         //var_dump($playListData);exit;
         if (empty($playListData)) {
+
+            // check if in the playlist there is some media in the playlist_index and reditect it direct to the media
+            $video = $plp->getCurrentVideo();
+            if (!empty($video)) {
+                $url = Video::getURL($video['id']);;
+                if (!empty($url)) {
+                    header('Location: ' . $url);
+                    exit;
+                }
+            }
+
             if (empty($messagesFromPlayList)) {
                 $messagesFromPlayList = array();
             }
@@ -102,7 +122,7 @@ if (!empty($evideo)) {
 
         $video = $plp->getCurrentVideo();
         if (!empty($video)) {
-            $_getVideos_id = intval($video['id']);
+            $videos_id = $_getVideos_id = intval($video['id']);
             $playlist_index = $plp->getIndex();
             $videosPlayList = $plp->getVideos();
             $autoPlayVideo = $plp->getNextVideo();
@@ -118,28 +138,90 @@ if (!empty($evideo)) {
         TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
         // add this because if you change the video category the video was not loading anymore
         $catName = @$_REQUEST['catName'];
+        $attemptLog = []; // Initialize the log tracker
+        $lastGetVideoSQL = empty($lastGetVideoSQL) ? '' : $lastGetVideoSQL;
+        $videoLookupStart = microtime(true);
+        $videoLookupSteps = [];
+        $logVideoLookupStep = function ($label, $startTime, $loadedVideo = null) use (&$videoLookupSteps, &$lastGetVideoSQL) {
+            $videoLookupSteps[] = [
+                'label' => $label,
+                'seconds' => round(microtime(true) - $startTime, 4),
+                'found' => !empty($loadedVideo['id']),
+                'videos_id' => empty($loadedVideo['id']) ? 0 : intval($loadedVideo['id']),
+                'sql' => empty($lastGetVideoSQL) ? '' : substr(preg_replace('/\s+/', ' ', $lastGetVideoSQL), 0, 2000),
+            ];
+        };
 
         if (empty($_GET['clean_title']) && (isset($advancedCustom->forceCategory) && $advancedCustom->forceCategory === false)) {
             $_REQUEST['catName'] = '';
         }
 
         if (empty($video) && !empty($videos_id)) {
+            $stepStart = microtime(true);
             $video = Video::getVideo($videos_id, Video::SORT_TYPE_VIEWABLE, false, false, false, true);
+            $logVideoLookupStep("Video::getVideo by videos_id={$videos_id}", $stepStart, $video);
+            if (!empty($video)) {
+                $attemptLog[] = "Video loaded successfully line=" . __LINE__;
+            } else {
+                $attemptLog[] = "No video found using Video::getVideo with videos_id = $videos_id and show unlisted $lastGetVideoSQL ";
+            }
             //var_dump($_GET, $video);exit;
             //var_dump('Line: '.__LINE__, $_REQUEST['v'], $video);exit;
         }
-        TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
+
+        // Add log details as you attempt to load the video
         if (empty($video)) {
+            $stepStart = microtime(true);
             $video = Video::getVideo("", Video::SORT_TYPE_VIEWABLE, false, false, true, true);
+            $logVideoLookupStep("Video::getVideo suggested fallback", $stepStart, $video);
+            if (!empty($video)) {
+                $attemptLog[] = "Video loaded successfully line=" . __LINE__;
+            } else {
+                $attemptLog[] = "No video found using Video::getVideo Suggested only and show unlisted $lastGetVideoSQL ";
+            }
         }
 
-        TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
         if (empty($video)) {
+            $stepStart = microtime(true);
             $video = Video::getVideo("", Video::SORT_TYPE_VIEWABLE, false, false, false, true);
+            $logVideoLookupStep("Video::getVideo any video fallback", $stepStart, $video);
+            if (!empty($video)) {
+                $attemptLog[] = "Video loaded successfully line=" . __LINE__;
+            } else {
+                $attemptLog[] = "Fallback attempt using Video::getVideo search all videos and show unlisted  $lastGetVideoSQL";
+            }
         }
-        TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
+
         if (empty($video)) {
+            $stepStart = microtime(true);
             $video = AVideoPlugin::getVideo();
+            $logVideoLookupStep("AVideoPlugin::getVideo fallback", $stepStart, $video);
+            if (!empty($video)) {
+                $attemptLog[] = "Video loaded successfully line=" . __LINE__;
+            } else {
+                $attemptLog[] = "Not found attempt with AVideoPlugin::getVideo failed.  $lastGetVideoSQL";
+            }
+        }
+
+        $videoLookupTotal = microtime(true) - $videoLookupStart;
+        if ($videoLookupTotal > $TimeLogLimitMY) {
+            _error_log("modeYoutube.php slow video lookup total=" . round($videoLookupTotal, 4)
+                . " videos_id=" . json_encode($videos_id)
+                . " found_id=" . json_encode(empty($video['id']) ? 0 : intval($video['id']))
+                . " request=" . json_encode([
+                    'v' => @$_GET['v'],
+                    'videos_id' => @$_REQUEST['videos_id'],
+                    'videoName' => @$_REQUEST['videoName'],
+                    'clean_title' => @$_GET['clean_title'],
+                    'playlist_id' => @$_GET['playlist_id'],
+                    'catName' => @$_REQUEST['catName'],
+                    'channelName' => @$_GET['channelName'],
+                    'tags_id' => @$_REQUEST['tags_id'],
+                    'search' => @$_GET['search'],
+                    'videoType' => @$_REQUEST['videoType'],
+                ])
+                . " steps=" . json_encode($videoLookupSteps),
+                AVideoLog::$WARNING);
         }
 
         TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
@@ -165,15 +247,23 @@ if (!empty($evideo)) {
             $modeYouTubeTimeLog['Code part 1.2'] = microtime(true) - $modeYouTubeTime;
             $modeYouTubeTime = microtime(true);
             $autoPlayVideo = Video::getVideo($video['next_videos_id']);
+            if (!empty($_GET['debug'])) {
+                //var_dump(__FILE__, __LINE__);
+            }
         } else {
             $modeYouTubeTimeLog['Code part 1.3'] = microtime(true) - $modeYouTubeTime;
             $modeYouTubeTime = microtime(true);
             $modeYouTubeTimeLog['Code part 1.5'] = microtime(true) - $modeYouTubeTime;
             $modeYouTubeTime = microtime(true);
             if (!empty($video['id'])) {
-                $autoPlayVideo = Video::getRandom($video['id'], 'suggested');
-                //var_dump($autoPlayVideo['id']);exit;
-                if (empty($autoPlayVideo['id'])) {
+                //$numRows = Video::getTotalVideos(Video::SORT_TYPE_SUGGESTED, false, false, false, true, true);
+                /*
+                $autoPlayVideo = Video::getRandom($video['id'], Video::SORT_TYPE_SUGGESTED);
+                if(!empty($_GET['debug'])){
+                    var_dump(__FILE__, __LINE__, $lastGetVideoSQL, $lastGetTotalVideos);
+                }
+                */
+                if (empty($autoPlayVideo) || empty($autoPlayVideo['id'])) {
                     $autoPlayVideo = Video::getRandom($video['id']);
                 }
             }
@@ -216,7 +306,7 @@ if (!empty($evideo)) {
     }
 
     if (!empty($video)) {
-        $source = Video::getSourceFile($video['filename']);
+        $source = Video::getSourceFile($video['filename'], '.jpg', false, true);
         if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
             $img = $source['url'];
             $data = getimgsize($source['path']);
@@ -251,10 +341,11 @@ if (!empty($evideo)) {
     $modeYouTubeTimeLog['Code part 3'] = microtime(true) - $modeYouTubeTime;
     $modeYouTubeTime = microtime(true);
     if (!empty($autoPlayVideo) && !empty($autoPlayVideo['filename'])) {
+        $s = getVideosURL_V2($autoPlayVideo['filename']);
         $autoPlaySources = getSources($autoPlayVideo['filename'], true);
         $autoPlayURL = $autoPlayVideo['url'];
-        $autoPlayPoster = "{$global['webSiteRootURL']}videos/{$autoPlayVideo['filename']}.jpg";
-        $autoPlayThumbsSprit = "{$global['webSiteRootURL']}videos/{$autoPlayVideo['filename']}_thumbsSprit.jpg";
+        $autoPlayPoster = empty($s['jpg_thumbsV2']) ? (empty($s['jpg']) ? '' : $s['jpg']['url']) : $s['jpg_thumbsV2']['url'];
+        $autoPlayThumbsSprit = empty($s['jpg_thumbsSprit']) ? '' : $s['jpg_thumbsSprit']['url'];
     } else {
         $autoPlaySources = [];
         $autoPlayURL = '';
@@ -271,27 +362,29 @@ if (!empty($evideo)) {
     } else if (!empty($_GET['videoName'])) {
         $v = Video::getVideoFromCleanTitle($_GET['videoName']);
     }
+    // Final check before forbiddenPage
     if (empty($v) && empty($videosPlayList[$playlist_index]['id'])) {
         if ($_GET['playlist_id'] == 'favorite' || $_GET['playlist_id'] == 'watch-later') {
-            if ($_GET['playlist_id'] == 'favorite') {
-                $msg = __('Your Favorite playlist is waiting to be filled! Start exploring and add the videos you love the most.');
-            } else {
-                $msg = __('Oops! Your Watch Later playlist is empty. Don\'t worry, we have plenty of exciting videos for you to choose from and add here.');
-            }
-            $url = addQueryStringParameter($global['webSiteRootURL'], 'msg', $msg);
-            header("location: {$url}");
-            exit;
+            $attemptLog[] = "Playlist ID '{$playlist_id}' is either 'favorite' or 'watch-later' but no videos were found.";
         } else if (!empty($video['id'])) {
             $response = Video::whyUserCannotWatchVideo(User::getId(), @$video['id']);
             $html = "<ul><li>" . implode('</li><li>', $response->why) . "</li></ul>";
+            $attemptLog[] = "User is not allowed to watch video ID: {$video['id']}. Reasons: " . implode(', ', $response->why);
             videoNotFound($html);
         } else {
+            $attemptLog[] = "Final fallback attempt in AVideoPlugin::getModeYouTube failed for video ID: {$videos_id}";
             AVideoPlugin::getModeYouTube($videos_id);
-            forbiddenPage('We could not load the video');
         }
+
+        // Log the actions before calling forbiddenPage
+        foreach ($attemptLog as $key => $value) {
+            _error_log("Video load attempts: {$value}");
+        }
+        forbiddenPage(__('We could not load the video') . " Video ID = {$videos_id}");
     }
     TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
 }
+
 //_error_log('AVideoPlugin::getModeYouTube');
 AVideoPlugin::getModeYouTube($videos_id);
 //var_dump(__LINE__);exit;
@@ -301,21 +394,22 @@ TimeLogEnd($timeLogNameMY, __LINE__, $TimeLogLimitMY);
 if (empty($video)) {
     if (!empty($_GET['v'])) {
         $vid = new Video('', '', $_GET['v']);
-        if ($vid->getStatus() === Video::$statusBrokenMissingFiles) {
+        if ($vid->getStatus() === Video::STATUS_BROKEN_MISSING_FILES) {
             if (!Video::isMediaFileMissing($vid->getFilename())) {
-                $vid->setStatus(Video::$statusActive);
+                $vid->setStatus(Video::STATUS_ACTIVE);
                 $vid->save();
                 _error_log('Missing files recovered ' . $_GET['v']);
             } else {
                 if (!User::isLogged()) {
                     gotToLoginAndComeBackHere();
                 } else {
-                    $msg = 'ERROR 1: The video ID [' . $_GET['v'] . '] is not available: status=' . Video::$statusDesc[$vid->getStatus()];
+                    $msg = 'ERROR 1: The video ID [' . $vid->getId() . '] is not available: status=' . Video::$statusDesc[$vid->getStatus()];
+                    _error_log($msg . ' filename=' . $vid->getFilename());
                     videoNotFound($msg);
                 }
                 exit;
             }
-        } else if ($vid->getStatus() === Video::$statusUnpublished) {
+        } else if ($vid->getStatus() === Video::STATUS_UNPUBLISHED) {
             $msg = 'This video is currently unpublished. Please contact an administrator to review and approve it for publication. Thank you for your patience and understanding.';
             videoNotFound($msg);
             exit;
@@ -327,16 +421,16 @@ if (empty($video)) {
 
                 switch ($status) {
                     case 'i':
-                        $msg = "The video ID [{$_GET['v']}] is currently inactive. Please check back later or contact support.";
+                        $msg = "The video ID [" . htmlspecialchars($_GET['v'], ENT_QUOTES, 'UTF-8') . "] is currently inactive. Please check back later or contact support.";
                         break;
                     case 'b':
-                        $msg = "There seems to be an issue with your video ID [{$_GET['v']}]: Broken or missing files. Please contact support for assistance.";
+                        $msg = "There seems to be an issue with your video ID [" . htmlspecialchars($_GET['v'], ENT_QUOTES, 'UTF-8') . "]: Broken or missing files. Please contact support for assistance.";
                         break;
                     case 'p':
-                        $msg = "The video ID [{$_GET['v']}] is unpublished. If this is unexpected, please reach out to support for more information.";
+                        $msg = "The video ID [" . htmlspecialchars($_GET['v'], ENT_QUOTES, 'UTF-8') . "] is unpublished. If this is unexpected, please reach out to support for more information.";
                         break;
                     default:
-                        $msg = "The video ID [{$_GET['v']}] status {$status}. Please contact support for further assistance.";
+                        $msg = "The video ID [" . htmlspecialchars($_GET['v'], ENT_QUOTES, 'UTF-8') . "] status " . htmlspecialchars($status, ENT_QUOTES, 'UTF-8') . ". Please contact support for further assistance.";
                         break;
                 }
                 videoNotFound($msg);
@@ -384,11 +478,10 @@ $_page->setExtraStyles(
 ?>
 <?php
 if (!empty($advancedCustomUser->showChannelBannerOnModeYoutube)) {
-?>
-    <div class="container" style="margin-bottom: 10px;">
-        <img src="<?php echo User::getBackground($video['users_id']); ?>" class="img img-responsive" />
-    </div>
-<?php
+    if(empty($user_id) && !empty($video['users_id'])){
+        $user_id = $video['users_id'];
+    }
+    User::getBackGroundHTML($user_id);
 }
 ?>
 <!-- view modeYoutube.php -->

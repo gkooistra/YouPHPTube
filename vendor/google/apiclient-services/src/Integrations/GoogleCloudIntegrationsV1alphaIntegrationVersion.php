@@ -20,12 +20,20 @@ namespace Google\Service\Integrations;
 class GoogleCloudIntegrationsV1alphaIntegrationVersion extends \Google\Collection
 {
   protected $collection_key = 'triggerConfigsInternal';
+  /**
+   * @var string
+   */
+  public $cloudKmsKey;
   protected $cloudLoggingDetailsType = GoogleCloudIntegrationsV1alphaCloudLoggingDetails::class;
   protected $cloudLoggingDetailsDataType = '';
   /**
    * @var string
    */
   public $createTime;
+  /**
+   * @var string
+   */
+  public $createdFromTemplate;
   /**
    * @var string
    */
@@ -102,6 +110,20 @@ class GoogleCloudIntegrationsV1alphaIntegrationVersion extends \Google\Collectio
   public $userLabel;
 
   /**
+   * @param string
+   */
+  public function setCloudKmsKey($cloudKmsKey)
+  {
+    $this->cloudKmsKey = $cloudKmsKey;
+  }
+  /**
+   * @return string
+   */
+  public function getCloudKmsKey()
+  {
+    return $this->cloudKmsKey;
+  }
+  /**
    * @param GoogleCloudIntegrationsV1alphaCloudLoggingDetails
    */
   public function setCloudLoggingDetails(GoogleCloudIntegrationsV1alphaCloudLoggingDetails $cloudLoggingDetails)
@@ -128,6 +150,20 @@ class GoogleCloudIntegrationsV1alphaIntegrationVersion extends \Google\Collectio
   public function getCreateTime()
   {
     return $this->createTime;
+  }
+  /**
+   * @param string
+   */
+  public function setCreatedFromTemplate($createdFromTemplate)
+  {
+    $this->createdFromTemplate = $createdFromTemplate;
+  }
+  /**
+   * @return string
+   */
+  public function getCreatedFromTemplate()
+  {
+    return $this->createdFromTemplate;
   }
   /**
    * @param string

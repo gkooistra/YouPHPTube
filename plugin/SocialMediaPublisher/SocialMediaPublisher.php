@@ -7,6 +7,7 @@ require_once $global['systemRootPath'] . 'plugin/SocialMediaPublisher/Objects/Pu
 require_once $global['systemRootPath'] . 'plugin/SocialMediaPublisher/Objects/Publisher_video_publisher_logs.php';
 require_once $global['systemRootPath'] . 'plugin/SocialMediaPublisher/Objects/Publisher_schedule.php';
 require_once $global['systemRootPath'] . 'plugin/SocialMediaPublisher/Objects/SocialUploader.php';
+require_once $global['systemRootPath'] . 'plugin/SocialMediaPublisher/Objects/YouTubePublisher.php';
 
 class SocialMediaPublisher extends PluginAbstract
 {
@@ -52,6 +53,7 @@ class SocialMediaPublisher extends PluginAbstract
 
     const RESTREAMER_URL = 'https://restream.ypt.me/';
     //const RESTREAMER_URL = 'http://localhost:81/Restreamer/';
+    //const RESTREAMER_URL = 'https://vlu.me:444/Restreamer/';
 
     public function getTags()
     {
@@ -142,11 +144,12 @@ class SocialMediaPublisher extends PluginAbstract
     {
         $resp = self::revalidateTokenAndSave($publisher_user_preferences_id, $onlyIfIsExpired);
         if ($resp->error) {
-            //var_dump($resp->revalidateToken->accessToken->access_token);exit;
-            if (!empty($resp->revalidateToken->accessToken->access_token)) {
+            // the current token is only usable when it did not need a refresh; an expired one would just fail at the provider
+            if (!empty($resp->revalidateToken->notExpired) && !empty($resp->revalidateToken->accessToken->access_token)) {
                 return $resp->revalidateToken->accessToken->access_token;
             }
-            _error_log("getRevalidatedToken($publisher_user_preferences_id, $onlyIfIsExpired) ERROR " . json_encode($resp));
+            // never log $resp: it holds the access and refresh tokens
+            _error_log("getRevalidatedToken($publisher_user_preferences_id, $onlyIfIsExpired) ERROR " . (is_string($resp->msg) ? $resp->msg : ''));
             return false;
         }
         return $resp->respJson->new_access_token->access_token;
@@ -162,6 +165,7 @@ class SocialMediaPublisher extends PluginAbstract
 
         $pub = Publisher_user_preferences::getFromDb($publisher_user_preferences_id);
 
+
         if (empty($pub)) {
             $response->msg = "revalidateToken($publisher_user_preferences_id) json is empty";
             return $response;
@@ -170,7 +174,7 @@ class SocialMediaPublisher extends PluginAbstract
         $json = json_decode($pub['json']);
 
         if (empty($json)) {
-            $response->msg = "revalidateToken($publisher_user_preferences_id) json is empty {$pub['json']}";
+            $response->msg = "revalidateToken($publisher_user_preferences_id) json is invalid";
             return $response;
         }
 
@@ -183,6 +187,7 @@ class SocialMediaPublisher extends PluginAbstract
 
         if ($onlyIfIsExpired && !$pub['accessTokenExpired']) {
             $response->msg = "Not expired yet";
+            $response->notExpired = true;
             return $response;
         }
 
@@ -193,10 +198,11 @@ class SocialMediaPublisher extends PluginAbstract
 
         $url = SocialMediaPublisher::RESTREAMER_URL . 'refresh.json.php';
         $url = addQueryStringParameter($url, 'access_token', $access_token);
-        $response->url = addQueryStringParameter($url, 'provider', $response->provider);
-        //var_dump($pub['publisher_social_medias_id'], $response->provider, $url);exit;
+        // the URL carries the refresh token: keep it out of $response (returned/logged) and let
+        // url_get_contents() skip URL logging ($failOnError)
+        $url = addQueryStringParameter($url, 'provider', $response->provider);
 
-        $response->resp = url_get_contents($response->url);
+        $response->resp = url_get_contents($url, '', 30, false, false, true, false, true);
         if (empty($response->resp)) {
             $response->msg = "revalidateToken($publisher_user_preferences_id) response is empty";
             return $response;
@@ -234,12 +240,14 @@ class SocialMediaPublisher extends PluginAbstract
     public static function upload($publisher_user_preferences_id, $videos_id)
     {
         $video = new Video('', '', $videos_id);
-        $paths = Video::getFirstSource($video->getFilename());
-        if (empty($paths)) {
+        //$paths = Video::getFirstSource($video->getFilename());
+        $paths = getVideosURLMP4Only($video->getFilename());
+        //var_dump($paths['mp4']);exit;
+        if (empty($paths['mp4'])) {
             _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) video paths are empty");
             return false;
         }
-        if (!file_exists($paths['path'])) {
+        if (!file_exists($paths['mp4']['path'])) {
             _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) video path does not exist");
             return false;
         }
@@ -253,12 +261,12 @@ class SocialMediaPublisher extends PluginAbstract
         }
 
         $providerName = $o->getProviderName();
-
-        $fromFileLocation = $paths['url'];
-        if (!isDummyFile($paths['path'])) {
-            $videoPath = $paths['path'];
+        /*
+        $fromFileLocation = $paths['mp4']['url'];
+        if (!isDummyFile($paths['mp4']['path'])) {
+            $videoPath = $paths['mp4']['path'];
         } else {
-            $videoPathToYouTube = $videoPath = ($paths['path'] . '.toYouTube.mp4');
+            $videoPathToYouTube = $videoPath = ($paths['mp4']['path'] . '.toYouTube.mp4');
         }
         if (!file_exists($videoPath)) {
             _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) $providerName start conversion ");
@@ -266,16 +274,31 @@ class SocialMediaPublisher extends PluginAbstract
             _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) $providerName end conversion ");
         }
         _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) $providerName Upload start ");
-        $response = SocialUploader::upload($publisher_user_preferences_id, $videoPath, $video->getTitle(), $video->getDescription());
-        if (!empty($videoPathToYouTube)) {
-            //unlink($videoPathToYouTube);
+        */
+        if (!empty($_REQUEST['title'])) {
+            $title = $_REQUEST['title'];
+        } else {
+            $title = $video->getTitle();
         }
-        _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) $providerName complete ".json_encode($response));
-        self::saveLog($publisher_social_medias_id, $videos_id, array('publisher_user_preferences_id' => $publisher_user_preferences_id, 'response'=>$response));
+        if (!empty($_REQUEST['description'])) {
+            $description = $_REQUEST['description'];
+        } else {
+            $description = $video->getDescription();
+        }
+        if (!empty($_REQUEST['visibility'])) {
+            $visibility = $_REQUEST['visibility'];
+        } else {
+            $visibility = 'public';
+        }
+
+        $response = SocialUploader::upload($publisher_user_preferences_id, $paths['mp4'], $title, $description, $visibility);
+        // the response can carry the provider token (Instagram), log only the outcome
+        _error_log("SocialMediaPublisher::upload($publisher_user_preferences_id, $videos_id) $providerName complete error=" . json_encode(is_array($response) ? !empty($response['error']) : empty($response)) . ' ' . SocialUploader::getErrorMsg($response));
+        self::saveLog($publisher_social_medias_id, $videos_id, array('publisher_user_preferences_id' => $publisher_user_preferences_id, 'response' => $response));
         return $response;
     }
 
-    private static function saveLog($publisher_social_medias_id, $videos_id, $details, $users_id = 0, $status = '')
+    private static function saveLog($publisher_social_medias_id, $videos_id, $details, $users_id = 0, $status = Publisher_video_publisher_logs::STATUS_UNVERIFIED)
     {
         if (empty($users_id)) {
             $users_id = User::getId();
@@ -324,5 +347,73 @@ class SocialMediaPublisher extends PluginAbstract
             ' <i class="fa-regular fa-share-from-square"></i> ' . __("Share on Social Media") . '</button>';
 
         return $btn;
+    }
+
+    static function scanInstagam()
+    {
+        global $global;
+        $sql = "SELECT psm.*, pvpl.* FROM publisher_video_publisher_logs pvpl LEFT JOIN publisher_social_medias psm ON publisher_social_medias_id = psm.id  
+        WHERE pvpl.status='" . Publisher_video_publisher_logs::STATUS_UNVERIFIED . "' 
+        AND name = '" . SocialMediaPublisher::SOCIAL_TYPE_INSTAGRAM["name"] . "' ORDER BY pvpl.id DESC LIMIT 100 ";
+
+        $res = sqlDAL::readSql($sql);
+        $fullData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        //var_dump($sql, $fullData);
+        if (!empty($fullData)) {
+            foreach ($fullData as $key => $row) {
+                $json = json_decode($row["details"]);
+
+                $accessToken = $json->response->accessToken;
+                $containerId = $json->response->containerId;
+                $instagramAccountId = $json->response->instagramAccountId;
+
+                $obj = InstagramUploader::publishMediaIfIsReady($accessToken, $containerId, $instagramAccountId);
+
+                if ((isset($obj['error']) && $obj['error'] === false) || $obj["waitForMediaProcessing"]["response"]["status_code"] === "PUBLISHED") {
+
+                    //var_dump($obj);
+                    if (!empty($obj['publishResponse'])) {
+                        $json->publishResponse = $obj['publishResponse'];
+                    }
+                    if (!empty($obj['mediaResponse'])) {
+                        $json->mediaResponse = $obj['mediaResponse'];
+                    }
+
+                    $smp = new Publisher_video_publisher_logs($row['id'], true);
+                    $smp->setDetails($json);
+                    $smp->setStatus(Publisher_video_publisher_logs::STATUS_VERIFIED);
+                    if ($smp->save()) {
+                        $poster = Video::getPoster($row["videos_id"],);
+                        $img = "<img src='{$poster}' class='img img-responsive'>";
+                        sendSocketMessageToUsers_id('Video published on instagram<br>' . $img, $row["users_id"], 'avideoToastSuccess');
+                    }
+                }
+                return $obj;
+            }
+        }
+        return false;
+    }
+
+    function executeEveryMinute()
+    {
+        self::scanInstagam();
+        try {
+            YouTubePublisher::recoverInterruptedJobs();
+        } catch (\Throwable $th) {
+            _error_log('SocialMediaPublisher::executeEveryMinute YouTube recovery ' . $th->getMessage(), AVideoLog::$ERROR);
+        }
+    }
+
+    /**
+     * Removes tokens from a publisher_user_preferences row before it is sent to the browser.
+     */
+    static function getPublicConnectionRow($row)
+    {
+        if (empty($row) || !is_array($row)) {
+            return $row;
+        }
+        unset($row['json'], $row['jsonObject']);
+        return $row;
     }
 }

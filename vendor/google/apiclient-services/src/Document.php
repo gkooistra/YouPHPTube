@@ -49,6 +49,7 @@ class Document extends \Google\Service
   public $projects_locations_processors_processorVersions;
   public $projects_locations_processors_processorVersions_evaluations;
   public $projects_operations;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the Document service.
@@ -61,6 +62,7 @@ class Document extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://documentai.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://documentai.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v1';
@@ -120,6 +122,11 @@ class Document extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',

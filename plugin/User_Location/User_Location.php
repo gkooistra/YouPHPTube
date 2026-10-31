@@ -67,11 +67,24 @@ class User_Location extends PluginAbstract {
     }
 
     static function getThisUserLocation() {
+        static $computing = false;
         $location = self::getSessionLocation();
         if (!empty($location['country_code'])) {
             return $location;
         }
-        return self::getLocationFromIP(getRealIpAddr());
+        // Re-entrancy guard: resolving the location performs a cache lookup, and that
+        // cache path can call back into this method before the first lookup finishes.
+        // Without this guard the calls recurse forever and freeze the whole request.
+        if ($computing) {
+            return false;
+        }
+        $computing = true;
+        try {
+            $result = self::getLocationFromIP(getRealIpAddr());
+        } finally {
+            $computing = false;
+        }
+        return $result;
     }
 
     static function getLocationFromIP($ip) {

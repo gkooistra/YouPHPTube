@@ -49,7 +49,13 @@ class GoogleCloudAiplatformV1CustomJobSpec extends \Google\Collection
   /**
    * @var string
    */
+  public $persistentResourceId;
+  /**
+   * @var string
+   */
   public $protectedArtifactLocationId;
+  protected $pscInterfaceConfigType = GoogleCloudAiplatformV1PscInterfaceConfig::class;
+  protected $pscInterfaceConfigDataType = '';
   /**
    * @var string[]
    */
@@ -168,6 +174,20 @@ class GoogleCloudAiplatformV1CustomJobSpec extends \Google\Collection
   /**
    * @param string
    */
+  public function setPersistentResourceId($persistentResourceId)
+  {
+    $this->persistentResourceId = $persistentResourceId;
+  }
+  /**
+   * @return string
+   */
+  public function getPersistentResourceId()
+  {
+    return $this->persistentResourceId;
+  }
+  /**
+   * @param string
+   */
   public function setProtectedArtifactLocationId($protectedArtifactLocationId)
   {
     $this->protectedArtifactLocationId = $protectedArtifactLocationId;
@@ -178,6 +198,20 @@ class GoogleCloudAiplatformV1CustomJobSpec extends \Google\Collection
   public function getProtectedArtifactLocationId()
   {
     return $this->protectedArtifactLocationId;
+  }
+  /**
+   * @param GoogleCloudAiplatformV1PscInterfaceConfig
+   */
+  public function setPscInterfaceConfig(GoogleCloudAiplatformV1PscInterfaceConfig $pscInterfaceConfig)
+  {
+    $this->pscInterfaceConfig = $pscInterfaceConfig;
+  }
+  /**
+   * @return GoogleCloudAiplatformV1PscInterfaceConfig
+   */
+  public function getPscInterfaceConfig()
+  {
+    return $this->pscInterfaceConfig;
   }
   /**
    * @param string[]

@@ -1,12 +1,15 @@
 <?php
 global $global, $config;
+$closeSessionEarlyIncludeConfig = 1;
 if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 
 if (!User::isAdmin()) {
+    _session_write_close();
     forbiddenPage();
 }
+_session_write_close();
 
 header('Content-Type: application/json');
 $row = Plugin::getAvailablePlugins(true);
@@ -30,4 +33,11 @@ if (empty($json)) {
     $json = _json_encode($row);
 }
 
-echo '{  "current": 1,"rowCount": '.$total.', "total": '.$total.', "rows":'. $json.'}';
+$array = array(
+    'current'=>1,
+    'rowCount'=>$total,
+    'total'=>$total,
+    'rows'=>_json_decode($json),
+);
+
+echo _json_encode($array);

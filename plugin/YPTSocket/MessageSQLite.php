@@ -50,7 +50,7 @@ class Message implements MessageComponentInterface {
         }
         $json = getDecryptedInfo($wsocketGetVars['webSocketToken']);
         if (empty($json)) {
-            _log_message("Invalid websocket token ");
+            _log_message("Invalid websocket token [{$global['webSiteRootURL']}] [{$wsocketGetVars['webSocketToken']}]");
             return false;
         }
 
@@ -117,7 +117,7 @@ class Message implements MessageComponentInterface {
         }
         //var_dump($client, $json, $wsocketGetVars);
         //var_dump($client['liveLink'], $live_key);
-        
+
         $this->setClient($conn, $client);
         dbInsertConnection($client);
 
@@ -126,17 +126,17 @@ class Message implements MessageComponentInterface {
             $this->msgToResourceId($json, $conn->resourceId, \SocketMessageType::TESTING);
         } else if ($this->shouldPropagateInfo($client)) {
             $this->msgToAll(
-                $conn, 
+                $conn,
                 array(
-                    'users_id' => $client['users_id'], 
-                    'yptDeviceId' => $client['yptDeviceId'], 
-                    'live_key_servers_id' => $client['live_key_servers_id'], 
-                    'identification' => $client['identification'], 
-                    'videos_id' => $client['videos_id'], 
-                    'room_users_id' => $client['room_users_id'], 
-                    'chat_is_banned' => $client['chat_is_banned'], 
-                    'resourceId' => $client['resourceId']), 
-                    \SocketMessageType::NEW_CONNECTION, 
+                    'users_id' => $client['users_id'],
+                    'yptDeviceId' => $client['yptDeviceId'],
+                    'live_key_servers_id' => $client['live_key_servers_id'],
+                    'identification' => $client['identification'],
+                    'videos_id' => $client['videos_id'],
+                    'room_users_id' => $client['room_users_id'],
+                    'chat_is_banned' => $client['chat_is_banned'],
+                    'resourceId' => $client['resourceId']),
+                    \SocketMessageType::NEW_CONNECTION,
                     true);
         } else {
             //_log_message("NOT shouldPropagateInfo ");
@@ -162,7 +162,7 @@ class Message implements MessageComponentInterface {
         dbDeleteConnection($conn->resourceId);
         _log_message("onClose {$conn->resourceId} has deleted");
         $this->unsetClient($conn, $client);
-        if ($this->shouldPropagateInfo($client)) {            
+        if ($this->shouldPropagateInfo($client)) {
             $this->msgToAllLogged($conn, array('users_id' => $client['users_id'], 'disconnected'=>$conn->resourceId), \SocketMessageType::NEW_DISCONNECTION);
         }
         _log_message("Connection {$conn->resourceId} has disconnected");
@@ -203,7 +203,7 @@ class Message implements MessageComponentInterface {
 
     function getTotalFromVars() {
         $totals = array();
-        
+
         foreach ($this->itemsToCheck as $value) {
             if(!empty($value['class_prefix'])){
                 foreach ($this->{$value['parameter']} as $key2 => $value2) {
@@ -215,7 +215,7 @@ class Message implements MessageComponentInterface {
                 }
             }
         }
-        
+
         return $totals;
     }
 
@@ -264,6 +264,14 @@ class Message implements MessageComponentInterface {
             default:
                 $this->msgToArray($json);
                 //_log_message("onMessage:msgObj: " . json_encode($json));
+                // Strip eval-able fields from browser/guest messages.
+                // Remove from all nested paths so msgToResourceId cannot relay it via msg/json/fallback.
+                if (empty($msgObj->isCommandLineInterface) && ($msgObj->sentFrom ?? '') !== 'php') {
+                    $this->removeAutoEvalCodeOnHTMLRecursive($json);
+                    if (isset($json['callback']) && !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', (string)$json['callback'])) {
+                        unset($json['callback']);
+                    }
+                }
                 if (!empty($msgObj->send_to_uri_pattern)) {
                     $this->msgToSelfURI($json, $msgObj->send_to_uri_pattern);
                 } else if (!empty($json['resourceId'])) {
@@ -274,6 +282,20 @@ class Message implements MessageComponentInterface {
                     $this->msgToAll($from, $json);
                 }
                 break;
+        }
+    }
+
+    private function removeAutoEvalCodeOnHTMLRecursive(&$data) {
+        if (!is_array($data)) {
+            return;
+        }
+        if (array_key_exists('autoEvalCodeOnHTML', $data)) {
+            unset($data['autoEvalCodeOnHTML']);
+        }
+        foreach ($data as &$value) {
+            if (is_array($value)) {
+                $this->removeAutoEvalCodeOnHTMLRecursive($value);
+            }
         }
     }
 
@@ -290,7 +312,7 @@ class Message implements MessageComponentInterface {
         return true;
     }
 
-    
+
     private function getShouldPropagateInfoLastMessage() {
         global $_shouldPropagateInfoLastMessage;
         return $_shouldPropagateInfoLastMessage;
@@ -471,14 +493,14 @@ class Message implements MessageComponentInterface {
         $time = time();
         foreach ($rows as $key => $client) {
             if($client['time']+$this->disconnectAfter < $time){
-                _error_log("resourceId={$client['resourceId']} is too old, close it");
+                //_error_log("resourceId={$client['resourceId']} is too old, close it");
                 if(!empty($this->clients[$client['resourceId']])){
                     $this->clients[$client['resourceId']]->close();
                 }
                 unset($this->clients[$client['resourceId']]);
             }
             if($client['isCommandLine']){
-                if($client['time']+60 < $time){
+                if($client['time']+60 < $time && !empty($this->clients) && !empty($this->clients[$client['resourceId']])){
                     _error_log("resourceId={$client['resourceId']} disconnect commandline after 1 min");
                     $this->clients[$client['resourceId']]->close();
                     unset($this->clients[$client['resourceId']]);
@@ -492,7 +514,7 @@ class Message implements MessageComponentInterface {
         _log_message("msgToAll FROM ({$from->resourceId}) {$type} Total Clients: " . count($rows) . " in {$end} seconds");
     }
 
-    
+
     public function msgToAllLogged(ConnectionInterface $from, $msg, $type = "", $includeMe = false) {
         $start = microtime(true);
         $rows = dbGetAll();
@@ -542,7 +564,7 @@ class Message implements MessageComponentInterface {
 
         $rows = dbGetAllResourcesIdFromLive($live_key, $live_servers_id);
         $totals = $this->getTotals();
-        
+
         foreach ($rows as $value) {
             if($value['isCommandLine']){
                 continue;

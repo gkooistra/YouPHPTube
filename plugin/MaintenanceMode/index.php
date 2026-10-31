@@ -4,21 +4,24 @@ require_once dirname(__FILE__) . '/../../videos/configuration.php';
 if(empty($obj)){
     $obj = AVideoPlugin::getDataObject('MaintenanceMode');
 }
-
+if(!empty($obj->redirectHere) && isValidURL($obj->redirectHere)){
+    header("Location: {$obj->redirectHere}", true, 302);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Coming Soon 1</title>
         <meta charset="UTF-8">
+        <meta name="robots" content="noindex, nofollow">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <!--===============================================================================================-->
             <?php
             include $global['systemRootPath'] . 'view/include/bootstrap.css.php';
             ?>
         <!--===============================================================================================-->
-        <link href="<?php echo getCDN(); ?>node_modules/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css"/>
-
+        <link href="<?php echo getURL('node_modules/@fortawesome/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <!--===============================================================================================-->
         <link rel="stylesheet" type="text/css" href="<?php echo getCDN(); ?>plugin/MaintenanceMode/vendor/animate/animate.css">
         <!--===============================================================================================-->
@@ -122,7 +125,7 @@ if(empty($obj)){
             </div>
         </div>
 
-        <!--===============================================================================================-->	
+        <!--===============================================================================================-->
         <script src="<?php echo getURL('node_modules/jquery/dist/jquery.min.js'); ?>" type="text/javascript"></script>
         <!--===============================================================================================
         <script src="<?php echo getCDN(); ?>plugin/MaintenanceMode/vendor/bootstrap/js/popper.js"></script>-->

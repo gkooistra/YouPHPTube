@@ -27,8 +27,12 @@ class GoogleFirestoreAdminV1RestoreDatabaseRequest extends \Google\Model
    * @var string
    */
   public $databaseId;
-  protected $databaseSnapshotType = GoogleFirestoreAdminV1DatabaseSnapshot::class;
-  protected $databaseSnapshotDataType = '';
+  protected $encryptionConfigType = GoogleFirestoreAdminV1EncryptionConfig::class;
+  protected $encryptionConfigDataType = '';
+  /**
+   * @var string[]
+   */
+  public $tags;
 
   /**
    * @param string
@@ -59,18 +63,32 @@ class GoogleFirestoreAdminV1RestoreDatabaseRequest extends \Google\Model
     return $this->databaseId;
   }
   /**
-   * @param GoogleFirestoreAdminV1DatabaseSnapshot
+   * @param GoogleFirestoreAdminV1EncryptionConfig
    */
-  public function setDatabaseSnapshot(GoogleFirestoreAdminV1DatabaseSnapshot $databaseSnapshot)
+  public function setEncryptionConfig(GoogleFirestoreAdminV1EncryptionConfig $encryptionConfig)
   {
-    $this->databaseSnapshot = $databaseSnapshot;
+    $this->encryptionConfig = $encryptionConfig;
   }
   /**
-   * @return GoogleFirestoreAdminV1DatabaseSnapshot
+   * @return GoogleFirestoreAdminV1EncryptionConfig
    */
-  public function getDatabaseSnapshot()
+  public function getEncryptionConfig()
   {
-    return $this->databaseSnapshot;
+    return $this->encryptionConfig;
+  }
+  /**
+   * @param string[]
+   */
+  public function setTags($tags)
+  {
+    $this->tags = $tags;
+  }
+  /**
+   * @return string[]
+   */
+  public function getTags()
+  {
+    return $this->tags;
   }
 }
 

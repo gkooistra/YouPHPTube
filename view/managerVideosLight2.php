@@ -35,7 +35,17 @@ if ($isVideoTagsEnabled) {
     $videoTags = VideoTags::getTagsInputsJquery();
 }
 $userCanChangeVideoOwner = !empty($advancedCustomUser->userCanChangeVideoOwner) || Permissions::canAdminVideos();
+
+$isPlayListsEnabled = false;
+if (!empty($_REQUEST['forcePlayLists'])) {
+    $isPlayListsEnabled = AVideoPlugin::isEnabledByName('PlayLists');
+}
 ?>
+<style>
+    .tagsBody .col-sm-6 {
+        margin-bottom: 15px;
+    }
+</style>
 <div class="container-fluid">
     <div class="panel panel-default ">
         <div class="panel-heading clearfix ">
@@ -60,13 +70,27 @@ $userCanChangeVideoOwner = !empty($advancedCustomUser->userCanChangeVideoOwner) 
                     if (defaultIsPortrait()) {
                         $width = 540;
                         $height = 800;
-                        $path = $images->posterPortraitPath;
                         $portrait = 1;
+                        // Get path directly for internal server-side use
+                        $filename = !empty($value['filename']) ? $value['filename'] : $video->getFilename();
+                        if (!empty($filename)) {
+                            $pathSource = Video::getSourceFile($filename, '_portrait.jpg', false, true);
+                            $path = !empty($pathSource['path']) ? $pathSource['path'] : ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH);
+                        } else {
+                            $path = ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH);
+                        }
                     } else {
                         $width = 1280;
                         $height = 720;
-                        $path = empty($images->posterLandscapePath) ? ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH) : $images->posterLandscapePath;
                         $portrait = 0;
+                        // Get path directly for internal server-side use
+                        $filename = !empty($value['filename']) ? $value['filename'] : $video->getFilename();
+                        if (!empty($filename)) {
+                            $pathSource = Video::getSourceFile($filename, '.jpg', false, true);
+                            $path = !empty($pathSource['path']) ? $pathSource['path'] : ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH);
+                        } else {
+                            $path = ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH);
+                        }
                     }
 
                     $image = str_replace([$global['systemRootPath'], DIRECTORY_SEPARATOR], [$global['webSiteRootURL'], '/'], $path);
@@ -100,7 +124,7 @@ $userCanChangeVideoOwner = !empty($advancedCustomUser->userCanChangeVideoOwner) 
                                 echo __('Tags');
                                 ?>
                             </div>
-                            <div class="panel-body">
+                            <div class="panel-body tagsBody">
                                 <?php
                                 echo VideoTags::getTagsInputs(6, $videos_id);
                                 ?>
@@ -112,25 +136,40 @@ $userCanChangeVideoOwner = !empty($advancedCustomUser->userCanChangeVideoOwner) 
                 </div>
                 <div class="col-sm-8">
                     <div class="row">
-                        <div class="form-group col-sm-<?php echo $userCanChangeVideoOwner ? 4 : 6; ?>">
+                        <div class="form-group col-sm-6 required">
                             <label for="title"><?php echo __('Title'); ?></label>
                             <input type="text" class="form-control" id="title" placeholder="<?php echo __('Title'); ?>" value="<?php echo $title; ?>">
                         </div>
-                        <div class="form-group col-sm-<?php echo $userCanChangeVideoOwner ? 4 : 6; ?>">
+                        <div class="form-group col-sm-6 required">
                             <label for="categories_id"><?php echo __('Categories'); ?></label>
                             <?php echo Layout::getCategorySelect('categories_id', $categories_id, 'categories_id'); ?>
                         </div>
+                        <div class="clearfix"></div>
                         <?php
                         if ($userCanChangeVideoOwner) {
                         ?>
-                            <div class="col-md-4">
+                            <div class="col-md-<?php echo $isPlayListsEnabled ? 6 : 12; ?> required">
                                 <?php
                                 include $global['systemRootPath'] . 'view/managerVideos_owner.php';
                                 ?>
                             </div>
                         <?php
-                        }else{
-                            echo '<input type="hidden" id="inputUserOwner_id" value="'.$video->getUsers_id().'" name="inputUserOwner_id">';
+                        } else {
+                            echo '<input type="hidden" id="inputUserOwner_id" value="' . $video->getUsers_id() . '" name="inputUserOwner_id">';
+                        }
+                        ?>
+                        <?php
+                        if ($isPlayListsEnabled) {
+                        ?>
+                            <div class="form-group col-md-<?php echo $userCanChangeVideoOwner ? 6 : 12; ?> required">
+                                <label for="categories_id"><?php echo __('Playlist'); ?></label>
+                                <?php
+                                $autocomplete = Layout::getPlaylistAutocomplete(@$_REQUEST['playlists_id'], 'playlists_id');
+                                ?>
+                            </div>
+                        <?php
+                        } else {
+                            echo '<input type="hidden" id="playlists_id" value="'.intval(@$_REQUEST['playlists_id']).'" name="playlists_id">';
                         }
                         ?>
                         <div class="form-group col-sm-12">
@@ -163,42 +202,62 @@ $userCanChangeVideoOwner = !empty($advancedCustomUser->userCanChangeVideoOwner) 
     var modalmeta = getPleaseWait();
 
     function saveVideoMeta(image) {
-        modalmeta.showPleaseWait();
-        $.ajax({
-            url: webSiteRootURL + 'objects/videoEditLight.php',
-            data: {
-                videos_id: <?php echo $videos_id; ?>,
-                title: $('#title').val(),
-                categories_id: $('#categories_id').val(),
-                portrait: <?php echo $portrait; ?>,
-                videoTags: <?php echo $videoTags; ?>,
-                user: "<?php echo User::getUserName() ?>",
-                pass: "<?php echo User::getUserPass() ?>",
-                users_id: $('#inputUserOwner_id').val(),
-                description: <?php
-                                if (empty($advancedCustom->disableHTMLDescription)) {
-                                    echo 'tinymce.get(\'description\').getContent()';
-                                } else {
-                                    echo '$(\'#description\').val()';
-                                }
-                                ?>,
-                image: image,
-            },
-            type: 'post',
-            success: function(response) {
-                modalmeta.hidePleaseWait();
-                avideoResponse(response);
-                if (response && !response.error) {
-                    if (close) {
-                        avideoModalIframeClose();
-                    }
-                }
+
+        // Flag to track if all required fields are filled
+        var allFieldsFilled = true;
+
+        // Loop through each required group
+        $('.required').each(function() {
+            var $group = $(this);
+            // Check if any input field within the group is empty
+            if ($group.find('input').filter(function() {
+                    return $(this).val().trim() === '';
+                }).length > 0) {
+                // If empty, add error class to the group and set flag to false
+                $group.addClass('has-error');
+                allFieldsFilled = false;
+            } else {
+                // If not empty, remove error class from the group
+                $group.removeClass('has-error');
             }
         });
+
+        // If all required fields are filled, submit the form
+        if (allFieldsFilled) {
+            modalmeta.showPleaseWait();
+            $.ajax({
+                url: webSiteRootURL + 'objects/videoEditLight.php',
+                data: {
+                    videos_id: <?php echo $videos_id; ?>,
+                    title: $('#title').val(),
+                    categories_id: $('#categories_id').val(),
+                    playlists_id: $('#playlists_id').val(),
+                    portrait: <?php echo $portrait; ?>,
+                    videoTags: <?php echo $videoTags; ?>,
+                    user: "<?php echo User::getUserName() ?>",
+                    pass: "<?php echo User::getUserPass() ?>",
+                    users_id: $('#inputUserOwner_id').val(),
+                    description: getTinyMCEVal('description'),
+                    image: image,
+                },
+                type: 'post',
+                success: function(response) {
+                    modalmeta.hidePleaseWait();
+                    avideoResponse(response);
+                    if (response && !response.error) {
+                        if (close) {
+                            avideoModalIframeClose();
+                        }
+                    }
+                }
+            });
+        } else {
+            avideoAlertError('Please fill in all required fields.');
+        }
     }
 
     $(document).ready(function() {
-        setupFormElement('#title', 35, 65, true, true);
+        setupFormElement('#title', 35, 65, false, true);
         <?php
         echo $croppie1['createCroppie'] . "('{$image}');";
         ?>

@@ -3,7 +3,7 @@ function getTemplateFromArray(itemsArray) {
         return false;
     }
     var template = user_notification_template;
-    
+    //console.log('getTemplateFromArray', itemsArray);
     template = template.replace(new RegExp('{placeholder}', 'g'), user_notification_template_placeholder_image);
     for (var search in itemsArray) {
         var replace = itemsArray[search];
@@ -16,7 +16,7 @@ function getTemplateFromArray(itemsArray) {
             replace = webSiteRootURL + replace;
         } else if (search == 'element_class' && !empty(itemsArray.id)) {
             replace += " UserNotificationsJS_" + itemsArray.id;
-        } else if (search == 'created' && typeof _serverSystemTimezone !== 'undefined') {
+    } else if (search == 'created' && typeof _serverSystemTimezone !== 'undefined' && typeof moment != 'undefined') {
             try {
                 m = moment.tz(itemsArray.created, _serverSystemTimezone).local();
                 replace = m.fromNow();
@@ -37,7 +37,10 @@ function addTemplateFromArray(itemsArray, prepend) {
         return false;
     }
     //console.log('addTemplateFromArray', itemsArray);
+    //console.trace('processApplication addTemplateFromArray ', itemsArray);
     if (!empty(itemsArray.element_id) && $('#' + (itemsArray.element_id)).length) {
+        var selector = '#' + (itemsArray.element_id);
+        $(selector).removeClass('notificationLiveItemRemoveThis');
         return false;
     }
     var template = getTemplateFromArray(itemsArray);
@@ -159,7 +162,9 @@ async function getUserNotification() {
     $.ajax({
         url: url,
         success: function (response) {
-            modal.hidePleaseWait();
+            if (typeof modal !== 'undefined' && modal && typeof modal.hidePleaseWait === 'function') {
+                modal.hidePleaseWait();
+            }
             if (response.error) {
                 avideoToastError(response.msg);
             } else {

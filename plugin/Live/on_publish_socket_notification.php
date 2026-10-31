@@ -26,8 +26,19 @@ if (empty($liveTransmitionHistory_id) || empty($users_id) || empty($m3u8)) {
     $m3u8 = $argv[2];
     $liveTransmitionHistory_id = $argv[3];
 }
+
 if (AVideoPlugin::isEnabledByName('YPTSocket')) {
     $lth = new LiveTransmitionHistory($liveTransmitionHistory_id);
+    if (empty($array)) {
+        $array = setLiveKey($lth->getKey(), $lth->getLive_servers_id());
+        $parameters = Live::getLiveParametersFromKey($array['key']);
+        $array['cleanKey'] = $parameters['cleanKey'];
+        $array['stats'] = LiveTransmitionHistory::getStatsAndRemoveApplication($row['id']);
+    }
+    if (empty($array['key'])) {
+        $array['key'] = $lth->getKey();
+        $array['live_servers_id'] = $lth->getLive_servers_id();
+    }
     _error_log("NGINX Live::on_publish_socket_notification ($m3u8)");
     $isLive = false;
     $_REQUEST['live_servers_id'] = $lth->getLive_servers_id();
@@ -47,6 +58,7 @@ if (AVideoPlugin::isEnabledByName('YPTSocket')) {
     $array['live_transmitions_history_id'] = $liveTransmitionHistory_id;
     $array['isPrivate'] = LiveTransmitionHistory::isPrivate($liveTransmitionHistory_id);
     $array['isPasswordProtected'] = LiveTransmitionHistory::isPasswordProtected($liveTransmitionHistory_id);
+    $array['isRebroadcast'] = LiveTransmitionHistory::isRebroadcast($liveTransmitionHistory_id);
     $array['users_id'] = $users_id;
     if(!empty($array['key'])){
         $array['title'] = Live::getTitleFromKey($array['key'], $array['title']);
@@ -63,11 +75,6 @@ if (AVideoPlugin::isEnabledByName('YPTSocket')) {
     }
     $obj->error = false;
 
-    if (empty($array['key']) && !empty($liveTransmitionHistory_id)) {
-        $lt = new LiveTransmitionHistory($liveTransmitionHistory_id);
-        $array['key'] = $lt->getKey();
-        $array['live_servers_id'] = $lt->getLive_servers_id();
-    }
     $array['cleanKey'] = Live::cleanUpKey($array['key']);
     $socketObj = Live::notifySocketStats("socketLiveONCallback", $array);
 }

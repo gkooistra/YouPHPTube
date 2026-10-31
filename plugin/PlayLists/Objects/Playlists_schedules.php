@@ -52,12 +52,13 @@ class Playlists_schedules extends ObjectYPT
 
     function setName($name)
     {
-        $this->name = $name;
+        // stored raw name reaches the admin DataTable unescaped, so sanitize on write
+        $this->name = xss_esc($name);
     }
 
     function setDescription($description)
     {
-        $this->description = $description;
+        $this->description = xss_esc($description);
     }
 
     function setStatus($status)
@@ -304,7 +305,13 @@ class Playlists_schedules extends ObjectYPT
         $parametersText = $ps->getParameters();
         if (!empty($parametersText)) {
             $plsp = _json_decode($parametersText);
+            if(empty($plsp->current_videos_id)){
+                return '';
+            }
             $video = new Video('', '', $plsp->current_videos_id);
+            if(empty($video)){
+                return '';
+            }
             $description .= '<strong>'.$video->getTitle().'</strong><hr>';
             $description .= '<small class="text-muted">'.__('Playing now').' '.($plsp->current_videos_id_index+1)."/{$plsp->totalVideos} loop {$plsp->loop_count}</small>";
             $url = PlayLists::getLink($ps->getPlaylists_id());
@@ -320,7 +327,13 @@ class Playlists_schedules extends ObjectYPT
     static function getPlayListScheduledIndex($playlists_schedules){
         return "ps-{$playlists_schedules}";
     }
-    
+
+    function canRecordVideo($key) {
+        return empty(Playlists_schedules::iskeyPlayListScheduled($key));
+    }
+
+    // Note: this only parses the pattern out of $key — it does NOT prove $key's cleankey is
+    // actually owned by the schedule; ownership is verified separately in PlayLists::setScheduleStatus().
     static function iskeyPlayListScheduled($key){
         if(preg_match('/([0-9a-z]+)-ps-([0-9]+)/', $key, $matches)){
             if(!empty($matches[2])){
@@ -336,7 +349,7 @@ class Playlists_schedules extends ObjectYPT
         return $ps->save();
     }
 
-    
+
     public static function getAll($playlists_id = 0)
     {
         global $global;

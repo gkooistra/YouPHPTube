@@ -7,7 +7,7 @@ function _addPageNumber($url, $page)
     }
     
     if (preg_match("/page\/([0-9]+)\/?/", $url, $match)) {
-        $url = str_replace("/page/{$match[1]}/", "/page/{$page}/", $url);
+        $url = preg_replace('~/page/[0-9]+(?=/|[?#]|$)~', '/page/' . intval($page), $url, 1);
         $url = removeQueryStringParameter($url, 'page');
     }else{
         $url = addQueryStringParameter($url, 'page', $page);
@@ -33,6 +33,8 @@ function _getPageItem($url, $page, $uid, $isNext = false, $icon = '')
         return '<li class="page-item active"><span class="page-link"> ' . $page . ' <span class="sr-only">(current)</span></span></li>';
     }
     $link = _addPageNumber($url, $page);
+    // &current must not be interpreted as the legacy HTML entity &curren.
+    $link = htmlspecialchars($link, ENT_QUOTES, 'UTF-8');
     $li =  "<li class=\"page-item\" ><a class=\"page-link {$class}\" href=\"{$link}\" tabindex=\"-1\" pageNum=\"{$page}\" currentPage=\"{$currentPage}\" onclick=\"modal.showPleaseWait();\">";
     if (!empty($icon)) {
         $li .=  "<i class=\"{$icon}\"></i>";
@@ -47,13 +49,15 @@ function getPagination($total, $link = "", $maxVisible = 10, $infinityScrollGetF
 {
     global $global, $advancedCustom;
     if ($total < 2) {
-        return '<!-- getPagination total < 2 (' . json_encode($total) . ') -->';
+        return '<!-- getPagination total < 2 (' . json_encode(array('total'=>$total, 'maxVisible'=>$maxVisible, 'total'=>$total, )) . ') -->';
     }
 
     $page = getCurrentPage();
     if ($total < $page) {
         $page = $total;
     }
+    
+    //var_dump($page, $total, getCurrentPage());exit;
 
     $isInfiniteScroll = !empty($infinityScrollGetFromSelector) && !empty($infinityScrollAppendIntoSelector);
 
@@ -87,7 +91,7 @@ function getPagination($total, $link = "", $maxVisible = 10, $infinityScrollGetF
             . _getPageItem($link, $page, $uid, true)
             . "</ul></nav>";
     }
-    $pag = '<nav aria-label="Page navigation" class="text-center ' . $class . '"><ul class="pagination"><!-- page ' . $page . ' maxVisible = ' . $maxVisible . ' ' . $link . ' -->';
+    $pag = '<nav aria-label="Page navigation" class="text-center ' . $class . '"><ul class="pagination"><!-- ' . json_encode(array('total'=>$total, 'maxVisible'=>$maxVisible, 'page'=>$page, 'link'=>$link, )) . ' -->';
     $start = 1;
     $end = $maxVisible;
 
@@ -132,8 +136,10 @@ function getPagination($total, $link = "", $maxVisible = 10, $infinityScrollGetF
     if ($isInfiniteScroll) {
         $content = file_get_contents($global['systemRootPath'] . 'objects/functiongetPagination.php');
         $pag .= str_replace(
-            ['$uid', '$webSiteRootURL', '$infinityScrollGetFromSelector', '$infinityScrollAppendIntoSelector', '$loadMore', '$loadOnScroll'],
-            [$uid, $global['webSiteRootURL'], $infinityScrollGetFromSelector, $infinityScrollAppendIntoSelector,  __('Load More'), (!empty($loadOnScroll) ? 'true' : 'false')],
+            ['$uid', '$webSiteRootURL', '$infinityScrollGetFromSelector', '$infinityScrollAppendIntoSelector', '$loadMore', '$loadOnScroll', '$totalPages', '$loadingLabel', '$retryLabel', '$errorLabel', '$endLabel'],
+            [$uid, $global['webSiteRootURL'], $infinityScrollGetFromSelector, $infinityScrollAppendIntoSelector, htmlspecialchars(__('Load More'), ENT_QUOTES, 'UTF-8'), (!empty($loadOnScroll) ? 'true' : 'false'), (int) $total,
+                htmlspecialchars(__('Loading...'), ENT_QUOTES, 'UTF-8'), htmlspecialchars(__('Please try again'), ENT_QUOTES, 'UTF-8'),
+                htmlspecialchars(__('Error') . '. ' . __('Please try again'), ENT_QUOTES, 'UTF-8'), htmlspecialchars(__('No more pages to load'), ENT_QUOTES, 'UTF-8')],
             $content
         );
     }

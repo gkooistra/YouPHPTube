@@ -32,9 +32,15 @@ class CachesInDBMem extends CachesInDB
         // Query to retrieve cache metadata
         $sql = "SELECT m.id, m.created, m.modified, m.domain, m.ishttps, m.loggedType, m.user_location, m.expires, m.timezone, m.created_php_time, m.name ";
         $sql .= "FROM " . self::$metadataTable . " m ";
-        $sql .= "WHERE m.name = ? AND m.ishttps = ? AND m.domain = ? AND m.user_location = ? ";
-        $values = [$name, $ishttps, $domain, $user_location];
-        $formats = 'siss';
+        if (empty($ignoreMetadata)) {
+            $sql .= "WHERE m.name = ? AND m.ishttps = ? AND m.domain = ? AND m.user_location = ? ";
+            $values = [$name, $ishttps, $domain, $user_location];
+            $formats = 'siss';
+        } else {
+            $sql .= "WHERE m.name = ? AND m.ishttps = ? AND m.domain = ? ";
+            $values = [$name, $ishttps, $domain];
+            $formats = 'sis';
+        }
 
         if (empty($ignoreMetadata)) {
             $sql .= "AND m.loggedType = ? ";
@@ -95,7 +101,7 @@ class CachesInDBMem extends CachesInDB
         if (!is_string($content)) {
             $content = _json_encode($content);
         }
-        
+
         if (empty($content)){
             return false;
         }
@@ -105,16 +111,17 @@ class CachesInDBMem extends CachesInDB
         $timezone = date_default_timezone_get();;
 
         // Preparing SQL for Metadata Insertion
-        $metadataSql = "INSERT INTO " . self::$metadataTable . " (name, domain, ishttps, user_location, loggedType, created, modified, expires, timezone, created_php_time) 
+        $metadataSql = "INSERT INTO " . self::$metadataTable . " (name, domain, ishttps, user_location, loggedType, created, modified, expires, timezone, created_php_time)
                     VALUES (?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE 
+                    ON DUPLICATE KEY UPDATE
+                    id = LAST_INSERT_ID(id),
                     expires = VALUES(expires),
                     created_php_time = VALUES(created_php_time),
                     modified = NOW()";
 
-        $contentSqlBase = "INSERT INTO " . self::$contentTable . " (id, content) 
+        $contentSqlBase = "INSERT INTO " . self::$contentTable . " (id, content)
                        VALUES (?, ?)
-                       ON DUPLICATE KEY UPDATE 
+                       ON DUPLICATE KEY UPDATE
                        content = VALUES(content)";
 
         $name = self::hashName($name);
@@ -175,14 +182,17 @@ class CachesInDBMem extends CachesInDB
             return false;
         }
         $name = self::hashName($name);
+        // Escape LIKE metacharacters (hashName() turns every non-alphanumeric char into
+        // `_`, which is a LIKE wildcard) so the prefix is matched literally.
+        $escaped = self::escapeLikePrefix($name);
 
         // Delete from content table
-        $sqlContent = "DELETE FROM " . self::$contentTable . " WHERE id IN (SELECT id FROM " . self::$metadataTable . " WHERE name LIKE '{$name}%')";
-        sqlDAL::writeSql($sqlContent);
+        $sqlContent = "DELETE FROM " . self::$contentTable . " WHERE id IN (SELECT id FROM " . self::$metadataTable . " WHERE name LIKE CONCAT(?, '%') ESCAPE '\\\\')";
+        sqlDAL::writeSql($sqlContent, 's', [$escaped]);
 
         // Delete from metadata table
-        $sqlMetadata = "DELETE FROM " . self::$metadataTable . " WHERE name LIKE '{$name}%'";
-        return sqlDAL::writeSql($sqlMetadata);
+        $sqlMetadata = "DELETE FROM " . self::$metadataTable . " WHERE name LIKE CONCAT(?, '%') ESCAPE '\\\\'";
+        return sqlDAL::writeSql($sqlMetadata, 's', [$escaped]);
     }
     public static function _deleteCacheWith($name)
     {
@@ -195,14 +205,16 @@ class CachesInDBMem extends CachesInDB
             return false;
         }
         $name = self::hashName($name);
+        $escaped = self::escapeLikePrefix($name);
 
-        // Delete from content table
-        $sqlContent = "DELETE FROM " . self::$contentTable . " WHERE id IN (SELECT id FROM " . self::$metadataTable . " WHERE name LIKE '%{$name}%')";
-        sqlDAL::writeSql($sqlContent);
+        // Delete from content table (substring search is a full scan by nature, but the
+        // value is still escaped and bound rather than concatenated into the SQL text).
+        $sqlContent = "DELETE FROM " . self::$contentTable . " WHERE id IN (SELECT id FROM " . self::$metadataTable . " WHERE name LIKE CONCAT('%', ?, '%') ESCAPE '\\\\')";
+        sqlDAL::writeSql($sqlContent, 's', [$escaped]);
 
         // Delete from metadata table
-        $sqlMetadata = "DELETE FROM " . self::$metadataTable . " WHERE name LIKE '%{$name}%'";
-        return sqlDAL::writeSql($sqlMetadata);
+        $sqlMetadata = "DELETE FROM " . self::$metadataTable . " WHERE name LIKE CONCAT('%', ?, '%') ESCAPE '\\\\'";
+        return sqlDAL::writeSql($sqlMetadata, 's', [$escaped]);
     }
     public static function _deleteAllCache()
     {

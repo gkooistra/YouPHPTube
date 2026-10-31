@@ -1,8 +1,8 @@
 <?php
 if (empty($global['systemRootPath'])) {
     $global['systemRootPath'] = '../';
+    require_once $global['systemRootPath'] . 'videos/configuration.php';
 }
-require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/bootGrid.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 
@@ -10,6 +10,7 @@ class UserGroups{
     protected $properties = [];
     private $id;
     private $group_name;
+    private $allowed_resolutions;
 
     public function __construct($id, $group_name = "")
     {
@@ -23,7 +24,7 @@ class UserGroups{
         }
     }
 
-    public function load($id)
+    public function load($id, $refreshCache = false)
     {
         $user = self::getUserGroupsDb($id);
         if (empty($user)) {
@@ -57,14 +58,25 @@ class UserGroups{
         $formats = '';
         $values = [];
         $this->group_name = _substr($this->group_name, 0, 255);
+
+        // Prepare allowed_resolutions JSON
+        $allowed_resolutions_json = null;
+        if (!empty($this->allowed_resolutions)) {
+            if (is_array($this->allowed_resolutions)) {
+                $allowed_resolutions_json = json_encode($this->allowed_resolutions);
+            } else {
+                $allowed_resolutions_json = $this->allowed_resolutions;
+            }
+        }
+
         if (!empty($this->id)) {
-            $sql = "UPDATE users_groups SET group_name = ?, modified = now() WHERE id = ?";
-            $formats = "si";
-            $values = [$this->group_name,$this->id];
+            $sql = "UPDATE users_groups SET group_name = ?, allowed_resolutions = ?, modified = now() WHERE id = ?";
+            $formats = "ssi";
+            $values = [$this->group_name, $allowed_resolutions_json, $this->id];
         } else {
-            $sql = "INSERT INTO users_groups ( group_name, created, modified) VALUES (?,now(), now())";
-            $formats = "s";
-            $values = [$this->group_name];
+            $sql = "INSERT INTO users_groups ( group_name, allowed_resolutions, created, modified) VALUES (?, ?, now(), now())";
+            $formats = "ss";
+            $values = [$this->group_name, $allowed_resolutions_json];
         }
         if (sqlDAL::writeSql($sql, $formats, $values)) {
             /**
@@ -77,6 +89,8 @@ class UserGroups{
             } else {
                 $id = $this->id;
             }
+            // Cache invalidation may write to MySQL and reset insert_id.
+            ObjectYPT::deleteCache('UserGroups::getAllUsersGroupsArray', false);
             return $id;
         } else {
             return false;
@@ -95,7 +109,11 @@ class UserGroups{
         } else {
             return false;
         }
-        return sqlDAL::writeSql($sql, "i", [$this->id]);
+        $deleted = sqlDAL::writeSql($sql, "i", [$this->id]);
+        if (!empty($deleted)) {
+            ObjectYPT::deleteCache('UserGroups::getAllUsersGroupsArray', false);
+        }
+        return $deleted;
     }
 
     private function getUserGroup($id)
@@ -143,6 +161,18 @@ class UserGroups{
     public static function getAllUsersGroupsArray()
     {
         global $global;
+        $cacheName = 'UserGroups::getAllUsersGroupsArray';
+        $allowPersistentCache = !isCommandLineInterface() || !empty($global['forceGetCache']);
+        if ($allowPersistentCache) {
+            $cached = ObjectYPT::getCache($cacheName, 60, true, false);
+            if (is_object($cached)) {
+                $cached = (array) $cached;
+            }
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
         $sql = "SELECT * FROM users_groups as ug WHERE 1=1 ";
 
         $res = sqlDAL::readSql($sql);
@@ -155,8 +185,12 @@ class UserGroups{
             }
             //$category = $res->fetch_all(MYSQLI_ASSOC);
         } else {
-            $arr = false;
+            $arr = array();
             //die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+
+        if ($allowPersistentCache) {
+            ObjectYPT::setCache($cacheName, $arr, false);
         }
         return $arr;
     }
@@ -181,6 +215,77 @@ class UserGroups{
     public function setGroup_name($group_name)
     {
         $this->group_name = $group_name;
+    }
+
+    public function getAllowed_resolutions()
+    {
+        if (is_string($this->allowed_resolutions)) {
+            return json_decode($this->allowed_resolutions, true);
+        }
+        return $this->allowed_resolutions;
+    }
+
+    public function setAllowed_resolutions($allowed_resolutions)
+    {
+        $this->allowed_resolutions = $allowed_resolutions;
+    }
+
+    /**
+     * Get allowed resolutions for a specific user based on their user groups
+     * @param int $users_id
+     * @return array Array of allowed resolutions
+     */
+    public static function getAllowedResolutionsForUser($users_id)
+    {
+        global $global;
+
+        // Check if the feature is enabled
+        $objCustomizeUser = AVideoPlugin::getObjectDataIfEnabled('CustomizeUser');
+        if (empty($objCustomizeUser) || empty($objCustomizeUser->enableResolutionsByUserGroup)) {
+            // Feature disabled, return all available resolutions
+            return $global['avideo_resolutions'];
+        }
+
+        // Get user's groups
+        $userGroups = self::getUserGroups($users_id);
+        if (empty($userGroups)) {
+            // User has no groups, return all resolutions
+            return $global['avideo_resolutions'];
+        }
+
+        $allowedResolutions = [];
+        foreach ($userGroups as $group) {
+            if (!empty($group['allowed_resolutions'])) {
+                $resolutions = json_decode($group['allowed_resolutions'], true);
+                if (is_array($resolutions)) {
+                    $allowedResolutions = array_merge($allowedResolutions, $resolutions);
+                }
+            }
+        }
+
+        // If no specific resolutions found, return all
+        if (empty($allowedResolutions)) {
+            return $global['avideo_resolutions'];
+        }
+
+        // Remove duplicates and sort
+        $allowedResolutions = array_unique($allowedResolutions);
+        sort($allowedResolutions);
+
+        return $allowedResolutions;
+    }
+
+    /**
+     * Get allowed resolutions for currently logged in user
+     * @return array Array of allowed resolutions
+     */
+    public static function getAllowedResolutionsForCurrentUser()
+    {
+        if (!User::isLogged()) {
+            global $global;
+            return $global['avideo_resolutions'];
+        }
+        return self::getAllowedResolutionsForUser(User::getId());
     }
 
     public static function getUserGroupByName($group_name, $refreshCache = false)
@@ -517,7 +622,7 @@ class UserGroups{
         } else {
             return false;
         }
-        
+
         _error_log("deleteGroupsFromVideo videos_id={$videos_id}");
         unset($_getVideosAndCategoriesUserGroups[$videos_id]);
         return sqlDAL::writeSql($sql, "i", [$videos_id]);

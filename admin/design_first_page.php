@@ -69,6 +69,17 @@ $delay = 0.5;
     </div>
 </div>
 <script>
+    var globalToken = '<?php echo getToken(); ?>';
+
+    $.ajaxPrefilter(function (options, originalOptions) {
+        if (options.url !== webSiteRootURL + 'objects/pluginSwitch.json.php') {
+            return;
+        }
+        options.data = $.param($.extend({}, originalOptions.data || {}, {
+            "globalToken": globalToken
+        }));
+    });
+
     function checkSwitch() {
         var defaultSwitch = $('#defaultSwitch').is(":checked");
         var netflixSwitch = $('#netflixSwitch').is(":checked");
@@ -116,7 +127,7 @@ $delay = 0.5;
                                         success: function (response) {
                                             $.ajax({
                                                 url: webSiteRootURL+'admin/themeUpdate.json.php',
-                                                data: {"theme": 'default'},
+                                                data: {"theme": 'default', "globalToken": '<?php echo getToken(300); ?>'},
                                                 type: 'post',
                                                 success: function (response) {
                                                     modal.hidePleaseWait();
@@ -163,7 +174,7 @@ $delay = 0.5;
                                         success: function (response) {
                                             $.ajax({
                                                 url: webSiteRootURL+'admin/themeUpdate.json.php',
-                                                data: {"theme": 'netflix'},
+                                                data: {"theme": 'netflix', "globalToken": '<?php echo getToken(300); ?>'},
                                                 type: 'post',
                                                 success: function (response) {
                                                     modal.hidePleaseWait();
@@ -210,7 +221,7 @@ $delay = 0.5;
                                         success: function (response) {
                                             $.ajax({
                                                 url: webSiteRootURL+'admin/themeUpdate.json.php',
-                                                data: {"theme": 'default'},
+                                                data: {"theme": 'default', "globalToken": '<?php echo getToken(300); ?>'},
                                                 type: 'post',
                                                 success: function (response) {
                                                     modal.hidePleaseWait();
@@ -257,7 +268,7 @@ $delay = 0.5;
                                         success: function (response) {
                                             $.ajax({
                                                 url: webSiteRootURL+'admin/themeUpdate.json.php',
-                                                data: {"theme": 'default'},
+                                                data: {"theme": 'default', "globalToken": '<?php echo getToken(300); ?>'},
                                                 type: 'post',
                                                 success: function (response) {
                                                     modal.hidePleaseWait();
@@ -306,7 +317,7 @@ $delay = 0.5;
                                         success: function (response) {
                                             $.ajax({
                                                 url: webSiteRootURL+'admin/themeUpdate.json.php',
-                                                data: {"theme": 'default'},
+                                                data: {"theme": 'default', "globalToken": '<?php echo getToken(300); ?>'},
                                                 type: 'post',
                                                 success: function (response) {
                                                     modal.hidePleaseWait();

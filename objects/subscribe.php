@@ -39,7 +39,7 @@ class Subscribe extends ObjectYPT{
         }
     }
 
-    public function load($id)
+    public function load($id, $refreshCache = false)
     {
         $obj = self::getSubscribe($id);
         if (empty($obj)) {
@@ -80,14 +80,25 @@ class Subscribe extends ObjectYPT{
 
     public function save()
     {
-        global $global;
         if (!empty($this->id)) {
-            $sql = "UPDATE subscribes SET status = '{$this->status}',  notify = '{$this->notify}',ip = '" . getRealIpAddr() . "', modified = now() WHERE id = {$this->id}";
+            $sql = "UPDATE subscribes SET status = ?, notify = ?, ip = ?, modified = now() WHERE id = ?";
+            $saved = sqlDAL::writeSql($sql, "sssi", [
+                (string) $this->status,
+                (string) $this->notify,
+                getRealIpAddr(),
+                intval($this->id),
+            ]);
         } else {
             $this->status = 'a';
-            $sql = "INSERT INTO subscribes ( users_id, email,status,ip, created, modified, subscriber_users_id) VALUES ('{$this->users_id}','{$this->email}', '{$this->status}', '" . getRealIpAddr() . "',now(), now(), '$this->subscriber_users_id')";
+            $sql = "INSERT INTO subscribes (users_id, email, status, ip, created, modified, subscriber_users_id) VALUES (?, ?, ?, ?, now(), now(), ?)";
+            $saved = sqlDAL::writeSql($sql, "isssi", [
+                intval($this->users_id),
+                (string) $this->email,
+                (string) $this->status,
+                getRealIpAddr(),
+                intval($this->subscriber_users_id),
+            ]);
         }
-        $saved = sqlDAL::writeSql($sql);
         if($saved){
             //var_dump($saved, $this->status);exit;
             if($this->status == 'a'){
@@ -180,7 +191,16 @@ class Subscribe extends ObjectYPT{
     public static function getAllSubscribes($user_id = "", $status = "a", $verifiedOnly = false)
     {
         global $global;
-        $cacheName = "getAllSubscribes_{$user_id}_{$status}_" . getCurrentPage() . "_" . getRowCount();
+        // Normalize search/sort BEFORE building the cache key - otherwise the key never varied with
+        // an active search phrase or a DataTables GET-based sort, so searching (or sorting) could
+        // silently return another request's cached, differently-filtered rows.
+        BootGrid::populateSortFromDataTablesOrder();
+        BootGrid::getSearchPhraseFromPost();
+        $cacheKeyExtra = md5(json_encode([
+            'sort' => empty($_POST['sort']) ? null : $_POST['sort'],
+            'search' => empty($_POST['searchPhrase']) ? '' : $_POST['searchPhrase'],
+        ]));
+        $cacheName = "getAllSubscribes_{$user_id}_{$status}_" . getCurrentPage() . "_" . getRowCount() . "_{$cacheKeyExtra}";
         $subscribe = ObjectYPT::getCache($cacheName, 300); // 5 minutes
         if (empty($subscribe)) {
             $status = str_replace("'", "", $status);
@@ -203,7 +223,8 @@ class Subscribe extends ObjectYPT{
 
             //$sql .= " GROUP BY subscriber_id ";
 
-            $sql .= BootGrid::getSqlFromPost(['email']);
+            // joins the users table twice (suId/u); must not allow ordering by their password/recoverPass columns
+            $sql .= BootGrid::getSqlFromPost(['email'], "", "", false, "", ['id', 's.id', 'status', 's.status', 'created', 's.created', 'modified', 's.modified', 'email', 'notify', 's.notify', 'users_id', 's.users_id', 'subscriber_users_id', 's.subscriber_users_id']);
 
 
             $res = sqlDAL::readSql($sql);
@@ -226,6 +247,11 @@ class Subscribe extends ObjectYPT{
                     $row['backgroundURL'] = User::getBackground($row['subscriber_id']);
                     $row['photoURL'] = User::getPhoto($row['subscriber_id']);
 
+
+                    $row['channel_identification'] = User::getNameIdentificationById($row['users_id']);
+                    $row['channel_backgroundURL'] = User::getBackground($row['users_id']);
+                    $row['channel_photoURL'] = User::getPhoto($row['users_id']);
+
                     $subscribe[] = $row;
                 }
                 //$subscribe = $res->fetch_all(MYSQLI_ASSOC);
@@ -237,6 +263,37 @@ class Subscribe extends ObjectYPT{
             $subscribe = object_to_array($subscribe);
         }
         return $subscribe;
+    }
+
+    /**
+     * Total row count matching the exact same filters as getAllSubscribes() (including any active
+     * search), for the admin "My Subscribers" grid (objects/subscribes.json.php). Deliberately kept
+     * separate from getTotalSubscribes(), which uses different criteria (subscribes.status instead
+     * of the users' own account status) and is relied on elsewhere for public subscriber counts and
+     * the getExtraSubscribers() artificial adjustment - neither of those should change here.
+     */
+    public static function getTotalSubscribesFiltered($user_id = "", $status = "a", $verifiedOnly = false)
+    {
+        $status = str_replace("'", "", $status);
+        $sql = "SELECT COUNT(*) as total FROM subscribes as s "
+                . " LEFT JOIN users as suId ON suId.id = s.subscriber_users_id   "
+                . " LEFT JOIN users as u ON users_id = u.id  WHERE 1=1 AND subscriber_users_id > 0 ";
+        if (!empty($user_id)) {
+            $sql .= " AND users_id = {$user_id} ";
+        }
+        if (!empty($status)) {
+            $sql .= " AND u.status = '{$status}' ";
+            $sql .= " AND suId.status = '{$status}' ";
+        }
+        if (!empty($verifiedOnly)) {
+            $sql .= " AND suId.emailVerified = 1 ";
+        }
+        $sql .= BootGrid::getSqlSearchFromPost(['email']);
+
+        $res = sqlDAL::readSql($sql);
+        $row = sqlDAL::fetchAssoc($res);
+        sqlDAL::close($res);
+        return intval($row['total'] ?? 0);
     }
 
     /**
@@ -308,7 +365,7 @@ class Subscribe extends ObjectYPT{
     public static function getTotalSubscribes($user_id = 0)
     {
         global $global;
-        $sql = "SELECT id FROM subscribes WHERE status = 'a' AND subscriber_users_id > 0 ";
+        $sql = "SELECT id FROM subscribes WHERE status = 'a' AND users_id > 0 ";
         if (!empty($user_id)) {
             $sql .= " AND users_id = '{$user_id}' ";
         }

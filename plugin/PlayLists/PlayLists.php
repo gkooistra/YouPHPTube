@@ -10,6 +10,13 @@ require_once $global['systemRootPath'] . 'plugin/PlayLists/PlayListElement.php';
 class PlayLists extends PluginAbstract
 {
 
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('Rebroadcaster', 'Optional scheduled playlist rebroadcasting', false),
+            PluginDependency::create('VideoPlaylistScheduler', 'Optional schedule management UI integration', false),
+        );
+    }
+
     const PERMISSION_CAN_MANAGE_ALL_PLAYLISTS = 0;
 
     public function getTags()
@@ -162,8 +169,8 @@ class PlayLists extends PluginAbstract
         global $global;
         $obj = $this->getDataObject();
         $js = '';
+        include_once $global['systemRootPath'] . 'plugin/PlayLists/footer.php';
         if (!empty($global['laodPlaylistScript'])) {
-            include_once $global['systemRootPath'] . 'plugin/PlayLists/footer.php';
             $js .= '<script src="' . getURL('plugin/PlayLists/script.js') . '" type="text/javascript"></script>';
         }
 
@@ -196,8 +203,12 @@ class PlayLists extends PluginAbstract
         if (empty($videos_id)) {
             return false;
         }
+        // must match the visibility/password rule enforced for actually watching the video
+        if (!canWatchVideoIncludingPassword($videos_id)) {
+            return false;
+        }
         $obj = AVideoPlugin::getObjectData("PlayLists");
-        if (!User::isAdmin() && $obj->usersCanOnlyCreatePlayListsFromTheirContent) {
+        if (!PlayLists::canManageAllPlaylists() && $obj->usersCanOnlyCreatePlayListsFromTheirContent) {
             if (User::isLogged()) {
                 $users_id = Video::getOwner($videos_id);
                 if (User::getId() == $users_id) {
@@ -334,13 +345,14 @@ class PlayLists extends PluginAbstract
             if (empty($obj->useOldPlayList)) {
                 //$url = $global['webSiteRootURL'] . "plugin/PlayLists/player.php?playlists_id=" . $playlists_id;
                 $url = $global['webSiteRootURL'] . "play/" . $playlists_id;
-            } else {                
+            } else {
                 $url = PlayLists::getURL($playlists_id);
             }
         }
         if (isset($playlist_index)) {
+            $url = addLastSlash($url);
             //$url = addQueryStringParameter($url, 'playlist_index', $playlist_index);
-            $url .= "/$playlist_index";
+            $url .= "$playlist_index";
         }
         return $url;
     }
@@ -731,7 +743,7 @@ class PlayLists extends PluginAbstract
         }
         $encoder = $config->_getEncoderURL();
         $url = "{$encoder}view/videosListEPG.php";
-        $content = url_get_contents($url);
+        $content = url_get_contents($url, '', 0, false, false, false);
         $name = "getALLEPGs_" . md5($url);
         //$cache = ObjectYPT::getCache($name, 15);
         //if (!empty($cache)) {
@@ -767,18 +779,28 @@ class PlayLists extends PluginAbstract
         $percentage_left = 100 - floatval($percentage_progress);
         $epgStep = number_format($percentage_left / $durationLeft, 2);
         $searchFor = array(
-            '{playListname}', '{showClock}',
-            '{linkToLive}', '{totalDuration}',
-            '{created}', '{uid}',
-            '{percentage_progress}', '{epgBars}',
-            '{epgStep}', '{generated}',
+            '{playListname}',
+            '{showClock}',
+            '{linkToLive}',
+            '{totalDuration}',
+            '{created}',
+            '{uid}',
+            '{percentage_progress}',
+            '{epgBars}',
+            '{epgStep}',
+            '{generated}',
             '{implode}'
         );
 
         $searchForEPGbars = array(
-            '{thumbsJpg}', '{represents_percentage}',
-            '{className}', '{epgId}', '{title}',
-            '{text}', '{uid}', '{percentage_progress}'
+            '{thumbsJpg}',
+            '{represents_percentage}',
+            '{className}',
+            '{epgId}',
+            '{title}',
+            '{text}',
+            '{uid}',
+            '{percentage_progress}'
         );
 
         $epgTemplate = file_get_contents($global['systemRootPath'] . 'plugin/PlayLists/epg.template.html');
@@ -821,23 +843,41 @@ class PlayLists extends PluginAbstract
             $title = addcslashes("{$img} {$value['title']} {$value['duration']}<br>{$value['start_date']}", '"');
             $text = "{$value['title']}";
             $epgBars .= str_replace($searchForEPGbars, array(
-                $thumbsJpg, $represents_percentage, $className,
-                $epgId, $title,
-                $text, $uid, $percentage_progress
+                $thumbsJpg,
+                $represents_percentage,
+                $className,
+                $epgId,
+                $title,
+                $text,
+                $uid,
+                $percentage_progress
             ), $epgBarsTemplate);
             $js[] = " if(currentTime{$uid}>={$value['start']} && currentTime{$uid}<={$value['stop']}){\$('.{$className}').not('#{$epgId}').removeClass('progress-bar-success').addClass('progress-bar-primary');\$('#{$epgId}').addClass('progress-bar-success').removeClass('progress-bar-primary');}";
         }
         $implode = implode("else", $js);
         return str_replace($searchFor, array(
-            $playListname, $showClock,
-            $linkToLive, $totalDuration_,
-            $created, $uid,
-            $percentage_progress, $epgBars,
-            $epgStep, $generated,
+            $playListname,
+            $showClock,
+            $linkToLive,
+            $totalDuration_,
+            $created,
+            $uid,
+            $percentage_progress,
+            $epgBars,
+            $epgStep,
+            $generated,
             $implode
         ), $epgTemplate);
     }
 
+    // This IS the sole visibility gate for TV/EPG/calendar features (epg.json.php, epg.xml.php,
+    // iptv.php, epg.day.php, Live/calendar.json.php) - deliberately independent of
+    // `playlists.status`, not a gap: the actual broadcast (plugin/PlayLists/run.php ->
+    // Rebroadcaster::rebroadcastVideo()) goes live regardless of status, so those feeds must
+    // mirror exactly what will air. Do NOT add a `PlayList::canSee()`/status check on top of this
+    // for those features - it would hide entries that are going to broadcast anyway (regression,
+    // already tried and reverted once). Only relevant for genuinely unrelated features would a
+    // separate privacy check ever be needed - it never is here.
     static function showOnTV($playlists_id)
     {
         if (!self::showTVFeatures()) {
@@ -879,6 +919,10 @@ class PlayLists extends PluginAbstract
 
     static function scheduleLiveButton($playlists_id, $showLabel = true, $class = 'btn btn-xs btn-default')
     {
+        if (!self::showPlayLiveButton()) {
+            _error_log("Playlists:scheduleLiveButton: showPlayLiveButton said no");
+            return '<!-- Playlists:scheduleLiveButton: showPlayLiveButton said no -->';
+        }
         // can the user live?
         if (!User::canStream()) {
             _error_log("Playlists:scheduleLiveButton this user cannot stream");
@@ -904,7 +948,13 @@ class PlayLists extends PluginAbstract
             $labelText = '';
         }
 
-        return "<button class=\"{$class}\" onclick=\"avideoModalIframe('$liveLink');\" data-toggle=\"tooltip\" title=\"$label\" ><i class=\"fas fa-broadcast-tower\"></i> $labelText</button>";
+        $btn = "<button class=\"{$class}\" onclick=\"avideoModalIframe('$liveLink');\" data-toggle=\"tooltip\" title=\"$label\" ><i class=\"fas fa-broadcast-tower\"></i> $labelText</button>";
+        if (AVideoPlugin::isEnabledByName('VideoPlaylistScheduler')) {
+            $liveLink = "{$global['webSiteRootURL']}plugin/VideoPlaylistScheduler/playLiveInLoop.php";
+            $liveLink = addQueryStringParameter($liveLink, 'playlists_id', $playlists_id);
+            $btn .= "<button class=\"{$class}\" onclick=\"avideoModalIframe('{$liveLink}');\" data-toggle=\"tooltip\" title=\"$label Loop\" ><i class=\"fa-solid fa-infinity\"></i> $labelText</button>";
+        }
+        return $btn;
     }
 
     static function getVideosIdFromPlaylist($playlists_id)
@@ -1027,9 +1077,9 @@ class PlayLists extends PluginAbstract
         if (is_numeric($playlistId)) {
             return "The playlist with ID {$playlistId} is empty or does not exist.";
         } elseif ($playlistId === 'favorite') {
-            return "Your Favorites playlist is empty.";
+            return __("Your Favorites playlist is empty.");
         } elseif ($playlistId === 'watch_later') {
-            return "Your 'Watch Later' playlist is empty.";
+            return __("Your 'Watch Later' playlist is empty.");
         } else {
             return "Playlist not found (ID: {$playlistId}).";
         }
@@ -1042,11 +1092,12 @@ class PlayLists extends PluginAbstract
         require_once $file;
     }
 
-    static function thereIsARebroadcastPlaying($key){
+    static function thereIsARebroadcastPlaying($key)
+    {
         $parts = Rebroadcaster::isKeyARebroadcast($key);
         $stats = getStatsNotifications();
         foreach ($stats["applications"] as $key => $value) {
-            if(preg_match("/{$parts['cleankey']}-RB-([0-9]+)-{$parts['index']}/i", $value['key'])){
+            if (preg_match("/{$parts['cleankey']}-RB-([0-9]+)-{$parts['index']}/i", $value['key'])) {
                 return true;
             }
         }
@@ -1060,7 +1111,7 @@ class PlayLists extends PluginAbstract
         _error_log("on_publish_done key={$key} live_transmitions_history_id={$live_transmitions_history_id} ");
         $isPlayListScheduled = Playlists_schedules::iskeyPlayListScheduled($key);
         if (!empty($isPlayListScheduled['playlists_schedules'])) {
-            if(!self::thereIsARebroadcastPlaying($key)){
+            if (!self::thereIsARebroadcastPlaying($key)) {
                 $pls = new Playlists_schedules($isPlayListScheduled['playlists_schedules']);
                 if ($pls->getFinish_datetime() > time()) {
                     $ps = Playlists_schedules::getPlaying($isPlayListScheduled['playlists_schedules']);
@@ -1076,7 +1127,7 @@ class PlayLists extends PluginAbstract
                     _error_log("on_publish_done is complete {$pls->getFinish_datetime()} < " . time() . " | " . date('Y/m/d H:i:s', $pls->getFinish_datetime()) . ' < ' . date('Y/m/d H:i:s', time()));
                     self::setScheduleStatus($key, Playlists_schedules::STATUS_COMPLETE);
                 }
-            }else{
+            } else {
                 _error_log("on_publish_done  Playlists::thereIsARebroadcastPlaying($key) ");
             }
         } else {
@@ -1092,22 +1143,31 @@ class PlayLists extends PluginAbstract
     static public function setScheduleStatus($key, $status)
     {
         if (!empty($key) && $isPlayListScheduled = Playlists_schedules::iskeyPlayListScheduled($key)) {
-            _error_log("setFail Playlists_schedules " . json_encode($isPlayListScheduled));
             $ps = new Playlists_schedules($isPlayListScheduled['playlists_schedules']);
+            // Security: only accept this key if its prefix is a real live key already owned by the
+            // schedule's playlist owner — otherwise any RTMP publish attempt (authenticated or not)
+            // whose name happens to match "<anything>-ps-<id>" could flip an arbitrary schedule's status.
+            $pl = new PlayList($ps->getPlaylists_id());
+            $liveRow = class_exists('LiveTransmition') ? LiveTransmition::keyExists($isPlayListScheduled['cleankey']) : false;
+            if (empty($liveRow) || empty($pl->getUsers_id()) || intval($liveRow['users_id']) !== intval($pl->getUsers_id())) {
+                _error_log("setScheduleStatus rejected, key does not belong to schedule owner " . json_encode($isPlayListScheduled), AVideoLog::$SECURITY);
+                return false;
+            }
+            _error_log("setFail Playlists_schedules " . json_encode($isPlayListScheduled));
             $ps->setStatus($status);
             return  $ps->save();
         }
         return false;
     }
 
-    static function getURL($playlist_id, $count= null, $PLChannelName = '', $plName = '', $current_video_clean_title = '')
+    static function getURL($playlist_id, $count = null, $PLChannelName = '', $plName = '', $current_video_clean_title = '')
     {
         global $global, $total_get_playlists_urls;
         $plURL = "{$global['webSiteRootURL']}program/{$playlist_id}/";
-        if(isset($count) && is_numeric($count)){
+        if (isset($count) && is_numeric($count)) {
             $plURL .= "{$count}/";
         }
-        return $plURL ;
+        return $plURL;
         /*
         if(empty($total_get_playlists_urls)){
             $total_get_playlists_urls = 0;
@@ -1145,7 +1205,7 @@ class PlayLists extends PluginAbstract
             }
         }
         $plURL = "{$global['webSiteRootURL']}program/{$playlist_id}/{$count}/" . urlencode(cleanURLName($PLChannelName)) . '/' . urlencode(cleanURLName($plName)) . '/' . urlencode(cleanURLName($current_video_clean_title));
-        
+
         return $plURL;
         */
     }
@@ -1242,7 +1302,7 @@ class PlayListPlayer
                 return $playListObj->getName();
             }
         } else if (!empty($this->tags_id)) {
-            //require_once $global['systemRootPath'] . 'plugin/VideoTags/Objects/Tags.php';            
+            //require_once $global['systemRootPath'] . 'plugin/VideoTags/Objects/Tags.php';
             AVideoPlugin::getObjectData("VideoTags");
             $tag = new Tags($this->tags_id);
             return $tag->getName();
@@ -1258,7 +1318,7 @@ class PlayListPlayer
             if (!isset($_pl_getVideos)) {
                 $_pl_getVideos = array();
             }
-            _error_log("PlayList::getVideosFromPlaylist($this->playlists_id) " . json_encode(debug_backtrace()));
+            //_error_log("PlayList::getVideosFromPlaylist($this->playlists_id) " . json_encode(debug_backtrace()));
             if (isset($_pl_getVideos[$this->playlists_id])) {
                 return $_pl_getVideos[$this->playlists_id];
             }
@@ -1275,7 +1335,7 @@ class PlayListPlayer
               array_unshift($videos, $videoSerie);
               }
               }
-             * 
+             *
              */
         } else if (!empty($this->tags_id)) {
             global $_plt_getVideos;
@@ -1295,6 +1355,7 @@ class PlayListPlayer
 
     private function fixRows($playList)
     {
+        global $messagesFromPlayList;
         $videos = array();
         foreach ($playList as $key => $value) {
             $videos[$key] = $value;
@@ -1302,6 +1363,7 @@ class PlayListPlayer
                 $videos[$key]['id'] = $value['videos_id'];
             }
             if (!$this->isAdmin && !Video::userGroupAndVideoGroupMatch($this->users_id, $videos[$key]['id'])) {
+                $messagesFromPlayList[] = "userGroupAndVideoGroupMatch({$this->users_id}, {$videos[$key]['id']})";
                 unset($videos[$key]);
                 continue;
             }
@@ -1343,7 +1405,7 @@ class PlayListPlayer
                 }
                 $messagesFromPlayList[] = "Playlist playListSource videos_id={$video['id']} [{$video['title']}] type {$video['type']} filename={$video['filename']}";
                 //var_dump($value2);
-                $playListSources[] = new playListSource($value2['url'], $video['type'] === Video::$videoTypeEmbed);
+                $playListSources[] = new playListSource($value2['url'], $value2['videos_id'], $video['type'] === Video::$videoTypeEmbed);
             }
             if (empty($playListSources)) {
                 $messagesFromPlayList[] = "videos_id={$video['videos_id']} [{$value2['title']}]  empty playlist source ";

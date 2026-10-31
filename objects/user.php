@@ -1,21 +1,16 @@
 <?php
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'UserAccountMutationLock.php';
 
 if (empty($global['systemRootPath'])) {
     $global['systemRootPath'] = '../';
+    require_once $global['systemRootPath'] . 'videos/configuration.php';
 }
 
-require_once $global['systemRootPath'] . 'videos/configuration.php';
-
 require_once $global['systemRootPath'] . 'objects/bootGrid.php';
-
 require_once $global['systemRootPath'] . 'objects/userGroups.php';
-
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
-
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
-
-
 
 /**
  *
@@ -24,7 +19,6 @@ require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
  */
 class User
 {
-
     protected $properties = [];
     private $id;
     private $user;
@@ -75,8 +69,12 @@ class User
     public static $is_company_status_WAITINGAPPROVAL = 2;
     public static $is_company_status = [0 => 'Not a Company', 1 => 'Active Company', 2 => 'Company waiting for approval'];
 
-    public function __construct($id, $user = "", $password = "")
-    {
+    public function __construct(
+        $id,
+        $user = '',
+        #[\SensitiveParameter]
+        $password = ''
+    ) {
         if (empty($id)) {
             // get the user data from user and pass
             $this->user = $user;
@@ -116,17 +114,20 @@ class User
 
     function getPhone()
     {
-        return $this->phone;
+        return strip_tags($this->phone);
     }
 
     function setPhone($phone): void
     {
-        $this->phone = $phone;
+        // Strip tags on input (consistent with setName() and getPhone()) so that
+        // unauthenticated registration cannot store HTML/JS that would later be
+        // rendered raw in the admin users grid. Prevents stored XSS (CWE-79).
+        $this->phone = strip_tags($phone);
     }
 
     function getBirth_date()
     {
-        return $this->birth_date;
+        return strip_tags($this->birth_date);
     }
 
     function setBirth_date($birth_date): void
@@ -141,12 +142,12 @@ class User
 
     public function getEmail()
     {
-        return $this->email;
+        return strip_tags($this->email);
     }
 
     public function getUser()
     {
-        return $this->user;
+        return strip_tags($this->user);
     }
 
     public function getAbout()
@@ -161,12 +162,12 @@ class User
 
     public function getPassword()
     {
-        return $this->password;
+        return strip_tags($this->password);
     }
 
     public function getCanStream()
     {
-        return $this->canStream;
+        return intval($this->canStream);
     }
 
     public function setCanStream($canStream)
@@ -176,7 +177,7 @@ class User
 
     public function getCanViewChart()
     {
-        return $this->canViewChart;
+        return intval($this->canViewChart);
     }
 
     public function setCanViewChart($canViewChart)
@@ -186,7 +187,7 @@ class User
 
     public function getCanCreateMeet()
     {
-        return $this->canCreateMeet;
+        return intval($this->canCreateMeet);
     }
 
     public function setCanCreateMeet($canCreateMeet)
@@ -196,7 +197,7 @@ class User
 
     public function getCanUpload()
     {
-        return $this->canUpload;
+        return intval($this->canUpload);
     }
 
     public function setCanUpload($canUpload)
@@ -206,7 +207,7 @@ class User
 
     public function getAnalyticsCode()
     {
-        return $this->analyticsCode;
+        return ($this->analyticsCode);
     }
 
     public function setAnalyticsCode($analyticsCode)
@@ -250,7 +251,7 @@ if (typeof gtag !== \"function\") {
         }
         $eo[$id] = $value;
         $this->setExternalOptions($eo);
-        return $this->save();
+        return intval($this->save());
     }
 
     public function removeExternalOptions($id)
@@ -258,7 +259,7 @@ if (typeof gtag !== \"function\") {
         $eo = User::decodeExternalOption($this->externalOptions);
         unset($eo[$id]);
         $this->setExternalOptions($eo);
-        return $this->save();
+        return intval($this->save());
     }
 
     public function setExternalOptions($options)
@@ -271,13 +272,13 @@ if (typeof gtag !== \"function\") {
     public function getExternalOption($id)
     {
         $eo = User::decodeExternalOption($this->externalOptions);
-        if (empty($eo[$id])) {
+        if (!is_array($eo) || !array_key_exists($id, $eo)) {
             return null;
         }
         return $eo[$id];
     }
 
-    public function load($id)
+    public function load($id, $refreshCache = false)
     {
         $id = intval($id);
         if (empty($id)) {
@@ -317,12 +318,21 @@ if (typeof gtag !== \"function\") {
         $this->load($this->getId());
     }
 
+    public static function getIdRequestOrSession()
+    {
+        if (!empty($_REQUEST['users_id'])) {
+            return intval($_REQUEST['users_id']);
+        } else {
+            return self::getId();
+        }
+    }
+
     public static function getId()
     {
         if (self::isLogged()) {
             return $_SESSION['user']['id'];
         } else {
-            return false;
+            return 0;
         }
     }
 
@@ -339,9 +349,9 @@ if (typeof gtag !== \"function\") {
     public static function getEmail_()
     {
         if (self::isLogged()) {
-            return $_SESSION['user']['email'];
+            return htmlentities($_SESSION['user']['email']);
         } else {
-            return false;
+            return '';
         }
     }
 
@@ -358,7 +368,7 @@ if (typeof gtag !== \"function\") {
 
     public function getBdId()
     {
-        return $this->id;
+        return intval($this->id);
     }
 
     public static function updateSessionInfo()
@@ -373,18 +383,19 @@ if (typeof gtag !== \"function\") {
     public static function getName()
     {
         if (self::isLogged()) {
-            return $_SESSION['user']['name'];
+            // prevent XSS by using htmlentities
+            return htmlentities($_SESSION['user']['name']);
         } else {
-            return false;
+            return '';
         }
     }
 
     public static function getUserName()
     {
         if (self::isLogged()) {
-            return $_SESSION['user']['user'];
+            return htmlentities($_SESSION['user']['user']);
         } else {
-            return false;
+            return '';
         }
     }
 
@@ -398,7 +409,7 @@ if (typeof gtag !== \"function\") {
                 $user->save();
             }
 
-            return $_SESSION['user']['channelName'];
+            return htmlentities($_SESSION['user']['channelName']);
         } else {
             return false;
         }
@@ -469,6 +480,10 @@ if (typeof gtag !== \"function\") {
 
     /**
      * return an name to identify the user
+     * SECURITY REVIEW: falling back to the email/username here is intentional, site-owner-controlled
+     * public disclosure (CustomizeUser doNotIdentifyByName/doNotIdentifyByEmail/doNotIdentifyByUserName
+     * default to false, i.e. identification-by-email is allowed unless the admin opts out). Do not flag
+     * this as a PII leak.
      * @return String
      */
     public static function getNameIdentification()
@@ -493,6 +508,10 @@ if (typeof gtag !== \"function\") {
 
     /**
      * return an name to identify the user from database
+     * SECURITY REVIEW: same intentional site-owner-controlled email/username disclosure as
+     * getNameIdentification() above. This is the helper used to render the public channel/publisher
+     * name (e.g. video comments' userName, channel page title) - it is independent of, and unaffected
+     * by, the API's removeSensitiveUserFields() sanitization of the raw 'user'/'email' joined columns.
      * @return String
      */
     public function getNameIdentificationBd()
@@ -547,18 +566,21 @@ if (typeof gtag !== \"function\") {
             //return $_SESSION['user']['password'];
             return @$_SESSION['user']['passhash'];
         } else {
-            return false;
+            return '';
         }
     }
 
     public function _getName()
     {
+        if (empty($this->name)) {
+            return '';
+        }
         return str_replace('"', '', $this->name);
     }
 
     public function getBdName()
     {
-        return $this->_getName();
+        return strip_tags($this->_getName());
     }
 
     public static function _getPhoto($id = "")
@@ -577,6 +599,7 @@ if (typeof gtag !== \"function\") {
                 return $photo;
             } else {
                 $photoPath = "/videos/userPhoto/photo{$id}.png";
+                // SSRF protection enforced by default inside url_get_contents()
                 $content = url_get_contents($photo);
                 file_put_contents($global['systemRootPath'] . $photoPath, $content);
                 $photo = $photoPath;
@@ -718,6 +741,7 @@ if (typeof gtag !== \"function\") {
             if (!empty($user)) {
                 $photo = $user['backgroundURL'];
             }
+            //var_dump($id, $user);exit;
         } elseif (self::isLogged()) {
             $photo = $_SESSION['user']['backgroundURL'];
         }
@@ -734,14 +758,53 @@ if (typeof gtag !== \"function\") {
         return $photo;
     }
 
+    public static function getBackGroundHTML($user_id)
+    {
+        global $global;
+        $user        = new User($user_id);
+        if (isMobile()) {
+            $relativePath = $user->getBackgroundURL(User::$channel_artDesktopMin);
+        } else {
+            $relativePath = $user->getBackgroundURL(User::$channel_artDesktopMax);
+        }
+        if (file_exists($global['systemRootPath'] . $relativePath)) {
+?>
+            <div class="clearfix" style="clear: both;"></div>
+            <a href="<?php echo User::getWebsite($user_id); ?>" target="_blank">
+                <div class="row bg-info profileBg" style="margin: -10px -10px 20px -10px; background: url('<?php echo getURL($relativePath); ?>')  no-repeat 50% 50%; -webkit-background-size: cover;
+                             -moz-background-size: cover;
+                             -o-background-size: cover;
+                             background-size: cover;">
+                    <img src="<?php echo User::getPhoto($user_id); ?>" alt="<?php echo str_replace('"', '', $user->_getName()); ?>" class="img img-responsive img-thumbnail" style="max-width: 100px;" />
+                </div>
+            </a>
+        <?php
+        } else {
+        ?>
+            <div class="clearfix" style="clear: both;"></div>
+            <a href="<?php echo User::getWebsite($user_id); ?>" target="_blank">
+                <img src="<?php echo User::getPhoto($user_id); ?>" alt="<?php echo $user->_getName(); ?>" class="img img-responsive img-thumbnail" style="max-width: 100px;" />
+            </a>
+        <?php
+        }
+    }
+
     public static function getMail()
     {
-        return self::getEmail_();
+        return htmlentities(self::getEmail_());
     }
 
     public function save($updateUserGroups = false)
     {
         global $global, $config, $advancedCustom, $advancedCustomUser;
+        // All existing-account writes, including promotion, serialize with deletion/edit guards.
+        if (!empty($this->id)) {
+            $accountMutationLock = UserAccountMutationLock::acquire($this->id);
+            if (!$accountMutationLock) {
+                _error_log('User save could not lock account: ' . $this->id, AVideoLog::$ERROR);
+                return false;
+            }
+        }
         if (is_object($config) && $config->currentVersionLowerThen('5.6')) {
             // they don't have analytics code
             return false;
@@ -803,6 +866,15 @@ if (typeof gtag !== \"function\") {
 
         $user = ($this->user);
         $password = ($this->password);
+        // SECURITY: last line of defense - this column must only ever hold the app's
+        // hash (32 lowercase-hex chars, md5(whirlpool(sha1(...)))). If any caller ever
+        // reaches save() with a raw/unencrypted value (whatever the cause), hash it now
+        // instead of persisting plaintext, and alert so the real caller can be traced.
+        if (!empty($password) && !preg_match('/^[a-f0-9]{32}$/', $password)) {
+            _error_log("SECURITY: User:save blocked a non-hash password for user={$user}, auto-encrypting instead of storing it raw. " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10)), AVideoLog::$SECURITY);
+            $password = encryptPassword($password);
+            $this->password = $password;
+        }
         $name = ($this->name);
         $status = ($this->status);
         $this->about = preg_replace("/(\\\)+n/", "\n", "{$this->about}");
@@ -861,8 +933,22 @@ if (typeof gtag !== \"function\") {
         } else {
             $formats = "ssssiiiisssssssi";
             $values = [
-                $user, $password, $this->email, $name, $this->isAdmin, $this->canStream, $this->canUpload, $this->canCreateMeet,
-                $status, $this->photoURL, $this->recoverPass, $this->channelName, $this->analyticsCode, $this->externalOptions, $this->phone, $this->emailVerified
+                $user,
+                $password,
+                $this->email,
+                $name,
+                $this->isAdmin,
+                $this->canStream,
+                $this->canUpload,
+                $this->canCreateMeet,
+                $status,
+                $this->photoURL,
+                $this->recoverPass,
+                $this->channelName,
+                $this->analyticsCode,
+                $this->externalOptions,
+                $this->phone,
+                $this->emailVerified
             ];
             $sql = "INSERT INTO users (user, password, email, name, isAdmin, canStream, canUpload, canCreateMeet, canViewChart, "
                 . " status,photoURL,recoverPass, created, modified, channelName, analyticsCode, externalOptions, phone, is_company,emailVerified) "
@@ -943,140 +1029,190 @@ if (typeof gtag !== \"function\") {
         }
     }
 
-    public static function canWatchVideo($videos_id)
+    public static function canWatchVideo($videos_id, $users_id = null, $ignoreCache = false)
     {
+        global $global;
+        $global['canWatchVideoReason'] = ''; // Initialize global variable for the reason
         $cacheName = "canWatchVideo$videos_id";
-        if (!User::isLogged()) {
-            $cacheName = "canWatchVideoNOTLOGED$videos_id";
-            $cache = ObjectYPT::getCache($cacheName, 60);
+
+        if (empty($users_id)) {
+            $users_id = User::getId();
         }
-        if (empty($cache)) {
+
+        if (empty($users_id)) {
+            $cacheName = "canWatchVideoNOTLOGGED$videos_id";
+            if (!$ignoreCache) {
+                $cache = ObjectYPT::getCache($cacheName, 60);
+            }
+        }
+        if (empty($cache) && !$ignoreCache) {
             $cache = ObjectYPT::getSessionCache($cacheName, 600);
         }
-        if (isset($cache)) {
+        if (!$ignoreCache && isset($cache)) {
             if ($cache === 'false') {
                 $cache = false;
             }
             return $cache;
         }
         if (empty($videos_id)) {
-            _error_log("User::canWatchVideo Video is empty ({$videos_id})");
+            $global['canWatchVideoReason'] = "Video ID is empty";
             return false;
         }
 
-        if (User::isAdmin()) {
+        if (User::isAdmin($users_id)) {
+            $global['canWatchVideoReason'] = "User {$users_id} is an admin";
             return true;
         }
 
         $video = new Video("", "", $videos_id);
-        if ($video->getStatus() === 'i') {
+        if ($video->getStatus() === Video::STATUS_INACTIVE) {
+            $global['canWatchVideoReason'] = "Video is inactive";
             _error_log("User::canWatchVideo Video is inactive ({$videos_id})");
             self::setCacheWatchVideo($cacheName, false);
             return false;
         }
         $user = new User($video->getUsers_id());
         if ($user->getStatus() === 'i') {
+            $global['canWatchVideoReason'] = "Video owner is inactive";
             _error_log("User::canWatchVideo User is inactive ({$videos_id})");
             self::setCacheWatchVideo($cacheName, false);
             return false;
         }
 
-        if (AVideoPlugin::userCanWatchVideo(User::getId(), $videos_id)) {
+        if (AVideoPlugin::userCanWatchVideo($users_id, $videos_id)) {
+            global $userCanWatchVideoReason;
+            $global['canWatchVideoReason'] = "User is allowed by plugin to watch the video: {$userCanWatchVideoReason}";
             self::setCacheWatchVideo($cacheName, true);
             return true;
         }
 
-        // check if the video is not public
         $rows = UserGroups::getVideosAndCategoriesUserGroups($videos_id);
-
         if (empty($rows)) {
-            // check if any plugin restrict access to this video
-            $pluginCanWatch = AVideoPlugin::userCanWatchVideo(User::getId(), $videos_id);
+            $pluginCanWatch = AVideoPlugin::userCanWatchVideo($users_id, $videos_id);
             if (!$pluginCanWatch) {
-                if (User::isLogged()) {
-                    _error_log("User::canWatchVideo there is no usergorup set for this video but A plugin said user [" . User::getId() . "] can not see ({$videos_id})");
-                } else {
-                    //_error_log("User::canWatchVideo there is no usergorup set for this video but A plugin said user [not logged] can not see ({$videos_id})");
+                global $userCanWatchVideoReason;
+                $global['canWatchVideoReason'] = "No: $userCanWatchVideoReason";
+                if ($users_id) {
+                    _error_log("User::canWatchVideo Plugin restricts access to user [{$users_id}] ({$videos_id})");
                 }
                 self::setCacheWatchVideo($cacheName, false);
                 return false;
             } else {
+                $global['canWatchVideoReason'] = "No user group, but video is public";
                 self::setCacheWatchVideo($cacheName, true);
-                return true; // the video is public
+                return true;
             }
         }
 
-        if (!User::isLogged()) {
-            //_error_log("User::canWatchVideo You are not logged so can not see ({$videos_id}) session_id=" . session_id() . " SCRIPT_NAME=" . $_SERVER["SCRIPT_NAME"] . " IP = " . getRealIpAddr());
-
+        if (!$users_id) {
+            $global['canWatchVideoReason'] = "User is not logged in";
             self::setCacheWatchVideo($cacheName, false);
             return false;
         }
-        // if is not public check if the user is on one of its groups
-        $rowsUser = UserGroups::getUserGroups(User::getId());
 
+        $rowsUser = UserGroups::getUserGroups($users_id);
         foreach ($rows as $value) {
             foreach ($rowsUser as $value2) {
                 if ($value['id'] === $value2['id']) {
+                    $global['canWatchVideoReason'] = "User is in the required user group id {$value['id']}";
                     self::setCacheWatchVideo($cacheName, true);
                     return true;
                 }
             }
         }
+
         if (isVideo()) {
-            _error_log("User::canWatchVideo The user " . User::getId() . " is not on any in the user groups ({$videos_id}) " . json_encode($rows));
+            $global['canWatchVideoReason'] = "User is not in any required user groups";
+            _error_log("User::canWatchVideo The user {$users_id} is not in any user groups ({$videos_id}) " . json_encode($rows));
         }
         self::setCacheWatchVideo($cacheName, false);
         return false;
     }
 
-    public static function canWatchVideoWithAds($videos_id)
+    public static function canWatchVideoWithAds($videos_id, $users_id = null, $ignoreCache = false)
     {
+        global $global;
+        $global['canWatchVideoReason'] = ''; // Initialize global variable for the reason
+
+        if (empty($users_id)) {
+            $users_id = User::getId();
+        }
+
         if (empty($videos_id)) {
-            _error_log("User::canWatchVideo (videos_id is empty) " . $videos_id);
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: Video ID is empty";
+            _error_log("User::canWatchVideoWithAds Video ID is empty ({$videos_id})");
             return false;
         }
-        if (User::isAdmin()) {
+
+        if (User::isAdmin($users_id)) {
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: User is an admin";
             return true;
         }
 
-        if (AVideoPlugin::userCanWatchVideoWithAds(User::getId(), $videos_id)) {
-            //_error_log("User::userCanWatchVideoWithAds (can) " . User::getId() . " " . $videos_id);
+        $video = new Video("", "", $videos_id);
+        if ($video->getStatus() === Video::STATUS_INACTIVE) {
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: Video is inactive";
+            _error_log("User::canWatchVideoWithAds Video is inactive ({$videos_id})");
+            return false;
+        }
+
+        $user = new User($video->getUsers_id());
+        if ($user->getStatus() === 'i') {
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: Video owner is inactive";
+            _error_log("User::canWatchVideoWithAds User is inactive ({$videos_id})");
+            return false;
+        }
+
+        if (AVideoPlugin::userCanWatchVideoWithAds($users_id, $videos_id)) {
+            global $userCanWatchVideoWithAdsReason;
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: User is allowed to watch with ads by a plugin: {$userCanWatchVideoWithAdsReason}";
             return true;
         }
 
         if (!empty($_REQUEST['debug']) && isVideo()) {
-            _error_log("User::userCanWatchVideoWithAds (No can not) " . User::getId() . " " . $videos_id);
+            _error_log("User::canWatchVideoWithAds User cannot watch with ads ({$videos_id})");
         }
 
-        if (self::canWatchVideo($videos_id)) {
-            //_error_log("User::canWatchVideo (can) " . $videos_id);
+        if (self::canWatchVideo($videos_id, $users_id, $ignoreCache)) {
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: User is allowed to watch the video";
             return true;
         }
 
         if (!empty($_REQUEST['debug']) && isVideo()) {
-            _error_log("User::canWatchVideo (No can not) " . $videos_id);
+            _error_log("User::canWatchVideoWithAds User cannot watch video ({$videos_id})");
         }
 
+        if (empty($global['canWatchVideoReason'])) {
+            $global['canWatchVideoReason'] = "canWatchVideoWithAds: User cannot watch the video or ads";
+        }
         return false;
     }
 
     public function delete()
     {
         $this->id = intval($this->id);
-        if (!Permissions::canAdminUsers()) {
+        if (!Permissions::canAdminUsers() && !isCommandLineInterface()) {
             if (self::getId() !== $this->id) {
                 _error_log('Delete user error, users_id does not match: [' . self::getId() . '] !== [' . $this->id . ']');
                 return false;
             }
         }
+        $accountMutationLock = UserAccountMutationLock::acquire($this->id);
+        if (!$accountMutationLock) {
+            return false;
+        }
+        // Re-read after locking: this object may predate a concurrent admin promotion.
+        if (!empty($accountMutationLock->getIsAdmin()) && !self::isAdmin() && !isCommandLineInterface()) {
+            _error_log('Delete user error, only an admin can delete an admin account: [' . $this->id . ']', AVideoLog::$SECURITY);
+            return false;
+        }
 
         global $global;
         if (!empty($this->id)) {
 
-            $sql = "DELETE FROM live_transmition_history_log 
+            $sql = "DELETE FROM live_transmition_history_log
             WHERE live_transmitions_history_id IN (
-                SELECT id 
+                SELECT id
                 FROM live_transmitions_history
                 WHERE users_id = ?
             )";
@@ -1093,27 +1229,42 @@ if (typeof gtag !== \"function\") {
                 'live_transmition_history_log',
                 'live_transmitions_history',
                 'email_to_user',
+                'wallet',
+                'anet_webhook_log',
+                'chat_user_ignores' => ['users_id', 'ignored_users_id'] // Delete records where user is ignoring or being ignored
             ];
 
-            foreach ($arrayTables as $value) {
+            foreach ($arrayTables as $key => $value) {
+                // If value is an array, key is the table name and value contains column names
+                // Otherwise, value is the table name and we use 'users_id' as default column
+                if (is_array($value)) {
+                    $tableName = $key;
+                    $columns = $value;
+                } else {
+                    $tableName = $value;
+                    $columns = ['users_id'];
+                }
+
                 // Check if table exists
-                $checkTableSQL = "SHOW TABLES LIKE '{$value}'";
+                $checkTableSQL = "SHOW TABLES LIKE '{$tableName}'";
                 try {
                     $result = sqlDAL::readSql($checkTableSQL);
                     $tableExists = (sqlDAL::num_rows($result) > 0);
                     sqlDAL::close($result); // Make sure to close the result after checking
                 } catch (Exception $exc) {
-                    _error_log("Delete usertable not found {$value}");
+                    _error_log("Delete usertable not found {$tableName}");
                     $tableExists = false;
                 }
 
                 if ($tableExists) {
-                    $sql = "DELETE FROM {$value} WHERE users_id = ?";
-                    try {
-                        _error_log("Delete user $sql users_id = {$this->id}");
-                        sqlDAL::writeSql($sql, "i", [$this->id]);
-                    } catch (Exception $exc) {
-                        // Handle exception if needed
+                    foreach ($columns as $column) {
+                        $sql = "DELETE FROM {$tableName} WHERE {$column} = ?";
+                        try {
+                            _error_log("Delete user $sql {$column} = {$this->id}");
+                            sqlDAL::writeSql($sql, "i", [$this->id]);
+                        } catch (Exception $exc) {
+                            // Handle exception if needed
+                        }
                     }
                 }
             }
@@ -1133,19 +1284,33 @@ if (typeof gtag !== \"function\") {
     public const CAPTCHA_ERROR = 3;
     public const REQUIRE2FA = 4;
     public const SYSTEM_ERROR = 5;
+    public const TOO_MANY_FAILED_ATTEMPTS = 6;
+    public const FAILED_LOGIN_WINDOW = 900;
+    private static $failedLoginState = [];
+    private static $loginCheckedPassword = false;
+
+    /** Verify this credential pair without trusting or changing the current session. */
+    public function getVerifiedCredentialsUserId($encodedPass = false)
+    {
+        $user = $this->find($this->user, $this->password, true, $encodedPass);
+        // Legacy username/email lookups can return an inactive row despite mustBeactive.
+        return empty($user['id']) || ($user['status'] ?? '') !== 'a' ? 0 : (int) $user['id'];
+    }
 
     public function login($noPass = false, $encodedPass = false, $ignoreEmailVerification = false)
     {
         global $global, $advancedCustom, $advancedCustomUser, $config;
         require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
+
         if (!class_exists('AVideoPlugin')) {
             _error_log("ERROR login($noPass, $encodedPass, $ignoreEmailVerification) " . json_encode(debug_backtrace()));
             return self::SYSTEM_ERROR;
         }
+
         if (User::isLogged()) {
-            //_error_log('User:login is already logged '.json_encode($_SESSION['user']['id']));
             return self::USER_LOGGED;
         }
+
         if (class_exists('AVideoPlugin')) {
             if (empty($advancedCustomUser)) {
                 $advancedCustomUser = AVideoPlugin::getObjectData("CustomizeUser");
@@ -1158,21 +1323,29 @@ if (typeof gtag !== \"function\") {
         if (strtolower($encodedPass) === 'false') {
             $encodedPass = false;
         }
-        //_error_log("user::login: noPass = $noPass, encodedPass = $encodedPass, this->user, $this->user " . getRealIpAddr());
+
+        if (!$noPass && !self::reserveLoginAttempt($this->user)) {
+            return self::TOO_MANY_FAILED_ATTEMPTS;
+        }
+
         if ($noPass) {
             $user = $this->find($this->user, false, true);
         } else {
             $user = $this->find($this->user, $this->password, true, $encodedPass);
+            if (!empty($user)) {
+                self::$loginCheckedPassword = true;
+                self::refundLoginAttempt($this->user);
+            }
         }
 
         if (!isAVideoMobileApp() && !isAVideoEncoder() && !self::checkLoginAttempts()) {
             _error_log('login Captcha error ' . $_SERVER['HTTP_USER_AGENT']);
             return self::CAPTCHA_ERROR;
         }
+
         ObjectYPT::clearSessionCache();
         _session_start();
-        // check for multiple logins attempts to prevent hacking end
-        // if user is not verified
+
         if (empty($ignoreEmailVerification) && !empty($user) && empty($user['isAdmin']) && empty($user['emailVerified']) && !empty($advancedCustomUser->unverifiedEmailsCanNOTLogin)) {
             unset($_SESSION['user']);
             self::sendVerificationLink($user['id']);
@@ -1197,10 +1370,16 @@ if (typeof gtag !== \"function\") {
 
             AVideoPlugin::onUserSignIn($_SESSION['user']['id']);
             $_SESSION['loginAttempts'] = 0;
+
+            // Regenerate session ID on login to prevent session fixation attacks.
+            // The new session ID is sent to the client via cookie (_resetcookie inside).
+            // Cross-domain JS picks up the updated ID from the next videoAddViewCount
+            // response (which echoes session_id()), so there is no persistent breakage.
             _session_regenerate_id();
+
             _session_write_close();
 
-            _error_log("User:login finish with success users_id= {$_SESSION['user']['id']} {$_SERVER['HTTP_USER_AGENT']} IP=" . getRealIpAddr());
+            //_error_log("User:login finish with success users_id= {$_SESSION['user']['id']} {$_SERVER['HTTP_USER_AGENT']} IP=" . getRealIpAddr() . json_encode(debug_backtrace()));
             return self::USER_LOGGED;
         } else {
             unset($_SESSION['user']);
@@ -1226,7 +1405,13 @@ if (typeof gtag !== \"function\") {
                 return true;
             }
         }
-        $array = array('users_id' => $users_id, 'user' => $user, 'pass' => $pass, 'ip' => getRealIpAddr());
+        // Keep the remember-me cookie as small as possible because it is sent
+        // on every request and can easily become part of an oversized Cookie header.
+        $array = array(
+            'u' => intval($users_id),
+            'p' => $pass,
+            'i' => getRealIpAddr(),
+        );
         $cookieValue = encryptString(json_encode($array));
         _setcookie("credentials", $cookieValue, $expires);
         _error_log("setUserCookieCredentials credentials set");
@@ -1238,8 +1423,39 @@ if (typeof gtag !== \"function\") {
         if (!empty($_COOKIE['credentials'])) {
             $string = decryptString($_COOKIE['credentials']);
             $array = json_decode($string);
-            if ($array->ip !== getRealIpAddr()) {
-                _error_log("getUserCookieCredentials ip does not match {$array->ip}");
+            if (empty($array) || !is_object($array)) {
+                _error_log("getUserCookieCredentials: cookie could not be decrypted/decoded, cookieLen=" . strlen($_COOKIE['credentials']));
+                self::unsetUserCookie();
+                return false;
+            }
+
+            // Backward compatibility with the previous larger payload.
+            if (isset($array->u) && empty($array->users_id)) {
+                $array->users_id = intval($array->u);
+            }
+            if (isset($array->p) && empty($array->pass)) {
+                $array->pass = $array->p;
+            }
+            if (isset($array->i) && empty($array->ip)) {
+                $array->ip = $array->i;
+            }
+
+            if (empty($array->user) && !empty($array->users_id)) {
+                $user = self::getUserDb($array->users_id);
+                if (!empty($user['user'])) {
+                    $array->user = $user['user'];
+                }
+            }
+
+            if (empty($array->users_id) || empty($array->user) || empty($array->pass) || empty($array->ip)) {
+                _error_log("getUserCookieCredentials: missing required field(s) users_id=" . (empty($array->users_id) ? 'MISSING' : $array->users_id) . " user=" . (empty($array->user) ? 'MISSING' : 'ok') . " pass=" . (empty($array->pass) ? 'MISSING' : 'ok') . " ip=" . (empty($array->ip) ? 'MISSING' : $array->ip));
+                self::unsetUserCookie();
+                return false;
+            }
+
+            $ipNow = getRealIpAddr();
+            if ($array->ip !== $ipNow) {
+                _error_log("getUserCookieCredentials ip does not match {$array->ip} != $ipNow");
                 return false;
             }
         }
@@ -1250,6 +1466,91 @@ if (typeof gtag !== \"function\") {
     {
         _error_log("unsetUserCookie _unsetcookie('credentials') " . json_encode(debug_backtrace()));
         _unsetcookie('credentials');
+    }
+
+    private static function getFailedLoginBuckets($user)
+    {
+        global $global;
+        $ip = getRealIpAddr();
+        $perAccount = !empty($global['failedLoginMaxPerAccount']) ? intval($global['failedLoginMaxPerAccount']) : 10;
+        $perIP = !empty($global['failedLoginMaxPerIP']) ? intval($global['failedLoginMaxPerIP']) : 100;
+        return [
+            "login_failed_account_{$ip}_" . mb_strtolower(trim((string) $user)) => $perAccount,
+            "login_failed_ip_{$ip}" => $perIP,
+        ];
+    }
+
+    /**
+     * Failed-login penalty for every password check (login form, API, user/pass in any URL,
+     * remember-me cookie). The slot is reserved atomically before the check, so parallel requests
+     * cannot all slip under the cap, and refundLoginAttempt() gives it back when the password is
+     * right, so only failures count. Returns false while the caller must wait for the window.
+     */
+    private static function reserveLoginAttempt($user)
+    {
+        if (isCommandLineInterface()) {
+            return true;
+        }
+        $id = mb_strtolower(trim((string) $user));
+        // bootstrap, the API and login.json.php may check the same credentials in one request
+        if (isset(self::$failedLoginState[$id])) {
+            return self::$failedLoginState[$id] !== 'blocked';
+        }
+        $reserved = [];
+        foreach (self::getFailedLoginBuckets($user) as $key => $maxFailures) {
+            $reserved[] = $key;
+            if (rateLimitIncrementAndGet($key, self::FAILED_LOGIN_WINDOW) > $maxFailures) {
+                // no password is checked while blocked, so the blocked attempt itself must not count
+                foreach ($reserved as $reservedKey) {
+                    rateLimitDecrement($reservedKey, self::FAILED_LOGIN_WINDOW);
+                }
+                _error_log("login blocked after too many failed attempts bucket={$key} ip=" . getRealIpAddr(), AVideoLog::$SECURITY);
+                self::$failedLoginState[$id] = 'blocked';
+                return false;
+            }
+        }
+        self::$failedLoginState[$id] = 'reserved';
+        return true;
+    }
+
+    private static function refundLoginAttempt($user)
+    {
+        $id = mb_strtolower(trim((string) $user));
+        if ((self::$failedLoginState[$id] ?? '') !== 'reserved') {
+            return;
+        }
+        self::$failedLoginState[$id] = 'refunded';
+        foreach (array_keys(self::getFailedLoginBuckets($user)) as $key) {
+            rateLimitDecrement($key, self::FAILED_LOGIN_WINDOW);
+        }
+    }
+
+    /**
+     * For a request that already carries a logged-in session: the users_id the request's own user/pass
+     * verify to, or 0. Checked without re-login (no session regeneration). A cross-site request riding
+     * the victim's cookie cannot get the victim's id without the victim's password; the check counts
+     * toward the failed-login penalty. Another account is only checked where it can be switched to.
+     */
+    private static function getRequestCredentialsUsersId()
+    {
+        global $global;
+        $requestUser = trim((string) ($_REQUEST['user'] ?? ''));
+        $sessionUser = $_SESSION['user'] ?? [];
+        $isSessionUser = strcasecmp($requestUser, (string) ($sessionUser['user'] ?? '')) === 0
+            || strcasecmp($requestUser, (string) ($sessionUser['email'] ?? '')) === 0;
+        if (empty($sessionUser['id']) || empty($_REQUEST['pass'])
+            || (!$isSessionUser && empty($global['switchUserFromRequestCredentials']))) {
+            return 0;
+        }
+        if (!self::reserveLoginAttempt($requestUser)) {
+            return 0;
+        }
+        $user = new User(0, $requestUser, $_REQUEST['pass']);
+        $users_id = $user->getVerifiedCredentialsUserId($_REQUEST['encodedPass'] ?? false);
+        if ($users_id) {
+            self::refundLoginAttempt($requestUser);
+        }
+        return $users_id;
     }
 
     public static function isCaptchaNeed()
@@ -1332,7 +1633,7 @@ if (typeof gtag !== \"function\") {
         ObjectYPT::deleteAllSessionCache();
         unset($_SESSION['user']);
         unset($_SESSION['swapUser']);
-        _error_log('user:logoff');
+        _error_log('[SESSION_DEBUG] user:logoff script=' . ($_SERVER['SCRIPT_NAME'] ?? '') . ' ip=' . getRealIpAddr() . ' trace=' . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 8)));
         if (ini_get("session.use_cookies")) {
             $params = session_get_cookie_params();
             setcookie(
@@ -1350,18 +1651,22 @@ if (typeof gtag !== \"function\") {
 
     private static function recreateLoginFromCookie()
     {
+        //return false;
         //var_dump($_COOKIE['credentials']);exit;
         //var_dump($_COOKIE);exit;
         global $justLogoff, $justTryToRecreateLoginFromCookie;
-        _session_start();
         if (empty($justTryToRecreateLoginFromCookie) && empty($justLogoff) && empty($_SESSION['user']['id'])) {
+            _session_start();
+            // _error_log('[SESSION_DEBUG] recreateLoginFromCookie: restoring auth script=' . ($_SERVER['SCRIPT_NAME'] ?? '') . ' sessionId=' . session_id() . ' ip=' . getRealIpAddr() . ' hasCreds=' . (int)!empty($_COOKIE['credentials']));
             //var_dump($_COOKIE);exit;
             $justTryToRecreateLoginFromCookie = 1;
 
             // first check if the LoginControl::singleDeviceLogin is enabled, if it is only recreate login if the device is the last device
             if (class_exists('AVideoPlugin') && $obj = AVideoPlugin::getDataObjectIfEnabled("LoginControl")) {
                 if (!empty($obj->singleDeviceLogin)) {
-                    if (!LoginControl::isLoggedFromSameDevice()) {
+                    if (isAVideoEncoder()) {
+                        _error_log('[SESSION_DEBUG] recreateLoginFromCookie: skip singleDeviceLogin check for encoder request script=' . ($_SERVER['SCRIPT_NAME'] ?? '') . ' ip=' . getRealIpAddr());
+                    } elseif (!LoginControl::isLoggedFromSameDevice()) {
                         self::logoff();
                         return false;
                     }
@@ -1370,21 +1675,33 @@ if (typeof gtag !== \"function\") {
             $userCookie = User::getUserCookieCredentials();
             if ((!empty($userCookie))) {
                 $_REQUEST['rememberme'] = 1;
-                _error_log("user::recreateLoginFromCookie: user cookie found: {$userCookie->user} result: ");
-                $user = new User(0, $userCookie->user, false);
-                $user->setPassword($userCookie->pass, true);
+                //_error_log("user::recreateLoginFromCookie: SCRIPT_NAME ".json_encode($_SERVER["SCRIPT_NAME"]));
+                //_error_log("user::recreateLoginFromCookie: user cookie found: {$userCookie->user} result: " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
+                // Keep the signed _user_hash_ token intact so encryptPasswordVerify()
+                // can validate its expiry and password binding. setPassword(..., true)
+                // unwraps it too early and makes the hardened verifier hash it again.
+                $user = new User(0, $userCookie->user, $userCookie->pass);
                 $resp = $user->login(false, true);
-                _error_log("user::recreateLoginFromCookie: resp=$resp");
+                //_error_log("user::recreateLoginFromCookie: resp=$resp");
+                if ($resp === self::TOO_MANY_FAILED_ATTEMPTS) {
+                    // keep the remember-me cookie; it is checked again once the penalty window ends
+                    return false;
+                }
 
                 $userCookie = User::getUserCookieCredentials();
-                if (!empty($userCookie) && $user->id != $userCookie->users_id) {
+                // Compare against the session id login() actually set, not $user->id: the
+                // constructor (new User(0, ...)) and login() never populate the object's own
+                // $id property, so $user->id was always empty and this check used to fire on
+                // every successful cookie-login too, immediately undoing it via logoff().
+                $loggedInUserId = $_SESSION['user']['id'] ?? null;
+                if (!empty($userCookie) && $loggedInUserId != $userCookie->users_id) {
                     _error_log("user::recreateLoginFromCookie: do logoff because the cookie users_id does not match: {$userCookie->user} result: " . $resp);
                     self::logoff();
                 } else {
                     if (User::USER_LOGGED == $resp) {
-                        _error_log("user::recreateLoginFromCookie: do cookie-login: {$userCookie->user} id: " . $_SESSION['user']['id']);
+                        _error_log("user::recreateLoginFromCookie: do cookie-login: {$userCookie->user} [{$userCookie->id}]  id: " . $_SESSION['user']['id']);
                     } else {
-                        _error_log("user::recreateLoginFromCookie: do cookie-login: user={$userCookie->user} pass={$userCookie->pass} login does not match resp=$resp");
+                        _error_log("user::recreateLoginFromCookie: cookie login failed for user={$userCookie->user} resp=$resp, logging off");
                         if ($resp != User::SYSTEM_ERROR) {
                             self::logoff();
                         }
@@ -1394,9 +1711,25 @@ if (typeof gtag !== \"function\") {
         }
     }
 
+    // Logs a trace if a user was logged in earlier THIS request and is now gone with no
+    // logoff() in between - helps root-cause a future "logged out with no explanation" report.
+    private static function warnIfSessionUnexpectedlyEmptied($context)
+    {
+        global $justLogoff, $sessionHadLoggedUserThisRequest;
+        $currentUserId = $_SESSION['user']['id'] ?? null;
+        if (!empty($currentUserId)) {
+            $sessionHadLoggedUserThisRequest = $currentUserId;
+            return;
+        }
+        if (!empty($sessionHadLoggedUserThisRequest) && empty($justLogoff)) {
+            _error_log("[SESSION_DEBUG] {$context}: session unexpectedly empty this request, had users_id={$sessionHadLoggedUserThisRequest} now=empty sessionId=" . session_id() . " sessionStatus=" . session_status() . " script=" . ($_SERVER['SCRIPT_NAME'] ?? '') . " trace=" . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 8)));
+        }
+    }
+
     public static function isLogged($checkForRequestLogin = false)
     {
         self::recreateLoginFromCookie();
+        self::warnIfSessionUnexpectedlyEmptied('isLogged');
         $isLogged = !empty($_SESSION['user']['id']);
         if (empty($isLogged) && $checkForRequestLogin) {
             self::loginFromRequest();
@@ -1409,6 +1742,7 @@ if (typeof gtag !== \"function\") {
     public static function isVerified()
     {
         self::recreateLoginFromCookie();
+        self::warnIfSessionUnexpectedlyEmptied('isVerified');
         return !empty($_SESSION['user']['emailVerified']);
     }
 
@@ -1420,6 +1754,7 @@ if (typeof gtag !== \"function\") {
         }
 
         self::recreateLoginFromCookie();
+        self::warnIfSessionUnexpectedlyEmptied('isAdmin');
         return !empty($_SESSION['user']['isAdmin']);
     }
 
@@ -1491,7 +1826,8 @@ if (typeof gtag !== \"function\") {
     public static function canStream()
     {
         self::recreateLoginFromCookie();
-        return !empty($_SESSION['user']['isAdmin']) || !empty($_SESSION['user']['canStream']);
+
+        return !empty($_SESSION['user']['isAdmin']) || !empty($_SESSION['user']['canStream']) || AVideoPlugin::userCanLivestream($_SESSION['user']['id']);
     }
 
     public static function externalOptions($id)
@@ -1521,7 +1857,7 @@ if (typeof gtag !== \"function\") {
 
     public function _getExternalOptions()
     {
-        return $this->externalOptions;
+        return ($this->externalOptions);
     }
 
     public static function externalOptionsFromUserID($users_id, $id)
@@ -1563,7 +1899,7 @@ if (typeof gtag !== \"function\") {
             $_thisUserCanStreamReasonMessage = 'User status is inactive';
             return false;
         }
-        $can = !empty($this->isAdmin) || !empty($this->canStream);
+        $can = !empty($this->isAdmin) || !empty($this->canStream) || AVideoPlugin::userCanLivestream($this->id);
         if (empty($can)) {
             $reasons = [];
             if (empty($this->isAdmin)) {
@@ -1626,10 +1962,19 @@ if (typeof gtag !== \"function\") {
         sqlDAL::close($res);
         if (!empty($result)) {
             if ($pass !== false) {
-                if (!encryptPasswordVerify($pass, $result['password'], $encodedPass)) {
+                // SECURITY self-heal: the password column must always be a 32-hex-char hash.
+                // If it is not, and the submitted value matches it byte-for-byte, a since-fixed
+                // bug previously stored the real password here as plaintext (see the hash-shape
+                // guard in save()). Re-hash it now instead of permanently locking the account out
+                // and leaving the plaintext sitting in the DB.
+                if (!preg_match('/^[a-f0-9]{32}$/', (string) $result['password']) && $pass !== '' && hash_equals((string) $result['password'], (string) $pass)) {
+                    _error_log("SECURITY: User::find repairing a plaintext password found for user={$result['user']} (id={$result['id']})", AVideoLog::$SECURITY);
+                    $result['password'] = encryptPassword($pass);
+                    sqlDAL::writeSql("UPDATE users SET password = ? WHERE id = ?", "si", [$result['password'], $result['id']]);
+                } elseif (!encryptPasswordVerify($pass, $result['password'], $encodedPass)) {
                     if (!empty($advancedCustom) && $advancedCustom->enableOldPassHashCheck) {
                         //_error_log("Password check new hash pass does not match, trying MD5");
-                        return $this->find_Old($user, $pass, $mustBeactive, $encodedPass);
+                        return ($this->find_Old($user, $pass, $mustBeactive, $encodedPass));
                     } else {
                         return false;
                     }
@@ -1644,7 +1989,7 @@ if (typeof gtag !== \"function\") {
             $user = false;
             //$user = false;
         }
-        _error_log("User::find line= " . __LINE__);
+        //_error_log("User::find line= " . __LINE__);
         return $user;
     }
 
@@ -1657,6 +2002,7 @@ if (typeof gtag !== \"function\") {
      * @param string $encodedPass
      * @return boolean
      */
+    #[\Deprecated]
     private function find_Old($user, $pass, $mustBeactive = false, $encodedPass = false)
     {
         global $global;
@@ -1671,15 +2017,10 @@ if (typeof gtag !== \"function\") {
             $sql .= " AND status = 'a' ";
         }
         if ($pass !== false) {
-            if (!$encodedPass || $encodedPass === 'false') {
-                $passEncoded = md5($pass);
-                _error_log("Password check Old not encoded pass");
-                //_error_log("Password check Old not encoded pass passEncoded={$passEncoded}");
-            } else {
-                $passEncoded = $pass;
-                _error_log("Password check Old encoded pass");
-                //_error_log("Password check Old encoded pass passEncoded={$passEncoded}");
-            }
+            // SECURITY: always hash $pass here, never compare a caller-supplied value
+            // to the stored legacy hash verbatim - that was pass-the-hash for legacy
+            // plain-MD5 accounts (encodedPass=1 with a leaked password value).
+            $passEncoded = md5($pass);
             $sql .= " AND password = ? ";
             $formats .= "s";
             $values[] = $passEncoded;
@@ -1722,7 +2063,6 @@ if (typeof gtag !== \"function\") {
         sqlDAL::close($res);
         if ($res) {
             $user = $result;
-            $user['passhash'] = self::getUserHash($user['id']);
         } else {
             $user = false;
         }
@@ -1766,6 +2106,11 @@ if (typeof gtag !== \"function\") {
         return false;
     }
 
+    // SECURITY REVIEW (2026-09-08): reports claiming "if you recover saltV2 you can forge a
+    // _user_hash_ / remember-me credentials cookie and log in as any user" do NOT hold here -
+    // getPasswordFromUserHashIfTheItIsValid() below requires the embedded 'p' field to equal the
+    // target's CURRENT users.password DB value, a separate secret not recoverable from saltV2
+    // alone. DO NOT FIX / not a vulnerability unless a report also demonstrates leaking that hash.
     static function getUserHash($users_id, $valid = '+7 days')
     {
         $obj = new stdClass();
@@ -1936,7 +2281,7 @@ if (typeof gtag !== \"function\") {
                 return false;
             }
         }
-        $this->user = strip_tags($user);
+        $this->user = str_replace(['"', "'"], '', strip_tags($user));
     }
 
     public function setName($name)
@@ -1946,15 +2291,32 @@ if (typeof gtag !== \"function\") {
 
     static function isEmailUniqeOrFromUser($email, $users_id)
     {
+        global $isEmailUniqeOrFromUserReason;
 
-        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (empty($email)) {
+            $isEmailUniqeOrFromUserReason = "FALSE: empty email address.";
             return false;
         }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $isEmailUniqeOrFromUserReason = "FALSE: Invalid email address. {$email}";
+            return false;
+        }
+
         $userFromEmail = User::getUserFromEmail($email);
+
         if (empty($userFromEmail)) {
+            $isEmailUniqeOrFromUserReason = "TRUE: Email is unique and not associated with any user.";
             return true;
         }
-        return $userFromEmail['id'] == $users_id;
+
+        if ($userFromEmail['id'] == $users_id) {
+            $isEmailUniqeOrFromUserReason = "TRUE: Email belongs to the same user (ID: {$users_id}).";
+            return true;
+        }
+
+        $isEmailUniqeOrFromUserReason = "FALSE: Email is already associated with a different user (ID: {$userFromEmail['id']}).";
+        return false;
     }
 
     public function setEmail($email)
@@ -1970,16 +2332,26 @@ if (typeof gtag !== \"function\") {
                 return false;
             }
         }
+        if ($this->email !== $email) {
+            $this->setEmailVerified(0);
+        }
         $this->email = $email;
         return true;
     }
 
-    public function setPassword($password, $doNotEncrypt = false)
-    {
+    public function setPassword(
+        #[\SensitiveParameter]
+        $password,
+        $doNotEncrypt = false
+    ) {
         if (strpos($password, "_user_hash_") === 0) {
             $passwordFromHash = User::getPasswordFromUserHashIfTheItIsValid($password);
             if (!empty($passwordFromHash)) {
+                // getPasswordFromUserHashIfTheItIsValid() already returns the stored,
+                // already-hashed DB value - hashing it again here would silently change
+                // the account's real password to an unrelated value on the next save().
                 $password = $passwordFromHash;
+                $doNotEncrypt = true;
             }
         }
         if (!empty($password)) {
@@ -2008,7 +2380,7 @@ if (typeof gtag !== \"function\") {
 
     public function getPhotoURL()
     {
-        return $this->photoURL;
+        return strip_tags($this->photoURL);
     }
 
     public function setPhotoURL($photoURL)
@@ -2133,6 +2505,7 @@ if (typeof gtag !== \"function\") {
     public static function getAllUsers($ignoreAdmin = false, $searchFields = ['name', 'email', 'user', 'channelName', 'about'], $status = "", $isAdmin = null, $isCompany = null, $canUpload = null)
     {
         if (!Permissions::canAdminUsers() && !$ignoreAdmin) {
+            _error_log('You are not admin and cannot list all users');
             //echo __LINE__;
             return false;
         }
@@ -2302,7 +2675,7 @@ if (typeof gtag !== \"function\") {
         //will receive
         //current=1&rowCount=10&sort[sender]=asc&searchPhrase=
         global $global;
-        $sql = "SELECT id FROM users WHERE 1=1  ";
+        $sql = "SELECT COUNT(*) as total FROM users WHERE 1=1  ";
 
         if (!empty($status)) {
             if (strtolower($status) === 'i') {
@@ -2335,10 +2708,10 @@ if (typeof gtag !== \"function\") {
         $sql .= BootGrid::getSqlSearchFromPost(['name', 'email', 'user']);
 
         $res = sqlDAL::readSql($sql);
-        $result = sqlDal::num_rows($res);
+        $row = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
 
-        return $result;
+        return !empty($row) ? intval($row['total']) : 0;
     }
 
     public static function userExists($user)
@@ -2378,7 +2751,7 @@ if (typeof gtag !== \"function\") {
         $userId = 0;
         if (!$userId = self::userExists($user)) {
             if (empty($pass)) {
-                $pass = uniqid();
+                $pass = bin2hex(random_bytes(32)); // SECURITY: uniqid() is time-derived and predictable, not a real password
             }
             $pass = encryptPassword($pass);
             $userObject = new User(0, $user, $pass);
@@ -2412,7 +2785,7 @@ if (typeof gtag !== \"function\") {
      */
     public function getRecoverPass()
     {
-        return $this->recoverPass;
+        return strip_tags($this->recoverPass ?? '');
     }
 
     public function setRecoverPass($forceChange = false)
@@ -2421,15 +2794,22 @@ if (typeof gtag !== \"function\") {
         if ($this->isRecoverPassValid($this->recoverPass) && empty($forceChange) && !empty($this->recoverPass) && !empty($recoverPass) && !empty($this->modified) && strtotime($this->modified) > strtotime("-10 minutes")) {
 
             _error_log("setRecoverPass:isRecoverPassValid {$this->modified}");
-            return $this->recoverPass;
+            return strip_tags($this->recoverPass);
         }
         $this->recoverPass = $this->createRecoverPass($this->id);
 
         _error_log("setRecoverPass:created " . json_encode(!empty($this->recoverPass)));
-        return $this->recoverPass;
+        return strip_tags($this->recoverPass ?? '');
     }
 
-    private function createRecoverPass($id, $secondsValid = 600)
+    /**
+     * Undocumented function
+     *
+     * @param [type] $id
+     * @param integer $secondsValid default is 24 hours
+     * @return void
+     */
+    private function createRecoverPass($id, $secondsValid = 86400)
     {
         $json = new stdClass();
         $json->id = $id;
@@ -2439,6 +2819,12 @@ if (typeof gtag !== \"function\") {
         return encryptString(json_encode($json));
     }
 
+    // SECURITY REVIEW (2026-09-08): reports claiming "if you recover saltV2 you can forge a
+    // password-reset token and reset any account's password" do NOT hold here - the submitted
+    // value must exactly equal this account's currently-stored recoverPass DB column BEFORE
+    // isRecoverPassValid() ever decrypts it, so a freshly-forged ciphertext (however well-formed)
+    // never matches. DO NOT FIX / not a vulnerability unless a report also demonstrates leaking
+    // the target's stored recoverPass value.
     public function checkRecoverPass($recoverPass)
     {
         if ($this->recoverPass === $recoverPass) {
@@ -2457,7 +2843,8 @@ if (typeof gtag !== \"function\") {
             $json = _json_decode($string);
             if (is_object($json)) {
                 if (time() < $json->valid) {
-                    if ($this->id < $json->id) {
+                    // token embeds the id it was minted for; must match exactly, not just be <=
+                    if ((int) $this->id === (int) $json->id) {
                         return true;
                     }
                 }
@@ -2487,21 +2874,22 @@ if (typeof gtag !== \"function\") {
         return $reason;
     }
 
-
     public static function canUpload($doNotCheckPlugins = false)
     {
-        global $global, $config, $advancedCustomUser;
+        global $global, $config, $advancedCustomUser, $canUploadMessage;
+        $canUploadMessage = '';
         if (Permissions::canModerateVideos()) {
             return true;
         }
         if (User::isAdmin()) {
             return true;
         }
-        if (empty($doNotCheckPlugins) && !AVideoPlugin::userCanUpload(User::getId())) {
+        if (empty($doNotCheckPlugins) && !AVideoPlugin::userCanUpload(User::getId(), true)) {
             return false;
         }
 
         if ((isset($advancedCustomUser->onlyVerifiedEmailCanUpload) && $advancedCustomUser->onlyVerifiedEmailCanUpload && !User::isVerified())) {
+            $canUploadMessage = 'Only verified emails can upload videos';
             return false;
         }
 
@@ -2511,7 +2899,7 @@ if (typeof gtag !== \"function\") {
         if (self::isLogged() && !empty($_SESSION['user']['canUpload'])) {
             return true;
         }
-        return self::isAdmin();
+        return self::isAdmin() || AVideoPlugin::userCanUpload(User::getId(), false);
     }
 
     public static function canViewChart()
@@ -2525,11 +2913,12 @@ if (typeof gtag !== \"function\") {
 
     public static function canCreateMeet()
     {
-        global $global, $config;
-        if (self::isLogged() && !empty($_SESSION['user']['canCreateMeet'])) {
-            return true;
+        $p = AVideoPlugin::isEnabledByName('Meet');
+        if (empty($p)) {
+            return false;
         }
-        return self::isAdmin();
+
+        return Meet::canCreateMeet();
     }
 
     public static function canComment()
@@ -2572,18 +2961,21 @@ if (typeof gtag !== \"function\") {
     public function setUserGroups($userGroups)
     {
         if (is_array($userGroups)) {
+            // Group membership changes are intentionally delegated by endpoints that
+            // require Permissions::canAdminUsers(); unlike isAdmin, user groups are
+            // part of the delegated user-management model and are not filtered here.
             $this->userGroups = $userGroups;
         }
     }
 
     public function getIsAdmin()
     {
-        return $this->isAdmin;
+        return intval($this->isAdmin);
     }
 
     public function getStatus()
     {
-        return $this->status;
+        return strip_tags($this->status);
     }
 
     /**
@@ -2662,7 +3054,7 @@ if (typeof gtag !== \"function\") {
     {
         global $global;
         $this->backgroundURL = self::getBackgroundURLFromUserID($this->id, $type, $ignoreGeneric);
-        return $this->backgroundURL;
+        return strip_tags($this->backgroundURL);
     }
 
     public static function getBackgroundURLFromUserID($users_id = 0, $type = '', $ignoreGeneric = false)
@@ -2675,7 +3067,7 @@ if (typeof gtag !== \"function\") {
         make_path("{$global['systemRootPath']}{$dir}");
         $suffix = '';
         if (!empty($type)) {
-            $suffix = "_{$type}";
+            $suffix = "_{$type}_";
         }
         global $global;
         $backgroundURL = "{$dir}background{$suffix}.jpg";
@@ -2683,10 +3075,10 @@ if (typeof gtag !== \"function\") {
             $backgroundURL = "{$dir}background{$suffix}.png";
         }
         if (!file_exists($global['systemRootPath'] . $backgroundURL)) {
-            $backgroundURL = "videos/userPhoto/background{$users_id}.jpg";
+            $backgroundURL = "videos/userPhoto/background{$suffix}{$users_id}.jpg";
         }
         if (!file_exists($global['systemRootPath'] . $backgroundURL)) {
-            $backgroundURL = "videos/userPhoto/background{$users_id}.png";
+            $backgroundURL = "videos/userPhoto/background{$suffix}{$users_id}.png";
         }
         if (empty($ignoreGeneric) && !file_exists($global['systemRootPath'] . $backgroundURL)) {
             $backgroundURL = "view/img/background{$suffix}.jpg";
@@ -2702,10 +3094,13 @@ if (typeof gtag !== \"function\") {
     public function getChannelName()
     {
         if (empty($this->channelName)) {
+            if (empty($this->user)) {
+                return 'Unknow Channel Name';
+            }
             $this->channelName = self::_recommendChannelName($this->channelName, 0, $this->user, $this->id);
             $this->save();
         }
-        return $this->channelName;
+        return strip_tags($this->channelName);
     }
 
     public static function _getUserChannelName($users_id = 0)
@@ -2725,6 +3120,20 @@ if (typeof gtag !== \"function\") {
     public function getEmailVerified()
     {
         return intval($this->emailVerified);
+    }
+
+    public static function _getEmailVerified($users_id = 0)
+    {
+        global $global, $config;
+        if (empty($users_id)) {
+            $users_id = self::getId();
+        }
+        $user = new User($users_id);
+        if (empty($user)) {
+            return false;
+        }
+
+        return $user->getEmailVerified();
     }
 
     public static function validateChannelName($channelName)
@@ -2780,9 +3189,14 @@ if (typeof gtag !== \"function\") {
         if (empty($users_id)) {
             $users_id = self::getId();
         }
+        // Display lookups share sqlDAL's request cache; account authorization still reads fresh data.
+        $channelUser = self::findById($users_id);
+        if (!empty($channelUser['channelName'])) {
+            return strip_tags($channelUser['channelName']);
+        }
         $user = new User($users_id);
         if (empty($user)) {
-            return false;
+            return '';
         }
         if (empty($user->getChannelName())) {
             $name = $user->getBdId();
@@ -2815,8 +3229,10 @@ if (typeof gtag !== \"function\") {
             return true;
         }
         $_sendVerificationLink_sent[$users_id] = 1;
-        //Only send the verification email each 30 minutes
-        if (!empty($_SESSION["sendVerificationLink"][$users_id]) && (time() - $_SESSION["sendVerificationLink"][$users_id]) < 1800) {
+        //Only send the verification email each 30 minutes, keyed server-side (per
+        //account) so the throttle survives a caller that discards cookies
+        $verificationThrottleKey = 'sendVerificationLink_' . $users_id;
+        if (!empty(ObjectYPT::getCacheGlobal($verificationThrottleKey, 1800))) {
             _error_log("sendVerificationLink: Email already sent, we will wait 30 min  {$users_id}");
             return true;
         }
@@ -2847,15 +3263,13 @@ if (typeof gtag !== \"function\") {
             $msg .= "<a href='{$global['webSiteRootURL']}objects/userVerifyEmail.php?code={$code}' style='background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer; border-radius: 5px;'>" . __($advancedCustomUser->verificationMailButtonLabel);
             $msg .= "</a>";
 
-
             $resp = sendSiteEmail($user->getEmail(), __('Please Verify Your E-mail ') . ' ' . $webSiteTitle, $msg);
 
             if (!$resp) {
-                _error_log("sendVerificationLink Error Info: {$mail->ErrorInfo}");
+                _error_log("sendVerificationLink Error");
             } else {
                 _error_log("sendVerificationLink: SUCCESS {$users_id} " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
-                _session_start();
-                $_SESSION["sendVerificationLink"][$users_id] = time();
+                ObjectYPT::setCacheGlobal($verificationThrottleKey, time());
             }
             return $resp;
         } catch (Exception $e) {
@@ -2925,72 +3339,72 @@ if (typeof gtag !== \"function\") {
 
     public function getFirst_name()
     {
-        return $this->first_name;
+        return strip_tags($this->first_name);
     }
 
     public function getLast_name()
     {
-        return $this->last_name;
+        return strip_tags($this->last_name);
     }
 
     public function getAddress()
     {
-        return $this->address;
+        return strip_tags($this->address);
     }
 
     public function getZip_code()
     {
-        return $this->zip_code;
+        return strip_tags($this->zip_code);
     }
 
     public function getCountry()
     {
-        return $this->country;
+        return strip_tags($this->country);
     }
 
     public function getRegion()
     {
-        return $this->region;
+        return strip_tags($this->region);
     }
 
     public function getCity()
     {
-        return $this->city;
+        return strip_tags($this->city);
     }
 
     public function setFirst_name($first_name)
     {
-        $this->first_name = $first_name;
+        $this->first_name = strip_tags($first_name);
     }
 
     public function setLast_name($last_name)
     {
-        $this->last_name = $last_name;
+        $this->last_name = strip_tags($last_name);
     }
 
     public function setAddress($address)
     {
-        $this->address = $address;
+        $this->address = strip_tags($address);
     }
 
     public function setZip_code($zip_code)
     {
-        $this->zip_code = $zip_code;
+        $this->zip_code = strip_tags($zip_code);
     }
 
     public function setCountry($country)
     {
-        $this->country = $country;
+        $this->country = strip_tags($country);
     }
 
     public function setRegion($region)
     {
-        $this->region = $region;
+        $this->region = strip_tags($region);
     }
 
     public function setCity($city)
     {
-        $this->city = $city;
+        $this->city = strip_tags($city);
     }
 
     public static function getDocumentImage($users_id)
@@ -3063,20 +3477,23 @@ if (typeof gtag !== \"function\") {
 
     public function getDonationLink()
     {
-        return $this->donationLink;
+        return strip_tags($this->donationLink);
     }
 
     public function getDonationLinkIfEnabled()
     {
-        global $advancedCustomUser;
-        if ($advancedCustomUser->allowDonationLink) {
-            return $this->donationLink;
+        if (class_exists('CustomizeUser') && CustomizeUser::canUseDonationLink($this->id)) {
+            return strip_tags($this->donationLink);
         }
         return false;
     }
 
     public function setDonationLink($donationLink)
     {
+        // reject quote chars so a malicious value can't break out of the href="" attribute (filter_var(FILTER_VALIDATE_URL) alone allows them)
+        if (strpbrk($donationLink, '"\'') !== false) {
+            $donationLink = '';
+        }
         $this->donationLink = $donationLink;
     }
 
@@ -3085,7 +3502,7 @@ if (typeof gtag !== \"function\") {
         if (self::isLogged()) {
             return $_SESSION['user']['donationLink'];
         } else {
-            return false;
+            return '';
         }
     }
 
@@ -3099,22 +3516,87 @@ if (typeof gtag !== \"function\") {
 
     public static function loginFromRequest()
     {
+        global $global;
         inputToRequest();
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $isEncoderRequest = stripos($scriptName, 'aVideoEncoder') !== false;
+        if ($isEncoderRequest) {
+            $rawPass = $_REQUEST['pass'] ?? ($_REQUEST['password'] ?? '');
+            $startsWithUserHash = is_string($rawPass) && strpos($rawPass, '_user_hash_') === 0;
+            _error_log('loginFromRequest: encoder auth precheck script=' . $scriptName
+                . ' hasUser=' . (int)!empty($_REQUEST['user'])
+                . ' hasPass=' . (int)!empty($rawPass)
+                . ' passLen=' . strlen((string) $rawPass)
+                . ' passStartsWithUserHash=' . (int)$startsWithUserHash
+                . ' encodedPass=' . (int)!empty($_REQUEST['encodedPass'])
+                . ' do_not_login=' . (int)!empty($_REQUEST['do_not_login'])
+                . ' isLogged=' . (int)User::isLogged()
+                . ' userId=' . (int)User::getId());
+        }
         if (!empty($_REQUEST['do_not_login'])) {
+            if ($isEncoderRequest) {
+                _error_log('loginFromRequest: encoder auth skipped because do_not_login=1 script=' . $scriptName
+                    . ' user=' . ($_REQUEST['user'] ?? 'empty')
+                    . ' encodedPass=' . (int)!empty($_REQUEST['encodedPass']));
+            }
             return false;
         }
         if (empty($_REQUEST['pass']) && !empty($_REQUEST['password'])) {
             $_REQUEST['pass'] = $_REQUEST['password'];
+            if ($isEncoderRequest) {
+                _error_log('loginFromRequest: encoder auth mapped password->pass script=' . $scriptName . ' user=' . ($_REQUEST['user'] ?? 'empty'));
+            }
         }
 
         $response = false;
         if (!empty($_REQUEST['user']) && !empty($_REQUEST['pass'])) {
+            // If the user is already authenticated in this session, skip re-login.
+            // Re-authenticating an active session regenerates the session ID, which
+            // causes a race condition when parallel requests all start from the same
+            // session ID: the first one to regenerate deletes the session file that
+            // the others (and iframes) are still using.
+            $requestUsersId = !empty($_SESSION['user']['id']) ? self::getRequestCredentialsUsersId() : 0;
+            if (!empty($_SESSION['user']['id']) && $requestUsersId && $requestUsersId !== (int) $_SESSION['user']['id']) {
+                // only API clients (plugin/API get/set.json.php) switch account: on normal pages a link
+                // with someone else's user/pass must not log the visitor out of their own account
+                if (!empty($global['switchUserFromRequestCredentials'])) {
+                    _error_log("loginFromRequest switching session user from {$_SESSION['user']['id']} to {$requestUsersId}");
+                    self::logoff();
+                }
+            }
+            if (!empty($_SESSION['user']['id'])) {
+                $global['bypassSameDomainCheck'] = 1;
+                $_REQUEST['do_not_login'] = 1;
+                // clients that keep the session cookie (Postman, apps) still send explicit credentials
+                if ($requestUsersId === (int) $_SESSION['user']['id']) {
+                    $global['loggedInFromRequestCredentials'] = 1;
+                }
+                if ($isEncoderRequest) {
+                    _error_log('loginFromRequest: encoder auth skipped because session already authenticated sessionUserId=' . (int)$_SESSION['user']['id'] . ' requestUser=' . ($_REQUEST['user'] ?? 'empty'));
+                }
+                return self::USER_LOGGED;
+            }
             unset($_SESSION['user']);
             $user = new User(0, $_REQUEST['user'], $_REQUEST['pass']);
-            $response = $user->login(false, !empty($_REQUEST['encodedPass']));
-            if ($response !== self::USER_LOGGED) {
-                //_error_log("loginFromRequest trying again");                
-                $response = $user->login(false, empty($_REQUEST['encodedPass']));
+            // SECURITY: do not retry with the opposite encodedPass flag on failure -
+            // that tried every submitted password as a pre-hashed value too, so
+            // submitting a stolen password hash as "pass" (no encodedPass needed)
+            // logged the attacker in directly.
+            // Pass the raw value through (not !empty()) so login()'s own
+            // strtolower($encodedPass) === 'false' normalization can still treat
+            // the literal string "false" as false - !empty('false') would be true.
+            self::$loginCheckedPassword = false;
+            $response = $user->login(false, $_REQUEST['encodedPass'] ?? false);
+            if ($response === self::USER_LOGGED && self::$loginCheckedPassword) {
+                // this request's own user/pass created the session, not a pre-existing or remember-me
+                // cookie (login() can return USER_LOGGED for those without checking this password);
+                // plugin/API/set.json.php relies on this to tell explicit credentials from ambient ones
+                $global['loggedInFromRequestCredentials'] = 1;
+            }
+            if ($isEncoderRequest) {
+                _error_log('loginFromRequest: encoder first attempt result=' . json_encode($response)
+                    . ' encodedPassFlag=' . (int)!empty($_REQUEST['encodedPass'])
+                    . ' user=' . ($_REQUEST['user'] ?? 'empty'));
             }
             if ($response) {
                 switch ($response) {
@@ -3137,6 +3619,9 @@ if (typeof gtag !== \"function\") {
                     case self::SYSTEM_ERROR:
                         _error_log("loginFromRequest SYSTEM_ERROR {$_REQUEST['user']}");
                         break;
+                    case self::TOO_MANY_FAILED_ATTEMPTS:
+                        _error_log("loginFromRequest TOO_MANY_FAILED_ATTEMPTS {$_REQUEST['user']}");
+                        break;
                     default:
                         _error_log("loginFromRequest UNDEFINED {$_REQUEST['user']}");
                         break;
@@ -3145,6 +3630,13 @@ if (typeof gtag !== \"function\") {
                 //_error_log("loginFromRequest ERROR {$_REQUEST['user']}");
             }
             $_REQUEST['do_not_login'] = 1;
+            if ($isEncoderRequest) {
+                _error_log('loginFromRequest: encoder final result=' . json_encode($response)
+                    . ' do_not_login now=' . (int)!empty($_REQUEST['do_not_login'])
+                    . ' userIdAfterLogin=' . (int)User::getId());
+            }
+        } elseif ($isEncoderRequest) {
+            _error_log('loginFromRequest: encoder auth not attempted due missing credentials hasUser=' . (int)!empty($_REQUEST['user']) . ' hasPass=' . (int)!empty($_REQUEST['pass']));
         }
         return $response;
     }
@@ -3152,7 +3644,7 @@ if (typeof gtag !== \"function\") {
     public static function loginFromRequestToGet()
     {
         if (!empty($_REQUEST['user']) && !empty($_REQUEST['pass'])) {
-            $return = "user={$_REQUEST['user']}&pass={$_REQUEST['pass']}";
+            $return = "user=" . rawurlencode((string) $_REQUEST['user']) . "&pass=" . rawurlencode((string) $_REQUEST['pass']);
             if (!empty($_REQUEST['encodedPass'])) {
                 $return .= "&encodedPass=" . intval($_REQUEST['encodedPass']);
             }
@@ -3190,7 +3682,7 @@ if (typeof gtag !== \"function\") {
         if (!$canBlock->result) {
             return "<!-- {$canBlock->msg} -->";
         }
-        return ReportVideo::actionButtonBlockUser($users_id);
+        return "<!-- getActionBlockUserButton($users_id) -->" . ReportVideo::actionButtonBlockUser($users_id);
     }
 
     public static function userCanBlockUser($users_id, $ignoreIfIsAlreadyBLocked = false)
@@ -3267,11 +3759,18 @@ if (typeof gtag !== \"function\") {
 
         // Update Background Image
         if (isset($params['backgroundImg']) && $params['backgroundImg'] !== '') {
-            $background = url_get_contents($params['backgroundImg']);
             $ext = pathinfo(parse_url($params['backgroundImg'], PHP_URL_PATH), PATHINFO_EXTENSION);
             $allowed = ['jpg', 'jpeg', 'gif', 'png'];
             if (!in_array(strtolower($ext), $allowed)) {
                 return "File extension error background Image, We allow only (" . implode(",", $allowed) . ")";
+            }
+            // Syntax check only -- SSRF protection is now enforced by default inside url_get_contents()
+            if (!isValidURL($params['backgroundImg'])) {
+                return "Invalid background Image URL";
+            }
+            $background = url_get_contents($params['backgroundImg']);
+            if ($background === false) {
+                return "Invalid background Image URL";
             }
 
             $backgroundPath = "videos/userPhoto/tmp_background{$id}." . $ext;
@@ -3305,7 +3804,14 @@ if (typeof gtag !== \"function\") {
 
         // Update Profile Image
         if (isset($params['profileImg']) && $params['profileImg'] !== '') {
+            // Syntax check only -- SSRF protection is now enforced by default inside url_get_contents()
+            if (!isValidURL($params['profileImg'])) {
+                return "Invalid profile Image URL";
+            }
             $photo = url_get_contents($params['profileImg']);
+            if ($photo === false) {
+                return "Invalid profile Image URL";
+            }
             $photoPath = "videos/userPhoto/photo{$id}.png";
 
             if (!isset($global['systemRootPath'])) {
@@ -3345,7 +3851,7 @@ if (typeof gtag !== \"function\") {
 
     public function getExtra_info()
     {
-        return $this->extra_info;
+        return strip_tags($this->extra_info);
     }
 
     public function setExtra_info($extra_info)
@@ -3425,7 +3931,6 @@ if (typeof gtag !== \"function\") {
         return $value;
     }
 
-
     public static function getSocialMediaURL($socialMedia, $users_id = '')
     {
         global $config;
@@ -3446,7 +3951,11 @@ if (typeof gtag !== \"function\") {
         return self::getSocialMediaURL('website', $users_id);
     }
 
-    public static function setProfilePassword($users_id, $value)
+    public static function setProfilePassword(
+        $users_id,
+        #[\SensitiveParameter]
+        $value
+    )
     {
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (empty($obj) || !User::isAdmin()) {
@@ -3485,9 +3994,38 @@ if (typeof gtag !== \"function\") {
         return $user->addExternalOptions('DonationButtons', $value);
     }
 
+    public static function getRedirectCustomUrl($users_id = '')
+    {
+        global $config;
+        if (empty($users_id)) {
+            $users_id = User::getId();
+        }
+        $user = new User($users_id);
+        $value = $user->getExternalOptions('redirectCustomUrl');
+        $json = _json_decode($value, true);
+        if (empty($json)) {
+            return ['url' => '', 'msg' => '', 'autoRedirect' => 0];
+        }
+        return $json;
+    }
+
+    public static function setRedirectCustomUrl($users_id, $value)
+    {
+        $user = new User($users_id);
+        if (!is_string($value)) {
+            $value = _json_encode($value);
+        }
+        return $user->addExternalOptions('redirectCustomUrl', $value);
+    }
+
     static function getChannelPanel($users_id)
     {
+        global $advancedCustom;
         $u = new User($users_id);
+        if (empty($u->getUser())) {
+            echo "<!-- user ID not found {$users_id} -->";
+            return false;
+        }
         $objGallery = AVideoPlugin::getObjectData("Gallery");
         $get = ['channelName' => $u->getChannelName()];
         $current = getCurrentPage();
@@ -3503,7 +4041,10 @@ if (typeof gtag !== \"function\") {
         if (empty($uploadedVideos)) {
             return '';
         }
-?>
+        if (empty($advancedCustom)) {
+            $advancedCustom = AVideoPlugin::getDataObject('CustomizeAdvanced');
+        }
+        ?>
         <div class="panel panel-default">
             <div class="panel-heading" style="position: relative;">
                 <img src="<?php echo User::getPhoto($users_id); ?>" class="img img-thumbnail img-responsive pull-left" style="max-height: 100px; margin: 0 10px;" alt="User Photo" />
@@ -3526,9 +4067,22 @@ if (typeof gtag !== \"function\") {
                     ?>
                 </div>
             </div>
-            <div class="panel-footer channelsFooter" style="font-size: 0.8em">
-                <div class=" text-muted">
-                    <?php echo number_format_short(VideoStatistic::getChannelsTotalViews($users_id)), " ", __("Views in the last 30 days"); ?>
+            <div class="panel-footer channelsFooter clearfix" style="font-size: 0.8em">
+                <?php
+                if (empty($advancedCustom->doNotDisplayViews)) {
+                ?>
+                    <div class=" text-muted pull-left">
+                        <?php echo number_format_short(VideoStatistic::getChannelsTotalViews($users_id)), " ", __("Views in the last 30 days"); ?>
+                    </div>
+                <?php
+                }
+                ?>
+                <div class="pull-right">
+                    <?php
+                    if (class_exists('UserConnections')) {
+                        echo UserConnections::getConnectionButtons($users_id);
+                    }
+                    ?>
                 </div>
             </div>
         </div>
@@ -3537,6 +4091,10 @@ if (typeof gtag !== \"function\") {
 
     static function swapUser($users_id)
     {
+        // SECURITY REVIEW (2026-10-07): GHSA-mp89-8x4j-2grx reported that a delegated "Users Admin" can swap into
+        // any non-admin user — NOT a vulnerability / DO NOT FIX: "Use this user" is a support tool built for that
+        // role, which can already edit those users' password/email via objects/userAddNew.json.php; admin targets
+        // are blocked in plugin/CustomizeUser/swapUser.json.php. If re-reported, see the advisory thread.
         if (!Permissions::canAdminUsers()) {
             return false;
         }
@@ -3566,5 +4124,72 @@ if (typeof gtag !== \"function\") {
             return false;
         }
         return $_SESSION['swapUser']['id'];
+    }
+
+    static function getUsersPerDayJSON()
+    {
+        global $global;
+
+        $filePath = $global['systemRootPath'] . 'videos/users_per_day.json';
+        $data = [];
+
+        $rows = self::getUsersPerDayRows();
+        if ($rows !== false) {
+            foreach ($rows as $row) {
+                $data[$row['day']] = (int) $row['total'];
+            }
+            file_put_contents($filePath, json_encode($data, JSON_PRETTY_PRINT));
+        } elseif (file_exists($filePath)) {
+            $json = file_get_contents($filePath);
+            $data = json_decode($json, true) ?? [];
+        }
+
+        return $data;
+    }
+
+
+    static function getUsersCumulativePerDayJSON()
+    {
+        global $global;
+
+        $filePath = $global['systemRootPath'] . 'videos/users_cumulative_per_day.json';
+        $data = [];
+
+        $rows = self::getUsersPerDayRows();
+        if ($rows !== false) {
+            $lastTotal = 0;
+            foreach ($rows as $row) {
+                $lastTotal += (int) $row['total'];
+                $data[$row['day']] = $lastTotal;
+            }
+            file_put_contents($filePath, json_encode($data, JSON_PRETTY_PRINT));
+        } elseif (file_exists($filePath)) {
+            $json = file_get_contents($filePath);
+            $data = json_decode($json, true) ?? [];
+        }
+
+        return $data;
+    }
+
+    private static function getUsersPerDayRows()
+    {
+        $sql = "SELECT
+                CASE
+                    WHEN created IS NULL OR created < '1000-01-01' THEN '2000-01-01'
+                    ELSE DATE(created)
+                END AS day,
+                COUNT(*) AS total
+            FROM users
+            GROUP BY day
+            ORDER BY day ASC";
+
+        $res = sqlDAL::readSql($sql);
+        if ($res === false) {
+            return false;
+        }
+        $rows = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+
+        return $rows;
     }
 }

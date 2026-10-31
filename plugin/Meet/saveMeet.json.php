@@ -31,6 +31,13 @@ if (!User::canCreateMeet()) {
     die(json_encode($obj));
 }
 
+// $calledFromTrustedApiInclude is set by plugin/API/API.php::set_api_meet() before including this
+// file, since that request path already authenticated via APISecret/login and has no globalToken.
+if (empty($calledFromTrustedApiInclude)) {
+    forbidIfNotPost();
+    forbidIfInvalidToken();
+}
+
 if (!empty($_REQUEST['id'])) {
     $obj->meet_schedule_id = intval($_REQUEST['id']);
     if (!Meet::canManageSchedule($obj->meet_schedule_id)) {
@@ -75,7 +82,7 @@ $o->setPassword(@$_REQUEST['RoomPasswordNew']);
 $o->setTopic(@$_REQUEST['RoomTopic']);
 $o->setStarts($_REQUEST['starts']);
 $o->setName($obj->roomName);
-$o->setMeet_code(uniqid());
+$o->setMeet_code(_uniqid()); // SECURITY: CSPRNG value, not clock-based uniqid()
 $meet_schedule_id = $o->save();
 if ($meet_schedule_id) {
     Meet_schedule_has_users_groups::saveUsergroupsToMeet($meet_schedule_id, $_REQUEST['userGroups']);

@@ -22,20 +22,17 @@ if (empty($_REQUEST['token'])) {
 }
 
 $token = decryptString($_REQUEST['token']);
+// Do not distinguish padding failures from JSON-parse failures — collapsing both
+// into one path eliminates a CBC padding oracle channel (distinguishable responses
+// allow an attacker to probe byte-by-byte whether decrypted padding is valid).
+$json = !empty($token) ? json_decode($token) : null;
 
-if (empty($token)) {
-    $resp->msg = ('Token is invalid');
-    die(json_encode($resp));
-}
-
-$json = json_decode($token);
-
-if(!empty($_REQUEST['delete'])){
+if(!empty($_REQUEST['delete']) && !empty($json)){
     $json->format = 'mp4';
 }
 
 if (empty($json)) {
-    $resp->msg = ('Error on decrypt token');
+    $resp->msg = ('Invalid or expired token');
     die(json_encode($resp));
 }
 
@@ -56,18 +53,28 @@ if (!User::canWatchVideo($json->videos_id)) {
 
 $resp->deleteRemotely = false;
 $resp->deleteLocally = false;
-$resp->deleteProgress = false;   
+$resp->deleteProgress = false;
 
 $video = Video::getVideoLight($json->videos_id);
 $resp->file = "{$video['filename']}/index.{$json->format}.log";
-$convertedFile = "{$global['systemRootPath']}videos/{$video['filename']}/index.mp4";
+$relativeFilename = "{$video['filename']}/index.mp4";
+$convertedFile = "{$global['systemRootPath']}videos/{$relativeFilename}";
+
 
 $progressFile = getVideosDir() . $resp->file;
 //$resp->progressFile = $progressFile;
 $resp->progress = parseFFMPEGProgress($progressFile);
 
+$resp->file_exists_on_cdn = CDNStorage::file_exists_on_cdn($relativeFilename);
+if($resp->file_exists_on_cdn){
+    $resp->progress->progress = 100;
+}
+
 $resp->lines[] = __LINE__;
-if (empty($_REQUEST['delete']) && file_exists($progressFile) && $resp->progress->progress < 100) {
+
+
+
+if (!$resp->file_exists_on_cdn && empty($_REQUEST['delete']) && file_exists($progressFile) && $resp->progress->progress < 100) {
     if ($resp->progress->secondsOld < 30 && $resp->progress->progress < 100) {
         $resp->lines[] = __LINE__;
         $resp->msg = ("We are still processing the video, please wait");
@@ -82,11 +89,15 @@ if (empty($_REQUEST['delete']) && file_exists($progressFile) && $resp->progress-
     if ($cdnObj->enable_storage) {
         $resp->lines[] = __LINE__;
         $remote_path = "{$video['filename']}/index.mp4";
+        $remote_path_mp3 = "{$video['filename']}/index.mp3";
         $client = CDNStorage::getStorageClient();
         $resp->deleteRemotely = $client->delete($remote_path);
+        $resp->deleteRemotely_mp3 = $client->delete($remote_path_mp3);
     }
+    $convertedFile_mp3 = str_replace('/index.mp4', '/index.mp3', $convertedFile);
     $resp->deleteLocally = unlink($convertedFile);
-    $resp->deleteProgress = unlink($progressFile);    
+    $resp->deleteLocally_mp3 = unlink($convertedFile_mp3);
+    $resp->deleteProgress = unlink($progressFile);
 
     $resp->error = empty($resp->deleteRemotely) && empty($resp->deleteLocally);
 } else {

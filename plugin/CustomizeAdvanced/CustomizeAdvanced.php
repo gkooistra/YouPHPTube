@@ -6,6 +6,14 @@ require_once $global['systemRootPath'] . 'objects/video.php';
 
 class CustomizeAdvanced extends PluginAbstract {
 
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('VideoHLS', 'Optional HLS-related advanced customization options', false),
+            PluginDependency::create('Scheduler', 'Optional scheduled task customization options', false),
+            PluginDependency::create('Subscription', 'Optional subscription-related menu customization', false),
+        );
+    }
+
     public function getTags() {
         return array(
             PluginTags::$RECOMMENDED,
@@ -30,7 +38,7 @@ class CustomizeAdvanced extends PluginAbstract {
     public function getPluginVersion() {
         return "1.0";
     }
-    
+
     public static function getDataObjectDeprecated() {
         return array(
             'EnableMinifyJS',
@@ -41,13 +49,13 @@ class CustomizeAdvanced extends PluginAbstract {
             'embedBackgroundColor',
             );
     }
-    
+
     public static function getDataObjectExperimental() {
         return array(
             'autoPlayAjax',
         );
     }
-    
+
     public static function getDataObjectAdvanced() {
         return array(
             'logoMenuBarURL',
@@ -134,6 +142,7 @@ class CustomizeAdvanced extends PluginAbstract {
             'CategoryLabel',
             'ShowAllVideosOnCategory',
             'hideCategoryVideosCount',
+            'categoryLiveCount',
             'hideEditAdvancedFromVideosManager',
             'paidOnlyUsersTellWhatVideoIs',
             'paidOnlyShowLabels',
@@ -168,9 +177,12 @@ class CustomizeAdvanced extends PluginAbstract {
             'showChannelPhotoOnVideoItem',
             'showChannelNameOnVideoItem',
             'canonicalURLType',
+            'ffmpegParameters',
+            'showHumanTimingOnVideoItem',
+            'showHumanTimingOnVideoItemDateFormat'
             );
     }
-    
+
     public function getEmptyDataObject() {
         global $global, $statusThatTheUserCanUpdate, $advancedCustom;
         $obj = new stdClass();
@@ -196,6 +208,8 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->importMP4ButtonLabel = "";
         $obj->doNotShowEncoderButton = false;
         $obj->encoderButtonLabel = "";
+        $obj->showLocalEncoder = true;
+        self::addDataObjectHelper('showLocalEncoder', 'Show Local Encoder', 'Show the Local Encoder download page in upload screens and recommend it when URL imports fail. The Web Encoder remains required for AVideo media services.');
         $obj->doNotShowEmbedButton = false;
         $obj->embedBackgroundColor = "white";
         $obj->embedButtonLabel = "";
@@ -223,6 +237,16 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotShowEncoderAutomaticMP4 = false;
         $obj->doNotShowEncoderAutomaticWebm = false;
         $obj->doNotShowEncoderAutomaticAudio = false;
+
+        $o = new stdClass();
+        $o->type = array(0 => __('Disabled'), 240 => __('Max 240p'), 360 => __('Max 360p'), 480 => __('Max 480p'), 540 => __('Max 540p'), 720 => __('Max 720p'), 1080 => __('Max 1080p'), 1440 => __('Max 1440p'), 2160 => __('Max 2160p'));
+        $o->value = 0;
+        $obj->singleResolution = $o;
+        self::addDataObjectHelper(
+            'singleResolution',
+            'Save MP4 videos in a single resolution',
+            'Select the maximum resolution to save each video. Videos will not be upscaled to higher resolutions (Must enable automatic resolutions)'
+        );
         $obj->saveOriginalVideoResolution = false;
         self::addDataObjectHelper('saveOriginalVideoResolution', 'Save the original video resolution', 'This option will make your encoder at the end trancode the video into the original format resolution');
         $obj->doNotShowExtractAudio = false;
@@ -232,7 +256,7 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotUseXsendFile = false;
         $obj->makeVideosInactiveAfterEncode = false;
         $obj->makeVideosUnlistedAfterEncode = false;
-        
+
         $o = new stdClass();
         $o->type = array();
         if(empty($statusThatTheUserCanUpdate)){
@@ -243,29 +267,31 @@ class CustomizeAdvanced extends PluginAbstract {
             $statusColor = $value[1];
             $o->type[$statusIndex] = Video::$statusDesc[$statusIndex];
         }
-        
+
         $dbObject = PluginAbstract::getObjectDataFromDatabase($this->getUUID());
-        
+
         if (!empty($dbObject->makeVideosInactiveAfterEncode)) {
-            $o->value = Video::$statusInactive;
+            $o->value = Video::STATUS_INACTIVE;
         } elseif (!empty($dbObject->makeVideosUnlistedAfterEncode)) {
-            $o->value = Video::$statusUnlisted;
+            $o->value = Video::STATUS_UNLISTED;
         }else{
-            $o->value = Video::$statusActive;
+            $o->value = Video::STATUS_ACTIVE;
         }
         $obj->defaultVideoStatus = $o;
         self::addDataObjectHelper('defaultVideoStatus', 'Default video status', 'When you submit a video that will be the default status');
-        
+
         $obj->usePermalinks = false;
         self::addDataObjectHelper('usePermalinks', 'Do not show video title on URL', 'This option is not good for SEO, but makes the URL clear');
-              
-        $o = new stdClass();  
+
+        $o = new stdClass();
         $o->type = array(0 => 'Short URL', 1 => 'URL+Channel Name', 2 => 'URL+Channel+Title');
         $o->value = 1;
         $obj->canonicalURLType = $o;
-        
+
         $obj->disableAnimatedGif = false;
         $obj->removeBrowserChannelLinkFromMenu = false;
+        $obj->removeBrowserChannelPerGroupLinkFromMenu = true;
+        $obj->browserChannelPerGroupLinkFromMenuLabel = 'Channels by Group';
         $obj->EnableMinifyJS = false;
         $obj->disableShareAndPlaylist = false;
         $obj->disableShareOnly = false;
@@ -355,14 +381,16 @@ class CustomizeAdvanced extends PluginAbstract {
         $obj->doNotShowLeftTrendingButton = false;
 
         $obj->CategoryLabel = "Categories";
+        $obj->CategoryShowOnlySuggested = false;
         $obj->ShowAllVideosOnCategory = false;
         $obj->hideCategoryVideosCount = false;
         $obj->hideEditAdvancedFromVideosManager = false;
+        $obj->categoryLiveCount = true;
 
         //ver 7.1
         $obj->paidOnlyUsersTellWhatVideoIs = false;
         self::addDataObjectHelper('paidOnlyUsersTellWhatVideoIs', 'Only Paid Users Can see option', 'This will create an option on videos manager to only let paid users to see this video');
-        
+
         $obj->paidOnlyShowLabels = false;
         $obj->paidOnlyLabel = "Premium";
         $obj->paidOnlyFreeLabel = "Free";
@@ -447,48 +475,92 @@ Disallow: *action=tagsearch*
 ";
         $obj->robotsTXT = $o;
         self::addDataObjectHelper('robotsTXT', 'robots.txt file content', 'robots.txt is a plain text file that follows the Robots Exclusion Standard. A robots.txt file consists of one or more rules. Each rule blocks (or allows) access for a given crawler to a specified file path in that website.');
-        
+
         $o = new stdClass();
         $o->type = "textarea";
         $o->value = "";
         $obj->beforeNavbar = $o;
         self::addDataObjectHelper('beforeNavbar', 'Add some code before the navbar HTML');
-        
-        
+
+
         $o = new stdClass();
         $o->type = array(1 => __("1 Day"), 10 => __("10 Days"), 15 => __("15 Days"), 20 => __("20 Days"), 25 => __("25 Days"), 30 => __("30 Days"), 60 => __("60 Days"));
         $o->value = 30;
         $obj->trendingOnLastDays = $o;
         self::addDataObjectHelper('trendingOnLastDays', 'Trending Days', 'For the result of trending videos, use the statistics contained in the last few days');
 
-        
+
         $obj->removeVideoList = false;
         $o = new stdClass();
         $o->type = array(
-            'titleAZ' => __("Title (A-Z)"), 
-            'titleZA' => __("Title (Z-A)"), 
-            'newest' => __("Date added (newest)"), 
-            'oldest' => __("Date added (oldest)"), 
-            'popular' => __("Most popular"), 
-            'views_count' => __("Most watched"), 
-            'suggested' => __("Suggested"), 
+            'titleAZ' => __("Title (A-Z)"),
+            'titleZA' => __("Title (Z-A)"),
+            'newest' => __("Date added (newest)"),
+            'oldest' => __("Date added (oldest)"),
+            'popular' => __("Most popular"),
+            'views_count' => __("Most watched"),
+            'suggested' => __("Suggested"),
             'trending' => __("Trending")
             );
         $o->value = 'newest';
         $obj->sortVideoListByDefault = $o;
         self::addDataObjectHelper('sortVideoListByDefault', 'Sort Video List By Default');
-        
+
         $obj->showVideoDownloadedLink = false;
         self::addDataObjectHelper('showVideoDownloadedLink', 'Show video Downloaded Link', 'Show the video source URL above the video description');
-        
+
         $obj->videosForKids = true;
-        
+
+
+        $obj->autoConvertVideosToMP3 = false;
+        $obj->allowDownloadMP3 = true;
+
+        $obj->disableFeeds = false;
+
+        $o = new stdClass();
+        $o->type = array(
+            'Arts' => __("Arts"),
+            'Business' => __("Business"),
+            'Comedy' => __("Comedy"),
+            'Education' => __("Education"),
+            'Fiction' => __("Fiction"),
+            'Government' => __("Government"),
+            'Health & Fitness' => __("Health & Fitness"),
+            'History' => __("History"),
+            'Kids & Family' => __("Kids & Family"),
+            'Leisure' => __("Leisure"),
+            'Music' => __("Music"),
+            'News' => __("News"),
+            'Religion & Spirituality' => __("Religion & Spirituality"),
+            'Science' => __("Science"),
+            'Society & Culture' => __("Society & Culture"),
+            'Sports' => __("Sports"),
+            'Technology' => __("Technology"),
+            'True Crime' => __("True Crime"),
+            'TV & Film' => __("TV & Film"),
+            );
+        $o->value = 'Society & Culture';
+        $obj->rssItunesCategory = $o;
+        self::addDataObjectHelper('rssItunesCategory', 'RSS/Podcast iTunes Category', 'The Apple Podcasts / iTunes category used on the <itunes:category> tag of the RSS feed');
+
+        $obj->ffmpegParameters = "-c:v libx264 -preset veryfast -crf 23 -c:a aac -b:a 128k";
+        self::addDataObjectHelper('ffmpegParameters', 'FFmpeg conversion parameters', 'Output options used when FFmpeg converts a video (e.g. HLS to MP4 downloads). Only allowed options separated by spaces are accepted (codecs, preset, crf, bitrates, audio rate/channels, scale, faststart); anything else is rejected and the default profile is used.');
+
+        $obj->showHumanTimingOnVideoItem = true;
+        self::addDataObjectHelper('showHumanTimingOnVideoItem', 'Show human timing on video item', 'This will show the time since the video was uploaded in a human readable format, like "2 days ago" instead of the exact date and time');
+
+        $obj->showHumanTimingOnVideoItemDateFormat = "Y-m-d H:i";
+        self::addDataObjectHelper('showHumanTimingOnVideoItemDateFormat', 'Show human timing on video item date format', 'This will set the date format for the human timing, you can use any format supported by PHP date function, like "Y-m-d H:i:s"');
+
+        $obj->verifySSLCertificates = false;
+        self::addDataObjectHelper('verifySSLCertificates', 'Verify SSL certificates', 'Check the HTTPS/TLS certificates of the Encoder, SMTP server, WordPress login and CloneSite server. Leave it unchecked if any of them uses a self-signed or private certificate. $global[\'verifySSLCertificates\'] in videos/configuration.php overrides this option');
+
         return $obj;
     }
-    
+
     static function showDirectUploadButton(){
-        global $_showDirectUploadButton;        
-        if(!isset($_showDirectUploadButton)){        
+        global $_showDirectUploadButton;
+        if(!isset($_showDirectUploadButton)){
             $obj = AVideoPlugin::getDataObject('CustomizeAdvanced');
             if(empty($obj->doNotShowUploadMP4Button)){
                 if(!empty(self::directUploadFiletypes())){
@@ -496,16 +568,16 @@ Disallow: *action=tagsearch*
                 }else{
                     $_showDirectUploadButton = false;
                 }
-            }else{               
+            }else{
                 $_showDirectUploadButton = false;
             }
         }
         return $_showDirectUploadButton;
     }
-    
+
     static function directUploadFiletypes(){
-        global $_directUploadFiletypes;        
-        if(!isset($_directUploadFiletypes)){  
+        global $_directUploadFiletypes;
+        if(!isset($_directUploadFiletypes)){
             $_directUploadFiletypes = array();
             $obj = AVideoPlugin::getDataObject('CustomizeAdvanced');
             if(empty($obj->disablePDFUpload)){
@@ -526,8 +598,7 @@ Disallow: *action=tagsearch*
         }
         return $_directUploadFiletypes;
     }
-    
-    
+
     public function navBar() {
         $obj = $this->getDataObject();
         $str = '';
@@ -546,15 +617,18 @@ Disallow: *action=tagsearch*
 
     public function getModeYouTube($videos_id) {
         global $global, $config;
-        
+
         $redirectVideo = self::getRedirectVideo($videos_id);
         //var_dump($redirectVideo);exit;
         if(!empty($redirectVideo) && !empty($redirectVideo->code) && isValidURL($redirectVideo->url) && getSelfURI() !== $redirectVideo->url){
             header("Location: {$redirectVideo->url}", true, $redirectVideo->code);
             exit;
         }
-        
+
         $obj = $this->getDataObject();
+
+        self::createMP3($videos_id);
+
         $video = Video::getVideo($videos_id, Video::SORT_TYPE_VIEWABLE, true);
         if (!empty($video['rrating']) && empty($_GET['rrating'])) {
             $suffix = strtoupper(str_replace("-", "", $video['rrating']));
@@ -587,6 +661,26 @@ Disallow: *action=tagsearch*
         }
         $content .= '<script>iframeAllowAttributes = \''. (Video::$iframeAllowAttributes).'\';</script>';
         return $content;
+    }
+
+    public static function getLocalEncoderURL() {
+        global $global;
+        $settings = AVideoPlugin::getDataObjectIfEnabled('CustomizeAdvanced');
+        if (empty($settings->showLocalEncoder)) {
+            return '';
+        }
+        return $global['webSiteRootURL'] . 'plugin/CustomizeAdvanced/localEncoder.php';
+    }
+
+    public function getUploadMenuButton() {
+        if (!User::canUpload()) {
+            return '';
+        }
+        $url = self::getLocalEncoderURL();
+        if (empty($url)) {
+            return '';
+        }
+        return '<li><a href="' . htmlspecialchars($url . '#open=1', ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-desktop" aria-hidden="true"></i> ' . __('Use Local Encoder on your computer') . '</a></li>';
     }
 
     public function getHTMLMenuRight() {
@@ -666,7 +760,19 @@ Disallow: *action=tagsearch*
         Video::updateFilesize($videos_id);
         return true;
     }
-    
+
+    public function afterNewVideo($videos_id) {
+        self::createMP3($videos_id);
+        return false;
+    }
+
+    public static function createMP3($videos_id){
+        $obj = AVideoPlugin::getDataObject('CustomizeAdvanced');
+        if($obj->autoConvertVideosToMP3){
+            convertVideoToMP3FileIfNotExists($videos_id);
+        }
+    }
+
     public static function getManagerVideosAddNew() {
         global $global;
         $filename = $global['systemRootPath'] . 'plugin/CustomizeAdvanced/getManagerVideosAddNew.js';
@@ -703,7 +809,7 @@ Disallow: *action=tagsearch*
             self::setShortSummaryAndMetaDescriptionVideo($videos_id,@$post['ShortSummary'], @$post['MetaDescription']);
         }
     }
-    
+
     public static function setDoNotShowAds($videos_id, $doNotShowAdsOnThisVideo) {
         if (!Permissions::canAdminVideos()) {
             return false;
@@ -717,12 +823,12 @@ Disallow: *action=tagsearch*
         $video->setExternalOptions(json_encode($externalOptions));
         return $video->save();
     }
-    
+
     public static function setDoNotShowAdsOnChannel($videos_id, $doNotShowAdsOnThisChannel) {
         if (!Permissions::canAdminVideos()) {
             return false;
         }
-        $video = new Video('', '', $videos_id);
+        $video = new Video('', '', $videos_id, true);
         $users_id = $video->getUsers_id();
         $user = new User($users_id);
         return $user->addExternalOptions('doNotShowAdsOnThisChannel', $doNotShowAdsOnThisChannel);
@@ -733,7 +839,7 @@ Disallow: *action=tagsearch*
         $externalOptions = _json_decode($video->getExternalOptions());
         return !empty($externalOptions->doNotShowAdsOnThisVideo);
     }
-    
+
     public static function getDoNotShowAdsChannel($videos_id): bool {
         $video = new Video('', '', $videos_id);
         $users_id = $video->getUsers_id();
@@ -741,7 +847,7 @@ Disallow: *action=tagsearch*
         $externalOptions = object_to_array(_json_decode(User::decodeExternalOption($user->_getExternalOptions())));
         return !empty($externalOptions['doNotShowAdsOnThisChannel']);
     }
-    
+
     public static function setRedirectVideo($videos_id, $code, $url) {
         if (!Permissions::canAdminVideos()) {
             return false;
@@ -761,9 +867,14 @@ Disallow: *action=tagsearch*
         $externalOptions = _json_decode($video->getExternalOptions());
         return @$externalOptions->redirectVideo;
     }
-    
-     public static function setShortSummaryAndMetaDescriptionVideo($videos_id, $ShortSummary, $MetaDescription) {
-        if (!Video::canEdit($videos_id)) {
+
+    public static function setShortSummaryAndMetaDescriptionVideo($videos_id, $ShortSummary, $MetaDescription, $checkUserPermission = true) {
+        if ($checkUserPermission && !Video::canEdit($videos_id)) {
+            _error_log("setShortSummaryAndMetaDescriptionVideo: User does not have permission to edit video ID {$videos_id}");
+            return false;
+        }
+        if(empty($ShortSummary) && empty($MetaDescription)){
+            _error_log("setShortSummaryAndMetaDescriptionVideo: No data to update for video ID {$videos_id}");
             return false;
         }
         $video = new Video('', '', $videos_id, true);
@@ -773,7 +884,7 @@ Disallow: *action=tagsearch*
         }
         $externalOptions->SEO = array('ShortSummary'=>$ShortSummary, 'MetaDescription'=>$MetaDescription);
         $video->setExternalOptions(json_encode($externalOptions));
-        return $video->save();
+        return $video->save(false, !$checkUserPermission);
     }
 
     public static function getShortSummaryAndMetaDescriptionVideo($videos_id) {
@@ -781,11 +892,11 @@ Disallow: *action=tagsearch*
         $externalOptions = _json_decode($video->getExternalOptions());
         return @$externalOptions->SEO;
     }
-    
+
     public function showAds($videos_id): bool {
         return !self::getDoNotShowAdsChannel($videos_id) && !self::getDoNotShowAds($videos_id);
     }
-    
+
     public function getGalleryActionButton($videos_id) {
         global $global;
         include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/actionButtonGallery.php';
@@ -796,6 +907,45 @@ Disallow: *action=tagsearch*
         include $global['systemRootPath'] . 'plugin/CustomizeAdvanced/actionButton.php';
     }
 
+    static function autoConvert()
+    {
+        global $global;
+        $sql = "SELECT * FROM  videos WHERE `type` = '" . Video::$videoTypeVideo . "' ORDER BY id DESC ";
+        $res = sqlDAL::readSql($sql, "", [], true);
+        $fullData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        $transferStatus = [];
+        $transferStatus[] = Video::STATUS_ACTIVE;
+        $transferStatus[] = Video::STATUS_FANS_ONLY;
+        $transferStatus[] = Video::STATUS_SCHEDULED_RELEASE_DATE;
+        $transferStatus[] = Video::STATUS_UNLISTED;
+        $transferStatus[] = Video::STATUS_UNLISTED_BUT_SEARCHABLE;
+
+        if ($res != false) {
+            foreach ($fullData as $key => $row) {
+                if (in_array($row['status'], $transferStatus)) {
+                    $folderPath = "{$global['systemRootPath']}videos/{$row['filename']}/";
+                    $mp3 = findMP3File($folderPath);
+                    if (!empty($mp3)) {
+                        _error_log("CustomizeAdvanced::autoConvert {$row['id']} to MP4 $folderPath");
+                        $resp = self::createMP3($row['id']);
+                    } else {
+                        //_error_log('VideoHLS::autoConvert to MP4 (already converted) '.$row['id']." $mp4");
+                    }
+                } else {
+                    //_error_log("VideoHLS::autoConvert to MP4 (wrong status [{$row['status']}]) ".$row['id']);
+                }
+            }
+        }
+    }
+
+
+    function executeEveryHour() {
+        $obj = AVideoPlugin::getDataObject('CustomizeAdvanced');
+        if($obj->autoConvertVideosToMP3){
+            self::autoConvert();
+        }
+    }
 }
 
 class SocialMedias {
@@ -859,7 +1009,7 @@ class SocialMedias {
     function setOnclick($onclick): void {
         $this->onclick = $onclick;
     }
-    
+
 }
 
 $global['social_medias'] = array(

@@ -99,9 +99,9 @@ class ProjectsLocationsEntryGroupsEntriesTags extends \Google\Service\Resource
   /**
    * Updates an existing tag. (tags.patch)
    *
-   * @param string $name The resource name of the tag in URL format where tag ID
-   * is a system-generated identifier. Note: The tag itself might not be stored in
-   * the location specified in its name.
+   * @param string $name Identifier. The resource name of the tag in URL format
+   * where tag ID is a system-generated identifier. Note: The tag itself might not
+   * be stored in the location specified in its name.
    * @param GoogleCloudDatacatalogV1Tag $postBody
    * @param array $optParams Optional parameters.
    *
@@ -125,7 +125,9 @@ class ProjectsLocationsEntryGroupsEntriesTags extends \Google\Service\Resource
    * deletes tags not included in the input tag list. `ReconcileTags` returns a
    * long-running operation resource that can be queried with
    * Operations.GetOperation to return ReconcileTagsMetadata and a
-   * ReconcileTagsResponse message. (tags.reconcile)
+   * ReconcileTagsResponse message. Note: SearchCatalog might return stale search
+   * results for up to 24 hours after the `ReconcileTags` operation completes.
+   * (tags.reconcile)
    *
    * @param string $parent Required. Name of Entry to be tagged.
    * @param GoogleCloudDatacatalogV1ReconcileTagsRequest $postBody

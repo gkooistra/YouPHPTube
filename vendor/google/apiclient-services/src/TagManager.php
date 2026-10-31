@@ -74,6 +74,7 @@ class TagManager extends \Google\Service
   public $accounts_containers_workspaces_variables;
   public $accounts_containers_workspaces_zones;
   public $accounts_user_permissions;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the TagManager service.
@@ -86,6 +87,7 @@ class TagManager extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://tagmanager.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://tagmanager.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v2';
@@ -215,6 +217,10 @@ class TagManager extends \Google\Service
               'httpMethod' => 'GET',
               'parameters' => [
                 'destinationId' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+                'tagId' => [
                   'location' => 'query',
                   'type' => 'string',
                 ],
@@ -1114,6 +1120,32 @@ class TagManager extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+              ],
+            ],'import_from_gallery' => [
+              'path' => 'tagmanager/v2/{+parent}/templates:import_from_gallery',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'parent' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'acknowledgePermissions' => [
+                  'location' => 'query',
+                  'type' => 'boolean',
+                ],
+                'galleryOwner' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+                'galleryRepository' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+                'gallerySha' => [
+                  'location' => 'query',
+                  'type' => 'string',
                 ],
               ],
             ],'list' => [

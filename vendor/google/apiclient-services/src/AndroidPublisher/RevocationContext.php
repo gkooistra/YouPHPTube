@@ -19,9 +19,41 @@ namespace Google\Service\AndroidPublisher;
 
 class RevocationContext extends \Google\Model
 {
+  protected $fullRefundType = RevocationContextFullRefund::class;
+  protected $fullRefundDataType = '';
+  protected $itemBasedRefundType = RevocationContextItemBasedRefund::class;
+  protected $itemBasedRefundDataType = '';
   protected $proratedRefundType = RevocationContextProratedRefund::class;
   protected $proratedRefundDataType = '';
 
+  /**
+   * @param RevocationContextFullRefund
+   */
+  public function setFullRefund(RevocationContextFullRefund $fullRefund)
+  {
+    $this->fullRefund = $fullRefund;
+  }
+  /**
+   * @return RevocationContextFullRefund
+   */
+  public function getFullRefund()
+  {
+    return $this->fullRefund;
+  }
+  /**
+   * @param RevocationContextItemBasedRefund
+   */
+  public function setItemBasedRefund(RevocationContextItemBasedRefund $itemBasedRefund)
+  {
+    $this->itemBasedRefund = $itemBasedRefund;
+  }
+  /**
+   * @return RevocationContextItemBasedRefund
+   */
+  public function getItemBasedRefund()
+  {
+    return $this->itemBasedRefund;
+  }
   /**
    * @param RevocationContextProratedRefund
    */

@@ -27,6 +27,10 @@ class SubscriptionPurchaseLineItem extends \Google\Model
    * @var string
    */
   public $expiryTime;
+  /**
+   * @var string
+   */
+  public $latestSuccessfulOrderId;
   protected $offerDetailsType = OfferDetails::class;
   protected $offerDetailsDataType = '';
   protected $prepaidPlanType = PrepaidPlan::class;
@@ -35,6 +39,8 @@ class SubscriptionPurchaseLineItem extends \Google\Model
    * @var string
    */
   public $productId;
+  protected $signupPromotionType = SignupPromotion::class;
+  protected $signupPromotionDataType = '';
 
   /**
    * @param AutoRenewingPlan
@@ -79,6 +85,20 @@ class SubscriptionPurchaseLineItem extends \Google\Model
     return $this->expiryTime;
   }
   /**
+   * @param string
+   */
+  public function setLatestSuccessfulOrderId($latestSuccessfulOrderId)
+  {
+    $this->latestSuccessfulOrderId = $latestSuccessfulOrderId;
+  }
+  /**
+   * @return string
+   */
+  public function getLatestSuccessfulOrderId()
+  {
+    return $this->latestSuccessfulOrderId;
+  }
+  /**
    * @param OfferDetails
    */
   public function setOfferDetails(OfferDetails $offerDetails)
@@ -119,6 +139,20 @@ class SubscriptionPurchaseLineItem extends \Google\Model
   public function getProductId()
   {
     return $this->productId;
+  }
+  /**
+   * @param SignupPromotion
+   */
+  public function setSignupPromotion(SignupPromotion $signupPromotion)
+  {
+    $this->signupPromotion = $signupPromotion;
+  }
+  /**
+   * @return SignupPromotion
+   */
+  public function getSignupPromotion()
+  {
+    return $this->signupPromotion;
   }
 }
 

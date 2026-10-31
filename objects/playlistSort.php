@@ -6,12 +6,14 @@ if (empty($global['systemRootPath'])) {
 require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/playlist.php';
+forbidIfIsUntrustedRequest('playlistSort');
+enforceRateLimit('playlist_sort', 40, 60);
 if (!User::isLogged()) {
-    die('{"error":"'.__("Permission denied").'"}');
+    forbiddenPage('Permission denied', true);
 }
 
 if (!PlayLists::canManagePlaylist($_REQUEST['playlist_id'])) {
-    die('{"error":"'.__("Permission denied").'"}');
+    forbiddenPage('Permission denied', true);
 }
 
 $obj = new PlayList($_REQUEST['playlist_id']);
@@ -48,10 +50,24 @@ if (empty($_POST['list'])) {
         $_POST['list'][] = $value['id'];
     }
 }
+$o = new stdClass();
+$o->savedPLItem = array();
+$o->playlist_id = $_REQUEST['playlist_id'];
+$result = false;
+
 _error_log('playlistSort line='.__LINE__);
 mysqlBeginTransaction();
 foreach ($_POST['list'] as $key => $value) {
-    $result = $obj->addVideo($value, true, ($count++), false);
+    if(empty($value)){
+        continue;
+    }
+    $order = ($count++);
+    $result = $obj->addVideo($value, true, $order, false);
+    $o->savedPLItem[] = array(
+        'resp'=>$result,
+        'videos_id'=>$value,
+        'order'=>$order,
+    );
 }
 PlayList::deleteCacheDir($obj->getId());
 mysqlCommit();
@@ -62,7 +78,6 @@ if (!empty($_GET['sort'])) {
     //header("Location: ". User::getChannelLink($obj->getUsers_id()));
     exit;
 }
-$o = new stdClass();
 $o->status = $result;
 //$o->channelName = $obj->get;
 echo json_encode($o);exit;

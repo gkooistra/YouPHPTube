@@ -1,5 +1,5 @@
 <?php
-if (isIframe() || isConfirmationPage()) {
+if (isIframe() || isConfirmationPage() || isEmbed()) {
     return false;
 }
 ?>
@@ -69,7 +69,6 @@ for ($i = 150; $i <= 300; $i += 10) {
                 <i class="fas fa-power-off"></i>
                 <span class="accessibility-toolbar-text"><?php echo __('Reset'); ?></span> 
             </a>
-            </ul>
         </div>
 </nav>
 <script>

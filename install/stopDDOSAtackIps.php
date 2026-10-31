@@ -1,5 +1,10 @@
 <?php
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('This script can only be run from the command line.');
+}
+
 $defaultLines = 500;
 $defaultTimeout = 1;
 
@@ -124,7 +129,7 @@ while (1) {
         $linesCount = intval($defaultLines/4);
         echo "*** {$totalNew} new rules inserted" . PHP_EOL;
     }
-    
+
     if ($totalNew && !$mySQLIsStopped) {
         $load = percentloadavg();
         echo '*** sys_getloadavg: '.$load[0] . PHP_EOL;

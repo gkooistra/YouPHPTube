@@ -18,6 +18,7 @@
 namespace Google\Service\BackupforGKE\Resource;
 
 use Google\Service\BackupforGKE\Backup;
+use Google\Service\BackupforGKE\GetBackupIndexDownloadUrlResponse;
 use Google\Service\BackupforGKE\GoogleLongrunningOperation;
 use Google\Service\BackupforGKE\ListBackupsResponse;
 use Google\Service\BackupforGKE\Policy;
@@ -94,6 +95,21 @@ class ProjectsLocationsBackupPlansBackups extends \Google\Service\Resource
     return $this->call('get', [$params], Backup::class);
   }
   /**
+   * Retrieve the link to the backupIndex. (backups.getBackupIndexDownloadUrl)
+   *
+   * @param string $backup Required. Full name of Backup resource. Format: project
+   * s/{project}/locations/{location}/backupPlans/{backup_plan}/backups/{backup}
+   * @param array $optParams Optional parameters.
+   * @return GetBackupIndexDownloadUrlResponse
+   * @throws \Google\Service\Exception
+   */
+  public function getBackupIndexDownloadUrl($backup, $optParams = [])
+  {
+    $params = ['backup' => $backup];
+    $params = array_merge($params, $optParams);
+    return $this->call('getBackupIndexDownloadUrl', [$params], GetBackupIndexDownloadUrlResponse::class);
+  }
+  /**
    * Gets the access control policy for a resource. Returns an empty policy if the
    * resource exists and does not have a policy set. (backups.getIamPolicy)
    *
@@ -144,6 +160,9 @@ class ProjectsLocationsBackupPlansBackups extends \Google\Service\Resource
    * from a previous `ListBackups` call. Provide this to retrieve the subsequent
    * page in a multi-page list of results. When paginating, all other parameters
    * provided to `ListBackups` must match the call that provided the page token.
+   * @opt_param bool returnPartialSuccess Optional. If set to true, the response
+   * will return partial results when some regions are unreachable and the
+   * unreachable field will be populated.
    * @return ListBackupsResponse
    * @throws \Google\Service\Exception
    */

@@ -1,11 +1,11 @@
 <?php
 global $global;
-require_once $global['systemRootPath'].'objects/functionInfiniteScroll.php';
 
 if (empty($global['systemRootPath'])) {
     $global['systemRootPath'] = dirname(__FILE__) . '/../../../';
 }
 
+require_once $global['systemRootPath'].'objects/functionInfiniteScroll.php';
 require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 require_once $global['systemRootPath'] . 'plugin/Gallery/functions.php';
@@ -35,7 +35,7 @@ if (empty($channels)) {
 $totalPages = ceil($total / $itemsPerPage);
 ?>
 <!-- mainAreaChannel start -->
-<div class="mainAreaChannels">  
+<div class="mainAreaChannels">
     <?php
     foreach ($channels as $value) {
         $_POST['disableAddTo'] = 0;
@@ -47,7 +47,7 @@ $totalPages = ceil($total / $itemsPerPage);
     <?php
 //getPagination($total, $page = 0, $link = "", $maxVisible = 10, $infinityScrollGetFromSelector="", $infinityScrollAppendIntoSelector="")
     echo getPagination($totalPages, "{$global['webSiteRootURL']}plugin/Gallery/view/mainAreaChannels.php", 10, ".mainAreaChannels", ".mainAreaChannels");
-    echo getPagination($totalPages, "{$global['webSiteRootURL']}plugin/Gallery/view/mainAreaChannels.php");
+    // echo getPagination($totalPages, "{$global['webSiteRootURL']}plugin/Gallery/view/mainAreaChannels.php");
     ?>
 </div>
 <!-- mainAreaChannel end -->

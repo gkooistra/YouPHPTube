@@ -10,13 +10,16 @@ if (!User::isAdmin()) {
     $obj->msg = ('Must be admin');
     die(json_encode($obj));
 }
+forbidIfNotPost();
+forbidIfInvalidToken();
 $users_id = intval(@$_REQUEST['users_id']);
 if (empty($users_id)) {
     $obj->msg = ('Empty users_id');
     die(json_encode($obj));
 }
 
-$obj->ProfilePassword = intval(@$_REQUEST['ProfilePassword']);
+// ProfilePassword should be a string (alphanumeric), not forced to integer
+$obj->ProfilePassword = strval(@$_REQUEST['ProfilePassword']);
 $obj->users_id = $users_id;
 
 $obj->response = User::setProfilePassword($users_id, $obj->ProfilePassword) ;

@@ -26,6 +26,14 @@ class GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpec 
   /**
    * @var bool
    */
+  public $ignoreJailBreakingQuery;
+  /**
+   * @var bool
+   */
+  public $ignoreLowRelevantContent;
+  /**
+   * @var bool
+   */
   public $ignoreNonSummarySeekingQuery;
   /**
    * @var bool
@@ -39,10 +47,16 @@ class GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpec 
   protected $modelPromptSpecDataType = '';
   protected $modelSpecType = GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpecModelSpec::class;
   protected $modelSpecDataType = '';
+  protected $multimodalSpecType = GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpecMultiModalSpec::class;
+  protected $multimodalSpecDataType = '';
   /**
    * @var int
    */
   public $summaryResultCount;
+  /**
+   * @var bool
+   */
+  public $useSemanticChunks;
 
   /**
    * @param bool
@@ -57,6 +71,34 @@ class GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpec 
   public function getIgnoreAdversarialQuery()
   {
     return $this->ignoreAdversarialQuery;
+  }
+  /**
+   * @param bool
+   */
+  public function setIgnoreJailBreakingQuery($ignoreJailBreakingQuery)
+  {
+    $this->ignoreJailBreakingQuery = $ignoreJailBreakingQuery;
+  }
+  /**
+   * @return bool
+   */
+  public function getIgnoreJailBreakingQuery()
+  {
+    return $this->ignoreJailBreakingQuery;
+  }
+  /**
+   * @param bool
+   */
+  public function setIgnoreLowRelevantContent($ignoreLowRelevantContent)
+  {
+    $this->ignoreLowRelevantContent = $ignoreLowRelevantContent;
+  }
+  /**
+   * @return bool
+   */
+  public function getIgnoreLowRelevantContent()
+  {
+    return $this->ignoreLowRelevantContent;
   }
   /**
    * @param bool
@@ -129,6 +171,20 @@ class GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpec 
     return $this->modelSpec;
   }
   /**
+   * @param GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpecMultiModalSpec
+   */
+  public function setMultimodalSpec(GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpecMultiModalSpec $multimodalSpec)
+  {
+    $this->multimodalSpec = $multimodalSpec;
+  }
+  /**
+   * @return GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpecMultiModalSpec
+   */
+  public function getMultimodalSpec()
+  {
+    return $this->multimodalSpec;
+  }
+  /**
    * @param int
    */
   public function setSummaryResultCount($summaryResultCount)
@@ -141,6 +197,20 @@ class GoogleCloudDiscoveryengineV1betaSearchRequestContentSearchSpecSummarySpec 
   public function getSummaryResultCount()
   {
     return $this->summaryResultCount;
+  }
+  /**
+   * @param bool
+   */
+  public function setUseSemanticChunks($useSemanticChunks)
+  {
+    $this->useSemanticChunks = $useSemanticChunks;
+  }
+  /**
+   * @return bool
+   */
+  public function getUseSemanticChunks()
+  {
+    return $this->useSemanticChunks;
   }
 }
 

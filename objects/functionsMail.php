@@ -33,11 +33,13 @@ function setSiteSendMessage(\PHPMailer\PHPMailer\PHPMailer &$mail)
         } else {
             _error_log("Debug disabled on the SMTP Email");
         }
+        // Off by default (self-signed SMTP certificates); see shouldVerifySSLCertificates().
+        $verifySSL = shouldVerifySSLCertificates();
         $mail->SMTPOptions = [
             'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true,
+                'verify_peer' => $verifySSL,
+                'verify_peer_name' => $verifySSL,
+                'allow_self_signed' => !$verifySSL,
             ],
         ];
         $mail->SMTPAuth = $config->getSmtpAuth(); // authentication enabled
@@ -118,15 +120,44 @@ function sendSiteEmail($to, $subject, $message, $fromEmail = '', $fromName = '')
         foreach ($pieces as $piece) {
             $mail = new \PHPMailer\PHPMailer\PHPMailer();
             setSiteSendMessage($mail);
-            $mail->setFrom($fromEmail, $fromName);
-            $mail->Subject = $subject . " - " . $webSiteTitle;
+            /**
+             * @var \PHPMailer\PHPMailer\PHPMailer $mail
+             */
+            // Always use system email as the actual sender to avoid domain verification issues
+            $systemEmail = $config->getContactEmail();
+            $systemName = $config->getWebSiteTitle();
+
+            // If a custom fromEmail is provided and differs from system email,
+            // use it as Reply-To and include user info in From name
+            if (!empty($fromEmail) && $fromEmail !== $systemEmail) {
+                $mail->addReplyTo($fromEmail, $fromName);
+                // Include the original sender info in the From name
+                $displayName = !empty($fromName) ? "{$fromName} via {$systemName}" : $systemName;
+                $mail->setFrom($systemEmail, $displayName);
+            } else {
+                $mail->setFrom($systemEmail, !empty($fromName) ? $fromName : $systemName);
+            }
+            if (strpos($subject, $webSiteTitle) === false) {
+                $mail->Subject = $subject . " - " . $webSiteTitle;
+            } else {
+                $mail->Subject = $subject;
+            }
             $mail->msgHTML($message);
             $count = 0;
-            foreach ($piece as $value) {
-                $totalCount++;
-                $count++;
-                //_error_log("sendSiteEmail::addBCC [{$count}] {$value}");
-                $mail->addBCC($value);
+            if(count($piece) > 1){
+                foreach ($piece as $value) {
+                    $totalCount++;
+                    $count++;
+                    _error_log("sendSiteEmail::addBCC [{$count}] {$value}");
+                    $mail->addBCC($value);
+                }
+            }else{
+                foreach ($piece as $value) {
+                    $totalCount++;
+                    $count++;
+                    _error_log("sendSiteEmail::addAddress [{$count}] {$value}");
+                    $mail->addAddress($value);
+                }
             }
             //_error_log("sendSiteEmail::sending now count=[{$count}] [{$totalCount}/{$totalEmails}]");
 
@@ -145,6 +176,27 @@ function sendSiteEmail($to, $subject, $message, $fromEmail = '', $fromName = '')
     return $resp;
 }
 
+function partition(array $list, $totalItens)
+{
+    $listlen = count($list);
+    if(empty($listlen)){
+        return $list;
+    }
+    _error_log("partition: listlen={$listlen} totalItens={$totalItens}");
+    $p = ceil($listlen / $totalItens);
+    $partlen = floor($listlen / $p);
+
+    $partition = [];
+    $mark = 0;
+    for ($index = 0; $index < $p; $index++) {
+        $partition[$index] = array_slice($list, $mark, $totalItens);
+        $mark += $totalItens;
+    }
+
+    return $partition;
+}
+
+
 function sendSiteEmailAsync($to, $subject, $message)
 {
     global $global;
@@ -161,9 +213,9 @@ function sendSiteEmailAsync($to, $subject, $message)
     //outputAndContinueInBackground();
     $command = "php {$global['systemRootPath']}objects/sendSiteEmailAsync.php '$tmpFile' && rm '$tmpFile'";
     $totalEmails = count($to);
-    _error_log("sendSiteEmailAsync start [bytes=$bytes] [totalEmails={$totalEmails}] ($command) file_exists=" . file_exists($tmpFile));
+    _error_log("sendSiteEmailAsync start [bytes=$bytes] [totalEmails={$totalEmails}] ($command) file_exists=" . file_exists($tmpFile) .' '.json_encode(debug_backtrace()));
     $pid = execAsync($command);
-    _error_log("sendSiteEmailAsync end {$pid}");
+    _error_log('sendSiteEmailAsync end ' . json_encode($pid));
     return $pid;
 }
 
@@ -245,6 +297,9 @@ function sendEmailToSiteOwner($subject, $message)
     try {
         $mail = new \PHPMailer\PHPMailer\PHPMailer();
         setSiteSendMessage($mail);
+        /**
+         * @var \PHPMailer\PHPMailer\PHPMailer $mail
+         */
         $mail->setFrom($contactEmail, $webSiteTitle);
         $mail->Subject = $subject . " - " . $webSiteTitle;
         $mail->msgHTML($message);

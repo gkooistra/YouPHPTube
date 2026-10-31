@@ -18,6 +18,7 @@ if (isInfiniteScroll()) {
         unset($_SESSION['noNavbar']);
     }
 }
+include_once __DIR__ . '/phpRuntimeWarning.php';
 TimeLogEnd($tname, __LINE__, $tTolerance);
 if (!empty($_SESSION['noNavbar'])) {
     if (isset($_GET['noNavbarClose'])) {
@@ -68,7 +69,7 @@ $_GET['parentsOnly'] = "1";
 $lang = getLanguage();
 $thisScriptFile = pathinfo($_SERVER["SCRIPT_FILENAME"]);
 if (empty($sidebarStyle)) {
-    $sidebarStyle = "display: none;";
+    $sidebarStyle = "";
 }
 $includeDefaultNavBar = true;
 _ob_start();
@@ -80,7 +81,7 @@ if (!$includeDefaultNavBar) {
     return false;
 }
 
-if (!empty($_GET['avideoIframe'])) { // comes from avideoModalIframe(url) javascript
+if (!empty($_GET['avideoIframe']) && empty($_GET['ajaxLoad'])) { // comes from avideoModalIframe(url) javascript
     ?>
     <style>
         body,
@@ -116,6 +117,29 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
     TimeLogEnd($tname, __LINE__, $tTolerance);
     $updateFiles = getUpdatesFilesArray();
 ?>
+    <script class="doNotSepareteTag">
+        // Footer helpers are not loaded yet; match inIframe(), including mainIframe.
+        (function () {
+            var mainFrame = false;
+            if (window.self !== window.top) {
+                try {
+                    var frame = window.parent.document.querySelector('iframe');
+                    mainFrame = frame && frame.id === 'mainIframe';
+                } catch (e) {
+                    mainFrame = false;
+                }
+            }
+            var iframeParameter = new URL(window.location.href).searchParams.get('avideoIframe');
+            var embedded = !mainFrame && (window.self !== window.top || (iframeParameter && iframeParameter !== '0'));
+            // Read current preferences even when this HTML came from the page cache.
+            var menuOpen = /(?:^|;\s*)menuOpen=true(?:;|$)/.test(document.cookie);
+            var menuCompressed = /(?:^|;\s*)menuCompressed=true(?:;|$)/.test(document.cookie);
+            document.body.classList.add('sidebarLayout');
+            document.body.classList.remove('sidebarAnimating');
+            document.body.classList.toggle('youtube', !embedded && menuOpen);
+            document.body.classList.toggle('compressedMenu', document.body.classList.contains('youtube') && menuCompressed);
+        }());
+    </script>
     <nav class="navbar navbar-default navbar-fixed-top navbar-expand-lg navbar-light bg-light" id="mainNavBar">
         <ul class="items-container">
             <?php
@@ -129,6 +153,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
             ?>
 
             <li id="lastItemOnMenu">
+                <button type="button" class="btn btn-default navbarScrollArrow navbarScrollPrevious" aria-label="<?php echo __('Previous'); ?>" aria-controls="myNavbar" hidden><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
                 <div class="pull-right" id="myNavbar">
                     <ul class="right-menus align-center" style="padding-left: 0;">
                         <?php
@@ -142,6 +167,7 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
                         ?>
                     </ul>
                 </div>
+                <button type="button" class="btn btn-default navbarScrollArrow navbarScrollNext" aria-label="<?php echo __('Next'); ?>" aria-controls="myNavbar" hidden><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
                 <div class="pull-right">
                     <?php
                     TimeLogEnd($tname, __LINE__, $tTolerance);
@@ -158,11 +184,15 @@ if (!User::isLogged() && !empty($advancedCustomUser->userMustBeLoggedIn) && !emp
         </ul>
         <?php
         TimeLogEnd($tname, __LINE__, $tTolerance);
-        $varsArray = array('sidebarStyle' => $sidebarStyle);
-        $filePath = $global['systemRootPath'] . 'view/include/navbarSidebar.php';
-        echo getIncludeFileContent($filePath, $varsArray, true);
-        //echo getIncludeFileContent($filePath);
-        //include $filePath;
+        if (!isBot()) {
+            $varsArray = array('sidebarStyle' => $sidebarStyle);
+            $filePath = $global['systemRootPath'] . 'view/include/navbarSidebar.php';
+            echo getIncludeFileContent($filePath, $varsArray, true);
+            //echo getIncludeFileContent($filePath);
+            //include $filePath;
+        } else {
+            echo '<!-- navbar sidebar skipped for bot -->';
+        }
         TimeLogEnd($tname, __LINE__, $tTolerance);
         ?>
     </nav>

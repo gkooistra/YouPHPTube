@@ -43,7 +43,7 @@ class ProjectsLocations extends \Google\Service\Resource
    * Service](https://cloud.google.com/bigquery/docs/working-with-transfers).
    * (locations.enrollDataSources)
    *
-   * @param string $name The name of the project resource in the form:
+   * @param string $name Required. The name of the project resource in the form:
    * `projects/{project_id}`
    * @param EnrollDataSourcesRequest $postBody
    * @param array $optParams Optional parameters.
@@ -78,6 +78,9 @@ class ProjectsLocations extends \Google\Service\Resource
    * applicable.
    * @param array $optParams Optional parameters.
    *
+   * @opt_param string extraLocationTypes Optional. A list of extra location types
+   * that should be used as conditions for controlling the visibility of the
+   * locations.
    * @opt_param string filter A filter to narrow down results to a preferred
    * subset. The filtering language accepts strings like `"displayName=tokyo"`,
    * and is documented in more detail in [AIP-160](https://google.aip.dev/160).
@@ -102,7 +105,7 @@ class ProjectsLocations extends \Google\Service\Resource
    * of unenrolled data sources will not be scheduled.
    * (locations.unenrollDataSources)
    *
-   * @param string $name The name of the project resource in the form:
+   * @param string $name Required. The name of the project resource in the form:
    * `projects/{project_id}`
    * @param UnenrollDataSourcesRequest $postBody
    * @param array $optParams Optional parameters.

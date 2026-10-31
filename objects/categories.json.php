@@ -10,6 +10,8 @@ require_once $global['systemRootPath'] . 'objects/category.php';
 
 allowOrigin();
 header('Content-Type: application/json');
+// any stray output (warnings, notices) would break the JSON the category grid expects
+ob_start();
 
 $_REQUEST['rowCount'] = getRowCount(1000);
 $_REQUEST['current'] = getCurrentPage();
@@ -18,11 +20,15 @@ $onlyWithVideos = false;
 $sameUserGroupAsMe = false;
 if(!empty($_GET['user'])){
     $onlyWithVideos = true;
-    $sameUserGroupAsMe = true;
 }
-
-$categories = Category::getAllCategories(true, $onlyWithVideos, false, $sameUserGroupAsMe);
-$total = Category::getTotalCategories(true, $onlyWithVideos);
+// Upload/management selectors retain all writable categories; public browsing (user=) uses the site policy.
+// Anonymous requests stay selectors too: the Encoder reloads its category list cross-origin, without cookies.
+$filterCanAddVideoOnly = empty($_GET['user']);
+$categories = Category::getAllCategories($filterCanAddVideoOnly, $onlyWithVideos);
+if (!is_array($categories)) {
+    $categories = [];
+}
+$total = Category::getTotalCategories($filterCanAddVideoOnly, $onlyWithVideos);
 //$breaks = array('<br />', '<br>', '<br/>');
 foreach ($categories as $key => $value) {
     $categories[$key]['iconHtml'] = "<span class='$value[iconClass]'></span>";
@@ -65,4 +71,8 @@ $json = [
     'sameUserGroupAsMe'=>$sameUserGroupAsMe
 ];
 
+$strayOutput = ob_get_clean();
+if (!empty(trim($strayOutput))) {
+    _error_log('categories.json.php unexpected output: ' . substr($strayOutput, 0, 500), AVideoLog::$WARNING);
+}
 echo _json_encode($json);

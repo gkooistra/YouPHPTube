@@ -6,7 +6,7 @@ require_once $global['systemRootPath'] . 'plugin/Bookmark/Objects/BookmarkTable.
 $obj = new stdClass();
 $obj->error = true;
 $obj->msg = "";
-                        
+
 if(empty($_REQUEST['videos_id'])){
     $_REQUEST['videos_id'] = intval($_REQUEST['videoAutocomplete']);
 }
@@ -16,6 +16,7 @@ if(!User::isAdmin() && !Video::canEdit($_REQUEST['videos_id'])){
     $obj->msg = "You cant do this";
     die(json_encode($obj));
 }
+forbidIfIsUntrustedRequest('Bookmark::bookmarkSave');
 
 $o = new BookmarkTable(@$_REQUEST['id']);
 $o->setName($_REQUEST['name']);

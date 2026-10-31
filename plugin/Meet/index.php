@@ -12,6 +12,23 @@ if (empty($obj)) {
     forbiddenPage("Plugin disabled");
 }
 
+if(!empty($_GET['redirectUri'])){
+    $parts = explode('/', addLastSlash($_GET['redirectUri']));
+    $name = $parts[count($parts)-2];
+    if(!empty($name)){
+        error_log('Meet topic: '.$name);
+        $row = Meet_schedule::getFromName($name);
+        if(!empty($row )){
+            $link = Meet::getMeetLink($row['id']);
+            error_log('Meet redirect: '.$link);
+            header("Location: $link");
+            exit;
+        }else{
+            error_log('Meet row is empty: '.$topic);
+        }
+    }
+}
+
 if (!User::isLogged()) {
     forbiddenPage("You can not do this");
 }
@@ -46,9 +63,7 @@ $_page->loadBasicCSSAndJS();
             <i class="far fa-comments"></i> <?php echo __("Meeting"); ?>
             <span id="serverTime" class="label label-default pull-right" data-toggle="tooltip" data-placement="bottom" title="Server Time"></span>
             <span class="label label-default pull-right" data-toggle="tooltip" data-placement="bottom" title="Timezone"> <?php echo date_default_timezone_get(); ?> </span>
-            <div class="pull-right serverLabels">
-                <span class="label label-warning"><i class="fas fa-cog fa-spin"></i> <?php echo __("Loading Server Info"); ?></span>
-            </div>
+
             <div class="clearfix"></div>
             <div class="progress" id="serverProgressBar" data-toggle="tooltip" data-placement="bottom" title="Check Server Again">
                 <div class="progress-bar" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width:100%; ">
@@ -127,27 +142,7 @@ $_page->loadBasicCSSAndJS();
         } catch (e) {
 
         }
-        serverLabels();
     });
-    var serverLabelsStartTime;
-    var serverLabelsRunning = false;
-    function serverLabels() {
-        if (serverLabelsRunning) {
-            return false;
-        }
-        serverLabelsRunning = true;
-        serverLabelsStartTime = new Date().getTime();
-        $.ajax({
-            url: webSiteRootURL+'plugin/Meet/serverLabels.php?<?php echo $userCredentials; ?>',
-            success: function(response) {
-                setTimeout(function() {
-                    serverLabelsRunning = false;
-                }, 2000);
-                serverLabelsRequestTime = new Date().getTime() - serverLabelsStartTime;
-                $('.serverLabels').html(response);
-            }
-        });
-    }
     <?php
     if (User::canCreateMeet()) {
     ?>
@@ -165,9 +160,13 @@ $_page->loadBasicCSSAndJS();
             }).then(function(name) {
                 if (!name)
                     throw null;
-                var url = webSiteRootURL + 'plugin/Meet/saveMeet.json.php?' + userCredentials + '&RoomTopic=' + encodeURI(name);
+                var url = webSiteRootURL + 'plugin/Meet/saveMeet.json.php';
                 console.log('_startMeetNow 2', url);
-                return fetch(url);
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: userCredentials + '&RoomTopic=' + encodeURIComponent(name) + '&globalToken=<?php echo getToken(300); ?>'
+                });
             }).then(function(results) {
                 console.log('_startMeetNow 3', results);
                 return results.json();

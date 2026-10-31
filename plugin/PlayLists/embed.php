@@ -59,7 +59,7 @@ foreach ($playList as $key => $value) {
     }
 
     TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
-    if ($oldValue['type'] === 'serie' && !empty($oldValue['serie_playlists_id'])) {
+    if ($oldValue['type'] === Video::$videoTypeSerie && !empty($oldValue['serie_playlists_id'])) {
         $subPlayList = PlayList::getVideosFromPlaylist($value['serie_playlists_id']);
         TimeLogEnd($timelognameF, __LINE__, $TimeLogLimit);
         foreach ($subPlayList as $value) {
@@ -77,10 +77,10 @@ foreach ($playList as $key => $value) {
 
             $playListSources = array();
             foreach ($sources as $value2) {
-                if ($value2['type'] !== 'video' && $value2['type'] !== 'audio') {
+                if ($value2['type'] !== Video::$videoTypeVideo && $value2['type'] !== Video::$videoTypeAudio) {
                     continue;
                 }
-                $playListSources[] = new playListSource($value2['url']);
+                $playListSources[] = new playListSource($value2['url'], $value2['videos_id']);
                 break;
             }
             TimeLogEnd($timelognameFF, __LINE__, $TimeLogLimit);
@@ -118,7 +118,7 @@ foreach ($playList as $key => $value) {
             if ($value2['type'] !== 'video' && $value2['type'] !== 'audio') {
                 continue;
             }
-            $playListSources[] = new playListSource($value2['url']);
+            $playListSources[] = new playListSource($value2['url'], $value2['videos_id']);
             break;
         }
 
@@ -153,6 +153,16 @@ $playListData_videos_id = getPlayListDataVideosId();
 
 TimeLogEnd($timelogname, __LINE__);
 if (empty($playListData)) {
+    $plp = new PlayListPlayer(@$_GET['playlists_id'], @$_GET['playlists_tags_id']);
+    $video = $plp->getCurrentVideo();
+    if (!empty($video)) {
+        $url = Video::getURL($video['id']);;
+        if (!empty($url)) {
+            header('Location: ' . $url);
+            exit;
+        }
+    }
+    _error_log("The program is empty ".json_encode($messagesFromPlayList));
     forbiddenPage(__("The program is empty"));
 }
 
@@ -192,7 +202,7 @@ TimeLogEnd($timelogname, __LINE__);
 
         <link href="<?php echo getURL('node_modules/video.js/dist/video-js.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <link href="<?php echo getURL('view/css/social.css'); ?>" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getURL('node_modules/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/@fortawesome/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
 
         <link href="<?php echo getCDN(); ?>node_modules/videojs-playlist-ui/dist/videojs-playlist-ui.css" rel="stylesheet">
 
@@ -410,8 +420,10 @@ TimeLogEnd($timelogname, __LINE__);
                 $('#mainVideo').bind('contextmenu', function () {
                     return false;
                 });
-                
-                addCloseButtonInVideo();
+
+                <?php if (empty($_REQUEST['disableCloseButton'])) { ?>
+                addCloseButtonInVideo(<?php echo json_encode(!empty($_REQUEST['forceCloseButton'])); ?>);
+                <?php } ?>
             });
 
             function compare(a, b, type) {

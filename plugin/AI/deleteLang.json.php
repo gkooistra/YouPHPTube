@@ -19,6 +19,7 @@ if(!AI::canUseAI()){
 if (!Video::canEdit($videos_id)) {
     forbiddenPage('You cannot edit this video');
 }
+forbidIfIsUntrustedRequest('AI::deleteLang');
 
 $obj = new stdClass();
 $obj->videos_id = $videos_id;
@@ -29,7 +30,7 @@ $obj->error = !unlink($fileToDelete);
 if($obj->error){
     $obj->msg = "Error on delete {$obj->lang['value']}.vtt file";
 }else{
-    $obj->msg = "{$obj->lang['value']}.vtt file deleted"; 
+    $obj->msg = "{$obj->lang['value']}.vtt file deleted";
 }
 
 echo json_encode($obj);

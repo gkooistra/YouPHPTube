@@ -1,6 +1,7 @@
 <?php
 //exit;
 header('Content-Type: application/json');
+$closeSessionEarlyIncludeConfig = 1;
 require_once '../../videos/configuration.php';
 
 /*
@@ -13,7 +14,9 @@ require_once '../../videos/configuration.php';
 
 ini_set('max_execution_time', 10);
 set_time_limit(10);
-//_session_write_close();
+// read-only endpoint, polled frequently; release the session lock early so it
+// doesn't queue up behind/behind other requests from the same browser session
+_session_write_close();
 $pobj = AVideoPlugin::getDataObjectIfEnabled("Live");
 if (empty($pobj->server_type->value)) {
     ini_set('max_execution_time', 180);
@@ -26,6 +29,7 @@ if (empty($pobj)) {
 $timeName = "stats.json.php";
 TimeLogStart($timeName);
 $json = getStatsNotifications();
+//var_dump($json);exit;
 TimeLogEnd($timeName, __LINE__);
 $json = object_to_array($json);
 TimeLogEnd($timeName, __LINE__);
@@ -53,4 +57,25 @@ if (!empty($_REQUEST['name'])) {
     }
     TimeLogEnd($timeName, __LINE__);
 }
+
+// hidden_applications is an internal working list of streams the current (possibly anonymous)
+// requester isn't authorized to see - no known JS consumer reads it from this endpoint, so it must
+// not be serialised at all (title/channel/masked-key metadata is still a disclosure otherwise).
+unset($json['hidden_applications']);
+
+// applications are publicly listed (unlike hidden_applications above), but a password-protected
+// transmission still requires Live::passwordIsGood() before it can actually be watched - strip the
+// raw key/m3u8 here too unless the caller already satisfied that check (or owns/administers it).
+if (!empty($json['applications'])) {
+    foreach ($json['applications'] as &$app) {
+        if (is_array($app) && !empty($app['isPasswordProtected']) && !empty($app['key'])) {
+            $isOwnStream = User::isLogged() && !empty($app['users_id']) && ((int) $app['users_id'] === (int) User::getId());
+            if (!User::isAdmin() && !$isOwnStream && !Live::passwordIsGood($app['key'])) {
+                unset($app['key'], $app['m3u8']);
+            }
+        }
+    }
+    unset($app);
+}
+//var_dump($json);exit;
 echo json_encode($json);

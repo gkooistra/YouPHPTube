@@ -53,6 +53,7 @@ class Translate extends \Google\Service
   public $projects_locations_glossaries_glossaryEntries;
   public $projects_locations_models;
   public $projects_locations_operations;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the Translate service.
@@ -65,6 +66,7 @@ class Translate extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://translation.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://translation.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v3';
@@ -210,6 +212,11 @@ class Translate extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',

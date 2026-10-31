@@ -32,6 +32,8 @@ if (!User::canStream()) {
     $obj->msg = __('Permission denied');
     die(json_encode($obj));
 }
+forbidIfNotPost();
+forbidIfInvalidToken();
 
 if (empty($obj->key)) {
     $obj->msg = __("empty key");
@@ -97,7 +99,9 @@ switch ($obj->command) {
 }
 
 //$obj->commandURL = Live::getDropURL($l->getKey(), $obj->live_servers_id);
-$obj->response = _json_decode(url_get_contents($obj->commandURL));
+error_log("control.json.php [{$obj->command}]: $obj->commandURL");
+$obj->response = _json_decode(url_get_contents($obj->commandURL, '', 0, false, false, false));
+error_log("control.json.php [{$obj->command}] response: " . json_encode($obj->response));
 
 if (!empty($obj->response)) {
     if ($obj->response->error) {
@@ -106,7 +110,7 @@ if (!empty($obj->response)) {
         $obj->error = false;
         if ($obj->response->command == 'record_start' && !empty($obj->response->response)) {
             if ($objSR = AVideoPlugin::getDataObjectIfEnabled('SendRecordedToEncoder')) {
-                SendRecordedToEncoder::onStartRecorder($obj->key, $objSR->maxRecorderTimeInMinutes, User::getUserName(), User::getUserPass());
+                SendRecordedToEncoder::onStartRecorder($obj->key, $objSR->maxRecorderTimeInMinutes * 60, User::getUserName(), User::getUserPass(), $obj->live_servers_id);
             } else {
                 $obj->SendRecordedToEncoder = 'Not enabled';
             }

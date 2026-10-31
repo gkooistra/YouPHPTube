@@ -6,6 +6,12 @@ require_once $global['systemRootPath'] . 'plugin/AD_Overlay/Objects/AD_Overlay_C
 class AD_Overlay extends PluginAbstract
 {
 
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('ADs', 'Reuses the ADs image upload/library to attach overlay images'),
+        );
+    }
+
     public function getTags()
     {
         return array(
@@ -87,7 +93,7 @@ class AD_Overlay extends PluginAbstract
           $obj->end = false;
 
           $obj->durationInSeconds = 30;
-         * 
+         *
          */
         $obj->debug = false;
         //$obj->adWidth = 0;
@@ -138,17 +144,17 @@ class AD_Overlay extends PluginAbstract
 
     public function getFooterCode()
     {
+        global $global, $video;
+        if (basename($_SERVER["SCRIPT_FILENAME"]) === 'managerUsers.php') {
+            include $global['systemRootPath'] . 'plugin/AD_Overlay/footer.php';
+        }
         if (!self::showAdsOverlay()) {
             return '';
         }
-        global $global, $video;
         $videos_id = getVideos_id();
         $showAds = AVideoPlugin::showAds($videos_id);
         if (!$showAds) {
             return "";
-        }
-        if (basename($_SERVER["SCRIPT_FILENAME"]) === 'managerUsers.php') {
-            include $global['systemRootPath'] . 'plugin/AD_Overlay/footer.php';
         }
         if (empty($_GET['videoName']) && empty($_GET['u']) && empty($_GET['link'])) {
             return false;

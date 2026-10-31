@@ -38,6 +38,14 @@ class Reservation extends \Google\Model
    */
   public $ignoreIdleSlots;
   /**
+   * @var string[]
+   */
+  public $labels;
+  /**
+   * @var string
+   */
+  public $maxSlots;
+  /**
    * @var bool
    */
   public $multiRegionAuxiliary;
@@ -45,6 +53,24 @@ class Reservation extends \Google\Model
    * @var string
    */
   public $name;
+  /**
+   * @var string
+   */
+  public $originalPrimaryLocation;
+  /**
+   * @var string
+   */
+  public $primaryLocation;
+  protected $replicationStatusType = ReplicationStatus::class;
+  protected $replicationStatusDataType = '';
+  /**
+   * @var string
+   */
+  public $scalingMode;
+  /**
+   * @var string
+   */
+  public $secondaryLocation;
   /**
    * @var string
    */
@@ -125,6 +151,34 @@ class Reservation extends \Google\Model
     return $this->ignoreIdleSlots;
   }
   /**
+   * @param string[]
+   */
+  public function setLabels($labels)
+  {
+    $this->labels = $labels;
+  }
+  /**
+   * @return string[]
+   */
+  public function getLabels()
+  {
+    return $this->labels;
+  }
+  /**
+   * @param string
+   */
+  public function setMaxSlots($maxSlots)
+  {
+    $this->maxSlots = $maxSlots;
+  }
+  /**
+   * @return string
+   */
+  public function getMaxSlots()
+  {
+    return $this->maxSlots;
+  }
+  /**
    * @param bool
    */
   public function setMultiRegionAuxiliary($multiRegionAuxiliary)
@@ -151,6 +205,76 @@ class Reservation extends \Google\Model
   public function getName()
   {
     return $this->name;
+  }
+  /**
+   * @param string
+   */
+  public function setOriginalPrimaryLocation($originalPrimaryLocation)
+  {
+    $this->originalPrimaryLocation = $originalPrimaryLocation;
+  }
+  /**
+   * @return string
+   */
+  public function getOriginalPrimaryLocation()
+  {
+    return $this->originalPrimaryLocation;
+  }
+  /**
+   * @param string
+   */
+  public function setPrimaryLocation($primaryLocation)
+  {
+    $this->primaryLocation = $primaryLocation;
+  }
+  /**
+   * @return string
+   */
+  public function getPrimaryLocation()
+  {
+    return $this->primaryLocation;
+  }
+  /**
+   * @param ReplicationStatus
+   */
+  public function setReplicationStatus(ReplicationStatus $replicationStatus)
+  {
+    $this->replicationStatus = $replicationStatus;
+  }
+  /**
+   * @return ReplicationStatus
+   */
+  public function getReplicationStatus()
+  {
+    return $this->replicationStatus;
+  }
+  /**
+   * @param string
+   */
+  public function setScalingMode($scalingMode)
+  {
+    $this->scalingMode = $scalingMode;
+  }
+  /**
+   * @return string
+   */
+  public function getScalingMode()
+  {
+    return $this->scalingMode;
+  }
+  /**
+   * @param string
+   */
+  public function setSecondaryLocation($secondaryLocation)
+  {
+    $this->secondaryLocation = $secondaryLocation;
+  }
+  /**
+   * @return string
+   */
+  public function getSecondaryLocation()
+  {
+    return $this->secondaryLocation;
   }
   /**
    * @param string

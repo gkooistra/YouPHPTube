@@ -9,13 +9,15 @@ use DateTimeZone;
 
 class EpgParser {
 
+    private const PATCH_ID = '20260430-no-header-check';
+
     //	Source datas.
     private $file;
     private $url;
     private $content;
     //	for temporary file if from content or from url.
     private $isTemp;
-    public $temp_dir = '/tmp'; //unix, change this for windows.
+    public $temp_dir; // Will be set to system temp directory in constructor
     //	channel settings
     private $channels;
     private $channels_groupby = '@id';
@@ -32,6 +34,7 @@ class EpgParser {
 
     public function __construct() {
         $this->targetTimeZone = \date_default_timezone_get();
+        $this->temp_dir = sys_get_temp_dir();
     }
 
     /**
@@ -93,10 +96,43 @@ class EpgParser {
         $this->epgdata_groupby = $group;
     }
 
+    private function logDebug(string $message): void {
+        if (function_exists('_error_log')) {
+            _error_log("EPG parser: patch=" . self::PATCH_ID . " {$message}");
+        }
+    }
+
     /**
      * Parse the date from string in posible formats.
      */
     public function getDate(string $date) {
+        $date = str_replace(' 0000', ' +0000', $date);
+
+        // Handle ISO 8601 format with milliseconds: "2025-09-22T00:00:00.000 +0000"
+        try {
+            $dt = \DateTime::createFromFormat('Y-m-d\TH:i:s.u P', $date, new DateTimeZone('UTC'));
+            if ($dt !== false) {
+                $dt->setTimezone(new DateTimeZone($this->targetTimeZone));
+                return $dt->format('Y-m-d H:i:s');
+            }
+        } catch (\Exception $e) {
+
+        } catch (\Error $e) {
+
+        }
+
+        // Handle compact format with space-separated timezone: "20250924004920 0000"
+        try {
+            $dt = \DateTime::createFromFormat('YmdHis O', $date, new DateTimeZone('UTC'));
+            if ($dt !== false) {
+                $dt->setTimezone(new DateTimeZone($this->targetTimeZone));
+                return $dt->format('Y-m-d H:i:s');
+            }
+        } catch (\Exception $e) {
+
+        } catch (\Error $e) {
+
+        }
 
         try {
             $dt = \DateTime::createFromFormat('YmdHis P', $date, new DateTimeZone('UTC'));
@@ -327,14 +363,21 @@ class EpgParser {
             throw new \RuntimeException('Url invalid: ' . $this->url);
         }
 
-        $this->content = @\file_get_contents($this->url);
+        // SSRF protection (initial URL + redirect hops) is enforced by default inside url_get_contents()
+        $this->logDebug("fetch start url={$this->url}");
 
-        if (!strpos($http_response_header[0], "200")) {
-            throw new \RuntimeException("Invalid response headers: " . $http_response_header[0], 1);
+        $this->content = url_get_contents($this->url);
+
+        if ($this->content === false || $this->content === '') {
+            $type = gettype($this->content);
+            $this->logDebug("fetch failed url={$this->url} response_type={$type}");
+            throw new \RuntimeException('URL blocked by SSRF protection or fetch failed: ' . $this->url);
         }
 
+        $this->logDebug("fetch success url={$this->url} bytes=" . strlen($this->content));
         $this->checkXml();
         $this->saveTemp(); // will save the file.
+        $this->logDebug("temporary file saved url={$this->url} file={$this->file}");
         $this->parseFile();
     }
 
@@ -358,13 +401,14 @@ class EpgParser {
      */
     public function saveTemp(): void {
         if (empty($this->temp_dir)) {
-            $this->temp_dir = '/tmp/';
+            // Use system temp directory - cross-platform compatible
+            $this->temp_dir = sys_get_temp_dir();
         }
 
         $length = 15;
         $filename = substr(str_shuffle(str_repeat($x = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', ceil($length / strlen($x)))), 1, $length);
 
-        $this->file = $this->temp_dir . '/' . $filename . '.xml';
+        $this->file = $this->temp_dir . DIRECTORY_SEPARATOR . $filename . '.xml';
 
         if (!\file_put_contents($this->file, $this->content)) {
             throw new \RuntimeException("Writing to {$this->file} is not possible.");
@@ -380,12 +424,34 @@ class EpgParser {
      */
     public function checkXml() {
         libxml_use_internal_errors(true);
+
+        // Handle encoding mismatch issues (UTF-16 declaration with UTF-8 content)
+        $content = $this->content;
+
+        // Check if content declares UTF-16 but is actually UTF-8
+        if (preg_match('/encoding=["\']UTF-16["\']/', $content) && mb_check_encoding($content, 'UTF-8')) {
+            // Replace UTF-16 declaration with UTF-8
+            $content = preg_replace('/encoding=["\']UTF-16["\']/', 'encoding="UTF-8"', $content);
+            $this->content = $content;
+        }
+
         $doc = simplexml_load_string($this->content);
         if (!$doc) {
             $errors = libxml_get_errors();
-            @$errors = $errors[0];
-
-            throw new \RuntimeException("Content of this request its not XML: ");
+            if (!empty($errors)) {
+                $error = $errors[0];
+                $errorMsg = "XML parsing error: {$error->message} at line {$error->line}, column {$error->column}";
+                if ($this->onError && is_callable($this->onError)) {
+                    call_user_func($this->onError, $errorMsg, $error);
+                }
+                $this->logDebug("invalid XML bytes=" . strlen($this->content) . " preview=" . substr(preg_replace('/\s+/', ' ', $this->content), 0, 200));
+                throw new \RuntimeException($errorMsg);
+            } else {
+                $this->logDebug("invalid XML without libxml details bytes=" . strlen($this->content) . " preview=" . substr(preg_replace('/\s+/', ' ', $this->content), 0, 200));
+                throw new \RuntimeException("Content of this request is not valid XML");
+            }
         }
+
+        libxml_clear_errors();
     }
 }

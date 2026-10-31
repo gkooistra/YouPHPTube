@@ -52,6 +52,7 @@ class VMMigrationService extends \Google\Service
   public $projects_locations_sources_migratingVms_replicationCycles;
   public $projects_locations_sources_utilizationReports;
   public $projects_locations_targetProjects;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the VMMigrationService service.
@@ -64,6 +65,7 @@ class VMMigrationService extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://vmmigration.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://vmmigration.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v1';
@@ -93,6 +95,11 @@ class VMMigrationService extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',
@@ -658,6 +665,16 @@ class VMMigrationService extends \Google\Service
               'httpMethod' => 'DELETE',
               'parameters' => [
                 'name' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'extendMigration' => [
+              'path' => 'v1/{+migratingVm}:extendMigration',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'migratingVm' => [
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,

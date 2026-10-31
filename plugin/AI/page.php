@@ -11,8 +11,6 @@ if (empty($videos_id)) {
     forbiddenPage('Videos ID is required');
 }
 
-$objWallet = AVideoPlugin::getObjectData('YPTWallet');
-
 $objAI = AVideoPlugin::getObjectDataIfEnabled('AI');
 
 if (empty($objAI)) {
@@ -30,21 +28,35 @@ if (!Video::canEdit($videos_id)) {
     forbiddenPage('You cannot edit this video');
 }
 
+if (!empty($_GET['videoChatOnly'])) {
+    $_page = new Page(['Video chat']);
+    echo '<div class="container-fluid"><div class="panel panel-default"><div class="panel-body">';
+    include $global['systemRootPath'] . 'plugin/AI/tabs/companionChat.php';
+    echo '</div></div></div>';
+    $_page->setExtraStyles(['plugin/AI/View/pricing.css']);
+    $_page->print();
+    return;
+}
+
+$objWallet = AVideoPlugin::getObjectData('YPTWallet');
+
 $priceForBasic = $objAI->priceForBasic;
 $priceForTranscription = $objAI->priceForTranscription;
 $priceForTranslation = $objAI->priceForTranslation;
 $priceForShorts = $objAI->priceForShorts;
+$priceForDubbing = $objAI->priceForDubbing;
 $priceForAll = $priceForTranscription + $priceForBasic + $priceForShorts;
 
-$priceForBasicText = YPTWallet::formatCurrency($priceForBasic);
-$priceForTranscriptionText = YPTWallet::formatCurrency($priceForTranscription);
-$priceForTranslationText = YPTWallet::formatCurrency($priceForTranslation);
-$priceForShortsText = YPTWallet::formatCurrency($priceForShorts);
-$priceForAllText = YPTWallet::formatCurrency($priceForAll);
+$priceForBasicText = AI::formatPrice($priceForBasic);
+$priceForTranscriptionText = AI::formatPrice($priceForTranscription);
+$priceForTranslationText = AI::formatPrice($priceForTranslation);
+$priceForShortsText = AI::formatPrice($priceForShorts);
+$priceForAllText = AI::formatPrice($priceForAll);
+$priceForDubbingText = AI::formatPrice($priceForDubbing);
 /*
 if (User::isAdmin()) {
     $_1hour = 60 * 60;
-    $pricesJson = url_get_contents_with_cache('https://youphp.tube/marketplace/AI/prices.json.php', $_1hour * 6);
+    $pricesJson = url_get_contents_with_cache('https://streamphp.com/marketplace/AI/prices.json.php', $_1hour * 6);
     //$pricesJ = json_decode($pricesJson);
     $pricesJ = ($pricesJson);
     $adminPriceForBasic = $pricesJ->priceForBasic;
@@ -53,11 +65,11 @@ if (User::isAdmin()) {
     $adminPriceForShorts = $pricesJ->priceForShorts;
     $adminPriceForAll = $adminPriceForTranscription + $adminPriceForBasic + $adminPriceForShorts;
 
-    $adminPriceForBasicText = YPTWallet::formatCurrency($adminPriceForBasic);
-    $adminPriceForTranscriptionText = YPTWallet::formatCurrency($adminPriceForTranscription);
-    $adminPriceForTranslationText = YPTWallet::formatCurrency($adminPriceForTranslation);
-    $adminPriceForShortsText = YPTWallet::formatCurrency($adminPriceForShorts);
-    $adminPriceForAllText = YPTWallet::formatCurrency($adminPriceForAll);
+    $adminPriceForBasicText = AI::formatPrice($adminPriceForBasic);
+    $adminPriceForTranscriptionText = AI::formatPrice($adminPriceForTranscription);
+    $adminPriceForTranslationText = AI::formatPrice($adminPriceForTranslation);
+    $adminPriceForShortsText = AI::formatPrice($adminPriceForShorts);
+    $adminPriceForAllText = AI::formatPrice($adminPriceForAll);
 }
 */
 
@@ -163,9 +175,27 @@ $_page = new Page(['Video Metatags']);
                             </a>
                         </li>
                         <li>
+                            <a data-toggle="tab" href="#pimage">
+                                <i class="fa-solid fa-image"></i>
+                                <?php echo __("Image"); ?>
+                            </a>
+                        </li>
+                        <li>
                             <a data-toggle="tab" href="#pShorts">
                                 <i class="fa-solid fa-scissors"></i>
                                 <?php echo __("Shorts"); ?>
+                            </a>
+                        </li>
+                        <li>
+                            <a data-toggle="tab" href="#pDubbing">
+                                <i class="fa-solid fa-headphones"></i>
+                                <?php echo __("Dubbing"); ?>
+                            </a>
+                        </li>
+                        <li>
+                            <a data-toggle="tab" href="#pCompanionChat">
+                                <i class="fa-solid fa-comments"></i>
+                                <?php echo __("Chat"); ?>
                             </a>
                         </li>
                         <?php
@@ -200,9 +230,24 @@ $_page = new Page(['Video Metatags']);
                             include $global['systemRootPath'] . 'plugin/AI/tabs/basic.php';
                             ?>
                         </div>
+                        <div id="pimage" class="tab-pane fade">
+                            <?php
+                            include $global['systemRootPath'] . 'plugin/AI/tabs/image.php';
+                            ?>
+                        </div>
                         <div id="pShorts" class="tab-pane fade">
                             <?php
                             include $global['systemRootPath'] . 'plugin/AI/tabs/shorts.php';
+                            ?>
+                        </div>
+                        <div id="pDubbing" class="tab-pane fade">
+                            <?php
+                            include $global['systemRootPath'] . 'plugin/AI/tabs/dubbing.php';
+                            ?>
+                        </div>
+                        <div id="pCompanionChat" class="tab-pane fade">
+                            <?php
+                            include $global['systemRootPath'] . 'plugin/AI/tabs/companionChat.php';
                             ?>
                         </div>
                         <?php
@@ -214,7 +259,7 @@ $_page = new Page(['Video Metatags']);
                                 ?>
                             </div>
                             <div id="pPP" class="tab-pane fade ">
-                                <iframe src="https://youphp.tube/marketplace/AI/privacyPolicy.php"></iframe>
+                                <iframe src="https://streamphp.com/marketplace/AI/privacyPolicy.php"></iframe>
                             </div>
                         <?php
                         }
@@ -523,5 +568,6 @@ $_page = new Page(['Video Metatags']);
     });
 </script>
 <?php
+$_page->setExtraStyles(['plugin/AI/View/pricing.css']);
 $_page->print();
 ?>

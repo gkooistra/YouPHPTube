@@ -8,25 +8,25 @@ $obj = new stdClass();
 $obj->error = true;
 $obj->msg = "";
 $obj->extraParameters = new stdClass();
-$value = floatval($_POST['value']);
+$value = floatval($_REQUEST['value']);
 if (empty($value)) {
-    if (isset($_POST['buttonIndex'])) {
-        if (!empty($_POST['videos_id'])) {
-            $videos_id = intval($_POST['videos_id']);
+    if (isset($_REQUEST['buttonIndex'])) {
+        if (!empty($_REQUEST['videos_id'])) {
+            $videos_id = intval($_REQUEST['videos_id']);
             if (!empty($videos_id)) {
                 $video = new Video("", "", $videos_id);
                 $users_id = intval($video->getUsers_id());
             }
         }
         if (empty($users_id)) {
-            $users_id = intval(@$_POST['users_id']);
+            $users_id = intval(@$_REQUEST['users_id']);
         }
 
         if (!empty($users_id)) {
             $donationButtons = User::getDonationButtons($users_id);
             $value = 0;
             foreach ($donationButtons as $value) {
-                if ($value->index == $_POST['buttonIndex']) {
+                if ($value->index == $_REQUEST['buttonIndex']) {
                     $obj->extraParameters = $value;
                     $value = floatval($value->value);
                     break;
@@ -59,7 +59,7 @@ if (empty($wallet)) {
 }
 
 if (empty($cu->disableCaptchaOnWalletDirectTransferDonation)) {
-    $valid = Captcha::validation(@$_POST['captcha']);
+    $valid = Captcha::validation(@$_REQUEST['captcha']);
 
     if (empty($valid)) {
         $obj->msg = "Invalid captcha";
@@ -67,8 +67,16 @@ if (empty($cu->disableCaptchaOnWalletDirectTransferDonation)) {
     }
 }
 
-if (!empty($_POST['videos_id'])) {
-    $videos_id = intval($_POST['videos_id']);
+// transfers wallet balance; captcha alone is not CSRF protection
+// (see SECURITY REVIEW in objects/captcha.php - admin sessions get a fixed, guessable captcha answer)
+forbidIfNotPost();
+forbidIfInvalidToken();
+
+$obj->extraParameters->superChat = 0;
+$obj->extraParameters->message = $_REQUEST['message'];
+
+if (!empty($_REQUEST['videos_id'])) {
+    $videos_id = intval($_REQUEST['videos_id']);
     if (empty($videos_id)) {
         $obj->msg = "Video id is empty";
         die(json_encode($obj));
@@ -80,12 +88,13 @@ if (!empty($_POST['videos_id'])) {
         die(json_encode($obj));
     }
 
-    if (YPTWallet::transferBalance(User::getId(), $video->getUsers_id(), $value, "Donation from " . User::getNameIdentification() . " to video ($videos_id) " . $video->getClean_title())) {
+    if (YPTWallet::transferBalance(User::getId(), $video->getUsers_id(), $value, "Donation from " . User::getNameIdentification() . " to video ($videos_id) message: {$obj->extraParameters->message}" . $video->getClean_title())) {
         $obj->error = false;
+        $obj->extraParameters->superChat = $value;
         AVideoPlugin::afterDonation(User::getId(), $value, $videos_id, 0, $obj->extraParameters);
     }
-} elseif (!empty($_POST['users_id'])) {
-    $users_id = intval($_POST['users_id']);
+} elseif (!empty($_REQUEST['users_id'])) {
+    $users_id = intval($_REQUEST['users_id']);
     if (empty($users_id)) {
         $obj->msg = "User id is empty";
         die(json_encode($obj));
@@ -96,11 +105,12 @@ if (!empty($_POST['videos_id'])) {
         $obj->msg = "User does not exists";
         die(json_encode($obj));
     }
-    
+
     $obj->extraParameters->live_transmitions_history_id = intval(@$_REQUEST['live_transmitions_history_id']);
 
-    if (YPTWallet::transferBalance(User::getId(), $users_id, $value, "Donation from " . User::getNameIdentification() . " to Live for  " . $user->getNameIdentificationBd())) {
+    if (YPTWallet::transferBalance(User::getId(), $users_id, $value, "Donation from " . User::getNameIdentification() . " to Live for  " . $user->getNameIdentificationBd(). " message: {$obj->extraParameters->message}")) {
         $obj->error = false;
+        $obj->extraParameters->superChat = $value;
         AVideoPlugin::afterDonation(User::getId(), $value, 0, $users_id, $obj->extraParameters);
     }
 }

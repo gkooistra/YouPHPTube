@@ -1,10 +1,13 @@
 <?php
+/** @var array $global */
+/** @var array<string, mixed>|null $video */
+/** @var stdClass|null $advancedCustom */
 if (empty($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 require_once $global['systemRootPath'] . 'objects/subscribe.php';
 
-if((empty($video) || !is_array($video))){
+if ((empty($video) || !is_array($video))) {
     $videos_id = getVideos_id();
     $video = Video::getVideo($videos_id, Video::SORT_TYPE_VIEWABLE, true, false, true, true);
 }
@@ -13,12 +16,12 @@ if (is_array($video)) {
     //var_dump(__LINE__, !empty($advancedCustom->showCreationTimeOnVideoItem));exit;
     if (!empty($advancedCustom->showCreationTimeOnVideoItem)) {
         $created = !empty($video['videoCreation']) ? $video['videoCreation'] : $video['created'];
-        $html = '<div class="clearfix"></div><small>' . humanTiming(_strtotime($created)) . '</small>';
-    }else{
-        $html = '<!-- empty showCreationTimeOnVideoItem '.basename(__FILE__).' line='.__LINE__.'-->';
+        $html = '<div class="clearfix"></div><small>' . humanTimingOrDate($created) . '</small>';
+    } else {
+        $html = '<!-- empty showCreationTimeOnVideoItem ' . basename(__FILE__) . ' line=' . __LINE__ . '-->';
     }
     $video['creator'] = Video::getCreatorHTML($video['users_id'], $html);
-    $source = Video::getSourceFile($video['filename']);
+    $source = Video::getSourceFile($video['filename'], '.jpg', false, true);
     if (($video['type'] !== "audio") && ($video['type'] !== "linkAudio") && !empty($source['url'])) {
         $img = $source['url'];
         $data = getimgsize($source['path']);
@@ -70,8 +73,11 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
         display: inline-block;
     }
 </style>
-<div class="panel panel-default">
-    <div class="panel-body">
+<?php
+$videoDetails = array();
+// AVideo's include helpers share one buffer; preserve the page around the slots.
+$videoDetailsPreviousContent = _ob_get_clean();
+?>
         <?php
         $tags = Video::getSeoTags($video['id']);
         echo $tags['body'];
@@ -79,7 +85,7 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
         <?php
         if (!empty($video['id']) && Video::showYoutubeModeOptions() && Video::canEdit($video['id'])) {
         ?>
-            <div class="btn-group pull-right" role="group" aria-label="Botttom Buttons">
+            <div class="videoDetailsAdminActions" role="group" aria-label="<?php echo __('Video'); ?>">
                 <button type="button" class="btn btn-primary btn-xs" onclick="avideoModalIframe(webSiteRootURL + 'view/managerVideosLight.php?avideoIframe=1&videos_id=<?php echo $video['id']; ?>');return false;" data-toggle="tooltip" title="<?php echo __("Edit Video"); ?>">
                     <i class="fa fa-edit"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Edit Video"); ?></span>
                 </button>
@@ -94,10 +100,9 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
         <?php
         }
         ?>
-    </div>
-    <div class="panel-body">
-        <div class="row divMainVideo">
-            <div class="col-sm-4 col-md-4 hidden-xs">
+<?php
+$videoDetails['header'] = _ob_get_clean();
+?>
                 <?php
                 echo Video::getVideoImagewithHoverAnimationFromVideosId($video, true, false);
                 ?>
@@ -107,38 +112,32 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                 echo Video::getTagsHTMLLabelIfEnable($video['id']);
                 ?>
                 <!-- modeYouTubeBottom end plugins tags -->
-            </div>
-            <div class="col-xs-12 col-sm-8 col-md-8">
+<?php
+$videoDetails['preview'] = _ob_get_clean();
+?>
                 <?php echo $video['creator']; ?>
 
                 <?php
                 if (Video::showYoutubeModeOptions() && empty($advancedCustom->doNotDisplayViews)) {
                 ?>
-                    <span class="watch-view-count pull-right text-muted" itemprop="interactionCount"><span class="view-count<?php echo $video['id']; ?>"><?php echo number_format_short($video['views_count']); ?></span> <?php echo __("Views"); ?></span>
+                    <span class="watch-view-count text-muted" itemprop="interactionCount"><span class="view-count<?php echo $video['id']; ?>"><?php echo number_format_short($video['views_count']); ?></span> <?php echo __("Views"); ?></span>
                 <?php
                 }
                 ?>
                 <?php
                 if (AVideoPlugin::isEnabledByName("VideoTags")) {
-                    echo VideoTags::getLabels($video['id'], false);
+                    echo VideoTags::getLabels($video['id']);
                 }
                 ?>
-            </div>
-        </div>
-    </div>
-    <div class="panel-footer">
-
+<?php
+$videoDetails['creator'] = _ob_get_clean();
+?>
         <?php
         if (Video::showYoutubeModeOptions()) {
         ?>
-            <div class="row">
-                <div class="col-md-12 text-muted">
                     <?php if (empty($advancedCustom->disableShareAndPlaylist)) { ?>
                         <?php if (CustomizeUser::canShareVideosFromVideo($video['id'])) { ?>
-                            <a href="#" class="btn btn-default no-outline" id="shareBtn">
-                                <span class="fa fa-share"></span>
-                                <span class="hidden-sm hidden-xs"><?php echo __("Share"); ?></span>
-                            </a>
+                            <?php include $global['systemRootPath'] . 'view/include/videoDetailsShareButton.php'; ?>
                             <?php
                         }
                         $filesToDownload = [];
@@ -173,13 +172,14 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
 
                                 if (!$cdnStorageEnabled || !preg_match('/cdn\.ypt\.me(.*)\.m3u8/i', $theLink['url'])) {
                                     $theLink['url'] = addQueryStringParameter($theLink['url'], "download", 1);
-                                    $theLink['url'] = addQueryStringParameter($theLink['url'], "title", getSEOTitle($video['title']) . "_{$key}_." . ($video['type'] === 'audio' ? 'mp3' : 'mp4'));
+                                    $downloadExtension = strtolower(explode('_', $key)[0]);
+                                    $theLink['url'] = addQueryStringParameter($theLink['url'], "title", getSEOTitle($video['title']) . "_{$key}_." . $downloadExtension);
 
-                                    if (!$cdnStorageEnabled && $key == 'm3u8') {
-                                        $name = 'MP4';
+                                    if ($key == 'm3u8') {
+                                        $name = 'HLS';
                                     } else {
                                         $parts = explode("_", $key);
-                                        $name = $key;
+                                        $name = strtoupper($key);
                                         if (count($parts) > 1) {
                                             $name = strtoupper($parts[0]);
                                             if (is_numeric($parts[1])) {
@@ -191,12 +191,29 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                                     }
 
 
-                                    $filesToDownload[] = ['name' => $name, 'url' => $theLink['url']];
+                                    $filesToDownload[] = ['name' => $name, 'url' => $theLink['url'], 'format' => strtolower(explode('_', $key)[0])];
                                 }
                             }
 
                             if ($canDownloadFiles) {
-                                $filesToDownload = array_merge($filesToDownload, getMP3ANDMP4DownloadLinksFromHLS($videos_id, $video['type']));
+                                $hlsDownloads = getMP3ANDMP4DownloadLinksFromHLS($videos_id, $video['type']);
+                                foreach ($hlsDownloads as $hlsDownload) {
+                                    $hasReadyFile = false;
+                                    // Local HLS conversion produces index.mp4/index.mp3. Prefer that file when already listed.
+                                    if (!$cdnStorageEnabled) {
+                                        $readyFilename = $video['filename'] . '/index.' . strtolower($hlsDownload['name']);
+                                        foreach ($filesToDownload as $directDownload) {
+                                            $downloadPath = parse_url($directDownload['url'], PHP_URL_PATH);
+                                            if (substr($downloadPath, -strlen($readyFilename)) === $readyFilename) {
+                                                $hasReadyFile = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!$hasReadyFile) {
+                                        $filesToDownload[] = $hlsDownload;
+                                    }
+                                }
                             }
 
                             if (!empty($filesToDownload)) {
@@ -222,7 +239,7 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                     <?php
                     if (!empty($video['id']) && empty($advancedCustom->removeThumbsUpAndDown)) {
                     ?>
-                        <a href="#" class="likedislikebtn faa-parent animated-hover btn btn-default no-outline pull-right 
+                        <a href="#" class="likedislikebtn faa-parent animated-hover btn btn-default no-outline
                         <?php echo (@$video['myVote'] == -1) ? "myVote" : "" ?>" id="dislikeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("Don´t like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
                             <span class="fa fa-thumbs-down faa-bounce faa-reverse "></span>
                             <small class="showWhenNotProcessing"><?php echo $video['dislikes']; ?></small>
@@ -230,7 +247,7 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                                 <i class="fas fa-spinner fa-spin"></i>
                             </div>
                         </a>
-                        <a href="#" class="likedislikebtn faa-parent animated-hover btn btn-default no-outline pull-right 
+                        <a href="#" class="likedislikebtn faa-parent animated-hover btn btn-default no-outline
                         <?php echo (@$video['myVote'] == 1) ? "myVote" : "" ?>" id="likeBtn" <?php if (!User::isLogged()) { ?> data-toggle="tooltip" title="<?php echo __("Like this video? Sign in to make your opinion count."); ?>" <?php } ?>>
                             <span class="fa fa-thumbs-up faa-bounce"></span>
                             <small class="showWhenNotProcessing"><?php echo $video['likes']; ?></small>
@@ -279,33 +296,67 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
 
                     <?php }
                     ?>
-                </div>
-            </div>
         <?php
         }
         ?>
-    </div>
-
-    <div class="panel-footer" style="padding: 0;">
+<?php
+$videoDetails['actions'] = _ob_get_clean();
+?>
         <?php if (!empty($filesToDownload)) { ?>
             <div class="row bgWhite list-group-item menusDiv" id="downloadDiv">
                 <div class="tabbable-panel">
                     <div class="list-group list-group-horizontal">
                         <?php
+                        $downloadURLs = [];
                         foreach ($filesToDownload as $theLink) {
                             if (empty($theLink)) {
                                 continue;
                             }
-                            if (preg_match('/\.json/i', $theLink['url'])) {
+                            if (isset($downloadURLs[$theLink['url']])) {
+                                continue;
+                            }
+                            $downloadURLs[$theLink['url']] = true;
+                            $downloadFormat = strtolower($theLink['format'] ?? trim(strip_tags($theLink['name'])));
+                            $isConversion = preg_match('/\.json/i', $theLink['url']);
+                            $downloadIcon = 'fa-file-download';
+                            if (in_array($downloadFormat, ['mp3', 'ogg', 'wav', 'm4a'])) {
+                                $downloadIcon = 'fa-music';
+                            } elseif (in_array($downloadFormat, ['mp4', 'webm', 'mov'])) {
+                                $downloadIcon = 'fa-film';
+                            } elseif ($downloadFormat === 'm3u8') {
+                                $downloadIcon = 'fa-list';
+                            } elseif (in_array($downloadFormat, ['srt', 'vtt'])) {
+                                $downloadIcon = 'fa-closed-captioning';
+                            } elseif ($downloadFormat === 'pdf') {
+                                $downloadIcon = 'fa-file-pdf';
+                            } elseif ($downloadFormat === 'zip') {
+                                $downloadIcon = 'fa-file-archive';
+                            } elseif (in_array($downloadFormat, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pjpg'])) {
+                                $downloadIcon = 'fa-image';
+                            }
+                            $downloadDetail = $isConversion ? __('Convert') . ' HLS' : __('Direct download');
+                            if ($downloadFormat === 'm3u8') {
+                                $downloadDetail = __('Playlist') . ' .m3u8';
+                            } elseif (in_array($downloadFormat, ['srt', 'vtt'])) {
+                                $downloadDetail = __('Subtitles');
+                                if ($downloadFormat === 'vtt' && stripos(basename(parse_url($theLink['url'], PHP_URL_PATH)), '.Chapters.') !== false) {
+                                    $downloadIcon = 'fa-list-ol';
+                                    $downloadDetail = __('Chapters');
+                                }
+                            }
+                            $downloadClass = preg_replace('/[^a-zA-Z0-9_-]/', '', strip_tags($theLink['name']));
+                            if ($isConversion) {
                         ?>
-                                <button type="button" onclick="downloadURLOrAlertError('<?php echo $theLink['url']; ?>', {}, '<?php echo $video['clean_title']; ?>.<?php echo strtolower($theLink['name']); ?>', '<?php echo $theLink['progress']; ?>');" class="btn btn-default" target="_blank">
-                                    <i class="fas fa-download"></i> <?php echo $theLink['name']; ?>
+                                <button type="button" onclick="downloadURLOrAlertError('<?php echo $theLink['url']; ?>', {}, '<?php echo $video['clean_title']; ?>.<?php echo strtolower($theLink['name']); ?>', '<?php echo $theLink['progress']; ?>');" class="btn btn-default videoDownloadOption downloadBtn<?php echo $downloadClass; ?>" target="_blank">
+                                    <i class="fas <?php echo $downloadIcon; ?> fa-fw" aria-hidden="true"></i>
+                                    <span class="videoDownloadText"><strong><?php echo $theLink['name']; ?></strong><small><?php echo htmlspecialchars($downloadDetail, ENT_QUOTES, 'UTF-8'); ?></small></span>
                                 </button>
                             <?php
                             } else {
                             ?>
-                                <a href="<?php echo $theLink['url']; ?>" class="list-group-item list-group-item-action" target="_blank">
-                                    <i class="fas fa-download"></i> <?php echo $theLink['name']; ?>
+                                <a href="<?php echo $theLink['url']; ?>" class="list-group-item list-group-item-action videoDownloadOption downloadLink<?php echo $downloadClass; ?>" target="_blank">
+                                    <i class="fas <?php echo $downloadIcon; ?> fa-fw" aria-hidden="true"></i>
+                                    <span class="videoDownloadText"><strong><?php echo $theLink['name']; ?></strong><small><?php echo htmlspecialchars($downloadDetail, ENT_QUOTES, 'UTF-8'); ?></small></span>
                                 </a>
                         <?php
                             }
@@ -327,17 +378,18 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
         <?php
         }
 
-        if ($video['type'] !== 'notfound' && CustomizeUser::canShareVideosFromVideo($video['id'])) {
+        if ($video['type'] !== Video::$videoTypeNotfound && CustomizeUser::canShareVideosFromVideo($video['id'])) {
             $bitLyLink = false;
             if (AVideoPlugin::isEnabledByName('BitLy')) {
                 $bitLyLink = BitLy::getLink($video['id']);
             }
 
-            getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true), $img, "row bgWhite list-group-item menusDiv", parseDurationToSeconds($video['duration']), $bitLyLink);
+            echo getShareMenu($video['title'], Video::getPermaLink($video['id']), Video::getURLFriendly($video['id']), Video::getLink($video['id'], $video['clean_title'], true), $img, "row bgWhite list-group-item menusDiv", parseDurationToSeconds($video['duration']), $bitLyLink);
         }
         ?>
-    </div>
-    <div class="panel-body" id="modeYoutubeBottomContentDetails">
+<?php
+$videoDetails['menus'] = _ob_get_clean();
+?>
         <div class="row">
             <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Category"); ?>:</strong></div>
             <div class="col-xs-8 col-sm-10 col-lg-10"><a class="btn btn-xs btn-default" href="<?php echo $global['webSiteRootURL']; ?>cat/<?php echo @$video['clean_category']; ?>"><span class="<?php echo @$video['iconClass']; ?>"></span> <?php echo @$video['category']; ?></a></div>
@@ -345,7 +397,7 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
             <?php
             if (!empty($video['rrating'])) {
             ?>
-
+                <div class="clearfix"></div>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Rating"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10">
                     <?php
@@ -362,6 +414,7 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                 $parse = parse_url($video['videoDownloadedLink']);
                 $domain = str_replace('www.', '', $parse['host']);
             ?>
+                <div class="clearfix"></div>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Source"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10 descriptionArea" itemprop="source">
                     <a class="btn btn-xs btn-default" href="<?php echo $video['videoDownloadedLink']; ?>" target="_blank" rel="nofollow">
@@ -377,6 +430,7 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                 $Chapters = Bookmark::generateChaptersHTML($video['id']);
                 if (!empty($Chapters)) {
                 ?>
+                    <div class="clearfix"></div>
                     <div class="col-xs-4 col-sm-2 col-lg-2 text-right">
                         <strong>
                             <?php echo __("Chapters"); ?>:
@@ -390,8 +444,9 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
                 <?php
                 }
             }
-            if ($video['type'] !== 'notfound' && $video['type'] !== 'article' && !isHTMLEmpty($video['description'])) {
+            if ($video['type'] !== Video::$videoTypeNotfound && $video['type'] !== Video::$videoTypeArticle && !isHTMLEmpty($video['description'])) {
                 ?>
+                <div class="clearfix"></div>
                 <div class="col-xs-4 col-sm-2 col-lg-2 text-right"><strong><?php echo __("Description"); ?>:</strong></div>
                 <div class="col-xs-8 col-sm-10 col-lg-10 descriptionArea" itemprop="description">
                     <?php
@@ -416,32 +471,22 @@ $description = getSEODescription(emptyHTML($video['description']) ? $video['titl
             }
             ?>
         </div>
-    </div>
+<?php
+$videoDetails['metadata'] = _ob_get_clean();
+?>
     <?php
     if (!empty($video['id']) && empty($advancedCustom->disableComments) && Video::showYoutubeModeOptions()) {
     ?>
-        <div class="panel-footer" id="modeYoutubeBottomContentDetails">
+            <h2 class="videoDetailsSectionTitle"><i class="far fa-comments" aria-hidden="true"></i> <?php echo __('Comments'); ?></h2>
             <?php include $global['systemRootPath'] . 'view/videoComments.php'; ?>
-        </div>
     <?php
     }
     ?>
-</div>
+<?php
+$videoDetails['comments'] = _ob_get_clean();
+echo $videoDetailsPreviousContent;
+include $global['systemRootPath'] . 'view/include/videoDetails.php';
+?>
 
 <script src="<?php echo getURL('view/js/script.download.js'); ?>" type="text/javascript"></script>
-<script>
-    $(document).ready(function() {
-        <?php
-        if (empty($advancedCustom->showShareMenuOpenByDefault)) {
-        ?>
-            $("#shareDiv").slideUp();
-        <?php
-        }
-        ?>
-        $("#shareBtn").click(function() {
-            $(".menusDiv").not("#shareDiv").slideUp();
-            $("#shareDiv").slideToggle();
-            return false;
-        });
-    });
-</script>
+<?php include $global['systemRootPath'] . 'view/include/videoDetailsShareScript.php'; ?>

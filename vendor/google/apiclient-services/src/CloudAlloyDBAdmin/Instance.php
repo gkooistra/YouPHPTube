@@ -19,7 +19,11 @@ namespace Google\Service\CloudAlloyDBAdmin;
 
 class Instance extends \Google\Collection
 {
-  protected $collection_key = 'nodes';
+  protected $collection_key = 'outboundPublicIpAddresses';
+  /**
+   * @var string
+   */
+  public $activationPolicy;
   /**
    * @var string[]
    */
@@ -72,8 +76,22 @@ class Instance extends \Google\Collection
    * @var string
    */
   public $name;
+  protected $networkConfigType = InstanceNetworkConfig::class;
+  protected $networkConfigDataType = '';
   protected $nodesType = Node::class;
   protected $nodesDataType = 'array';
+  protected $observabilityConfigType = ObservabilityInstanceConfig::class;
+  protected $observabilityConfigDataType = '';
+  /**
+   * @var string[]
+   */
+  public $outboundPublicIpAddresses;
+  protected $pscInstanceConfigType = PscInstanceConfig::class;
+  protected $pscInstanceConfigDataType = '';
+  /**
+   * @var string
+   */
+  public $publicIpAddress;
   protected $queryInsightsConfigType = QueryInsightsInstanceConfig::class;
   protected $queryInsightsConfigDataType = '';
   protected $readPoolConfigType = ReadPoolConfig::class;
@@ -101,6 +119,20 @@ class Instance extends \Google\Collection
   protected $writableNodeType = Node::class;
   protected $writableNodeDataType = '';
 
+  /**
+   * @param string
+   */
+  public function setActivationPolicy($activationPolicy)
+  {
+    $this->activationPolicy = $activationPolicy;
+  }
+  /**
+   * @return string
+   */
+  public function getActivationPolicy()
+  {
+    return $this->activationPolicy;
+  }
   /**
    * @param string[]
    */
@@ -298,6 +330,20 @@ class Instance extends \Google\Collection
     return $this->name;
   }
   /**
+   * @param InstanceNetworkConfig
+   */
+  public function setNetworkConfig(InstanceNetworkConfig $networkConfig)
+  {
+    $this->networkConfig = $networkConfig;
+  }
+  /**
+   * @return InstanceNetworkConfig
+   */
+  public function getNetworkConfig()
+  {
+    return $this->networkConfig;
+  }
+  /**
    * @param Node[]
    */
   public function setNodes($nodes)
@@ -310,6 +356,62 @@ class Instance extends \Google\Collection
   public function getNodes()
   {
     return $this->nodes;
+  }
+  /**
+   * @param ObservabilityInstanceConfig
+   */
+  public function setObservabilityConfig(ObservabilityInstanceConfig $observabilityConfig)
+  {
+    $this->observabilityConfig = $observabilityConfig;
+  }
+  /**
+   * @return ObservabilityInstanceConfig
+   */
+  public function getObservabilityConfig()
+  {
+    return $this->observabilityConfig;
+  }
+  /**
+   * @param string[]
+   */
+  public function setOutboundPublicIpAddresses($outboundPublicIpAddresses)
+  {
+    $this->outboundPublicIpAddresses = $outboundPublicIpAddresses;
+  }
+  /**
+   * @return string[]
+   */
+  public function getOutboundPublicIpAddresses()
+  {
+    return $this->outboundPublicIpAddresses;
+  }
+  /**
+   * @param PscInstanceConfig
+   */
+  public function setPscInstanceConfig(PscInstanceConfig $pscInstanceConfig)
+  {
+    $this->pscInstanceConfig = $pscInstanceConfig;
+  }
+  /**
+   * @return PscInstanceConfig
+   */
+  public function getPscInstanceConfig()
+  {
+    return $this->pscInstanceConfig;
+  }
+  /**
+   * @param string
+   */
+  public function setPublicIpAddress($publicIpAddress)
+  {
+    $this->publicIpAddress = $publicIpAddress;
+  }
+  /**
+   * @return string
+   */
+  public function getPublicIpAddress()
+  {
+    return $this->publicIpAddress;
   }
   /**
    * @param QueryInsightsInstanceConfig

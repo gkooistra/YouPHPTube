@@ -20,10 +20,6 @@ namespace Google\Service\DiscoveryEngine;
 class GoogleCloudDiscoveryengineV1alphaEngine extends \Google\Collection
 {
   protected $collection_key = 'dataStoreIds';
-  /**
-   * @var bool
-   */
-  public $allowMultipleDataStoresSearchEngine;
   protected $chatEngineConfigType = GoogleCloudDiscoveryengineV1alphaEngineChatEngineConfig::class;
   protected $chatEngineConfigDataType = '';
   protected $chatEngineMetadataType = GoogleCloudDiscoveryengineV1alphaEngineChatEngineMetadata::class;
@@ -39,9 +35,17 @@ class GoogleCloudDiscoveryengineV1alphaEngine extends \Google\Collection
    */
   public $dataStoreIds;
   /**
+   * @var bool
+   */
+  public $disableAnalytics;
+  /**
    * @var string
    */
   public $displayName;
+  /**
+   * @var string[]
+   */
+  public $features;
   /**
    * @var string
    */
@@ -67,20 +71,6 @@ class GoogleCloudDiscoveryengineV1alphaEngine extends \Google\Collection
    */
   public $updateTime;
 
-  /**
-   * @param bool
-   */
-  public function setAllowMultipleDataStoresSearchEngine($allowMultipleDataStoresSearchEngine)
-  {
-    $this->allowMultipleDataStoresSearchEngine = $allowMultipleDataStoresSearchEngine;
-  }
-  /**
-   * @return bool
-   */
-  public function getAllowMultipleDataStoresSearchEngine()
-  {
-    return $this->allowMultipleDataStoresSearchEngine;
-  }
   /**
    * @param GoogleCloudDiscoveryengineV1alphaEngineChatEngineConfig
    */
@@ -152,6 +142,20 @@ class GoogleCloudDiscoveryengineV1alphaEngine extends \Google\Collection
     return $this->dataStoreIds;
   }
   /**
+   * @param bool
+   */
+  public function setDisableAnalytics($disableAnalytics)
+  {
+    $this->disableAnalytics = $disableAnalytics;
+  }
+  /**
+   * @return bool
+   */
+  public function getDisableAnalytics()
+  {
+    return $this->disableAnalytics;
+  }
+  /**
    * @param string
    */
   public function setDisplayName($displayName)
@@ -164,6 +168,20 @@ class GoogleCloudDiscoveryengineV1alphaEngine extends \Google\Collection
   public function getDisplayName()
   {
     return $this->displayName;
+  }
+  /**
+   * @param string[]
+   */
+  public function setFeatures($features)
+  {
+    $this->features = $features;
+  }
+  /**
+   * @return string[]
+   */
+  public function getFeatures()
+  {
+    return $this->features;
   }
   /**
    * @param string

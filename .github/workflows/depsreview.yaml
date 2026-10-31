@@ -7,8 +7,9 @@ permissions:
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
+    if: github.repository == 'WWBN/AVideo'
     steps:
       - name: 'Checkout Repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: 'Dependency Review'
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5

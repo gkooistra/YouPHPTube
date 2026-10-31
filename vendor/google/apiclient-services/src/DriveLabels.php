@@ -27,7 +27,7 @@ use Google\Client;
  *
  * <p>
  * For more information about this service, see the API
- * <a href="https://developers.google.com/drive/labels" target="_blank">Documentation</a>
+ * <a href="https://developers.google.com/workspace/drive/labels" target="_blank">Documentation</a>
  * </p>
  *
  * @author Google, Inc.
@@ -55,6 +55,7 @@ class DriveLabels extends \Google\Service
   public $labels_revisions_permissions;
   public $limits;
   public $users;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the DriveLabels service.
@@ -67,6 +68,7 @@ class DriveLabels extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://drivelabels.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://drivelabels.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v2';

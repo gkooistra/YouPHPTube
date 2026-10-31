@@ -19,11 +19,17 @@ namespace Google\Service\SQLAdmin;
 
 class PscConfig extends \Google\Collection
 {
-  protected $collection_key = 'allowedConsumerProjects';
+  protected $collection_key = 'pscAutoConnections';
   /**
    * @var string[]
    */
   public $allowedConsumerProjects;
+  /**
+   * @var string
+   */
+  public $networkAttachmentUri;
+  protected $pscAutoConnectionsType = PscAutoConnectionConfig::class;
+  protected $pscAutoConnectionsDataType = 'array';
   /**
    * @var bool
    */
@@ -42,6 +48,34 @@ class PscConfig extends \Google\Collection
   public function getAllowedConsumerProjects()
   {
     return $this->allowedConsumerProjects;
+  }
+  /**
+   * @param string
+   */
+  public function setNetworkAttachmentUri($networkAttachmentUri)
+  {
+    $this->networkAttachmentUri = $networkAttachmentUri;
+  }
+  /**
+   * @return string
+   */
+  public function getNetworkAttachmentUri()
+  {
+    return $this->networkAttachmentUri;
+  }
+  /**
+   * @param PscAutoConnectionConfig[]
+   */
+  public function setPscAutoConnections($pscAutoConnections)
+  {
+    $this->pscAutoConnections = $pscAutoConnections;
+  }
+  /**
+   * @return PscAutoConnectionConfig[]
+   */
+  public function getPscAutoConnections()
+  {
+    return $this->pscAutoConnections;
   }
   /**
    * @param bool

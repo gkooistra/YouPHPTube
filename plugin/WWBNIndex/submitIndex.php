@@ -10,7 +10,7 @@ $wwbnIndex = new WWBNIndex();
 //     return false;
 // }
 
-if (!empty($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] !== 'localhost' && !filter_var($_SERVER['SERVER_NAME'], FILTER_VALIDATE_IP) && $wwbnIndex->check_site_availability($_SERVER['HTTP_HOST']) == 200) {
+if (!empty($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] !== 'localhost' && !filter_var($_SERVER['SERVER_NAME'], FILTER_VALIDATE_IP) && $wwbnIndex->check_site_availability($global['webSiteRootURL']) == 200) {
 
     $data = array(
         "apiName"           => "submitIndexUponInstall",
@@ -36,9 +36,9 @@ if (!empty($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] !== 'localhost' &
         "total_channels"    => 1,
         "language"		    => $_POST['mainLanguage'],
     );
-    
+
     $response = json_decode(postVariables("https://wwbn.com/api/function.php", $data, false));
-    
+
     if (isset($response->error) && $response->error == false) {
         $object_data = array(
             "engine_name"   => $response->engine_name,

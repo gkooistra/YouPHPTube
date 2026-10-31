@@ -24,6 +24,10 @@ class GoogleCloudDialogflowCxV3Generator extends \Google\Collection
    * @var string
    */
   public $displayName;
+  protected $llmModelSettingsType = GoogleCloudDialogflowCxV3LlmModelSettings::class;
+  protected $llmModelSettingsDataType = '';
+  protected $modelParameterType = GoogleCloudDialogflowCxV3GeneratorModelParameter::class;
+  protected $modelParameterDataType = '';
   /**
    * @var string
    */
@@ -46,6 +50,34 @@ class GoogleCloudDialogflowCxV3Generator extends \Google\Collection
   public function getDisplayName()
   {
     return $this->displayName;
+  }
+  /**
+   * @param GoogleCloudDialogflowCxV3LlmModelSettings
+   */
+  public function setLlmModelSettings(GoogleCloudDialogflowCxV3LlmModelSettings $llmModelSettings)
+  {
+    $this->llmModelSettings = $llmModelSettings;
+  }
+  /**
+   * @return GoogleCloudDialogflowCxV3LlmModelSettings
+   */
+  public function getLlmModelSettings()
+  {
+    return $this->llmModelSettings;
+  }
+  /**
+   * @param GoogleCloudDialogflowCxV3GeneratorModelParameter
+   */
+  public function setModelParameter(GoogleCloudDialogflowCxV3GeneratorModelParameter $modelParameter)
+  {
+    $this->modelParameter = $modelParameter;
+  }
+  /**
+   * @return GoogleCloudDialogflowCxV3GeneratorModelParameter
+   */
+  public function getModelParameter()
+  {
+    return $this->modelParameter;
   }
   /**
    * @param string

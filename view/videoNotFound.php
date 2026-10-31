@@ -12,7 +12,7 @@ unset($_SESSION['type']);
 _session_write_close();
 $video = [];
 $video['id'] = 0;
-$video['type'] = 'notfound';
+$video['type'] = Video::$videoTypeNotfound;
 $video['rotation'] = 0;
 $video['videoLink'] = '';
 $video['title'] = __("Video Not Available");
@@ -26,7 +26,7 @@ $video['category'] = "embed";
 $video['views_count'] = 0;
 $video['filename'] = '';
 
-$_page = new Page(array('Chat Editor'), 'videoNotFound');
+$_page = new Page(array('Video not found'), 'videoNotFound');
 $_page->setExtraStyles(
     array(
         'plugin/Gallery/style.css',
@@ -46,7 +46,7 @@ showCloseButton();
     $(function() {
         <?php
         if (!empty($_REQUEST['404ErrorMsg'])) {
-            echo "avideoAlertInfo(\"{$_REQUEST['404ErrorMsg']}\");";
+            echo 'avideoAlertInfo(' . json_encode($_REQUEST['404ErrorMsg'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ');';
         }
         ?>
     });

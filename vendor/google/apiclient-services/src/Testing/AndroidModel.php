@@ -21,6 +21,10 @@ class AndroidModel extends \Google\Collection
 {
   protected $collection_key = 'tags';
   /**
+   * @var string[]
+   */
+  public $accessDeniedReasons;
+  /**
    * @var string
    */
   public $brand;
@@ -40,6 +44,8 @@ class AndroidModel extends \Google\Collection
    * @var string
    */
   public $id;
+  protected $labInfoType = LabInfo::class;
+  protected $labInfoDataType = '';
   /**
    * @var bool
    */
@@ -83,6 +89,20 @@ class AndroidModel extends \Google\Collection
    */
   public $thumbnailUrl;
 
+  /**
+   * @param string[]
+   */
+  public function setAccessDeniedReasons($accessDeniedReasons)
+  {
+    $this->accessDeniedReasons = $accessDeniedReasons;
+  }
+  /**
+   * @return string[]
+   */
+  public function getAccessDeniedReasons()
+  {
+    return $this->accessDeniedReasons;
+  }
   /**
    * @param string
    */
@@ -152,6 +172,20 @@ class AndroidModel extends \Google\Collection
   public function getId()
   {
     return $this->id;
+  }
+  /**
+   * @param LabInfo
+   */
+  public function setLabInfo(LabInfo $labInfo)
+  {
+    $this->labInfo = $labInfo;
+  }
+  /**
+   * @return LabInfo
+   */
+  public function getLabInfo()
+  {
+    return $this->labInfo;
   }
   /**
    * @param bool

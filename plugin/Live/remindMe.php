@@ -11,7 +11,12 @@ if (empty($live)) {
 }
 
 $ls = new Live_schedule($_REQUEST['live_schedule_id']);
-$liveImg = Live_schedule::getPosterURL($_REQUEST['live_schedule_id']);
+
+if (empty($ls->getId()) || !$ls->userCanSeeTransmition()) {
+    forbiddenPage('Permission denied');
+}
+
+$liveImg = Live_schedule::getPosterURL($_REQUEST['live_schedule_id'], 0);
 
 $liveInfo = Live::getInfo($ls->getKey(), $ls->getLive_servers_id());
 $_page = new Page(array('Remind me'));

@@ -122,6 +122,41 @@ class Live_restreams_logs extends ObjectYPT
         return $row;
     }
 
+    /**
+     * Returns all log records for a given restream destination, newest first.
+     * If $users_id is provided (non-admin use), only records belonging to that user are returned.
+     */
+    static function getHistoryByRestream($live_restreams_id, $users_id = 0)
+    {
+        global $global;
+        if (!static::isTableInstalled()) {
+            return [];
+        }
+        $live_restreams_id = intval($live_restreams_id);
+        if (empty($live_restreams_id)) {
+            return [];
+        }
+        $users_id = intval($users_id);
+
+        if ($users_id > 0) {
+            // Join with live_restreams to enforce ownership
+            $sql = "SELECT lrl.*
+                    FROM " . static::getTableName() . " lrl
+                    INNER JOIN live_restreams lr ON lr.id = lrl.live_restreams_id
+                    WHERE lrl.live_restreams_id = ?
+                      AND lr.users_id = ?
+                    ORDER BY lrl.id DESC";
+            $res = sqlDAL::readSql($sql, 'ii', [$live_restreams_id, $users_id]);
+        } else {
+            $sql = "SELECT * FROM " . static::getTableName() . " WHERE live_restreams_id = ? ORDER BY id DESC";
+            $res = sqlDAL::readSql($sql, 'i', [$live_restreams_id]);
+        }
+
+        $rows = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        return $rows ? $rows : [];
+    }
+
     static function getURL($live_transmitions_history_id, $live_restreams_id, $live_restreams_logs_id, $action = 'log')
     {
         if (!empty($live_restreams_logs_id)) {
@@ -131,8 +166,47 @@ class Live_restreams_logs extends ObjectYPT
         } else {
             $url = Live::getRestreamer();
         }
+        $url = str_replace('/var/www/html/AVideo/', '/', $url); // remove the AVideo path from the url
         if (!isValidURL($url)) {
             _error_log("Invalid restreamer URL {$url}, $live_transmitions_history_id, $live_restreams_id, $live_restreams_logs_id, $action");
+            return false;
+        }
+
+        // Re-validate host:port against admin-configured restreamer endpoints before
+        // building the fetch URL. This is defense-in-depth: add.json.php already enforces
+        // the allowlist at storage time, but a second check here ensures that any entry
+        // that bypassed storage-time validation (e.g. pre-existing rows) cannot be fetched.
+        // We do NOT use isSSRFSafeURL() because legitimate single-server deployments may
+        // use http://localhost/ as the restreamer address, which that function blocks.
+        $fetchHost   = strtolower(parse_url($url, PHP_URL_HOST));
+        $fetchScheme = strtolower(parse_url($url, PHP_URL_SCHEME));
+        $fetchPort   = parse_url($url, PHP_URL_PORT) ?: ($fetchScheme === 'https' ? 443 : 80);
+        $fetchKey    = "{$fetchHost}:{$fetchPort}";
+
+        $allowedKeys = [];
+        $primaryURL = Live::getRestreamer();
+        if (!empty($primaryURL)) {
+            $h = strtolower(parse_url($primaryURL, PHP_URL_HOST));
+            $p = parse_url($primaryURL, PHP_URL_PORT) ?: (strtolower(parse_url($primaryURL, PHP_URL_SCHEME)) === 'https' ? 443 : 80);
+            $allowedKeys[] = "{$h}:{$p}";
+        }
+        $liveObj = AVideoPlugin::getObjectData('Live');
+        if (!empty($liveObj->useLiveServers)) {
+            require_once dirname(__FILE__) . '/Live_servers.php';
+            $servers = Live_servers::getAllActive();
+            if (!empty($servers)) {
+                foreach ($servers as $row) {
+                    if (empty($row['restreamerURL'])) {
+                        continue;
+                    }
+                    $h = strtolower(parse_url($row['restreamerURL'], PHP_URL_HOST));
+                    $p = parse_url($row['restreamerURL'], PHP_URL_PORT) ?: (strtolower(parse_url($row['restreamerURL'], PHP_URL_SCHEME)) === 'https' ? 443 : 80);
+                    $allowedKeys[] = "{$h}:{$p}";
+                }
+            }
+        }
+        if (empty($allowedKeys) || !in_array($fetchKey, $allowedKeys, true)) {
+            _error_log("getURL: restreamer URL host not in allowlist. fetch={$fetchKey} allowed=" . implode(',', $allowedKeys));
             return false;
         }
 
@@ -150,6 +224,7 @@ class Live_restreams_logs extends ObjectYPT
         } else {
             $live_restreams_logs_id = $latest['id'];
         }
+        //var_dump($live_transmitions_history_id, $live_restreams_id, $live_restreams_logs_id, $action);
         return self::getURL($live_transmitions_history_id, $live_restreams_id, $live_restreams_logs_id, $action);
     }
 

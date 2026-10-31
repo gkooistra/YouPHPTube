@@ -6,7 +6,7 @@
             ?>
             <div class="alert alert-info">
                 <?php echo __('Truly customize your AVideo and create a more professional video sharing site experience for your visitors by removing or replacing the footer, about page and Meta Description with your own.'); ?>
-                <a class="btn btn-info btn-sm btn-xs" href="https://youphp.tube/marketplace/"><?php echo __('Buy the Customize plugin now'); ?></a>
+                <a class="btn btn-info btn-sm btn-xs" href="https://streamphp.com/marketplace/"><?php echo __('Buy the Customize plugin now'); ?></a>
             </div>
             <?php
             return false;
@@ -55,14 +55,35 @@
     $(document).ready(function () {
         $("#customizeForm").submit(function (event) {
             event.preventDefault();
+            var form = $(this);
+            if (form.data('saving')) {
+                return;
+            }
+            ['about', 'footer'].forEach(function(id) {
+                if (typeof tinymce !== 'undefined' && tinymce.get(id)) {
+                    tinymce.get(id).save();
+                }
+            });
+            form.data('saving', true).find(':submit').prop('disabled', true);
             modal.showPleaseWait();
             $.ajax({
                 url: webSiteRootURL + 'plugin/Customize/page/editorSave.php',
                 data: {"about": $('#about').val(), "footer": $('#footer').val(), "description": $('#description').val()},
                 type: 'post',
+                dataType: 'json',
                 success: function (response) {
+                    if (response && !response.error && response.save) {
+                        avideoToastSuccess(<?php echo json_encode(__('Saved')); ?>);
+                    } else {
+                        avideoToastError(<?php echo json_encode(__('An error occurred')); ?>);
+                    }
+                },
+                error: function () {
+                    avideoToastError(<?php echo json_encode(__('An error occurred')); ?>);
+                },
+                complete: function () {
+                    form.removeData('saving').find(':submit').prop('disabled', false);
                     modal.hidePleaseWait();
-                    console.log(response);
                 }
             });
         });

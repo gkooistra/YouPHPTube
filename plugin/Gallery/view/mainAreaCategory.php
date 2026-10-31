@@ -9,7 +9,7 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
     if (empty($_GET['page'])) {
         unsetCurrentPage();
     }
-    
+
     if(!empty($_GET['catName'])){
         resetCurrentPage();
     }
@@ -23,7 +23,10 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
     $_POST['sort']['likes'] = "DESC";
     $_REQUEST['catName'] = $currentCat['clean_name'];
     $_REQUEST['doNotShowCatChilds'] = 1;
-    $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
+    // SECURITY REVIEW (2026-08-21): !hidePrivateVideos below and in the rest of this file
+    // intentionally bypasses the group restriction for these listings (see Gallery.php
+    // hidePrivateVideos default) - not a bug.
+    $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !isToHidePrivateVideos());
     global $contentSearchFound;
     if (empty($contentSearchFound)) {
         $contentSearchFound = !empty($videos);
@@ -44,12 +47,17 @@ if (!empty($currentCat) && empty($_GET['showOnly'])) {
     $rows = Category::getChildCategories($currentCat['id']);
     $global['doNotSearch'] = 0;
     //var_dump($currentCat['id'], $rows);exit;
+    $sort = $_POST['sort'];
+    $_POST['sort'] = array();
+    $_POST['sort']['v.created'] = 'DESC';
+    $_POST['sort']['v.id'] = 'DESC';
     foreach ($rows as $key => $value) {
         $_REQUEST['catName'] = $value['clean_name'];
         $_REQUEST['doNotShowCatChilds'] = 0;
-        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
+        $videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !isToHidePrivateVideos());
         createCategorySection($videos);
     }
+    $_POST['sort'] = $sort;
 }
 
 $_POST = $post;
@@ -63,6 +71,7 @@ function createCategorySection($videos)
         return;
     }
 ?>
+    <!-- mainAreaCategory.php -->
     <div class="clear clearfix" id="Div<?php echo $videos[0]['clean_category']; ?>">
         <?php
         if (canPrintCategoryTitle($videos[0]['category'])) {
@@ -76,8 +85,8 @@ function createCategorySection($videos)
                     $duid = uniqid();
                     $titleAlert = str_replace(array('"', "'"), array('``', "`"), $videos[0]['category']);
                 ?>
-                    <a href="#" class="pull-right" onclick='avideoAlert("<?php echo $titleAlert; ?>", "<div style=\"max-height: 300px; overflow-y: scroll;overflow-x: hidden;\" id=\"categoryDescriptionAlertContent<?php echo $duid; ?>\" ></div>", "");$("#categoryDescriptionAlertContent<?php echo $duid; ?>").html($("#categoryDescription<?php echo $duid; ?>").html());return false;'><i class="far fa-file-alt"></i> <?php echo __("Description"); ?></a>
-                    <div id="categoryDescription<?php echo $duid; ?>" style="display: none;"><?php echo $videos[0]['category_description']; ?></div>
+                    <a href="#" class="pull-right" onclick='avideoAlertHTML("<?php echo $titleAlert; ?>", "<div style=\"max-height: 300px; overflow-y: scroll;overflow-x: hidden;\" id=\"categoryDescriptionAlertContent<?php echo $duid; ?>\" ></div>", "");$("#categoryDescriptionAlertContent<?php echo $duid; ?>").html($("#categoryDescription<?php echo $duid; ?>").html());return false;'><i class="far fa-file-alt"></i> <?php echo __("Description"); ?></a>
+                    <div id="categoryDescription<?php echo $duid; ?>" style="display: none;"><?php echo textToLink(htmlentities($videos[0]['category_description'])); ?></div>
                 <?php
                 }
                 ?>
@@ -95,12 +104,12 @@ function createCategorySection($videos)
     <div class="col-sm-12 gallerySection" >
         <?php
         $_REQUEST['catName'] = $videos[0]['clean_category'];
-        $total = Video::getTotalVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos);
+        $total = Video::getTotalVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !isToHidePrivateVideos());
         $totalPages = ceil($total / getRowCount());
         //var_dump($totalPages, $page);
         $categoryURL = "{$global['webSiteRootURL']}cat/{$videos[0]['clean_category']}/page/";
         //getPagination($total, $page = 0, $link = "", $maxVisible = 10, $infinityScrollGetFromSelector="", $infinityScrollAppendIntoSelector="")
-        echo getPagination($totalPages, "{$categoryURL}_pageNum_{$args}", 10, ".Div{$videos[0]['clean_category']}Section", ".Div{$videos[0]['clean_category']}Section");
+        echo getPagination($totalPages, "{$categoryURL}_pageNum_{$args}", 10, ".Div{$videos[0]['clean_category']}Section > *", ".Div{$videos[0]['clean_category']}Section");
         echo getPagination($totalPages, "{$categoryURL}_pageNum_{$args}");
         ?>
     </div>

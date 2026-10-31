@@ -6,24 +6,13 @@ if (!isset($global) || !is_array($global)) {
     $global = [];
 }
 
-/**
- * str_starts_with wasn't introduced until PHP8. Polyfill provided in order to
- * maintain compatibility between AVideo and older PHP versions.
- * @link https://www.php.net/str_starts_with
- */
-if (!function_exists('str_starts_with')) {
-
-    function str_starts_with(string $Haystack, string $Needle): bool
-    {
-        return substr($Haystack, 0, strlen($Needle)) === $Needle;
-    }
-}
-
+// Polyfills provided in order to maintain compatibility between AVideo and older PHP versions.
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'php80.php';
 
 // Make sure SecureVideosDirectory will be the first
 function cmpPlugin($a, $b)
 {
-    $topOrder = ['SecureVideosDirectory', 'GoogleAds_IMA', 'Gift', 'Subscription', 'PayPerView', 'FansSubscriptions'];
+    $topOrder = ['SecureVideosDirectory', 'Cache', 'GoogleAds_IMA', 'Gift', 'Subscription', 'PayPerView', 'FansSubscriptions'];
     $bottomOrder = ['PlayerSkins'];
 
     $aTopIndex = array_search($a['name'], $topOrder);
@@ -159,34 +148,107 @@ function check_memory_limit()
     return ($recomended_size <= $max_size);
 }
 
-function getRealIpAddr()
+function getRemoteAddrFromServerArray($server)
 {
-    $ip = "127.0.0.1";
-
-    if (isCommandLineInterface()) {
-        return $ip;
+    if (empty($server['REMOTE_ADDR'])) {
+        return '';
     }
 
+    $remoteAddr = trim($server['REMOTE_ADDR']);
+    if (!filter_var($remoteAddr, FILTER_VALIDATE_IP)) {
+        return '';
+    }
+
+    return $remoteAddr;
+}
+
+function isPrivateOrLoopbackIP($ip)
+{
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return false;
+    }
+
+    return !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+}
+
+function isLoopbackIP($ip)
+{
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return false;
+    }
+
+    if ($ip === '::1') {
+        return true;
+    }
+
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $ipLong = ip2long($ip);
+        return $ipLong >= ip2long('127.0.0.0') && $ipLong <= ip2long('127.255.255.255');
+    }
+
+    return false;
+}
+
+function getForwardedClientIpFromServerArray($server)
+{
+    $ipv6 = '';
     $headers = [
-        'HTTP_CLIENT_IP',
+        'HTTP_X_REAL_IP',
         'HTTP_X_FORWARDED_FOR',
-        'REMOTE_ADDR'
     ];
 
     foreach ($headers as $header) {
-        if (!empty($_SERVER[$header])) {
-            $ips = explode(',', $_SERVER[$header]);
-            foreach ($ips as $ipCandidate) {
-                $ipCandidate = trim($ipCandidate); // Just to be safe
-                if (filter_var($ipCandidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                    return $ipCandidate; // Return the first valid IPv4 we find
-                } elseif ($header === 'REMOTE_ADDR' && filter_var($ipCandidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                    $ip = $ipCandidate; // In case no IPv4 is found, set the first IPv6 found from REMOTE_ADDR
-                }
+        if (empty($server[$header])) {
+            continue;
+        }
+
+        $ips = explode(',', $server[$header]);
+        foreach ($ips as $ipCandidate) {
+            $ipCandidate = trim($ipCandidate);
+            if (filter_var($ipCandidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return $ipCandidate;
+            }
+            if (empty($ipv6) && filter_var($ipCandidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                $ipv6 = $ipCandidate;
             }
         }
     }
-    return $ip;
+
+    return $ipv6;
+}
+
+// A private/loopback REMOTE_ADDR does not mean the request went through a proxy we
+// operate; only an operator-configured $global['trustedProxies'] entry may supply a
+// forwarded IP (2026-08-18, closes header-spoofable enforceRateLimit() bypass).
+function isRequestFromTrustedProxy($remoteAddr)
+{
+    global $global;
+    if (empty($global['trustedProxies']) || !is_array($global['trustedProxies'])) {
+        return false;
+    }
+    return in_array($remoteAddr, $global['trustedProxies'], true);
+}
+
+function getRealIpAddr()
+{
+    if (isCommandLineInterface()) {
+        return '127.0.0.1';
+    }
+
+    $remoteAddr = getRemoteAddrFromServerArray($_SERVER);
+    if (empty($remoteAddr)) {
+        return '127.0.0.1';
+    }
+
+    if (isRequestFromTrustedProxy($remoteAddr)) {
+        $forwardedIp = getForwardedClientIpFromServerArray($_SERVER);
+        // never let a forwarded header grant the loopback trust some code keys off of
+        if (!empty($forwardedIp) && !isLoopbackIP($forwardedIp)) {
+            return $forwardedIp;
+        }
+    }
+
+    return $remoteAddr;
 }
 
 function cleanString($text)
@@ -194,7 +256,7 @@ function cleanString($text)
     if (empty($text)) {
         return '';
     }
-    if(!is_string($text)){
+    if (!is_string($text)) {
         return $text;
     }
     $utf8 = [
@@ -222,22 +284,83 @@ function cleanString($text)
         '/[’‘‹›‚]/u' => ' ', // Literally a single quote
         '/[“”«»„]/u' => ' ', // Double quote
         '/ /' => ' ', // nonbreaking space (equiv. to 0x160)
-        '/Є/' => 'YE', '/І/' => 'I', '/Ѓ/' => 'G', '/і/' => 'i', '/№/' => '#', '/є/' => 'ye', '/ѓ/' => 'g',
-        '/А/' => 'A', '/Б/' => 'B', '/В/' => 'V', '/Г/' => 'G', '/Д/' => 'D',
-        '/Е/' => 'E', '/Ё/' => 'YO', '/Ж/' => 'ZH',
-        '/З/' => 'Z', '/И/' => 'I', '/Й/' => 'J', '/К/' => 'K', '/Л/' => 'L',
-        '/М/' => 'M', '/Н/' => 'N', '/О/' => 'O', '/П/' => 'P', '/Р/' => 'R',
-        '/С/' => 'S', '/Т/' => 'T', '/У/' => 'U', '/Ф/' => 'F', '/Х/' => 'H',
-        '/Ц/' => 'C', '/Ч/' => 'CH', '/Ш/' => 'SH', '/Щ/' => 'SHH', '/Ъ/' => '',
-        '/Ы/' => 'Y', '/Ь/' => '', '/Э/' => 'E', '/Ю/' => 'YU', '/Я/' => 'YA',
-        '/а/' => 'a', '/б/' => 'b', '/в/' => 'v', '/г/' => 'g', '/д/' => 'd',
-        '/е/' => 'e', '/ё/' => 'yo', '/ж/' => 'zh',
-        '/з/' => 'z', '/и/' => 'i', '/й/' => 'j', '/к/' => 'k', '/л/' => 'l',
-        '/м/' => 'm', '/н/' => 'n', '/о/' => 'o', '/п/' => 'p', '/р/' => 'r',
-        '/с/' => 's', '/т/' => 't', '/у/' => 'u', '/ф/' => 'f', '/х/' => 'h',
-        '/ц/' => 'c', '/ч/' => 'ch', '/ш/' => 'sh', '/щ/' => 'shh', '/ъ/' => '',
-        '/ы/' => 'y', '/ь/' => '', '/э/' => 'e', '/ю/' => 'yu', '/я/' => 'ya',
-        '/—/' => '-', '/«/' => '', '/»/' => '', '/…/' => '',
+        '/Є/' => 'YE',
+        '/І/' => 'I',
+        '/Ѓ/' => 'G',
+        '/і/' => 'i',
+        '/№/' => '#',
+        '/є/' => 'ye',
+        '/ѓ/' => 'g',
+        '/А/' => 'A',
+        '/Б/' => 'B',
+        '/В/' => 'V',
+        '/Г/' => 'G',
+        '/Д/' => 'D',
+        '/Е/' => 'E',
+        '/Ё/' => 'YO',
+        '/Ж/' => 'ZH',
+        '/З/' => 'Z',
+        '/И/' => 'I',
+        '/Й/' => 'J',
+        '/К/' => 'K',
+        '/Л/' => 'L',
+        '/М/' => 'M',
+        '/Н/' => 'N',
+        '/О/' => 'O',
+        '/П/' => 'P',
+        '/Р/' => 'R',
+        '/С/' => 'S',
+        '/Т/' => 'T',
+        '/У/' => 'U',
+        '/Ф/' => 'F',
+        '/Х/' => 'H',
+        '/Ц/' => 'C',
+        '/Ч/' => 'CH',
+        '/Ш/' => 'SH',
+        '/Щ/' => 'SHH',
+        '/Ъ/' => '',
+        '/Ы/' => 'Y',
+        '/Ь/' => '',
+        '/Э/' => 'E',
+        '/Ю/' => 'YU',
+        '/Я/' => 'YA',
+        '/а/' => 'a',
+        '/б/' => 'b',
+        '/в/' => 'v',
+        '/г/' => 'g',
+        '/д/' => 'd',
+        '/е/' => 'e',
+        '/ё/' => 'yo',
+        '/ж/' => 'zh',
+        '/з/' => 'z',
+        '/и/' => 'i',
+        '/й/' => 'j',
+        '/к/' => 'k',
+        '/л/' => 'l',
+        '/м/' => 'm',
+        '/н/' => 'n',
+        '/о/' => 'o',
+        '/п/' => 'p',
+        '/р/' => 'r',
+        '/с/' => 's',
+        '/т/' => 't',
+        '/у/' => 'u',
+        '/ф/' => 'f',
+        '/х/' => 'h',
+        '/ц/' => 'c',
+        '/ч/' => 'ch',
+        '/ш/' => 'sh',
+        '/щ/' => 'shh',
+        '/ъ/' => '',
+        '/ы/' => 'y',
+        '/ь/' => '',
+        '/э/' => 'e',
+        '/ю/' => 'yu',
+        '/я/' => 'ya',
+        '/—/' => '-',
+        '/«/' => '',
+        '/»/' => '',
+        '/…/' => '',
     ];
     return preg_replace(array_keys($utf8), array_values($utf8), $text);
 }
@@ -261,6 +384,8 @@ function safeString($text, $strict = false, $try = 0)
     $text = preg_replace('/(&#*\w+)[\x00-\x20]+;/u', '', $text);
     $text = preg_replace('/(&#x*[0-9A-F]+);*/iu', '', $text);
     $text = html_entity_decode($text, ENT_COMPAT, 'UTF-8');
+    // decoding can turn nested entities (e.g. &&amp;lt;lt;) into real tags, strip them again
+    $text = strip_tags($text);
 
     if ($strict) {
         $text = filter_var($text, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -270,7 +395,14 @@ function safeString($text, $strict = false, $try = 0)
     $text = trim($text);
 
     if (empty($try) && empty($text) && function_exists('mb_convert_encoding')) {
-        $originalText = preg_replace('/[^\PC\s]/u', '', $originalText);
+        $originalText2 = preg_replace('/[^\PC\s]/u', '', $originalText);
+        if (empty($originalText2)) {
+            $originalText2 = mb_convert_encoding($originalText, 'UTF-8', 'auto');
+            $originalText2 = preg_replace('/[^\PC\s]/u', '', $originalText2);
+        }
+        if (!empty($originalText2)) {
+            $originalText = $originalText2;
+        }
         // Remove leading and trailing whitespace
         $originalText = trim($originalText);
         return safeString(mb_convert_encoding($originalText, 'UTF-8'), $strict, 1);
@@ -281,7 +413,7 @@ function safeString($text, $strict = false, $try = 0)
 
 function cleanURLName($name, $replaceChar = '-')
 {
-    if(!is_string($name)){
+    if (!is_string($name)) {
         return $name;
     }
     $name = preg_replace('/[!#$&\'()*+,\\/:;=?@[\\]%"\/\\\\ ]+/', $replaceChar, trim(mb_strtolower(cleanString($name))));
@@ -406,10 +538,11 @@ function parseDurationToSeconds($str)
         return 0;
     }
     $durationParts = explode(":", $str);
-    if (empty($durationParts[1]) || $durationParts[0] == "EE") {
+    // don't use empty() here: minutes/seconds of "0" are valid but empty("0") === true in PHP
+    if (!isset($durationParts[1]) || $durationParts[1] === '' || $durationParts[0] == "EE") {
         return 0;
     }
-    if (empty($durationParts[2])) {
+    if (!isset($durationParts[2]) || $durationParts[2] === '') {
         $durationParts[2] = 0;
     }
     $minutes = (intval($durationParts[0]) * 60) + intval($durationParts[1]);
@@ -437,241 +570,255 @@ function array_iunique(array $array): array
     return array_intersect_key($array, array_unique(array_map('mb_strtolower', $array)));
 }
 
-function partition(array $list, $totalItens)
-{
-    $listlen = count($list);
-    if(empty($listlen)){
-        return $list;
-    }
-    _error_log("partition: listlen={$listlen} totalItens={$totalItens}");
-    $p = ceil($listlen / $totalItens);
-    $partlen = floor($listlen / $p);
-
-    $partition = [];
-    $mark = 0;
-    for ($index = 0; $index < $p; $index++) {
-        $partition[$index] = array_slice($list, $mark, $totalItens);
-        $mark += $totalItens;
-    }
-
-    return $partition;
-}
-
 function fixURL($url)
 {
     return str_replace(array('&amp%3B', '&amp;'), array('&', '&'), $url);
 }
 
+// Helper function to construct the final URL with base parameters
+function appendParams($url, $baseParams)
+{
+    return $url . (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . $baseParams;
+}
+
+/**
+ * Parse and convert video URLs to embeddable format with player configuration
+ *
+ * Supports: YouTube, Vimeo, Dailymotion, Twitch, Facebook, and many others
+ * Can use EmbedPlayerConfig object or individual parameters
+ *
+ * @param string|null $videoString Video URL or iframe code
+ * @param int|EmbedPlayerConfig $autoplay Autoplay flag or EmbedPlayerConfig object
+ * @param int $loop Loop flag
+ * @param int $mute Mute flag
+ * @param int $showinfo Show info flag
+ * @param int $controls Controls visibility
+ * @param int $time Start time in seconds
+ * @param string $objectFit Object-fit CSS property
+ * @return string Embeddable video URL
+ *
+ * @example parseVideos('https://youtube.com/watch?v=abc123', 1, 1, 1) // Classic usage
+ * @example parseVideos('https://youtube.com/watch?v=abc123', $embedConfig) // Using EmbedPlayerConfig
+ */
 function parseVideos($videoString = null, $autoplay = 0, $loop = 0, $mute = 0, $showinfo = 0, $controls = 1, $time = 0, $objectFit = "")
 {
     global $global;
     if (!empty($videoString)) {
         $videoString = fixURL($videoString);
     }
-    //_error_log("parseVideos: $videoString");
-    if (strpos($videoString, 'youtube.com/embed') !== false) {
-        return $videoString . (parse_url($videoString, PHP_URL_QUERY) ? '&' : '?') . 'modestbranding=1&showinfo='
-            . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time&objectFit=$objectFit";
+
+    // Support EmbedPlayerConfig object as second parameter for modern usage
+    if (is_object($autoplay) && method_exists($autoplay, 'isAutoplay')) {
+        $embedConfig = $autoplay;
+        $autoplay = $embedConfig->isAutoplay() ? 1 : 0;
+        $loop = $embedConfig->getLoop() ? 1 : 0;
+        $mute = $embedConfig->getMute() ? 1 : 0;
+        $showinfo = $embedConfig->showInfo() ? 1 : 0;
+        $controls = $embedConfig->getControls() ? 1 : 0;
+        $time = $embedConfig->getStartTime();
+        $objectFit = $embedConfig->getObjectFit();
     }
+
+    // Define the base parameters to be appended to the URL
+    $baseParams = "modestbranding=1&showinfo={$showinfo}&autoplay={$autoplay}&controls={$controls}&loop={$loop}&mute={$mute}&t={$time}&objectFit={$objectFit}";
+
+    // Process YouTube embedded URL
+    if (strpos($videoString, 'youtube.com/embed') !== false) {
+        return appendParams($videoString, $baseParams);
+    }
+
+    // Extract the video URL from the iframe if necessary
     if (strpos($videoString, 'iframe') !== false) {
-        // retrieve the video url
         $anchorRegex = '/src="(.*)?"/isU';
         $results = [];
         if (preg_match($anchorRegex, $videoString, $results)) {
             $link = trim($results[1]);
         }
     } else {
-        // we already have a url
         $link = $videoString;
     }
 
-    if (stripos($link, 'embed') !== false) {
-        return $link . (parse_url($link, PHP_URL_QUERY) ? '&' : '?') . 'modestbranding=1&showinfo='
-            . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time&objectFit=$objectFit";
-    } elseif (strpos($link, 'youtube.com') !== false) {
-        preg_match(
-            '/[\\?\\&]v=([^\\?\\&]+)/',
-            $link,
-            $matches
-        );
-        //the ID of the YouTube URL: x6qe_kVaBpg
-        if (empty($matches[1])) {
-            return $link;
-        }
-        $id = $matches[1];
-        return '//www.youtube.com/embed/' . $id . '?modestbranding=1&showinfo='
-            . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&te=$time&objectFit=$objectFit";
-    } elseif (strpos($link, 'youtu.be') !== false) {
-        //https://youtu.be/9XXOBSsPoMU
-        preg_match(
-            '/youtu.be\/([a-zA-Z0-9_]+)(?:\?[^\/]*)?($|\/)/',
-            $link,
-            $matches
-        );
-        //the ID of the YouTube URL: x6qe_kVaBpg
-        $id = $matches[1];
-        return '//www.youtube.com/embed/' . $id . '?modestbranding=1&showinfo='
-            . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&te=$time&objectFit=$objectFit";
-    } elseif (strpos($link, 'player.vimeo.com') !== false) {
-        // works on:
-        // http://player.vimeo.com/video/37985580?title=0&amp;byline=0&amp;portrait=0
-        $videoIdRegex = '/player.vimeo.com\/video\/([0-9]+)\??/i';
-        preg_match($videoIdRegex, $link, $matches);
-        $id = $matches[1];
-        return '//player.vimeo.com/video/' . $id;
-    } elseif (strpos($link, 'vimeo.com/channels') !== false) {
-        //extract the ID
-        preg_match(
-            '/\/\/(www\.)?vimeo.com\/channels\/[a-z0-9-]+\/(\d+)($|\/)/i',
-            $link,
-            $matches
-        );
-
-        //the ID of the Vimeo URL: 71673549
-        $id = $matches[2];
-        return '//player.vimeo.com/video/' . $id;
-    } elseif (strpos($link, 'vimeo.com') !== false) {
-        //extract the ID
-        preg_match(
-            '/\/\/(www\.)?vimeo.com\/(\d+)($|\/)/',
-            $link,
-            $matches
-        );
-
-        //the ID of the Vimeo URL: 71673549
-        $id = $matches[2];
-        return '//player.vimeo.com/video/' . $id;
-    } elseif (strpos($link, 'dailymotion.com') !== false) {
-        //extract the ID
-        preg_match(
-            '/\/\/(www\.)?dailymotion.com\/video\/([a-zA-Z0-9_]+)($|\/)/',
-            $link,
-            $matches
-        );
-
-        //the ID of the Vimeo URL: 71673549
-        $id = $matches[2];
-        return '//www.dailymotion.com/embed/video/' . $id;
-    } elseif (strpos($link, 'metacafe.com') !== false) {
-        //extract the ID
-        preg_match(
-            '/\/\/(www\.)?metacafe.com\/watch\/([a-zA-Z0-9_\/-]+)$/',
-            $link,
-            $matches
-        );
-        $id = $matches[2];
-        return '//www.metacafe.com/embed/' . $id;
-    } elseif (strpos($link, 'vid.me') !== false) {
-        //extract the ID
-        preg_match(
-            '/\/\/(www\.)?vid.me\/([a-zA-Z0-9_-]+)$/',
-            $link,
-            $matches
-        );
-
-        $id = $matches[2];
-        return '//vid.me/e/' . $id;
-    } elseif (strpos($link, 'rutube.ru') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?rutube.ru\/video\/([a-zA-Z0-9_-]+)\/.*/', $link, $matches);
-        $id = $matches[2];
-        return '//rutube.ru/play/embed/' . $id;
-    } elseif (strpos($link, 'ok.ru') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?ok.ru\/video\/([a-zA-Z0-9_-]+)$/', $link, $matches);
-
-        $id = $matches[2];
-        return '//ok.ru/videoembed/' . $id;
-    } elseif (strpos($link, 'streamable.com') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?streamable.com\/([a-zA-Z0-9_-]+)$/', $link, $matches);
-
-        $id = $matches[2];
-        return '//streamable.com/s/' . $id;
-    } elseif (strpos($link, 'twitch.tv/videos') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?twitch.tv\/videos\/([a-zA-Z0-9_-]+)$/', $link, $matches);
-        if (!empty($matches[2])) {
-            $id = $matches[2];
-            return '//player.twitch.tv/?video=' . $id . '&parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
-        }
-        //extract the ID
-        preg_match('/\/\/(www\.)?twitch.tv\/[a-zA-Z0-9_-]+\/v\/([a-zA-Z0-9_-]+)$/', $link, $matches);
-
-        $id = $matches[2];
-        return '//player.twitch.tv/?video=' . $id . '&parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
-    } elseif (strpos($link, 'twitch.tv') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?twitch.tv\/([a-zA-Z0-9_-]+)$/', $link, $matches);
-
-        $id = $matches[2];
-        return '//player.twitch.tv/?channel=' . $id . '&parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
-    } elseif (strpos($link, 'bitchute.com/video') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?bitchute.com\/video\/([^\/]+)/', $link, $matches);
-        $id = $matches[2];
-        return 'https://www.bitchute.com/embed/' . $id . '/?parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
-    } elseif (strpos($link, '/evideo/') !== false) {
-        //extract the ID
-        preg_match('/(http.+)\/evideo\/([a-zA-Z0-9_-]+)($|\/)/i', $link, $matches);
-
-        //the AVideo site
-        $site = $matches[1];
-        $id = $matches[2];
-        return $site . '/evideoEmbed/' . $id . "?autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
-    } elseif (strpos($link, '/fb.watch/') !== false) {
-        //extract the ID
-        preg_match('/\/\/(www\.)?fb.watch\/([^\/]+)/', $link, $matches);
-        $url = 'https://www.facebook.com/plugins/video.php';
-        $url = addQueryStringParameter($url, 'href', $link);
-        $url = addQueryStringParameter($url, 'show_text', $showinfo ? 'true' : 'false');
-        $url = addQueryStringParameter($url, 't', $time);
-        return $url;
-    } elseif (strpos($link, '/video/') !== false) {
-        //extract the ID
-        preg_match('/(http.+)\/video\/([a-zA-Z0-9_-]+)($|\/)/i', $link, $matches);
-
-        //the AVideo site
+    // Process YouTube links
+    if (stripos($link, 'embed') !== false || strpos($link, 'youtube.com') !== false || strpos($link, 'youtu.be') !== false) {
+        preg_match('/(?:youtube\.com\/.*v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\/]+)/', $link, $matches);
         if (!empty($matches[1])) {
+            $id = $matches[1];
+            return appendParams('//www.youtube.com/embed/' . $id, $baseParams);
+        }
+    }
+
+    // Process Vimeo links
+    if (strpos($link, 'vimeo.com') !== false) {
+        // A live event page refuses to be framed; its player is the /embed page
+        if (preg_match('/vimeo\.com\/event\/(\d+)\/?(?:[?#].*)?$/i', $link, $matches)) {
+            return '//vimeo.com/event/' . $matches[1] . '/embed';
+        }
+        preg_match('/vimeo\.com\/(?:channels\/[a-z0-9-]+\/|video\/|)(\d+)(?:\/([0-9a-f]{6,})\b|.*?[?&]h=([0-9a-f]{6,})\b)?/i', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            // Unlisted videos only play with their hash (vimeo.com/ID/HASH or ?h=HASH)
+            $hash = !empty($matches[2]) ? $matches[2] : (!empty($matches[3]) ? $matches[3] : '');
+            return '//player.vimeo.com/video/' . $id . (empty($hash) ? '' : '?h=' . $hash);
+        }
+    }
+
+    // Process Dailymotion links
+    if (strpos($link, 'dailymotion.com') !== false) {
+        preg_match('/dailymotion.com\/video\/([a-zA-Z0-9_]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return '//www.dailymotion.com/embed/video/' . $id;
+        }
+    }
+
+    // Process Metacafe links
+    if (strpos($link, 'metacafe.com') !== false) {
+        preg_match('/metacafe.com\/watch\/([a-zA-Z0-9_\/-]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return '//www.metacafe.com/embed/' . $id;
+        }
+    }
+
+    // Process Vid.me links
+    if (strpos($link, 'vid.me') !== false) {
+        preg_match('/vid.me\/([a-zA-Z0-9_-]+)$/', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return '//vid.me/e/' . $id;
+        }
+    }
+
+    // Process Rutube links
+    if (strpos($link, 'rutube.ru') !== false) {
+        preg_match('/rutube.ru\/video\/([a-zA-Z0-9_-]+)\//', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return '//rutube.ru/play/embed/' . $id;
+        }
+    }
+
+    // Process OK.ru links
+    if (strpos($link, 'ok.ru') !== false) {
+        preg_match('/ok.ru\/video\/([a-zA-Z0-9_-]+)$/', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return '//ok.ru/videoembed/' . $id;
+        }
+    }
+
+    // Process Streamable links
+    if (strpos($link, 'streamable.com') !== false) {
+        preg_match('/streamable.com\/([a-zA-Z0-9_-]+)$/', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return '//streamable.com/s/' . $id;
+        }
+    }
+
+    // Process Twitch.tv links
+    if (strpos($link, 'twitch.tv') !== false) {
+        preg_match('/twitch.tv\/videos\/([a-zA-Z0-9_-]+)|twitch.tv\/[a-zA-Z0-9_-]+\/v\/([a-zA-Z0-9_-]+)|twitch.tv\/([a-zA-Z0-9_-]+)$/', $link, $matches);
+        if (!empty($matches[1])) {
+            return '//player.twitch.tv/?video=' . $matches[1] . '&parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
+        } elseif (!empty($matches[2])) {
+            return '//player.twitch.tv/?video=' . $matches[2] . '&parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
+        } elseif (!empty($matches[3])) {
+            return '//player.twitch.tv/?channel=' . $matches[3] . '&parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
+        }
+    }
+
+    // Process Bitchute links
+    if (strpos($link, 'bitchute.com/video') !== false) {
+        preg_match('/bitchute.com\/video\/([^\/]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            $id = $matches[1];
+            return 'https://www.bitchute.com/embed/' . $id . '/?parent=' . parse_url($global['webSiteRootURL'], PHP_URL_HOST);
+        }
+    }
+
+    // Process Panda Video links: its player uses its own parameters (e.g. controls is a list of
+    // control names), so the generic YouTube-style params below would hide the controls
+    if (strpos($link, '.pandavideo.com') !== false) {
+        return $link;
+    }
+
+    // Process AVideo links
+    if (strpos($link, '/evideo/') !== false) {
+        preg_match('/(http.+)\/evideo\/([a-zA-Z0-9_-]+)/i', $link, $matches);
+        if (!empty($matches[1]) && !empty($matches[2])) {
             $site = $matches[1];
             $id = $matches[2];
-            return $site . '/videoEmbed/' . $id . "?autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
-        } else {
-            return $link;
+            return $site . '/evideoEmbed/' . $id . "?autoplay={$autoplay}&controls={$controls}&loop={$loop}&mute={$mute}&t={$time}";
         }
     }
 
-    $url = $videoString;
-    $url_parsed = parse_url($url);
-    if (empty($url_parsed['query'])) {
-        return "";
+    if (strpos($link, '/video/') !== false) {
+        preg_match('/(http.+)\/video\/([a-zA-Z0-9_-]+)/i', $link, $matches);
+        if (!empty($matches[1]) && !empty($matches[2])) {
+            $site = $matches[1];
+            $id = $matches[2];
+            return $site . '/videoEmbed/' . $id . "?autoplay={$autoplay}&controls={$controls}&loop={$loop}&mute={$mute}&t={$time}";
+        }
     }
-    $new_qs_parsed = [];
-    // Grab our first query string
+
+    // Process Facebook Watch links
+    if (strpos($link, '/fb.watch/') !== false) {
+        preg_match('/fb.watch\/([^\/]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            $url = 'https://www.facebook.com/plugins/video.php';
+            $url = addQueryStringParameter($url, 'href', $link);
+            $url = addQueryStringParameter($url, 'show_text', $showinfo ? 'true' : 'false');
+            $url = addQueryStringParameter($url, 't', $time);
+            return $url;
+        }
+    }
+
+    // Process Voe.sx links
+    if (strpos($link, 'voe.sx') !== false) {
+        preg_match('/voe.sx\/(?:e\/)?([a-zA-Z0-9]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            return 'https://voe.sx/e/' . $matches[1];
+        }
+    }
+
+    // Process Streamvid.net links
+    if (strpos($link, 'streamvid.net') !== false) {
+        preg_match('/streamvid.net\/(?:embed-)?([a-zA-Z0-9]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            return 'https://streamvid.net/embed-' . $matches[1];
+        }
+    }
+
+    // Process Streamtape.to links
+    if (strpos($link, 'streamtape.to') !== false) {
+        preg_match('/streamtape.to\/(?:v|e)\/([a-zA-Z0-9]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            return 'https://streamtape.com/e/' . $matches[1];
+        }
+    }
+
+    // Process Vid-guard.com links
+    if (strpos($link, 'vid-guard.com') !== false) {
+        preg_match('/vembed.net\/(?:e\/)?([a-zA-Z0-9]+)/', $link, $matches);
+        if (!empty($matches[1])) {
+            return 'https://vembed.net/e/' . $matches[1];
+        }
+    }
+
+    // If no known video platform is matched, process the URL query parameters
+    $url_parsed = parse_url($videoString);
+    if (empty($url_parsed['query'])) {
+        return $videoString;
+    }
     parse_str($url_parsed['query'], $new_qs_parsed);
-    // Here's the other query string
-    $other_query_string = 'modestbranding=1&showinfo='
-        . $showinfo . "&autoplay={$autoplay}&controls=$controls&loop=$loop&mute=$mute&t=$time";
-    $other_qs_parsed = [];
-    parse_str($other_query_string, $other_qs_parsed);
-    // Stitch the two query strings together
+    parse_str($baseParams, $other_qs_parsed);
     $final_query_string_array = array_merge($new_qs_parsed, $other_qs_parsed);
     $final_query_string = http_build_query($final_query_string_array);
-    // Now, our final URL:
-    if (empty($url_parsed['scheme'])) {
-        $scheme = '';
-    } else {
-        $scheme = "{$url_parsed['scheme']}:";
-    }
-    $new_url = $scheme
-        . '//'
-        . $url_parsed['host']
-        . $url_parsed['path']
-        . '?'
-        . $final_query_string;
+    $scheme = empty($url_parsed['scheme']) ? '' : "{$url_parsed['scheme']}:";
+    $new_url = $scheme . '//' . $url_parsed['host'] . $url_parsed['path'] . '?' . $final_query_string;
 
     return $new_url;
-    // return data
 }
 
 $canUseCDN = [];
@@ -758,7 +905,7 @@ function getVideosURLPDF($fileName)
     $time = $time[1] + $time[0];
     $start = $time;
 
-    $source = Video::getSourceFile($fileName, ".pdf");
+    $source = Video::getSourceFile($fileName, ".pdf", false, true);
     $file = $source['path'];
     $files["pdf"] = [
         'filename' => "{$fileName}.pdf",
@@ -766,7 +913,46 @@ function getVideosURLPDF($fileName)
         'url' => $source['url'],
         'type' => 'pdf',
     ];
-    $files = array_merge($files, array('jpg'=>ImagesPlaceHolders::getPdfLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
+    $files = array_merge($files, array('jpg' => ImagesPlaceHolders::getPdfLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $finish = $time;
+    $total_time = round(($finish - $start), 4);
+    //_error_log("getVideosURLPDF generated in {$total_time} seconds. fileName: $fileName ");
+    return $files;
+}
+
+
+function getVideosURLSubtitles($fileName)
+{
+    global $global;
+    if (empty($fileName)) {
+        return [];
+    }
+
+    if (!function_exists('getVTTTracks')) {
+        return [];
+    }
+
+    $time = microtime();
+    $time = explode(' ', $time);
+    $time = $time[1] + $time[0];
+    $start = $time;
+
+    $source = getVTTTracks($fileName, true);
+    $files = array();
+
+    foreach ($source as $key => $value) {
+        $value = object_to_array($value);
+        $files["vtt"] = [
+            'filename' => "{$fileName}.{$value['srclang']}.vtt",
+            'path' => $value['filename'],
+            'url' => $value['src'],
+            'type' => "vtt_{$value['srclang']}",
+        ];
+    }
+
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
@@ -790,7 +976,7 @@ function getVideosURLIMAGE($fileName)
     $types = ['png', 'gif', 'webp', 'jpg'];
 
     foreach ($types as $value) {
-        $source = Video::getSourceFile($fileName, ".{$value}");
+        $source = Video::getSourceFile($fileName, ".{$value}", false, true);
         $file = $source['path'];
         $files["image"] = [
             'filename' => "{$fileName}.{$value}",
@@ -799,12 +985,12 @@ function getVideosURLIMAGE($fileName)
             'type' => 'image',
         ];
         if (file_exists($file)) {
-            $files = array_merge($files, array('jpg'=>$files["image"]));
+            $files = array_merge($files, array('jpg' => $files["image"]));
             break;
         }
     }
-    if(empty($files["jpg"])){
-        $files = array_merge($files, array('jpg'=>ImagesPlaceHolders::getImageLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
+    if (empty($files["jpg"])) {
+        $files = array_merge($files, array('jpg' => ImagesPlaceHolders::getImageLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
     }
     $time = microtime();
     $time = explode(' ', $time);
@@ -829,7 +1015,7 @@ function getVideosURLZIP($fileName)
     $types = ['zip'];
 
     foreach ($types as $value) {
-        $source = Video::getSourceFile($fileName, ".{$value}");
+        $source = Video::getSourceFile($fileName, ".{$value}", false, true);
         $file = $source['path'];
         $files["zip"] = [
             'filename' => "{$fileName}.zip",
@@ -842,7 +1028,7 @@ function getVideosURLZIP($fileName)
         }
     }
 
-    $files = array_merge($files, array('jpg'=>ImagesPlaceHolders::getZipLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
+    $files = array_merge($files, array('jpg' => ImagesPlaceHolders::getZipLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
@@ -862,7 +1048,7 @@ function getVideosURLArticle($fileName)
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
     $start = $time;
-    $files = array('jpg'=>ImagesPlaceHolders::getArticlesLandscape(ImagesPlaceHolders::$RETURN_ARRAY));
+    $files = array('jpg' => ImagesPlaceHolders::getArticlesLandscape(ImagesPlaceHolders::$RETURN_ARRAY));
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
@@ -877,6 +1063,9 @@ function getVideosURLAudio($fileName, $fileNameisThePath = false)
     global $global;
     if (empty($fileName)) {
         return [];
+    }
+    if (!empty($global['debug'])) {
+        _error_log("getVideosURLAudio $fileName");
     }
     $time = microtime();
     $time = explode(' ', $time);
@@ -896,6 +1085,7 @@ function getVideosURLAudio($fileName, $fileNameisThePath = false)
         }
 
         $files["mp3"] = [
+            'original_filename' => $fileName,
             'filename' => $filename,
             'path' => $path,
             'url' => $url,
@@ -904,7 +1094,7 @@ function getVideosURLAudio($fileName, $fileNameisThePath = false)
             'format' => 'mp3',
         ];
     } else {
-        $source = Video::getSourceFile($fileName, ".mp3");
+        $source = Video::getSourceFile($fileName, ".mp3", false, true);
         $file = $source['path'];
         $files["mp3"] = [
             'filename' => "{$fileName}.mp3",
@@ -916,7 +1106,7 @@ function getVideosURLAudio($fileName, $fileNameisThePath = false)
         ];
     }
 
-    $files = array_merge($files, array('jpg'=>ImagesPlaceHolders::getAudioLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
+    $files = array_merge($files, array('jpg' => ImagesPlaceHolders::getAudioLandscape(ImagesPlaceHolders::$RETURN_ARRAY)));
     $time = microtime();
     $time = explode(' ', $time);
     $time = $time[1] + $time[0];
@@ -926,9 +1116,9 @@ function getVideosURLAudio($fileName, $fileNameisThePath = false)
     return $files;
 }
 
-function getVideosURL($fileName, $cache = true)
+function getVideosURL($fileName, $recreateCache = false)
 {
-    return getVideosURL_V2($fileName); // disable this function soon
+    return getVideosURL_V2($fileName, $recreateCache); // disable this function soon
 }
 
 function getVideosURLMP4Only($fileName)
@@ -990,7 +1180,7 @@ function getVideosURLOnly($fileName, $includeOffline = true)
 {
     $allFiles = getVideosURL_V2($fileName); // disable this function soon
     foreach ($allFiles as $key => $value) {
-        if ($value['type'] !== 'video' || (!$includeOffline && preg_match('/offline/i', $key))) {
+        if ($value['type'] !== 'video' || (!$includeOffline && preg_match('/offline/i', $key)) || preg_match('/.lock/i', $key)) {
             unset($allFiles[$key]);
         }
     }
@@ -1015,16 +1205,23 @@ function getAudioOrVideoURLOnly($fileName, $recreateCache = false)
         _error_log("getAudioOrVideoURLOnly($fileName) " . json_encode($allFiles));
     }
     foreach ($allFiles as $key => $value) {
-        if ($value['type'] !== 'video' && $value['type'] !== 'audio') {
+        if (
+            ($value['type'] !== 'video' && $value['type'] !== 'audio') ||
+            (preg_match('/offline/i', $key) || preg_match('/.lock/i', $key))
+        ) {
             unset($allFiles[$key]);
         }
     }
     return $allFiles;
 }
 
-function getVideos_IdFromFilename($fileName){
+function getVideos_IdFromFilename($fileName)
+{
     $cleanfilename = Video::getCleanFilenameFromFile($fileName);
     $video = Video::getVideoFromFileNameLight($cleanfilename);
+    if (empty($video)) {
+        return 0;
+    }
     return $video['id'];
 }
 
@@ -1042,7 +1239,7 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
     if (empty($recreateCache) && !empty($getVideosURL_V2Array[$cleanfilename])) {
         return $getVideosURL_V2Array[$cleanfilename];
     }
-    
+
     $cacheSuffix = 'getVideosURL_V2';
     $paths = Video::getPaths($cleanfilename);
     $videoCache = new VideoCacheHandler($fileName);
@@ -1086,7 +1283,7 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
             //_error_log("getVideosURL_V2:: cache not found ". json_encode($files));
             $files = array();
         }
-        
+
         TimeLogEnd($TimeLog1, __LINE__);
     } else {
         _error_log("getVideosURL_V2($fileName) Recreate cache requested " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
@@ -1098,7 +1295,7 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
             $timeName = "getVideosURL_V2::VideoHLS::getSourceFile($fileName)";
             TimeLogStart($timeName);
             $files = VideoHLS::getSourceFile($fileName, true);
-            if(!is_array($files)){
+            if (!is_array($files)) {
                 $files = [];
             }
             TimeLogEnd($timeName, __LINE__);
@@ -1106,8 +1303,9 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
         $video = ['webm', 'mp4'];
         $audio = ['mp3', 'ogg'];
         $image = ['jpg', 'gif', 'webp'];
+        $subtitle = ['vtt', 'srt'];
 
-        $formats = array_merge($video, $audio, $image);
+        $formats = array_merge($video, $audio, $image, $subtitle);
 
         //$globQuery = getVideosDir()."{$cleanfilename}*.{" . implode(",", $formats) . "}";
         //$filesInDir = glob($globQuery, GLOB_BRACE);
@@ -1127,12 +1325,11 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
             }
             if ($parts['filename'] == 'index') {
                 $parts['filename'] = str_replace(Video::getPathToFile($parts['dirname']), '', $parts['dirname']);
+                $parts['filename'] = str_replace(getVideosDir(), '', $parts['filename']);
             }
-
             //$timeName2 = "getVideosURL_V2::Video::getSourceFile({$parts['filename']}, .{$parts['extension']})";
             //TimeLogStart($timeName2);
             $source = Video::getSourceFile($parts['filename'], ".{$parts['extension']}");
-            
             /*
             if(empty($recreateCache) && $fileName == "video_230816233020_vb81e"){
                 var_dump($fileName, $source);exit;
@@ -1155,7 +1352,7 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
                 $resolution = '';
             }
             $type = 'video';
-            
+
             if (in_array($parts['extension'], $video)) {
                 $isAVideo = true;
                 $type = 'video';
@@ -1170,10 +1367,27 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
                         $resolution = '';
                     }
                 }
+            } elseif (in_array($parts['extension'], $subtitle)) {
+                $type = 'subtitle';
+            }
+
+            $_filename = "{$parts['filename']}.{$parts['extension']}";
+            if ($parts['extension'] == 'm3u8') {
+                $_filename = "index.m3u8";
+            }
+            if ($parts['basename'] == 'index.mp4') {
+                $_filename = "index.mp4";
+                $source['url'] = str_replace("{$parts['filename']}.mp4", 'index.mp4', $source['url']);
+                $source['url_noCDN'] = str_replace("{$parts['filename']}.mp4", 'index.mp4', $source['url_noCDN']);
+            }
+            if ($parts['basename'] == 'index.mp3') {
+                $_filename = "index.mp3";
+                $source['url'] = str_replace(array("{$parts['filename']}/{$parts['filename']}", "{$parts['filename']}.mp3"), array($parts['filename'], 'index.mp3'), $source['url']);
+                $source['url_noCDN'] = str_replace(array("{$parts['filename']}/{$parts['filename']}", "{$parts['filename']}.mp3"), array($parts['filename'], 'index.mp3'), $source['url_noCDN']);
             }
 
             $_file = [
-                'filename' => "{$parts['filename']}.{$parts['extension']}",
+                'filename' => $_filename,
                 'path' => $file,
                 'url' => $source['url'],
                 'url_noCDN' => @$source['url_noCDN'],
@@ -1220,7 +1434,7 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
     if (empty($files) || empty($files['jpg'])) {
         // sort by resolution
         $files['jpg'] = ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_ARRAY);
-    }else 
+    } else
     if (is_array($files)) {
         // sort by resolution
         uasort($files, "sortVideosURL");
@@ -1229,12 +1443,12 @@ function getVideosURL_V2($fileName, $recreateCache = false, $checkFiles = true)
     return $getVideosURL_V2Array[$cleanfilename];
 }
 
-function checkIfFilesAreValid($files){
+function checkIfFilesAreValid($files)
+{
     foreach ($files as $value) {
-        if(($value['type'] == 'video' || $value['type'] == 'audio') && @filesize($value['path'])<20){
+        if (($value['type'] == 'video' || $value['type'] == 'audio') && @filesize($value['path']) < 20) {
             $video = Video::getVideoFromFileNameLight($value['filename']);
             Video::clearCache($video['id']);
-
         }
     }
 }
@@ -1290,8 +1504,81 @@ function getResolutionFromFilename($filename, $downloadIfNeed = true)
     return $res;
 }
 
+function sourceIsM3U8($source)
+{
+    $type = '';
+    $src = '';
+
+    if (is_object($source)) {
+        $type = strtolower((string) @$source->type);
+        $src = strtolower((string) @$source->src);
+    } elseif (is_array($source)) {
+        $type = strtolower((string) @$source['type']);
+        $src = strtolower((string) (@$source['src'] ?: @$source['url']));
+    } else {
+        return false;
+    }
+
+    return $type === 'application/x-mpegurl' || preg_match('/\.m3u8(?:$|\?)/', $src);
+}
+
+function sourceIsMP4($source)
+{
+    $type = '';
+    $src = '';
+
+    if (is_object($source)) {
+        $type = strtolower((string) @$source->type);
+        $src = strtolower((string) @$source->src);
+    } elseif (is_array($source)) {
+        $type = strtolower((string) @$source['type']);
+        $src = strtolower((string) (@$source['src'] ?: @$source['url']));
+    } else {
+        return false;
+    }
+
+    return $type === 'video/mp4' || preg_match('/\.mp4(?:$|\?)/', $src);
+}
+
+function removeMP4SourcesIfM3U8Exists($sources)
+{
+    if (empty($sources)) {
+        return $sources;
+    }
+
+    if (is_array($sources)) {
+        $hasM3U8 = false;
+        foreach ($sources as $source) {
+            if (sourceIsM3U8($source)) {
+                $hasM3U8 = true;
+                break;
+            }
+        }
+
+        if (!$hasM3U8) {
+            return $sources;
+        }
+
+        return array_values(array_filter($sources, function ($source) {
+            return !sourceIsMP4($source);
+        }));
+    }
+
+    if (is_string($sources) && preg_match('/<source\b[^>]*type="application\/x-mpegURL"[^>]*>/i', $sources)) {
+        return preg_replace('/\s*<source\b[^>]*type="video\/mp4"[^>]*>\s*/i', PHP_EOL . '<!-- mp4 source removed because m3u8 exists -->' . PHP_EOL, $sources);
+    }
+
+    return $sources;
+}
+
 function getSources($fileName, $returnArray = false, $try = 0)
 {
+    global $getSourcesLastLine;
+
+    if (empty($try)) {
+        $getSourcesLastLine = [];
+    }
+
     if ($returnArray) {
         $videoSources = $audioTracks = $subtitleTracks = $captionsTracks = [];
     } else {
@@ -1301,7 +1588,8 @@ function getSources($fileName, $returnArray = false, $try = 0)
     $video = Video::getVideoFromFileNameLight($fileName);
 
     if ($video['type'] !== 'audio' && function_exists('getVRSSources')) {
-        $videoSources = getVRSSources($fileName, $returnArray);
+        $videoSources = getVRSSources($fileName, $returnArray, $video['id']);
+        $getSourcesLastLine[] = __LINE__;
     } else {
         $files = getVideosURL_V2($fileName, !empty($try));
         $sources = '';
@@ -1314,24 +1602,32 @@ function getSources($fileName, $returnArray = false, $try = 0)
             if ($path_parts['extension'] == "webm" || $path_parts['extension'] == "mp4" || $path_parts['extension'] == "m3u8" || $path_parts['extension'] == "mp3" || $path_parts['extension'] == "ogg") {
                 $obj = new stdClass();
                 $obj->type = mime_content_type_per_filename($value['path']);
+                $value['url'] = AVideoPlugin::modifyURL($value['url'], $video['id']);
                 $sources .= "<source src=\"{$value['url']}\" type=\"{$obj->type}\">";
                 $obj->src = $value['url'];
                 $sourcesArray[] = $obj;
+                $getSourcesLastLine[] = __LINE__;
             }
         }
         $videoSources = $returnArray ? $sourcesArray : $sources;
     }
     if (function_exists('getVTTTracks')) {
         $subtitleTracks = getVTTTracks($fileName, $returnArray);
+        $getSourcesLastLine[] = __LINE__;
     }
     if (function_exists('getVTTChapterTracks')) {
         $captionsTracks = getVTTChapterTracks($fileName, $returnArray);
+        $getSourcesLastLine[] = __LINE__;
     }
+    $videoSources = removeMP4SourcesIfM3U8Exists($videoSources);
+    $getSourcesLastLine[] = __LINE__;
     //var_dump($subtitleTracks,  $captionsTracks);exit;
     if ($returnArray) {
         $return = array_merge($videoSources, $audioTracks, $subtitleTracks,  $captionsTracks);
+        $getSourcesLastLine[] = __LINE__;
     } else {
-        $return = $videoSources . $audioTracks . $subtitleTracks.$captionsTracks;
+        $return = $videoSources . $audioTracks  . PHP_EOL . $subtitleTracks  . PHP_EOL . $captionsTracks;
+        $getSourcesLastLine[] = __LINE__;
     }
 
     $obj = new stdClass();
@@ -1344,6 +1640,7 @@ function getSources($fileName, $returnArray = false, $try = 0)
                 Video::updateFilesize($video['id']);
             }
             Video::clearCache($video['id']);
+            $getSourcesLastLine[] = __LINE__;
             return $sources;
         } else {
             _error_log("getSources($fileName) File not found " . json_encode($video));
@@ -1357,7 +1654,8 @@ function getSources($fileName, $returnArray = false, $try = 0)
             $obj->res = 0;
             $sourcesArray["mp4"] = $obj;
             $sources["mp4"] = "<source src=\"\" type=\"{$obj->type}\" label=\"{$obj->label}\" res=\"{$obj->res}\">";
-            $return = $returnArray ? $sourcesArray : PHP_EOL.implode(PHP_EOL, $sources).PHP_EOL;
+            $return = $returnArray ? $sourcesArray : PHP_EOL . implode(PHP_EOL, $sources) . PHP_EOL;
+            $getSourcesLastLine[] = __LINE__;
         }
     }
     return $return;
@@ -1386,10 +1684,10 @@ function decideMoveUploadedToVideos($tmp_name, $filename, $type = "video")
     _error_log("decideMoveUploadedToVideos: {$filename}");
     $path_info = pathinfo($filename);
     if ($type !== "zip" && $path_info['extension'] === 'zip') {
-        _error_log("decideMoveUploadedToVideos: ZIp file {$filename}");
+        _error_log("decideMoveUploadedToVideos: ZIP file {$filename}");
         $paths = Video::getPaths($path_info['filename']);
         $dir = $paths['path'];
-        unzipDirectory($tmp_name, $dir); // unzip it
+        secureUnzipDirectory($tmp_name, $dir); // unzip it
         cleanDirectory($dir);
         if (!empty($aws_s3)) {
             //$aws_s3->move_uploaded_file($tmp_name, $filename);
@@ -1603,17 +1901,6 @@ function getTagIfExists($relativePath)
     }
 }
 
-function getVideoImagewithHoverAnimation($relativePath, $relativePathHoverAnimation = '', $title = '', $preloadImage = false, $doNotUseAnimatedGif = false)
-{
-    $id = uniqid();
-    //getImageTagIfExists($relativePath, $title = '', $id = '', $style = '', $class = 'img img-responsive', $lazyLoad = false, $preloadImage=false)
-    $img = getImageTagIfExists($relativePath, $title, "thumbsJPG{$id}", '', 'thumbsJPG img img-responsive', false, $preloadImage) . PHP_EOL;
-    if (empty($doNotUseAnimatedGif) && !empty($relativePathHoverAnimation) && empty($_REQUEST['noImgGif'])) {
-        $img .= getImageTagIfExists($relativePathHoverAnimation, $title, "thumbsGIF{$id}", 'position: absolute; top: 0;', 'thumbsGIF img img-responsive ', $preloadImage) . PHP_EOL;
-    }
-    return '<div class="thumbsImage">' . $img . '</div>';
-}
-
 function getRelativePath($path)
 {
     global $global;
@@ -1639,18 +1926,35 @@ function getRelativePath($path)
     return $parts2[0];
 }
 
-function isValidM3U8Link($url, $skipFileNameCheck = false, $timeout = 3)
+// SECURITY REVIEW (2026-10-16): GHSA-w4rg-28fw-mjr7 asked to default $requireSSRFSafe to true — NOT a
+// vulnerability / DO NOT FIX because every caller using the default builds the URL from the admin-configured
+// live server (playerServer/CDN, often a private or Docker-internal host) plus the stream key; nobody else
+// controls the host. User-supplied links (LiveLinks) already pass true. If re-reported, see the advisory.
+function isValidM3U8Link($url, $skipFileNameCheck = false, $timeout = 3, $requireSSRFSafe = false)
 {
     if (!isValidURL($url)) {
         return false;
     }
+    if ($requireSSRFSafe && !isSSRFSafeURL($url)) {
+        _error_log('isValidM3U8Link blocked by SSRF protection ' . $url);
+        return false;
+    }
     if (preg_match('/.m3u8$/i', $url)) {
-        if(empty($skipFileNameCheck) ){
+        if (empty($skipFileNameCheck)) {
             return true;
         }
     }
     // Check the content length without downloading the file
-    $headers = get_headers($url, 1);
+    if ($requireSSRFSafe) {
+        // SECURITY: get_headers() follows redirects without re-checking them, so a safe URL could
+        // redirect it to an internal host. Stop at the first response; url_get_contents() below
+        // follows the redirects itself and re-validates every hop.
+        $options = stream_context_get_options(stream_context_get_default());
+        $options['http']['follow_location'] = 0;
+        $headers = get_headers($url, 1, stream_context_create($options));
+    } else {
+        $headers = get_headers($url, 1);
+    }
     $contentLength = isset($headers['Content-Length']) ? intval($headers['Content-Length']) : 0;
 
     // If the content size is greater than 2MB, return false
@@ -1659,7 +1963,7 @@ function isValidM3U8Link($url, $skipFileNameCheck = false, $timeout = 3)
     }
 
     // Fetch the first few KB of the content
-    $content = url_get_contents($url, '', $timeout); 
+    $content = url_get_contents($url, '', $timeout, false, false, false);
 
     if (!empty($content)) {
         if (preg_match('/<html/i', $content)) {
@@ -1674,7 +1978,7 @@ function isValidM3U8Link($url, $skipFileNameCheck = false, $timeout = 3)
     return false;
 }
 
-function copy_remotefile_if_local_is_smaller($url, $destination)
+function copy_remotefile_if_local_is_smaller($url, $destination, $requireSSRFSafe = false)
 {
     if (file_exists($destination)) {
         $size = filesize($destination);
@@ -1684,12 +1988,12 @@ function copy_remotefile_if_local_is_smaller($url, $destination)
             return $remote_size;
         }
     }
-    $content = url_get_contents($url);
+    $content = url_get_contents($url, '', 0, false, false, $requireSSRFSafe);
     _error_log('copy_remotefile_if_local_is_smaller url_get_contents = ' . humanFileSize(strlen($content)));
     return file_put_contents($destination, $content);
 }
 
-function url_get_contents_with_cache($url, $lifeTime = 60, $ctx = "", $timeout = 0, $debug = false, $mantainSession = false)
+function url_get_contents_with_cache($url, $lifeTime = 60, $ctx = "", $timeout = 0, $debug = false, $mantainSession = false, $requireSSRFSafe = false)
 {
     $url = removeQueryStringParameter($url, 'pass');
     $cacheName = str_replace('/', '-', $url);
@@ -1698,25 +2002,115 @@ function url_get_contents_with_cache($url, $lifeTime = 60, $ctx = "", $timeout =
         //_error_log('url_get_contents_with_cache cache');
         return $cache;
     }
-    _error_log("url_get_contents_with_cache no cache [$url] " . json_encode(debug_backtrace()));
-    $return = url_get_contents($url, $ctx, $timeout, $debug, $mantainSession);
+    //_error_log("url_get_contents_with_cache no cache [$url] " . json_encode(debug_backtrace()));
+    $return = url_get_contents($url, $ctx, $timeout, $debug, $mantainSession, $requireSSRFSafe);
     $response = ObjectYPT::setCacheGlobal($cacheName, $return);
-    _error_log("url_get_contents_with_cache setCache {$url} " . json_encode($response));
+    //_error_log("url_get_contents_with_cache setCache {$url} " . json_encode($response));
     return $return;
 }
 
-function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false, $mantainSession = false)
+function url_get_response($url)
+{
+    $responseObj = new stdClass();
+    $responseObj->error = true;
+    $responseObj->code = 0;
+    $responseObj->msg = '';
+    $responseObj->response = '';
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_setopt($ch, CURLOPT_HEADER, true); // Include the header in the output
+    curl_setopt($ch, CURLOPT_NOBODY, true); // Exclude the body from the output
+
+    $responseObj->response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $responseObj->code = $httpCode;
+
+    // Map of HTTP status codes to messages
+    $httpMessages = [
+        200 => "Success",
+        400 => "Bad request. Please check the parameters.",
+        401 => "Unauthorized. Please check your credentials.",
+        403 => "Forbidden. You don't have permission to access this resource.",
+        404 => "Not found. The stream key does not exist.",
+        500 => "Internal server error. Please try again later.",
+        502 => "Bad gateway. There might be an issue with the server.",
+        503 => "Service unavailable. The server is currently unable to handle the request.",
+    ];
+
+    if (array_key_exists($httpCode, $httpMessages)) {
+        $responseObj->msg = $httpMessages[$httpCode];
+        if ($httpCode == 200) {
+            $responseObj->error = false;
+        }
+    } else {
+        $responseObj->msg = "Unexpected error occurred.";
+    }
+
+    return $responseObj;
+}
+
+/**
+ * Whether TLS certificates are verified on connections to services the admin configures
+ * (Encoder, SMTP, WordPress login, CloneSite). Off by default so self-signed and private
+ * certificates keep working. Turn it on in CustomizeAdvanced ("Verify SSL certificates"), or
+ * force it on/off for every caller with $global['verifySSLCertificates'] = 1; (or 0;) in
+ * videos/configuration.php. $default applies when neither is set.
+ */
+function shouldVerifySSLCertificates($default = false)
+{
+    global $global;
+    if (isset($global['verifySSLCertificates'])) {
+        return !empty($global['verifySSLCertificates']);
+    }
+    if (class_exists('AVideoPlugin')) {
+        $advancedCustom = AVideoPlugin::getObjectDataIfEnabled('CustomizeAdvanced');
+        if (!empty($advancedCustom->verifySSLCertificates)) {
+            return true;
+        }
+    }
+    return !empty($default);
+}
+
+function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false, $mantainSession = false, $requireSSRFSafe = true, $verifyTLS = false, $failOnError = false)
 {
     global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, $mysqlPort;
+    if ($verifyTLS || $failOnError) {
+        $debug = false; // Sensitive URLs may contain credentials in query parameters.
+    }
     if (!isValidURLOrPath($url)) {
-        _error_log('url_get_contents Cannot download ' . $url);
+        _error_log(($verifyTLS || $failOnError) ? 'Verified remote request: invalid URL' : 'url_get_contents Cannot download ' . $url);
         return false;
+    }
+    // Default-safe: only applies to real http(s) URLs (isValidURL()), never to
+    // php://input or local filesystem paths -- isValidURLOrPath() above already
+    // accepted those as non-network reads, so there is nothing for SSRF to protect.
+    // Callers that must reach a trusted-but-private-network destination (Encoder,
+    // Live server, Storage backend, ...) pass $requireSSRFSafe = false explicitly.
+    // IMPORTANT: this check must run BEFORE the isDocker() same-host rewrite below --
+    // that rewrite intentionally points same-origin URLs at http://localhost/, which
+    // isSSRFSafeURL() always blocks (hardcoded localhost blocklist), so checking the
+    // already-rewritten URL broke every self-request (e.g. Encoder login) when running
+    // in Docker. The original $url is still same-origin, so isSSRFSafeURL()'s own
+    // webSiteRootURL same-origin shortcut correctly allows it here.
+    if ($requireSSRFSafe && isValidURL($url) && !isSSRFSafeURL($url)) {
+        _error_log(($verifyTLS || $failOnError) ? 'Verified remote request blocked by SSRF protection' : 'url_get_contents blocked by SSRF protection ' . $url);
+        return false;
+    }
+    if (!$verifyTLS && isDocker() && str_starts_with($url, $global['webSiteRootURL'])) {
+        // this is a docker and it is pointing to the local host, so we need to change
+        $url = str_replace($global['webSiteRootURL'], 'http://localhost/', $url);
     }
     if ($debug) {
         _error_log("url_get_contents: Start $url, $ctx, $timeout " . getSelfURI() . " " . getRealIpAddr() . " " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
     }
 
-    $response = try_get_contents_from_local($url);
+    // Strict remote downloads must not substitute a stale file from another host.
+    $response = ($verifyTLS || $failOnError) ? false : try_get_contents_from_local($url);
     if (!empty($response)) {
         return $response;
     }
@@ -1729,11 +2123,29 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false, $mantai
     }
     if (empty($ctx)) {
         $opts = [
-            'http' => ['header' => "User-Agent: {$agent}\r\n"],
+            'http' => [
+                'header' => "User-Agent: {$agent}\r\n",
+                // SECURITY: Disable PHP's automatic HTTP redirect following.
+                //
+                // The problem this solves (called "SSRF via open redirect"):
+                //   Before making a request, we call isSSRFSafeURL() to confirm the
+                //   destination is not an internal/private server (e.g. 192.168.x.x
+                //   or 169.254.169.254, the AWS cloud metadata endpoint).
+                //   BUT if PHP silently follows redirects on its own, an attacker can
+                //   point us at a public URL like https://attacker.com/redir that then
+                //   redirects to http://169.254.169.254/secrets -- bypassing our check
+                //   completely, because we only verified the *first* URL.
+                //
+                // The fix:
+                //   Set follow_location = 0 so PHP stops at every redirect and hands
+                //   control back to us. We then re-check each redirect target ourselves
+                //   with isSSRFSafeURL() before deciding whether to follow it.
+                'follow_location' => 0,
+            ],
             'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true,
+                'verify_peer' => (bool) $verifyTLS,
+                'verify_peer_name' => (bool) $verifyTLS,
+                'allow_self_signed' => !$verifyTLS,
             ],
         ];
         if (!empty($timeout)) {
@@ -1747,33 +2159,106 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false, $mantai
     } else {
         $context = $ctx;
     }
+    // Sensitive callers opt in without changing legacy private-network integrations.
+    // A custom context or fallback must never turn certificate checks back off.
+    if ($verifyTLS) {
+        stream_context_set_option($context, 'ssl', 'verify_peer', true);
+        stream_context_set_option($context, 'ssl', 'verify_peer_name', true);
+        stream_context_set_option($context, 'ssl', 'allow_self_signed', false);
+        stream_context_set_option($context, 'http', 'follow_location', 0);
+    }
     if (ini_get('allow_url_fopen')) {
         if ($debug) {
             _error_log("url_get_contents: allow_url_fopen {$url}");
         }
         try {
-            if ($debug) {
-                $tmp = file_get_contents($url, false, $context);
-            }else{
-                $tmp = @file_get_contents($url, false, $context);
+            $tmp = false;
+            $currentUrl = $url;
+            // SECURITY: Manual redirect loop -- we follow up to 5 redirects ourselves
+            // so we can run isSSRFSafeURL() on every new destination URL.
+            // Without this loop, PHP would never follow any redirect at all (because
+            // we disabled follow_location above), breaking legitimate HTTP->HTTPS
+            // upgrades. This gives us both safety and correct behavior.
+            for ($redirectCount = 0; $redirectCount <= 5; $redirectCount++) {
+                $fetched = $debug
+                    ? file_get_contents($currentUrl, false, $context)
+                    : @file_get_contents($currentUrl, false, $context);
+                if ($fetched === false) {
+                    break;
+                }
+                // $http_response_header is a PHP magic variable automatically populated
+                // by file_get_contents() with the raw HTTP response headers.
+                // We check whether the server responded with a 3xx redirect status code.
+                $redirectTarget = null;
+                if (!empty($http_response_header) && preg_match('/^HTTP\/\S+\s+3\d\d\s/i', $http_response_header[0])) {
+                    foreach ($http_response_header as $h) {
+                        if (preg_match('/^Location:\s*(.+)$/i', $h, $m)) {
+                            $redirectTarget = trim($m[1]);
+                            break;
+                        }
+                    }
+                }
+                if ($redirectTarget) {
+                    $redirectTarget = ssrfResolveRedirectURL($currentUrl, $redirectTarget);
+                    if (empty($redirectTarget)) {
+                        _error_log(($verifyTLS || $failOnError) ? 'Verified remote request: invalid redirect' : "url_get_contents: invalid redirect from {$currentUrl}");
+                        return false;
+                    }
+                    // SECURITY: Re-validate the redirect destination before following it.
+                    // This is the core of the fix -- every redirect hop is checked.
+                    // If the target is an internal/private/reserved IP, we stop
+                    // immediately and return false instead of leaking data.
+                    //
+                    // DNS TOCTOU fix: capture $redirectHopIP so we can pin it via
+                    // CURLOPT_RESOLVE for the next hop, eliminating the race window
+                    // between the isSSRFSafeURL() check above and the actual TCP connect.
+                    if ($verifyTLS && parse_url($currentUrl, PHP_URL_SCHEME) === 'https'
+                        && parse_url($redirectTarget, PHP_URL_SCHEME) !== 'https') {
+                        _error_log('Verified remote request: HTTPS to HTTP redirect blocked');
+                        return false;
+                    }
+                    $redirectHopIP = null;
+                    if (!isSSRFSafeURL($redirectTarget, $redirectHopIP)) {
+                        _error_log(($verifyTLS || $failOnError) ? 'Verified remote request: unsafe redirect' : "url_get_contents: blocked unsafe redirect from {$currentUrl} to {$redirectTarget}");
+                        return false;
+                    }
+                    // When cURL is available, switch to a DNS-pinned cURL call for this
+                    // hop instead of re-using file_get_contents(), which would re-resolve
+                    // DNS and re-open the TOCTOU window.  ssrfPinnedFetch() follows
+                    // redirects manually, re-validating and re-pinning each hop.
+                    // Same-origin URLs ($redirectHopIP empty) and custom stream
+                    // contexts fall through to the file_get_contents path as before.
+                    if (!empty($redirectHopIP) && empty($ctx) && function_exists('curl_init')) {
+                        $pinnedContent = ssrfPinnedFetch($redirectTarget, $redirectHopIP, !empty($timeout) ? $timeout : 0, 5, $verifyTLS, $failOnError);
+                        return $pinnedContent !== false ? remove_utf8_bom((string) $pinnedContent) : false;
+                    }
+                    $currentUrl = $redirectTarget;
+                    continue;
+                }
+                if ($failOnError && (empty($http_response_header[0])
+                    || !preg_match('/^HTTP\/\S+\s+2\d\d\s/i', $http_response_header[0]))) {
+                    return false;
+                }
+                // No redirect -- this is the final response body we wanted.
+                $tmp = $fetched;
+                break;
             }
             if ($tmp !== false) {
                 $response = remove_utf8_bom($tmp);
                 if ($debug) {
-                    //_error_log("url_get_contents: SUCCESS file_get_contents($url) {$response}");
                     _error_log("url_get_contents: SUCCESS file_get_contents($url)");
                 }
                 return $response;
             }
             if ($debug) {
                 $error = error_get_last();
-                _error_log("url_get_contents: ERROR file_get_contents($url) ".json_encode($error));
+                _error_log("url_get_contents: ERROR file_get_contents($url) " . json_encode($error));
             }
         } catch (ErrorException $e) {
             if ($debug) {
                 _error_log("url_get_contents: allow_url_fopen ERROR " . $e->getMessage() . "  {$url}");
             }
-            return "url_get_contents: " . $e->getMessage();
+            return ($verifyTLS || $failOnError) ? false : "url_get_contents: " . $e->getMessage();
         }
     }
     if (function_exists('curl_init')) {
@@ -1784,8 +2269,8 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false, $mantai
         curl_setopt($ch, CURLOPT_USERAGENT, $agent);
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verifyTLS ? 2 : 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, (bool) $verifyTLS);
 
         if (!empty($session_cookie)) {
             curl_setopt($ch, CURLOPT_COOKIE, $session_cookie);
@@ -1795,14 +2280,27 @@ function url_get_contents($url, $ctx = "", $timeout = 0, $debug = false, $mantai
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout + 10);
         }
         $output = curl_exec($ch);
+        $httpCode = $failOnError ? curl_getinfo($ch, CURLINFO_HTTP_CODE) : 0;
+        if ($failOnError && ($httpCode < 200 || $httpCode >= 300)) {
+            $output = false;
+        }
+        if ($verifyTLS && $output === false) {
+            // The URL is not logged: it may carry credentials (e.g. marketplace or clone keys).
+            _error_log('Verified remote request failed: ' . curl_error($ch));
+        }
         curl_close($ch);
         if ($debug) {
             _error_log("url_get_contents: CURL SUCCESS {$url}");
         }
-        return remove_utf8_bom($output);
+        return ($verifyTLS || $failOnError) && $output === false ? false : remove_utf8_bom($output);
     }
     if ($debug) {
         _error_log("url_get_contents: Nothing yet  {$url}");
+    }
+
+    if ($verifyTLS || $failOnError) {
+        // The legacy wget fallback does not enforce strict transport/response checks.
+        return false;
     }
 
     // try wget
@@ -1920,31 +2418,43 @@ function UTF8encode($data)
     return $data;
 }
 
-function encryptPassword($password, $noSalt = false)
-{
+function encryptPassword(
+    #[\SensitiveParameter]
+    $password,
+    $noSalt = false
+) {
     global $advancedCustom, $global, $advancedCustomUser;
     if (!empty($advancedCustomUser->encryptPasswordsWithSalt) && !empty($global['salt']) && empty($noSalt)) {
         $password .= $global['salt'];
     }
 
+    // Passwords are stored as md5(whirlpool(sha1(password))), optionally with a site-specific
+    // salt prepended. This is NOT plain MD5 — reports claiming "trivial MD5 cracking" are a
+    // false positive for current accounts. Legacy accounts may still carry a plain-MD5 hash
+    // (see find_Old / enableOldPassHashCheck), which is migrated to this scheme on next login.
+    // SECURITY REVIEW (2026-10-14): "migrate to password_hash()/bcrypt" — HARDENING ONLY / DO NOT FIX
+    // here: a fast hash only matters after the users table has leaked, and this value is also
+    // compared by the Encoder/Mobile App/API login, the remember-me cookie and _user_hash_ tokens.
+    // Changing the format needs a planned migration of all of those, not a drop-in swap.
     return md5(hash("whirlpool", sha1($password)));
 }
 
-function encryptPasswordVerify($password, $hash, $encodedPass = false)
-{
+function encryptPasswordVerify(
+    #[\SensitiveParameter]
+    $password,
+    $hash,
+    $encodedPass = false
+) {
     global $advancedCustom, $global;
-    if (!$encodedPass || $encodedPass === 'false') {
-        //_error_log("encryptPasswordVerify: encrypt");
-        $passwordSalted = encryptPassword($password);
-        // in case you enable the salt later
-        $passwordUnSalted = encryptPassword($password, true);
-    } else {
-        //_error_log("encryptPasswordVerify: do not encrypt");
-        $passwordSalted = $password;
-        // in case you enable the salt later
-        $passwordUnSalted = $password;
-    }
-    //_error_log("passwordSalted = $passwordSalted,  hash=$hash, passwordUnSalted=$passwordUnSalted");
+    // SECURITY: $encodedPass no longer makes $password get compared to $hash verbatim -
+    // that was pass-the-hash: anyone who obtained a leaked users.password value could
+    // authenticate directly with encodedPass=1, for any account. The submitted value is
+    // always re-derived/hashed here; the only accepted "already encoded" credential is a
+    // genuine _user_hash_ token (time-limited, revoked on password change), checked below
+    // independently of $encodedPass. $encodedPass is kept only for signature/back-compat.
+    $passwordSalted = encryptPassword($password);
+    // in case you enable the salt later
+    $passwordUnSalted = encryptPassword($password, true);
     $isValid = $passwordSalted === $hash || $passwordUnSalted === $hash;
 
     if (!$isValid) {
@@ -1952,12 +2462,6 @@ function encryptPasswordVerify($password, $hash, $encodedPass = false)
         $isValid = $passwordFromHash === $hash;
     }
 
-    if (!$isValid) {
-        if ($password === $hash) {
-            _error_log('encryptPasswordVerify: this is a deprecated password, this will stop to work soon ' . json_encode(debug_backtrace()), AVideoLog::$SECURITY);
-            return true;
-        }
-    }
     return $isValid;
 }
 
@@ -1979,7 +2483,9 @@ function isAndroid()
     require_once $global['systemRootPath'] . 'objects/Mobile_Detect.php';
     $detect = new Mobile_Detect();
 
-    return $detect->is('AndroidOS');
+    $androidTV = getDeviceName();
+
+    return $detect->is('AndroidOS') || preg_match('/android/i', $androidTV);
 }
 
 function isChannelPage()
@@ -2051,10 +2557,11 @@ function removeQueryStringParameter($url, $varname)
         $port = ":{$parsedUrl['port']}";
     }
     $query = fixURLQuery($query);
-    return $scheme . '//' . $parsedUrl['host']. $port . $path . $query;
+    return $scheme . '//' . $parsedUrl['host'] . $port . $path . $query;
 }
 
-function isParamInUrl($url, $paramName) {
+function isParamInUrl($url, $paramName)
+{
     // Parse the URL and return its components
     $urlComponents = parse_url($url);
 
@@ -2094,7 +2601,7 @@ function addQueryStringParameter($url, $varname, $value)
         parse_str($parsedUrl['query'], $query);
     }
     $query[$varname] = $value;
-    
+
     // Ensure 'current' is the last parameter
     $currentValue = null;
     if (isset($query['current'])) {
@@ -2127,7 +2634,8 @@ function addQueryStringParameter($url, $varname, $value)
     return $scheme . '//' . $parsedUrl['host'] . $port . $path . $query;
 }
 
-function fixURLQuery($query){
+function fixURLQuery($query)
+{
     return str_replace(array('%5B', '%5D'), array('[', ']'), $query);
 }
 
@@ -2136,7 +2644,15 @@ function isSameDomain($url1, $url2)
     if (empty($url1) || empty($url2)) {
         return false;
     }
-    return (get_domain($url1) === get_domain($url2));
+    $d1 = get_domain($url1);
+    $d2 = get_domain($url2);
+    // fail closed: a host that could not be parsed must never be treated as
+    // equal to another unparsed host (get_domain() returning false on both
+    // sides used to compare as a match, which is an authenticity bypass)
+    if (empty($d1) || empty($d2)) {
+        return false;
+    }
+    return $d1 === $d2;
 }
 
 function get_domain($url, $ifEmptyReturnSameString = false)
@@ -2146,15 +2662,12 @@ function get_domain($url, $ifEmptyReturnSameString = false)
     if (empty($domain)) {
         return $ifEmptyReturnSameString ? $url : false;
     }
-    if (preg_match('/(?P<domain>[a-z0-9][a-z0-9\-]{1,63}\.[a-z\.]{2,6})$/i', $domain, $regs)) {
-        return $regs['domain'];
-    } else {
-        $isIp = (bool) ip2long($pieces['host']);
-        if ($isIp) {
-            return $pieces['host'];
-        }
-    }
-    return false;
+    // Exact host match, not a "registrable domain" extraction: the previous
+    // regex collapsed sibling subdomains (evil.mysite.com == videos.mysite.com)
+    // to the same value, and rejected long gTLDs entirely. Every caller here
+    // (Referer/Origin checks against webSiteRootURL/CDN) wants "is this the
+    // same host", not "same top-level domain".
+    return strtolower($domain);
 }
 
 function verify($url)
@@ -2178,7 +2691,7 @@ function verify($url)
         if ($result !== 'Invalid URL') {
             file_put_contents($cacheFile, $result);
         }
-    } else {        
+    } else {
         _error_log("Verification GetFrom Cache $cacheFile");
         if ($result === 'Invalid URL') {
             _error_log("Verification Invalid URL unlink ($cacheFile)");
@@ -2194,28 +2707,19 @@ function getPorts()
     $ports = array();
     $ports[80] = 'Apache http';
     $ports[443] = 'Apache https';
-    if(AVideoPlugin::isEnabled('Live')){  
+    if (AVideoPlugin::isEnabledByName('Live')) {
         $ports[8080] = 'NGINX http';
         $ports[8443] = 'NGINX https';
-        $ports[1935] = 'RTMP';      
+        $ports[1935] = 'RTMP';
     }
-    
-    if($obj = AVideoPlugin::getDataObjectIfEnabled('YPTSocket')){ 
-        $ports[$obj->port] = 'Socket';        
+    if ($obj = AVideoPlugin::getDataObjectIfEnabled('WebRTC')) {
+        $ports[$obj->port] = 'WebRTC';
+    }
+
+    if ($obj = AVideoPlugin::getDataObjectIfEnabled('YPTSocket')) {
+        $ports[$obj->port] = 'Socket';
     }
     return $ports;
-}
-
-function checkPorts()
-{
-    $variable = getPorts();
-    $ports = array();
-    foreach ($variable as $key => $value) {
-        $ports[] = $key;
-    }
-    //postVariables($url, $array, $httpcodeOnly = true, $timeout = 10)
-    $response = postVariables('https://search.ypt.me/checkPorts.json.php', $ports, false, count($ports)*4);
-    return $response;
 }
 
 function isVerified($url)
@@ -2326,7 +2830,6 @@ function siteMap()
         TimeLogEnd("siteMap getAllCategories", __LINE__, 0.5);
     }
 
-
     TimeLogStart("siteMap getAllVideos");
     $xml .= '<!-- Videos -->';
     setRowCount($advancedCustom->siteMapRowsLimit * 10);
@@ -2337,15 +2840,15 @@ function siteMap()
     }
     $total = count($rows);
     _error_log("siteMap: getAllVideos total={$total}");
-    
+
     $descriptionLimit = 2048;
-    if($total>2000){
+    if ($total > 2000) {
         $descriptionLimit = 128;
-    }else if($total>1000){
+    } else if ($total > 1000) {
         $descriptionLimit = 256;
-    }else if($total>500){
+    } else if ($total > 500) {
         $descriptionLimit = 512;
-    }else if($total>200){
+    } else if ($total > 200) {
         $descriptionLimit = 1024;
     }
     foreach ($rows as $video) {
@@ -2372,7 +2875,7 @@ function siteMap()
         TimeLogStart("siteMap Video::getLink $videos_id");
         //$loc = Video::getLink($video['id'], $video['clean_title']);
         $loc = Video::getLinkToVideo($video['id'], $video['clean_title'], false, Video::$urlTypeFriendly, [], true);
-        
+
         TimeLogEnd("siteMap Video::getLink $videos_id", __LINE__, 0.5);
         $title = strip_tags($video['title']);
         TimeLogStart("siteMap Video::getLinkToVideo $videos_id");
@@ -2451,154 +2954,239 @@ function object_to_array($obj, $level = 0)
         $ret = (array) $obj;
         foreach ($ret as &$item) {
             //recursively process EACH element regardless of type
-            $item = object_to_array($item, $level +1);
+            $item = object_to_array($item, $level + 1);
         }
         return $ret;
     }
     //otherwise (i.e. for scalar values) return without modification
     else {
-        if(empty($level) && empty($obj)){
+        if (empty($level) && empty($obj)) {
             $obj = array();
         }
         return $obj;
     }
 }
 
-function allowOrigin()
+/**
+ * Emits CORS headers with safe defaults.
+ *
+ * Usage:
+ * - allowOrigin(): same-origin gets credentials; trusted subdomains get reflected without credentials.
+ * - allowOrigin(true): public, non-credentialed wildcard CORS.
+ * - allowOrigin(true, ['publicResource' => true, 'allowCredentialedPublicResource' => true]):
+ *   public data that must work with SDKs using credentials mode "include" (for example IMA VAST/VMAP).
+ */
+function allowOrigin($allowAll = false, $options = [])
 {
     global $global;
     cleanUpAccessControlHeader();
-    $HTTP_ORIGIN = empty($_SERVER['HTTP_ORIGIN']) ? @$_SERVER['HTTP_REFERER'] : $_SERVER['HTTP_ORIGIN'];
-    if (empty($HTTP_ORIGIN)) {
-        $server = parse_url($global['webSiteRootURL']);
-        header('Access-Control-Allow-Origin: ' . $server["scheme"] . '://imasdk.googleapis.com');
-    } else {
-        header("Access-Control-Allow-Origin: " . $HTTP_ORIGIN);
+
+    if (is_array($allowAll)) {
+        $options = $allowAll;
+        $allowAll = !empty($options['allowAll']);
     }
+
+    $defaults = [
+        'allowAll' => (bool) $allowAll,
+        'publicResource' => false,
+        'allowCredentialedPublicResource' => false,
+        'trustedHosts' => [],
+        'trustedOrigins' => [],
+        'allowedHeaders' => 'Content-Type, Authorization, X-Requested-With, ua-resolution, APISecret, Origin, Accept, Access-Control-Request-Method, Access-Control-Request-Headers',
+        'allowedMethods' => 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
+        'maxAge' => 86400,
+    ];
+    $options = array_merge($defaults, is_array($options) ? $options : []);
+    $allowAll = !empty($options['allowAll']);
+
+    // allowAll stays non-credentialed by default. Endpoints that are truly
+    // public (for example VAST/VMAP XML read by ad SDKs) can opt into
+    // reflected credentialed CORS with publicResource +
+    // allowCredentialedPublicResource. Do not enable that for endpoints that
+    // expose session-authenticated data.
+
+    // Derive the site's own origin from configuration so we can validate
+    // inbound Origin headers instead of blindly reflecting them.
+    // Reflecting an arbitrary Origin with Access-Control-Allow-Credentials:true
+    // allows any third-party site to make credentialed cross-origin requests
+    // and read authenticated responses – a session-theft vector (OWASP A01/A05).
+    $siteOrigin = '';
+    $siteDomain  = '';
+    if (!empty($global['webSiteRootURL'])) {
+        $parsed = parse_url($global['webSiteRootURL']);
+        if (!empty($parsed['scheme']) && !empty($parsed['host'])) {
+            $siteOrigin = $parsed['scheme'] . '://' . $parsed['host'];
+            $siteDomain = strtolower($parsed['host']);
+            if (!empty($parsed['port'])) {
+                $siteOrigin .= ':' . $parsed['port'];
+            }
+        }
+    }
+
+    $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $currentHost = '';
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $currentHost = $_SERVER['HTTP_HOST'];
+    } elseif (!empty($_SERVER['SERVER_NAME'])) {
+        $currentHost = $_SERVER['SERVER_NAME'];
+    }
+
+    // Browsers send the literal string "null" as the Origin header when following
+    // a cross-origin redirect (Fetch spec §4.4 – e.g. CDN on cdn.ypt.me redirects
+    // to the origin server).  The browser will accept Access-Control-Allow-Origin: *
+    // for such requests (non-credentialed), which is safe because the key endpoint
+    // has its own token-based auth layer.
+    if ($requestOrigin === 'null') {
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Private-Network: true');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, ua-resolution, APISecret, Origin, Accept, Access-Control-Request-Method, Access-Control-Request-Headers');
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            header('Access-Control-Max-Age: 86400');
+            http_response_code(204);
+            exit;
+        }
+        return;
+    }
+
+    $isSameOrigin  = !empty($siteOrigin) && $requestOrigin === $siteOrigin;
+
+    // Check whether the request comes from a first-party host/subdomain
+    // family (e.g. vizio.flixhouse.com calling flixhouse.com).  We reflect the
+    // origin without credentials – only the exact site origin gets
+    // Access-Control-Allow-Credentials: true.
+    // cdn.ypt.me is always trusted – it is the AVideo CDN layer that may send
+    // cross-origin requests on behalf of embedded players.
+    $isTrustedSubdomain = false;
+    if (!$isSameOrigin && !empty($requestOrigin)) {
+        $trustedHosts = array_merge([$siteDomain, $currentHost, 'cdn.ypt.me'], (array) $options['trustedHosts']);
+        $isTrustedSubdomain = isTrustedOriginFamilyForCORS($requestOrigin, $trustedHosts);
+    }
+    $isTrustedOrigin = !empty($requestOrigin) && in_array($requestOrigin, (array) $options['trustedOrigins'], true);
+    $canUsePublicCredentialedCors = !empty($options['publicResource']) && !empty($options['allowCredentialedPublicResource']);
+
+    if (!empty($requestOrigin) && ($isSameOrigin || $isTrustedOrigin || ($allowAll && $canUsePublicCredentialedCors))) {
+        header("Access-Control-Allow-Origin: " . $requestOrigin);
+        header('Vary: Origin', false);
+        header("Access-Control-Allow-Credentials: true");
+    } elseif ($isTrustedSubdomain) {
+        header("Access-Control-Allow-Origin: " . $requestOrigin);
+        header('Vary: Origin', false);
+    } elseif ($allowAll || empty($requestOrigin)) {
+        header('Access-Control-Allow-Origin: *');
+    } else {
+        // Third-party origin: permit non-credentialed access only.
+        // Do NOT echo the caller's origin back with credentials.
+        header("Access-Control-Allow-Origin: " . ($siteOrigin ?: '*'));
+    }
+
     header('Access-Control-Allow-Private-Network: true');
-    header('Access-Control-Request-Private-Network: true');
-    //header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Allow-Methods: GET,HEAD,OPTIONS,POST,PUT");
-    header("Access-Control-Allow-Headers: Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
+    header("Access-Control-Allow-Methods: " . $options['allowedMethods']);
+    header("Access-Control-Allow-Headers: " . $options['allowedHeaders'] . ', Access-Control-Request-Private-Network');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        header("Access-Control-Max-Age: " . intval($options['maxAge']));
+        http_response_code(204);
+        exit;
+    }
+}
+
+function normalizeCorsHost($host)
+{
+    if (empty($host)) {
+        return '';
+    }
+    $host = trim(strtolower((string) $host));
+    $host = preg_replace('/:[0-9]+$/', '', $host);
+    $host = preg_replace('/^\.+/', '', $host);
+    return preg_replace('/^www\./', '', $host);
+}
+
+function getBaseDomainForCORS($host)
+{
+    $host = normalizeCorsHost($host);
+    if (empty($host) || filter_var($host, FILTER_VALIDATE_IP)) {
+        return $host;
+    }
+
+    $parts = array_values(array_filter(explode('.', $host)));
+    $count = count($parts);
+    if ($count <= 2) {
+        return $host;
+    }
+
+    $last = $parts[$count - 1];
+    $penultimate = $parts[$count - 2];
+    if (strlen($last) === 2 && strlen($penultimate) <= 3 && $count >= 3) {
+        return implode('.', array_slice($parts, -3));
+    }
+
+    return implode('.', array_slice($parts, -2));
+}
+
+function isTrustedOriginFamilyForCORS($requestOrigin, $trustedHosts = [])
+{
+    if (empty($requestOrigin)) {
+        return false;
+    }
+
+    $parsedReq = parse_url($requestOrigin);
+    if (empty($parsedReq['host'])) {
+        return false;
+    }
+
+    $requestHost = normalizeCorsHost($parsedReq['host']);
+    $requestBaseDomain = getBaseDomainForCORS($requestHost);
+    if (empty($requestHost)) {
+        return false;
+    }
+
+    foreach ($trustedHosts as $trustedHost) {
+        $trustedHost = normalizeCorsHost($trustedHost);
+        if (empty($trustedHost)) {
+            continue;
+        }
+
+        if ($requestHost === $trustedHost || str_ends_with($requestHost, '.' . $trustedHost)) {
+            return true;
+        }
+
+        $trustedBaseDomain = getBaseDomainForCORS($trustedHost);
+        if (!empty($requestBaseDomain) && $requestBaseDomain === $trustedBaseDomain) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function cleanUpAccessControlHeader()
 {
     if (!headers_sent()) {
-        foreach (headers_list() as $header) {
-            if (preg_match('/Access-Control-Allow-Origin/i', $header)) {
-                $parts = explode(':', $header);
-                header_remove($parts[0]);
-            }
-        }
-    }
-    header('Access-Control-Allow-Origin: ');  // This will essentially "remove" the header
-}
+        // Remove all Access-Control headers to prevent duplicates
+        $headersToRemove = [
+            'Access-Control-Allow-Origin',
+            'Access-Control-Allow-Methods',
+            'Access-Control-Allow-Headers',
+            'Access-Control-Allow-Credentials',
+            'Access-Control-Allow-Private-Network',
+            'Access-Control-Max-Age'
+        ];
 
-function rrmdir($dir)
-{
-    //if(preg_match('/cache/i', $dir)){_error_log("rrmdir($dir) ". json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));exit;}
-
-    $dir = str_replace(['//', '\\\\'], DIRECTORY_SEPARATOR, $dir);
-    //_error_log('rrmdir: ' . $dir);
-    if (empty($dir)) {
-        _error_log('rrmdir: the dir was empty');
-        return false;
-    }
-    global $global;
-    $dir = fixPath($dir);
-    $pattern = '/' . addcslashes($dir, DIRECTORY_SEPARATOR) . 'videos[\/\\\]?$/i';
-    if ($dir == getVideosDir() || $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR || preg_match($pattern, $dir)) {
-        _error_log('rrmdir: A script ties to delete the videos Directory [' . $dir . '] ' . json_encode([$dir == getVideosDir(), $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR, preg_match($pattern, $dir)]));
-        return false;
-    }
-    rrmdirCommandLine($dir);
-    if (is_dir($dir)) {
-        //_error_log('rrmdir: The Directory was not deleted, trying again ' . $dir);
-        $objects = @scandir($dir);
-        if (!empty($objects)) {
-            //_error_log('rrmdir: scandir ' . $dir . ' '. json_encode($objects));
-            foreach ($objects as $object) {
-                if ($object !== '.' && $object !== '..') {
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object)) {
-                        rrmdir($dir . DIRECTORY_SEPARATOR . $object);
-                    } else {
-                        unlink($dir . DIRECTORY_SEPARATOR . $object);
-                    }
-                }
-            }
+        foreach ($headersToRemove as $headerName) {
+            header_remove($headerName);
         }
-        if (preg_match('/(\/|^)videos(\/cache)?\/?$/i', $dir)) {
-            _error_log('rrmdir: do not delete videos or cache folder ' . $dir);
-            // do not delete videos or cache folder
-            return false;
-        }
-        if (is_dir($dir)) {
-            if (@rmdir($dir)) {
-                return true;
-            } elseif (is_dir($dir)) {
-                _error_log('rrmdir: could not delete folder ' . $dir);
-                return false;
-            }
-        }
-    } else {
-        //_error_log('rrmdir: The Directory does not exists '.$dir);
-        return true;
     }
 }
 
-/**
- * You can now configure it on the configuration.php
- * @return boolean
- */
-function ddosProtection()
+function getAdsDebugTag($adCode)
 {
     global $global;
-    $maxCon = empty($global['ddosMaxConnections']) ? 40 : $global['ddosMaxConnections'];
-    $secondTimeout = empty($global['ddosSecondTimeout']) ? 5 : $global['ddosSecondTimeout'];
-    $whitelistedFiles = [
-        'playlists.json.php',
-        'playlistsFromUserVideos.json.php',
-        'image404.php',
-        'downloadProtection.php',
-    ];
-
-    if (in_array(basename($_SERVER["SCRIPT_FILENAME"]), $whitelistedFiles)) {
-        return true;
+    if (!empty($_REQUEST['AdsDebug']) && User::isAdmin()) {
+        $function = debug_backtrace()[1]["function"];
+        $function = str_replace('get', '', $function);
+        $adCode = "<div class=\"AdsDebug\">{$function}<br>{$global['lastAdsCodeReason']}<br>$adCode</div>";
     }
-
-    $time = time();
-    if (!isset($_SESSION['bruteForceBlock']) || empty($_SESSION['bruteForceBlock'])) {
-        $_SESSION['bruteForceBlock'] = [];
-        $_SESSION['bruteForceBlock'][] = $time;
-        return true;
-    }
-
-    $_SESSION['bruteForceBlock'][] = $time;
-
-    //remove requests that are older than secondTimeout
-    foreach ($_SESSION['bruteForceBlock'] as $key => $request_time) {
-        if ($request_time < $time - $secondTimeout) {
-            unset($_SESSION['bruteForceBlock'][$key]);
-        }
-    }
-
-    //progressive timeout-> more requests, longer timeout
-    $active_connections = count($_SESSION['bruteForceBlock']);
-    $timeoutReal = ($active_connections / $maxCon) < 1 ? 0 : ($active_connections / $maxCon) * $secondTimeout;
-    if ($timeoutReal) {
-        _error_log("ddosProtection:: progressive timeout timeoutReal = ($timeoutReal) active_connections = ($active_connections) maxCon = ($maxCon) ", AVideoLog::$SECURITY);
-    }
-    sleep($timeoutReal);
-
-    //with strict mode, penalize "attacker" with sleep() above, log and then die
-    if ($global['strictDDOSprotection'] && $timeoutReal > 0) {
-        $str = "bruteForceBlock: maxCon: $maxCon => secondTimeout: $secondTimeout | IP: " . getRealIpAddr() . " | count:" . count($_SESSION['bruteForceBlock']);
-        _error_log($str);
-        die($str);
-    }
-
-    return true;
+    return  $adCode;
 }
 
 function getAdsLeaderBoardBigVideo()
@@ -2608,7 +3196,7 @@ function getAdsLeaderBoardBigVideo()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('leaderBoardBigVideo');
     }
-    return $adCode;
+    return getAdsDebugTag($adCode);
 }
 
 function getAdsLeaderBoardTop()
@@ -2618,7 +3206,7 @@ function getAdsLeaderBoardTop()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('leaderBoardTop');
     }
-    return $adCode;
+    return  getAdsDebugTag($adCode);
 }
 
 function getAdsChannelLeaderBoardTop()
@@ -2628,7 +3216,7 @@ function getAdsChannelLeaderBoardTop()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('channelLeaderBoardTop');
     }
-    return $adCode;
+    return  getAdsDebugTag($adCode);
 }
 
 function getAdsLeaderBoardTop2()
@@ -2638,7 +3226,7 @@ function getAdsLeaderBoardTop2()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('leaderBoardTop2');
     }
-    return $adCode;
+    return  getAdsDebugTag($adCode);
 }
 
 function getAdsLeaderBoardMiddle()
@@ -2648,7 +3236,7 @@ function getAdsLeaderBoardMiddle()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('leaderBoardMiddle');
     }
-    return $adCode;
+    return  getAdsDebugTag($adCode);
 }
 
 function getAdsLeaderBoardFooter()
@@ -2658,7 +3246,7 @@ function getAdsLeaderBoardFooter()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('leaderBoardFooter');
     }
-    return $adCode;
+    return  getAdsDebugTag($adCode);
 }
 
 function getAdsSideRectangle()
@@ -2668,16 +3256,17 @@ function getAdsSideRectangle()
     if (!empty($ad)) {
         $adCode = ADs::getAdsCode('sideRectangle');
     }
-    return $adCode;
+    return  getAdsDebugTag($adCode);
 }
 
 function isToHidePrivateVideos()
 {
-    $obj = AVideoPlugin::getObjectDataIfEnabled("Gallery");
+    // Flix owns the homepage when both layout plugins are enabled.
+    $obj = AVideoPlugin::getObjectDataIfEnabled("YouPHPFlix2");
     if (!empty($obj)) {
         return $obj->hidePrivateVideos;
     }
-    $obj = AVideoPlugin::getObjectDataIfEnabled("YouPHPFlix2");
+    $obj = AVideoPlugin::getObjectDataIfEnabled("Gallery");
     if (!empty($obj)) {
         return $obj->hidePrivateVideos;
     }
@@ -2688,31 +3277,37 @@ function isToHidePrivateVideos()
     return false;
 }
 
+function getVideoListVisibilityCacheKey()
+{
+    return 'listing2_' . User::getId() . '_' . intval(isToHidePrivateVideos())
+        . '_' . md5(Video::getUserGroupsCanSeeSQL() . getRequestUniqueString());
+}
+
 function ogSite()
 {
-    global $global, $config, $advancedCustom;    
+    global $global, $config, $advancedCustom;
     $videos_id = getVideos_id();
     include_once $global['systemRootPath'] . 'objects/functionsOpenGraph.php';
-    if(empty($videos_id)){
+    if (empty($videos_id)) {
         $isLive = isLive(true);
         //var_dump($isLive);exit;
-        if(!empty($isLive) && !empty($isLive['liveLink'])){
+        if (!empty($isLive) && !empty($isLive['liveLink'])) {
             echo getOpenGraphLiveLink($isLive['liveLink']);
-        }else if(!empty($isLive) && !empty($isLive['live_schedule'])){
+        } else if (!empty($isLive) && !empty($isLive['live_schedule'])) {
             echo getOpenGraphLiveSchedule($isLive['live_schedule']);
-        }else if(!empty($isLive) && !empty($isLive['cleanKey'])){
+        } else if (!empty($isLive) && !empty($isLive['cleanKey'])) {
             echo getOpenGraphLive();
-        }else if ($users_id = isChannel()) {
+        } else if ($users_id = isChannel()) {
             echo getOpenGraphChannel($users_id);
-        }else if(!empty($_REQUEST['catName'])){
+        } else if (!empty($_REQUEST['catName'])) {
             $category = Category::getCategoryByName($_REQUEST['catName']);
             echo getOpenGraphCategory($category['id']);
-        }else if(!empty($_REQUEST['tags_id']) && class_exists('Tags') && class_exists('VideoTags')){
+        } else if (!empty($_REQUEST['tags_id']) && class_exists('Tags') && class_exists('VideoTags')) {
             echo getOpenGraphTag($_REQUEST['tags_id']);
-        }else{
+        } else {
             echo getOpenGraphSite();
         }
-    }else{
+    } else {
         echo getOpenGraphVideo($videos_id);
     }
 }
@@ -2785,9 +3380,9 @@ function getLdJson($videos_id)
             )
         )
     );
-    if(AVideoPlugin::isEnabledByName('Bookmark')){
+    if (AVideoPlugin::isEnabledByName('Bookmark')) {
         $chapters = Bookmark::generateChaptersJSONLD($videos_id);
-        if(!empty($chapters)){
+        if (!empty($chapters)) {
             $data['videoChapter'] = $chapters;
         }
     }
@@ -2842,6 +3437,45 @@ function getItemprop($videos_id)
     echo $output;
 }
 
+function parse_url_parameters($url)
+{
+    // Parse the URL and separate the query string
+    $parsedUrl = parse_url($url);
+
+    // Initialize the result array
+    $result = [
+        'base_url' => '',
+        'parameters' => []
+    ];
+
+    // Extract the base URL
+    $baseUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+    if (isset($parsedUrl['port'])) {
+        $baseUrl .= ':' . $parsedUrl['port'];
+    }
+    if (isset($parsedUrl['path'])) {
+        $baseUrl .= $parsedUrl['path'];
+    }
+    $result['base_url'] = $baseUrl;
+
+    // Extract the query string and parse parameters
+    if (isset($parsedUrl['query'])) {
+        parse_str($parsedUrl['query'], $parameters);
+        $result['parameters'] = $parameters;
+    }
+
+    return $result;
+}
+
+function get_contents($url, $timeout = 0, $requireSSRFSafe = false)
+{
+    if (strlen($url) > 1000) {
+        $result = parse_url_parameters($url);
+        return postVariables($result['base_url'], $result['parameters'], false, $timeout);
+    } else {
+        return url_get_contents($url, $timeout, 0, false, false, $requireSSRFSafe);
+    }
+}
 
 function postVariables($url, $array, $httpcodeOnly = true, $timeout = 10)
 {
@@ -2865,8 +3499,8 @@ function postVariables($url, $array, $httpcodeOnly = true, $timeout = 10)
 
     // execute!
     $response = curl_exec($ch);
-    
-    if(!$response){
+
+    if (!$response) {
         $error_msg = curl_error($ch);
         $error_num = curl_errno($ch);
         _error_log("postVariables: {$url} [$error_num] - $error_msg");
@@ -2881,6 +3515,7 @@ function postVariables($url, $array, $httpcodeOnly = true, $timeout = 10)
         }
         return $httpcode;
     } else {
+        _error_log("postVariables: {$url} success " . (strlen($response) < 1000 ? $response : 'response is too long'));
         curl_close($ch);
         return $response;
     }
@@ -2956,24 +3591,42 @@ function clearCache($firstPageOnly = false)
         return false;
     }
     $start = microtime(true);
-    _error_log('clearCache starts '.$firstPageOnly);
+    _error_log('clearCache starts ' . $firstPageOnly);
     file_put_contents($lockFile, time());
 
     $dir = getVideosDir() . "cache" . DIRECTORY_SEPARATOR;
-    $tmpDir = ObjectYPT::getCacheDir('firstPage');
-    $parts = explode('firstpage', $tmpDir);
+    $tmpDir = ObjectYPT::getTmpCacheDir();
 
     if ($firstPageOnly || !empty($_REQUEST['FirstPage'])) {
-        $tmpDir = $parts[0] . 'firstpage' . DIRECTORY_SEPARATOR;
+        $tmpDir .= 'firstPage' . DIRECTORY_SEPARATOR;
         //var_dump($tmpDir);exit;
         $dir .= "firstPage" . DIRECTORY_SEPARATOR;
-    } else {
-        $tmpDir = $parts[0];
     }
 
     //_error_log('clearCache 1: '.$dir);
     rrmdir($dir);
-    rrmdir($tmpDir);
+
+    // Use rename + async deletion for the tmp object cache dir.
+    // A synchronous rm -fR on hundreds of GBs would exceed PHP's execution
+    // time limit and leave the directory intact. Renaming is atomic (cache
+    // misses are immediate) and the subsequent deletion runs in the background.
+    //
+    // Safety guard: validate the path is a known cache directory before
+    // touching it. getTmpCacheDir() always embeds 'YPTObjectCache' in the
+    // path; if for any reason that is absent, we refuse the fast-path and
+    // fall back to rrmdir() which has its own videos-dir protection.
+    $renamedTmpDir = rtrim($tmpDir, DIRECTORY_SEPARATOR) . uniqid();
+    if (is_dir($tmpDir) && preg_match('/YPTObjectCache/i', $tmpDir) && @rename($tmpDir, $renamedTmpDir)) {
+        _error_log('clearCache async rmdir ' . $renamedTmpDir);
+        rrmdirCommandLine($renamedTmpDir, true);
+    } elseif (is_dir($tmpDir)) {
+        // rename failed or path guard triggered; fall back to synchronous deletion
+        // (rrmdir() itself protects against deleting the videos directory)
+        rrmdir($tmpDir);
+    }
+    // Cached paths may point at directories that were just removed.
+    global $_getCacheDir;
+    $_getCacheDir = [];
 
     $obj = AVideoPlugin::getDataObjectIfEnabled('Cache');
     if ($obj) {
@@ -2982,7 +3635,13 @@ function clearCache($firstPageOnly = false)
     }
     ObjectYPT::deleteCache("getEncoderURL");
     ObjectYPT::deleteAllSessionCache();
-    if(class_exists('Live')){
+    // Updating the home page invalidates data, not PHP code. Resetting OPcache
+    // here can kill a long-running upload/storage request after its forced
+    // restart timeout. Keep opcode resets for an explicit full cache clear.
+    if (!$firstPageOnly && empty($_REQUEST['FirstPage']) && function_exists('opcache_reset')) {
+        opcache_reset();
+    }
+    if (class_exists('Live')) {
         Live::checkAllFromStats();
     }
     unlink($lockFile);
@@ -2993,6 +3652,7 @@ function clearCache($firstPageOnly = false)
 
 function clearAllUsersSessionCache()
 {
+    _error_log("clearAllUsersSessionCache " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
     sendSocketMessageToAll(time(), 'socketClearSessionCache');
 }
 
@@ -3006,13 +3666,15 @@ function unsetSearch()
     unset($_GET['searchPhrase'], $_POST['searchPhrase'], $_GET['search'], $_GET['q']);
 }
 
-function encrypt_decrypt($string, $action, $useOldSalt = false)
+function encrypt_decrypt($string, $action)
 {
     global $global;
     $output = false;
     if (empty($string)) {
+        //_error_log("encrypt_decrypt: Empty input string.");
         return false;
     }
+    //_error_log("encrypt_decrypt: input string: $string");
     $encrypt_method = "AES-256-CBC";
     $secret_iv = $global['systemRootPath'];
     while (strlen($secret_iv) < 16) {
@@ -3021,24 +3683,46 @@ function encrypt_decrypt($string, $action, $useOldSalt = false)
     if (empty($secret_iv)) {
         $secret_iv = '1234567890abcdef';
     }
-    if($useOldSalt){
+
+    // SECURITY: Always use saltV2 (secure), never use old salt
+    // Legacy fallback REMOVED for security - old salt can be bruteforced
+    if (empty($global['saltV2'])) {
+        _error_log("encrypt_decrypt: CRITICAL - saltV2 not found, using salt as emergency fallback");
         $salt = $global['salt'];
-    }else{
-        $salt = empty($global['saltV2'])?$global['salt']:$global['saltV2'];
+        $saltType = 'emergency-fallback';
+    } else {
+        $salt = $global['saltV2'];
+        $saltType = 'saltV2';
     }
+
     // hash
     $key = hash('sha256', $salt);
 
-    // iv - encrypt method AES-256-CBC expects 16 bytes - else you will get a warning
+    // iv - encrypt method AES-256-CBC expects 16 bytes
     $iv = substr(hash('sha256', $secret_iv), 0, 16);
 
     if ($action == 'encrypt') {
         $output = openssl_encrypt($string, $encrypt_method, $key, 0, $iv);
+        if ($output === false) {
+            _error_log("encrypt_decrypt: Failed to encrypt. String: {$string}");
+        }
         $output = base64_encode($output);
     } elseif ($action == 'decrypt') {
-        $output = openssl_decrypt(base64_decode($string), $encrypt_method, $key, 0, $iv);
-        if(empty($output) && $useOldSalt === false){
-            return encrypt_decrypt($string, $action, true);
+        $decoded_string = base64_decode($string);
+        if ($decoded_string === false) {
+            _error_log("encrypt_decrypt: Failed to base64 decode the string: {$string}");
+            return false;
+        }
+
+        $output = openssl_decrypt($decoded_string, $encrypt_method, $key, 0, $iv);
+
+        // SECURITY FIX: Legacy salt fallback completely removed
+        // The old salt (uniqid) is predictable and can be bruteforced offline in ~5 seconds
+        // All encrypted data is ephemeral (tokens, callbacks) and created on-the-fly
+        // No legitimate reason to accept old salt - enforces saltV2 only
+
+        if ($output === false || $output === '') {
+            _error_log("encrypt_decrypt: Failed to decrypt with saltV2");
         }
     }
 
@@ -3074,12 +3758,13 @@ function decryptString($string)
     return encrypt_decrypt($string, 'decrypt');
 }
 
-function getToken($timeout = 0, $salt = "")
+function getToken($timeout = 0, $salt = "", $videos_id = 0)
 {
     global $global;
     $obj = new stdClass();
     $obj->salt = $global['salt'] . $salt;
     $obj->timezone = date_default_timezone_get();
+    $obj->videos_id = $videos_id;
 
     if (!empty($timeout)) {
         $obj->time = time();
@@ -3100,6 +3785,19 @@ function isTokenValid($token, $salt = "")
     return verifyToken($token, $salt);
 }
 
+// SECURITY COMPATIBILITY NOTE:
+// This token proves "minted by this app before timeout", not who minted it or for what
+// action - it carries no user/session id, and $videos_id is 0 (inert) at every call site
+// that doesn't explicitly pass one. Treat it as a generic CSRF nonce, layered on top of a
+// real User::isLogged()/isAdmin() check, never as a standalone authorization decision.
+// Do not render/echo a token to a page that skips that check (see plugin/Gallery/view/sections.php).
+// SECURITY REVIEW (2026-09-28): reported as "globalToken is not session-bound, so a token read by an
+// anonymous visitor can be embedded in a cross-site form against an admin *.json.php endpoint" — ALREADY
+// FIXED / DO NOT FIX. Since 184f36b189 (2026-04-13) objects/include_config.php runs autoCSRFGuard() ->
+// forbidIfIsUntrustedRequest() on every *.json.php before the endpoint's own token check; a cross-origin
+// browser POST always carries an Origin/Referer header, so the forged request dies before verifyToken().
+// Binding the token to session_id() would break the intentional cross-request/cross-server uses of
+// getToken() (Live control/record URLs, restream callbacks, cron/CLI). If re-reported, see the triage.
 function verifyToken($token, $salt = "")
 {
     global $global;
@@ -3112,12 +3810,17 @@ function verifyToken($token, $salt = "")
         _error_log("verifyToken salt fail");
         return false;
     }
+    if (!empty($obj->videos_id) && $obj->videos_id != getVideos_id()) {
+        _error_log("This is not to this videos ID");
+        return false;
+    }
+
     $old_timezone = date_default_timezone_get();
     date_default_timezone_set($obj->timezone);
     $time = time();
     date_default_timezone_set($old_timezone);
     if (!($time >= $obj->time && $time <= $obj->timeout)) {
-        _error_log("verifyToken token timout time = $time; obj->time = $obj->time;  obj->timeout = $obj->timeout");
+        _error_log("verifyToken token timout time = $time; obj->time = $obj->time;  obj->timeout = $obj->timeout IP: ".getRealIpAddr().' UserAgent: '.$_SERVER['HTTP_USER_AGENT']);
         return false;
     }
     return true;
@@ -3251,16 +3954,7 @@ function isEmbed()
     return !empty($isEmbed);
 }
 
-function isWebRTC()
-{
-    global $isWebRTC, $global;
-    if (!empty($global['doNotLoadPlayer'])) {
-        return false;
-    }
-    return !empty($isWebRTC);
-}
-
-function isLive($forceGetInfo=false)
+function isLive($forceGetInfo = false)
 {
     global $isLive, $global;
     if (empty($forceGetInfo) && !empty($global['doNotLoadPlayer'])) {
@@ -3319,7 +4013,9 @@ function setLiveKey($key, $live_servers_id, $live_index = '')
     $users_id = 0;
     if (!empty($lt['live_schedule_id'])) {
         $live_schedule = $lt['live_schedule_id'];
-        $live_servers_id = $lt['live_servers_id'];
+        if (!empty($lt['live_servers_id'])) {
+            $live_servers_id = $lt['live_servers_id'];
+        }
         $users_id = $lt['users_id'];
     }
     $getLiveKey = ['key' => $key, 'live_servers_id' => intval($live_servers_id), 'live_index' => $live_index, 'cleanKey' => $cleanKey, 'live_schedule' => $live_schedule, 'users_id' => $users_id];
@@ -3328,9 +4024,6 @@ function setLiveKey($key, $live_servers_id, $live_index = '')
 
 function isVideoPlayerHasProgressBar()
 {
-    if (isWebRTC()) {
-        return false;
-    }
     if (isLive()) {
         $obj = AVideoPlugin::getObjectData('Live');
         if (empty($obj->disableDVR)) {
@@ -3355,19 +4048,19 @@ function isHLS()
 
 function getRedirectUri($returnThisIfRedirectUriIsNotSet = false)
 {
-    if (isValidURL(@$_GET['redirectUri'])) {
+    if (isSafeRedirectURL(@$_GET['redirectUri'])) {
         return $_GET['redirectUri'];
     }
-    if (isValidURL(@$_SESSION['redirectUri'])) {
+    if (isSafeRedirectURL(@$_SESSION['redirectUri'])) {
         return $_SESSION['redirectUri'];
     }
-    if (isValidURL(@$_REQUEST["redirectUri"])) {
+    if (isSafeRedirectURL(@$_REQUEST["redirectUri"])) {
         return $_REQUEST["redirectUri"];
     }
-    if (isValidURL(@$_SERVER["HTTP_REFERER"])) {
+    if (isSafeRedirectURL(@$_SERVER["HTTP_REFERER"])) {
         return $_SERVER["HTTP_REFERER"];
     }
-    if (isValidURL($returnThisIfRedirectUriIsNotSet)) {
+    if (isSafeRedirectURL($returnThisIfRedirectUriIsNotSet)) {
         return $returnThisIfRedirectUriIsNotSet;
     } else {
         return getRequestURI();
@@ -3384,12 +4077,12 @@ function redirectIfRedirectUriIsSet()
 {
     $redirectUri = false;
     if (!empty($_GET['redirectUri'])) {
-        if (isSameDomainAsMyAVideo($_GET['redirectUri'])) {
+        if (isSafeRedirectURL($_GET['redirectUri'])) {
             $redirectUri = $_GET['redirectUri'];
         }
     }
     if (!empty($_SESSION['redirectUri'])) {
-        if (isSameDomainAsMyAVideo($_SESSION['redirectUri'])) {
+        if (isSafeRedirectURL($_SESSION['redirectUri'])) {
             $redirectUri = $_SESSION['redirectUri'];
         }
         _session_start();
@@ -3442,7 +4135,7 @@ function getSelfURI()
     $url = rtrim($url, '?');
 
     preg_match('/view\/modeYoutube.php\?v=([^&]+)/', $url, $matches);
-    if(!empty($matches[1])){
+    if (!empty($matches[1])) {
         $url = "{$global['webSiteRootURL']}video/{$matches[1]}";
     }
     return fixTestURL($url);
@@ -3466,7 +4159,7 @@ function URLsAreSameVideo($url1, $url2)
 function getVideos_id($returnPlaylistVideosIDIfIsSerie = false)
 {
     global $_getVideos_id, $global;
-    if(!empty($global['isForbidden'])){
+    if (!empty($global['isForbidden'])) {
         return 0;
     }
     $videos_id = false;
@@ -3478,7 +4171,7 @@ function getVideos_id($returnPlaylistVideosIDIfIsSerie = false)
             if (empty($videos_id) && !empty($_REQUEST['videoName'])) {
                 $video = Video::getVideoFromCleanTitle($_REQUEST['videoName']);
                 if (!empty($video)) {
-                    $videos_id = $video['id'];
+                    $videos_id = Video::getIdFromVideoVar($video);
                 }
             }
             setVideos_id($videos_id);
@@ -3487,7 +4180,7 @@ function getVideos_id($returnPlaylistVideosIDIfIsSerie = false)
             AVideoPlugin::loadPlugin('PlayLists');
             $video = PlayLists::isPlayListASerie($_REQUEST['playlists_id']);
             if (!empty($video)) {
-                $videos_id = $video['id'];
+                $videos_id = Video::getIdFromVideoVar($video);
             }
         }
 
@@ -3498,28 +4191,38 @@ function getVideos_id($returnPlaylistVideosIDIfIsSerie = false)
         if (empty($videos_id) && !empty($_REQUEST['videos_id'])) {
             $videos_id = $_REQUEST['videos_id'];
         }
-        
+
         if (empty($videos_id) && (!empty($_REQUEST['playlists_id']) || (!empty($_REQUEST['tags_id']) && isset($_REQUEST['playlist_index'])))) {
             AVideoPlugin::loadPlugin('PlayLists');
             $plp = new PlayListPlayer(@$_REQUEST['playlists_id'], @$_REQUEST['tags_id'], true);
-            
+
             if (!$plp->canSee()) {
-                forbiddenPage(_('You cannot see this playlist').' '.basename(__FILE__).' '.implode(', ', $plp->canNotSeeReason()));
+                forbiddenPage(_('You cannot see this playlist') . ' ' . basename(__FILE__) . ' ' . implode(', ', $plp->canNotSeeReason()));
             }
             $video = $plp->getCurrentVideo();
-            if(!empty($video)){
-                $videos_id = $video['id'];
+            if (!empty($video)) {
+                $videos_id = Video::getIdFromVideoVar($video);
             }
         }
 
         $videos_id = videosHashToID($videos_id);
     }
-    if ($returnPlaylistVideosIDIfIsSerie && !empty($videos_id)) {
-        if (isPlayList()) {
-            $videos_id = getPlayListCurrentVideosId();
-            //var_dump($videos_id);exit;
+    if ($returnPlaylistVideosIDIfIsSerie && empty($videos_id)) {
+        $videos_id = getPlayListCurrentVideosId();
+    }
+
+    // Sanitize videos_id to prevent XSS - keep as int or clean string
+    if (!empty($videos_id)) {
+        if (is_numeric($videos_id)) {
+            $videos_id = intval($videos_id);
+        } else {
+            // If it's a string (like hash or clean_title), remove any potential XSS
+            // Keep alphanumeric, underscore, hyphen, period (for hashes like .xxxxxx)
+            // Remove any HTML/script tags and special characters that could be used for XSS
+            $videos_id = preg_replace('/[^a-z0-9_.\/+-]/i', '', $videos_id);
         }
     }
+
     return $videos_id;
 }
 
@@ -3528,25 +4231,25 @@ function getUsers_idOwnerFromRequest()
     global $isChannel;
     $videos_id = getVideos_id();
 
-    if(!empty($videos_id)){
+    if (!empty($videos_id)) {
         $video = new Video('', '', $videos_id);
         return $video->getUsers_id();
     }
     $live = isLive();
-    if(!empty($live)){
-        if(!empty($live['users_id'])){
+    if (!empty($live)) {
+        if (!empty($live['users_id'])) {
             return $live['users_id'];
         }
-        if(!empty($live['live_schedule'])){
+        if (!empty($live['live_schedule'])) {
             return Live_schedule::getUsers_idOrCompany($live['live_schedule']);
         }
-        if(!empty($live['key'])){
+        if (!empty($live['key'])) {
             $row = LiveTransmition::keyExists($live['key']);
             return $row['users_id'];
         }
     }
 
-    if(!empty($isChannel) && !isVideo()) {
+    if (!empty($isChannel) && !isVideo()) {
         if (!empty($_GET['channelName'])) {
             $_GET['channelName'] = xss_esc($_GET['channelName']);
             $user = User::getChannelOwner($_GET['channelName']);
@@ -3601,13 +4304,22 @@ function getPlayListCurrentVideo($setVideos_id = true)
 
 function getPlayListCurrentVideosId($setVideos_id = true)
 {
+    global $getVideosIDFromPlaylistLightLastSQL;
     $playListData = getPlayListData();
     $playlist_index = getPlayListIndex();
-    if (empty($playListData[$playlist_index])) {
-        //var_dump($playlist_index, $playListData);
-        return false;
+    if (empty($playListData) && !empty($_REQUEST['playlist_id']) && class_exists('PlayList')) {
+        $videosArrayId = PlayList::getVideosIdFromPlaylist($_REQUEST['playlist_id']);
+        //_error_log('getPlayListCurrentVideosId line='.__LINE__." playlist_id={$_REQUEST['playlist_id']} playlist_index={$playlist_index} ".json_encode($getVideosIDFromPlaylistLightLastSQL));
+        $videos_id = $videosArrayId[$playlist_index];
+    } else {
+        if (empty($playListData[$playlist_index])) {
+            //var_dump($playlist_index, $playListData);
+            return false;
+        } else {
+            //_error_log('getPlayListCurrentVideosId line='.__LINE__." playlist_id={$_REQUEST['playlist_id']} playlist_index={$playlist_index}");
+            $videos_id = $playListData[$playlist_index]->getVideos_id();
+        }
     }
-    $videos_id = $playListData[$playlist_index]->getVideos_id();
     if ($setVideos_id) {
         setVideos_id($videos_id);
     }
@@ -3653,21 +4365,27 @@ function getPlaylists_id()
 
 function isVideoOrAudioNotEmbed()
 {
+    global $isVideoOrAudioNotEmbedReason;
+    $isVideoOrAudioNotEmbedReason = '';
     if (!isVideo()) {
+        $isVideoOrAudioNotEmbedReason = '!isVideo';
         return false;
     }
     $videos_id = getVideos_id();
     if (empty($videos_id)) {
+        $isVideoOrAudioNotEmbedReason = 'empty($videos_id)';
         return false;
     }
     $v = Video::getVideoLight($videos_id);
     if (empty($v)) {
+        $isVideoOrAudioNotEmbedReason = 'empty($v)';
         return false;
     }
-    $types = ['audio', 'video'];
+    $types = [Video::$videoTypeAudio, Video::$videoTypeVideo];
     if (in_array($v['type'], $types)) {
         return true;
     }
+    $isVideoOrAudioNotEmbedReason = 'Invalid type' . $v['type'];
     return false;
 }
 
@@ -3731,10 +4449,602 @@ function isValidURL($url)
     if (empty($url) || !is_string($url)) {
         return false;
     }
+    // FILTER_VALIDATE_URL alone accepts raw ", ', <, > and ` even though a well-formed URL
+    // never contains them unencoded (RFC 3986), so reject those explicitly.
+    if (preg_match('/["\'<>`]/', $url)) {
+        return false;
+    }
     if (preg_match("/^http.*/", $url) && filter_var($url, FILTER_VALIDATE_URL)) {
         return true;
     }
     return false;
+}
+
+/**
+ * Validates if a URL is safe for redirects by checking:
+ * 1. Only relative URLs (starting with /) OR same-origin URLs are allowed
+ * 2. Rejects javascript:, data:, file:, and other dangerous protocols
+ * 3. Rejects external domains to prevent open redirect vulnerabilities
+ *
+ * @param string $url The URL to validate
+ * @return bool True if safe for redirect, false otherwise
+ */
+function isSafeRedirectURL($url)
+{
+    if (empty($url) || !is_string($url)) {
+        return false;
+    }
+
+    // Reject dangerous protocols (javascript:, data:, file:, etc.)
+    $dangerousProtocols = ['javascript:', 'data:', 'file:', 'vbscript:', 'about:'];
+    foreach ($dangerousProtocols as $protocol) {
+        if (stripos(trim($url), $protocol) === 0) {
+            return false;
+        }
+    }
+
+    // Allow relative URLs (starting with /)
+    if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) {
+        return true;
+    }
+
+    // For absolute URLs, check if they're same-origin
+    if (isValidURL($url)) {
+        return isSameDomainAsMyAVideo($url);
+    }
+
+    return false;
+}
+
+/**
+ * Extracts the embedded IPv4 address from an IPv6 address using one of the two
+ * fixed /96 embedding schemes: IPv4-mapped (RFC 4291, ::ffff:0:0/96) and NAT64
+ * well-known-prefix (RFC 6052, 64:ff9b::/96) — both simply place the IPv4
+ * address in the last 32 bits. Works on the parsed 128-bit value via
+ * inet_pton() so every textual spelling of the same address (dotted-quad
+ * tail, hex groups, fully expanded) resolves identically. A regex matching
+ * only the dotted-quad tail (e.g. /^::ffff:(\d+\.\d+\.\d+\.\d+)$/) misses the
+ * hex-group spelling of the exact same address, and PHP's own
+ * FILTER_FLAG_NO_RES_RANGE does not reliably reject that spelling either —
+ * both ranges must be normalized before the private/reserved-range check.
+ *
+ * The RFC 8215 NAT64 local-use prefix (64:ff9b:1::/48) is intentionally not
+ * handled here: RFC 6052 splits the IPv4 payload around a reserved octet at a
+ * position that depends on the prefix length, and that variable-length
+ * embedding is not reducible to a fixed byte-range check like the /96 cases.
+ *
+ * @param string $ip IPv6 address, no brackets.
+ * @return string|null Embedded IPv4 address, or null if $ip uses neither scheme.
+ */
+function ssrfExtractEmbeddedIPv4($ip)
+{
+    $packed = @inet_pton($ip);
+    if ($packed === false || strlen($packed) !== 16) {
+        return null;
+    }
+
+    // IPv4-mapped IPv6 (RFC 4291), ::ffff:0:0/96: last 32 bits are the embedded IPv4.
+    if (substr($packed, 0, 10) === "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" && substr($packed, 10, 2) === "\xff\xff") {
+        return inet_ntop(substr($packed, 12, 4));
+    }
+
+    // NAT64 well-known prefix (RFC 6052), 64:ff9b::/96: last 32 bits are the embedded IPv4.
+    if (substr($packed, 0, 12) === "\x00\x64\xff\x9b\x00\x00\x00\x00\x00\x00\x00\x00") {
+        return inet_ntop(substr($packed, 12, 4));
+    }
+
+    return null;
+}
+
+/**
+ * Validates if a URL is safe from Server-Side Request Forgery (SSRF) attacks.
+ * This function checks:
+ * 1. Only http:// and https:// schemes are allowed
+ * 2. Rejects localhost and loopback addresses
+ * 3. Rejects private/internal IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+ * 4. Rejects link-local addresses (169.254.x.x)
+ * 5. Rejects cloud metadata endpoints (169.254.169.254)
+ * 6. Rejects IPv6 localhost and private addresses
+ *
+ * @param string $url The URL to validate
+ * @return bool True if safe from SSRF, false otherwise
+ */
+function isSSRFSafeURL($url, &$resolvedIP = null)
+{
+    global $global;
+    if (empty($url) || !is_string($url)) {
+        _error_log("isSSRFSafeURL: empty or non-string URL");
+        return false;
+    }
+
+    $url = trim($url);
+
+    // Only allow http and https schemes
+    $scheme = parse_url($url, PHP_URL_SCHEME);
+    if (!in_array(strtolower($scheme), ['http', 'https'])) {
+        _error_log("isSSRFSafeURL: invalid scheme: {$scheme}");
+        return false;
+    }
+
+    $host = parse_url($url, PHP_URL_HOST);
+    if (empty($host)) {
+        _error_log("isSSRFSafeURL: empty host");
+        return false;
+    }
+
+    $host = strtolower($host);
+    $hostForValidation = trim($host, '[]');
+
+    // Allow requests to the same origin as webSiteRootURL (hostname + port must both match).
+    // Checking hostname only is insufficient: an attacker can reach arbitrary internal ports
+    // on the same host by using the site's public hostname with a non-standard port.
+    if (!empty($global['webSiteRootURL'])) {
+        $siteHost   = strtolower(parse_url($global['webSiteRootURL'], PHP_URL_HOST));
+        $siteScheme = strtolower(parse_url($global['webSiteRootURL'], PHP_URL_SCHEME) ?: 'http');
+        $sitePort   = (int)(parse_url($global['webSiteRootURL'], PHP_URL_PORT) ?: ($siteScheme === 'https' ? 443 : 80));
+
+        $urlScheme = strtolower(parse_url($url, PHP_URL_SCHEME) ?: 'http');
+        $urlPort   = (int)(parse_url($url, PHP_URL_PORT) ?: ($urlScheme === 'https' ? 443 : 80));
+
+        if ($host === $siteHost && $urlPort === $sitePort) {
+            _error_log("isSSRFSafeURL: allowing same-origin request to {$host}:{$urlPort} (matches webSiteRootURL)");
+            return true;
+        }
+    }
+
+    // Block localhost hostname variations. Literal loopback IPs are handled below
+    // with isLoopbackIP() after bracket normalization.
+    $localhostPatterns = [
+        'localhost',
+        '0',
+    ];
+    foreach ($localhostPatterns as $pattern) {
+        if ($hostForValidation === $pattern) {
+            _error_log("isSSRFSafeURL: blocked localhost host: {$host}");
+            return false;
+        }
+    }
+
+    // Resolve hostname to IP to check for DNS rebinding attacks.
+    // $resolvedIP (out-param) is set to the final validated IP so callers can
+    // pin the DNS resolution (e.g. via CURLOPT_RESOLVE) and eliminate TOCTOU races.
+    $ip = $hostForValidation;
+    if (!filter_var($hostForValidation, FILTER_VALIDATE_IP)) {
+        // It's a hostname, resolve it
+        $dnsResolved = gethostbyname($hostForValidation);
+        if ($dnsResolved === $hostForValidation) {
+            // DNS resolution failed
+            _error_log("isSSRFSafeURL: DNS resolution failed for: {$host}");
+            return false;
+        }
+        $ip = $dnsResolved;
+    }
+
+    // Remove IPv6 brackets if present
+    $ip = trim($ip, '[]');
+
+    // Check if it's a valid IP after resolution
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        _error_log("isSSRFSafeURL: invalid IP after resolution: {$ip}");
+        return false;
+    }
+
+    // Normalize IPv4-mapped IPv6 (RFC 4291, ::ffff:0:0/96) and NAT64 well-known-prefix
+    // (RFC 6052, 64:ff9b::/96) addresses to their plain embedded IPv4 form. Both are
+    // matched on the parsed 128-bit value (not a dotted-quad-only regex), so hex-group
+    // and fully-expanded spellings of the same address (e.g. ::ffff:7f00:1 or
+    // 64:ff9b::a9fe:a9fe for cloud metadata) can't bypass the check the way a
+    // dotted-quad-only regex would — and PHP's own FILTER_FLAG_NO_PRIV_RANGE/
+    // NO_RES_RANGE do not reliably reject these prefixes either.
+    $embeddedIPv4 = ssrfExtractEmbeddedIPv4($ip);
+    if ($embeddedIPv4 !== null) {
+        _error_log("isSSRFSafeURL: normalized {$ip} to {$embeddedIPv4}");
+        $ip = $embeddedIPv4;
+    } elseif (preg_match('/^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4}):/i', $ip, $sixToFour)) {
+        $embedded = long2ip((hexdec($sixToFour[1]) << 16) | hexdec($sixToFour[2]));
+        _error_log("isSSRFSafeURL: normalized 6to4 {$ip} to {$embedded}");
+        $ip = $embedded;
+    } elseif (preg_match('/^2001:0{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i', $ip, $teredo)) {
+        // Teredo (RFC 4380): the client IPv4 is bitwise-NOT obfuscated in the last 32 bits.
+        // The tunnel itself still runs over IPv6, so we don't rewrite $ip — we just refuse
+        // to treat the address as safe when the obfuscated client endpoint is private.
+        $teredoClientIp = long2ip((~((hexdec($teredo[1]) << 16) | hexdec($teredo[2]))) & 0xFFFFFFFF);
+        if (isPrivateOrLoopbackIP($teredoClientIp) || isLoopbackIP($teredoClientIp)) {
+            _error_log("isSSRFSafeURL: blocked Teredo {$ip} embedding private client IP {$teredoClientIp}");
+            return false;
+        }
+    }
+
+    if (isLoopbackIP($ip)) {
+        _error_log("isSSRFSafeURL: blocked loopback IP: {$ip}");
+        return false;
+    }
+
+    // Block all private and reserved IP ranges using the shared IP helper.
+    // This includes RFC1918, link-local, unspecified, IPv6 private/reserved, and
+    // cloud metadata ranges such as 169.254.169.254.
+    if (isPrivateOrLoopbackIP($ip)) {
+        _error_log("isSSRFSafeURL: blocked private/reserved IP: {$ip}");
+        return false;
+    }
+
+    // Block cloud metadata endpoints by hostname (defence-in-depth alongside the IP check)
+    $metadataHosts = [
+        'metadata.google.internal',
+        'metadata.goog',
+        'metadata',
+    ];
+    foreach ($metadataHosts as $metadataHost) {
+        if ($host === $metadataHost) {
+            _error_log("isSSRFSafeURL: blocked cloud metadata host: {$host}");
+            return false;
+        }
+    }
+
+    // Expose the validated IP to the caller for DNS pinning.
+    $resolvedIP = $ip;
+    return true;
+}
+
+/**
+ * Fetch a URL via cURL with DNS pinning (CURLOPT_RESOLVE) to close the TOCTOU race
+ * between isSSRFSafeURL() validation and the actual TCP connection.
+ *
+ * Usage:
+ *   $resolvedIP = null;
+ *   if (!isSSRFSafeURL($url, $resolvedIP)) { return false; }
+ *   $body = ssrfPinnedFetch($url, $resolvedIP);
+ *
+ * Redirects are followed manually. Each Location is resolved against the current
+ * URL, validated with isSSRFSafeURL(), and pinned again before the next request.
+ *
+ * When $resolvedIP is null (same-origin shortcut — no DNS resolution was performed
+ * inside isSSRFSafeURL), this falls back to url_get_contents() so that Docker URL
+ * rewriting and existing redirect handling are preserved unchanged.
+ *
+ * @param string      $url        URL that has already passed isSSRFSafeURL().
+ * @param string|null $resolvedIP IP populated by isSSRFSafeURL(); null triggers fallback.
+ * @param int         $timeout    cURL timeout in seconds (0 = no limit).
+ * @param int         $maxRedirects Maximum number of redirects to follow.
+ * @return string|false           Response body, or false on failure.
+ */
+function ssrfPinnedFetch($url, $resolvedIP = null, $timeout = 0, $maxRedirects = 5, $verifyTLS = false, $failOnError = false)
+{
+    // Same-origin URLs pass isSSRFSafeURL via the early-return shortcut without
+    // resolving DNS, so $resolvedIP stays null. Fall back to url_get_contents()
+    // to keep Docker loopback rewriting and session-cookie handling intact.
+    if (empty($resolvedIP)) {
+        return url_get_contents($url, '', $timeout, false, false, true, $verifyTLS, $failOnError);
+    }
+
+    if (!function_exists('curl_init')) {
+        _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: cURL unavailable, DNS pinning disabled for {$url}");
+        return url_get_contents($url, '', $timeout, false, false, true, $verifyTLS, $failOnError);
+    }
+
+    $currentUrl = $url;
+    $currentIP = $resolvedIP;
+
+    for ($redirectCount = 0; $redirectCount <= $maxRedirects; $redirectCount++) {
+        $parsed = parse_url($currentUrl);
+        $host   = $parsed['host'] ?? '';
+        $scheme = strtolower($parsed['scheme'] ?? 'http');
+        $port   = (int)($parsed['port'] ?? ($scheme === 'https' ? 443 : 80));
+
+        if (empty($host) || !in_array($scheme, ['http', 'https'])) {
+            _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: invalid URL {$currentUrl}");
+            return false;
+        }
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,            $currentUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);  // redirects are validated below
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, (bool) $verifyTLS);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verifyTLS ? 2 : 0);
+        curl_setopt($ch, CURLOPT_USERAGENT,      getSelfUserAgent());
+        curl_setopt($ch, CURLOPT_HEADER,         true);
+        if ($timeout > 0) {
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        }
+        // Pin DNS: cURL uses this map instead of resolving the hostname again,
+        // eliminating the window between isSSRFSafeURL's gethostbyname() and connect().
+        if (!empty($currentIP)) {
+            curl_setopt($ch, CURLOPT_RESOLVE, ["{$host}:{$port}:{$currentIP}"]);
+        }
+
+        $response   = curl_exec($ch);
+        $curlError  = curl_error($ch);
+        $httpCode   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        curl_close($ch);
+
+        if ($response === false) {
+            _error_log(($verifyTLS || $failOnError) ? "Verified pinned request failed: {$curlError}" : "ssrfPinnedFetch: cURL error for {$currentUrl}: {$curlError}");
+            return false;
+        }
+
+        $responseHeaders = substr($response, 0, $headerSize);
+        $body = substr($response, $headerSize);
+
+        if ($httpCode >= 300 && $httpCode < 400) {
+            if ($redirectCount >= $maxRedirects) {
+                _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: too many redirects for {$url}");
+                return false;
+            }
+            if (!preg_match('/^Location:\s*(.+)$/im', $responseHeaders, $m)) {
+                _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: redirect {$httpCode} without Location for {$currentUrl}");
+                return false;
+            }
+
+            $redirectUrl = ssrfResolveRedirectURL($currentUrl, trim($m[1]));
+            if (empty($redirectUrl)) {
+                _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: invalid redirect Location from {$currentUrl}");
+                return false;
+            }
+
+            if ($verifyTLS && $scheme === 'https' && parse_url($redirectUrl, PHP_URL_SCHEME) !== 'https') {
+                _error_log('Verified pinned request: HTTPS to HTTP redirect blocked');
+                return false;
+            }
+            $nextIP = null;
+            if (!isSSRFSafeURL($redirectUrl, $nextIP)) {
+                _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: blocked unsafe redirect from {$currentUrl} to {$redirectUrl}");
+                return false;
+            }
+
+            if (empty($nextIP)) {
+                return url_get_contents($redirectUrl, '', $timeout, false, false, true, $verifyTLS, $failOnError);
+            }
+
+            $currentUrl = $redirectUrl;
+            $currentIP = $nextIP;
+            continue;
+        }
+
+        if ($failOnError && ($httpCode < 200 || $httpCode >= 300)) {
+            return false;
+        }
+        return $body;
+    }
+
+    _error_log(($verifyTLS || $failOnError) ? 'Verified pinned request failed' : "ssrfPinnedFetch: too many redirects for {$url}");
+    return false;
+}
+
+/**
+ * Like ssrfPinnedFetch() but streams the response body directly to $destPath
+ * instead of loading it into memory.  Required for large video files (>1 GB)
+ * where CURLOPT_RETURNTRANSFER would exhaust PHP memory_limit.
+ *
+ * Returns the number of bytes written on success, or false on failure.
+ */
+function ssrfPinnedFetchToFile($url, $destPath, $resolvedIP = null, $timeout = 0, $maxRedirects = 5)
+{
+    if (empty($resolvedIP)) {
+        // Same-origin / loopback URL: stream directly without DNS pinning.
+        $fp = fopen($destPath, 'w');
+        if (!$fp) {
+            _error_log("ssrfPinnedFetchToFile: cannot open dest file {$destPath}");
+            return false;
+        }
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_FILE,           $fp);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS,      $maxRedirects);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_USERAGENT,      getSelfUserAgent());
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+        if ($timeout > 0) {
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        }
+        curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        fclose($fp);
+        if ($curlError) {
+            @unlink($destPath);
+            _error_log("ssrfPinnedFetchToFile: cURL error for {$url}: {$curlError}");
+            return false;
+        }
+        if ($httpCode < 200 || $httpCode >= 300) {
+            @unlink($destPath);
+            _error_log("ssrfPinnedFetchToFile: HTTP {$httpCode} for {$url}");
+            return false;
+        }
+        return filesize($destPath);
+    }
+
+    // External URL with SSRF-pinned DNS: follow redirects manually with SSRF checks.
+    $currentUrl = $url;
+    $currentIP  = $resolvedIP;
+
+    for ($redirectCount = 0; $redirectCount <= $maxRedirects; $redirectCount++) {
+        $parsed = parse_url($currentUrl);
+        $host   = $parsed['host'] ?? '';
+        $scheme = strtolower($parsed['scheme'] ?? 'http');
+        $port   = (int)($parsed['port'] ?? ($scheme === 'https' ? 443 : 80));
+
+        if (empty($host) || !in_array($scheme, ['http', 'https'])) {
+            _error_log("ssrfPinnedFetchToFile: invalid URL {$currentUrl}");
+            return false;
+        }
+
+        $fp = fopen($destPath, 'w');
+        if (!$fp) {
+            _error_log("ssrfPinnedFetchToFile: cannot open dest file {$destPath}");
+            return false;
+        }
+
+        $responseHeaders = '';
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,            $currentUrl);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);  // redirects validated below
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_USERAGENT,      getSelfUserAgent());
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_FILE,           $fp);
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $header) use (&$responseHeaders) {
+            $responseHeaders .= $header;
+            return strlen($header);
+        });
+        if ($timeout > 0) {
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        }
+        if (!empty($currentIP)) {
+            curl_setopt($ch, CURLOPT_RESOLVE, ["{$host}:{$port}:{$currentIP}"]);
+        }
+
+        curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        fclose($fp);
+
+        if ($curlError) {
+            @unlink($destPath);
+            _error_log("ssrfPinnedFetchToFile: cURL error for {$currentUrl}: {$curlError}");
+            return false;
+        }
+
+        if ($httpCode >= 300 && $httpCode < 400) {
+            @unlink($destPath);
+            if ($redirectCount >= $maxRedirects) {
+                _error_log("ssrfPinnedFetchToFile: too many redirects for {$url}");
+                return false;
+            }
+            if (!preg_match('/^Location:\s*(.+)$/im', $responseHeaders, $m)) {
+                _error_log("ssrfPinnedFetchToFile: redirect {$httpCode} without Location for {$currentUrl}");
+                return false;
+            }
+            $redirectUrl = ssrfResolveRedirectURL($currentUrl, trim($m[1]));
+            if (empty($redirectUrl)) {
+                _error_log("ssrfPinnedFetchToFile: invalid redirect Location from {$currentUrl}");
+                return false;
+            }
+            $nextIP = null;
+            if (!isSSRFSafeURL($redirectUrl, $nextIP)) {
+                _error_log("ssrfPinnedFetchToFile: blocked unsafe redirect from {$currentUrl} to {$redirectUrl}");
+                return false;
+            }
+            if (empty($nextIP)) {
+                // Redirect to same-origin: stream without pinning for remaining hops
+                return ssrfPinnedFetchToFile($redirectUrl, $destPath, null, $timeout, $maxRedirects - $redirectCount - 1);
+            }
+            $currentUrl = $redirectUrl;
+            $currentIP  = $nextIP;
+            continue;
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            @unlink($destPath);
+            _error_log("ssrfPinnedFetchToFile: HTTP {$httpCode} for {$currentUrl}");
+            return false;
+        }
+
+        return filesize($destPath);
+    }
+
+    _error_log("ssrfPinnedFetchToFile: too many redirects for {$url}");
+    return false;
+}
+
+function ssrfResolveRedirectURL($baseUrl, $location)
+{
+    $location = trim((string) $location);
+    if ($location === '' || preg_match('/[\x00-\x1F\x7F]/', $location)) {
+        return '';
+    }
+
+    $locationScheme = parse_url($location, PHP_URL_SCHEME);
+    if (!empty($locationScheme)) {
+        if (in_array(strtolower($locationScheme), ['http', 'https']) && filter_var($location, FILTER_VALIDATE_URL)) {
+            return $location;
+        }
+        return '';
+    }
+
+    $base = parse_url($baseUrl);
+    if (empty($base['scheme']) || empty($base['host'])) {
+        return '';
+    }
+
+    $scheme = strtolower($base['scheme']);
+    if (!in_array($scheme, ['http', 'https'])) {
+        return '';
+    }
+
+    if (str_starts_with($location, '//')) {
+        return "{$scheme}:{$location}";
+    }
+
+    $port = '';
+    if (!empty($base['port'])) {
+        $port = ":{$base['port']}";
+    }
+    $authority = "{$scheme}://{$base['host']}{$port}";
+
+    $relative = parse_url($location);
+    if ($relative === false) {
+        return '';
+    }
+    if (!empty($relative['scheme'])) {
+        return '';
+    }
+
+    $basePath = $base['path'] ?? '/';
+    if ($location[0] === '/') {
+        $path = $relative['path'] ?? '/';
+    } elseif ($location[0] === '?') {
+        $path = $basePath ?: '/';
+    } elseif ($location[0] === '#') {
+        $path = $basePath ?: '/';
+    } else {
+        $baseDir = preg_replace('#/[^/]*$#', '/', $basePath);
+        if ($baseDir === null || $baseDir === '') {
+            $baseDir = '/';
+        }
+        $path = $baseDir . ($relative['path'] ?? '');
+    }
+
+    if ($location[0] === '#' && isset($base['query'])) {
+        $query = "?{$base['query']}";
+    } else {
+        $query = isset($relative['query']) ? "?{$relative['query']}" : '';
+    }
+    return $authority . ssrfNormalizeRedirectPath($path) . $query;
+}
+
+function ssrfNormalizeRedirectPath($path)
+{
+    $path = (string) $path;
+    if ($path === '') {
+        return '/';
+    }
+
+    $hasTrailingSlash = substr($path, -1) === '/';
+    $segments = explode('/', $path);
+    $normalized = [];
+
+    foreach ($segments as $segment) {
+        if ($segment === '' || $segment === '.') {
+            continue;
+        }
+        if ($segment === '..') {
+            array_pop($normalized);
+            continue;
+        }
+        $normalized[] = $segment;
+    }
+
+    $result = '/' . implode('/', $normalized);
+    if ($hasTrailingSlash && $result !== '/') {
+        $result .= '/';
+    }
+    return $result;
 }
 
 function isValidURLOrPath($str, $insideCacheOrTmpDirOnly = true)
@@ -3761,6 +5071,14 @@ function isValidURLOrPath($str, $insideCacheOrTmpDirOnly = true)
                 return false;
             }
 
+            // SECURITY REVIEW (2026-10-11): GHSA-92c3-6rq2-q65q reported that checking the raw $str lets a
+            // '/var/www/...' path with '../' segments read files outside these folders — NOT a vulnerability /
+            // DO NOT FIX here: no lower-privileged caller passes request data to url_get_contents() as a local
+            // path (the reported AI image callback is reachable only by the trusted AI service and now requires
+            // isValidURL()). The raw check is kept because a symlinked videos/ dir (supported, see
+            // getVideosDirectoryUsageInfo()) realpath()s outside these prefixes, and local reads such as progress
+            // files would break. Callers that pass request values must check isValidURL() first.
+            // If re-reported, see the full triage in the advisory thread instead of re-patching.
             $pathsToCheck = [$absolutePath, $str];
 
             foreach ($pathsToCheck as $value) {
@@ -3882,9 +5200,55 @@ function doNOTOrganizeHTMLIfIsPagination()
     }
 }
 
+function isPaginatedPrettyURLRequest()
+{
+    if (empty($_SERVER['REQUEST_URI'])) {
+        return false;
+    }
+    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if (empty($path)) {
+        return false;
+    }
+    return preg_match('/\/page\/\d+\/?$/i', $path) === 1;
+}
+
+function getBotPaginationMaxPage()
+{
+    return 2;
+}
+
+function getBotPaginationMaxRowCount()
+{
+    return 6;
+}
+
+function getBotMaxPageForRequest()
+{
+    // Stricter limit for pretty-URL pagination (/page/N), looser for query-string pagination
+    return isPaginatedPrettyURLRequest() ? getBotPaginationMaxPage() : 10;
+}
+
+function shouldBlockBotPaginatedRequest($currentPage)
+{
+    return isBot() && intval($currentPage) > getBotMaxPageForRequest();
+}
+
+function blockBotPaginatedRequest($currentPage)
+{
+    if (!shouldBlockBotPaginatedRequest($currentPage)) {
+        return false;
+    }
+    $currentPage = intval($currentPage);
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+    _error_log("Bot pagination blocked page={$currentPage} " . getSelfURI() . ' ' . $ua);
+    http_response_code(403);
+    header('HTTP/1.0 403 Forbidden');
+    die('Forbidden');
+}
+
 function getCurrentPage($forceURL = false)
 {
-    if($forceURL){
+    if ($forceURL) {
         resetCurrentPage();
     }
     global $lastCurrent;
@@ -3894,7 +5258,7 @@ function getCurrentPage($forceURL = false)
         if (!empty($_REQUEST['current']) && $_REQUEST['current'] > $current) {
             $current = intval($_REQUEST['current']);
         }
-    }else if (!empty($_REQUEST['current'])) {
+    } else if (!empty($_REQUEST['current'])) {
         $current = intval($_REQUEST['current']);
     } elseif (!empty($_POST['current'])) {
         $current = intval($_POST['current']);
@@ -3906,21 +5270,16 @@ function getCurrentPage($forceURL = false)
         if (!empty($start) && !empty($length)) {
             $current = floor($start / $length) + 1;
         }
-    } 
-    if ($current > 1000 && !User::isLogged()) {
-        _error_log("getCurrentPage current>1000 ERROR [{$current}] " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
-        _error_log("getCurrentPage current>1000 ERROR NOT LOGGED die [{$current}] " . getSelfURI() . ' ' . json_encode($_SERVER));
-        exit;
-    } else if ($current > 100 && isBot()) {
-        //_error_log("getCurrentPage current>100 ERROR [{$current}] " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
-        //_error_log("getCurrentPage current>100 ERROR bot die [{$current}] " . getSelfURI() . ' ' . json_encode($_SERVER));
-        _error_log("getCurrentPage current>100 ERROR bot die [{$current}] " . getSelfURI() . ' ' . $_SERVER['HTTP_USER_AGENT']);
-        exit;
     }
-    if(isset($_GET['isInfiniteScroll'])){
-        if($current < $_GET['isInfiniteScroll']){
+    if (isset($_GET['isInfiniteScroll'])) {
+        if ($current < $_GET['isInfiniteScroll']) {
             $current = intval($_GET['isInfiniteScroll']);
         }
+    }
+    blockBotPaginatedRequest($current);
+    if ($current > 100 && !User::isLogged()) {
+        _error_log("getCurrentPage not-logged blocked page={$current} " . getSelfURI());
+        forbiddenPage('Page number too high, please login to access more pages');
     }
     $lastCurrent = $current;
     return $current;
@@ -3943,11 +5302,10 @@ function getTrendingLimitDate()
     return $dateDaysLimit;
 }
 
-
 function unsetCurrentPage()
 {
     global $_currentPage;
-    if(!isset($_currentPage)){
+    if (!isset($_currentPage)) {
         $_currentPage = getCurrentPage();
     }
     $_REQUEST['current'] = 1;
@@ -3959,7 +5317,7 @@ function unsetCurrentPage()
 function resetCurrentPage()
 {
     global $_currentPage;
-    if(isset($_currentPage)){
+    if (isset($_currentPage)) {
         $_REQUEST['current'] = $_currentPage;
         $_POST['current'] = $_currentPage;
         $_GET['current'] = $_currentPage;
@@ -3990,6 +5348,16 @@ function getRowCount($default = 1000)
     } elseif (!empty($global['rowCount'])) {
         $defaultN = intval($global['rowCount']);
     }
+    if (isBot() && isPaginatedPrettyURLRequest()) {
+        $maxRowCount = getBotPaginationMaxRowCount();
+        if (empty($defaultN) || $defaultN > $maxRowCount) {
+            $defaultN = $maxRowCount;
+            $_REQUEST['rowCount'] = $defaultN;
+            $_POST['rowCount'] = $defaultN;
+            $_GET['rowCount'] = $defaultN;
+            $global['rowCount'] = $defaultN;
+        }
+    }
     return (!empty($defaultN) && $defaultN > 0) ? $defaultN : $default;
 }
 
@@ -4003,16 +5371,18 @@ function setRowCount($rowCount)
 function getSearchVar()
 {
     $search = '';
-    if (!empty($_REQUEST['search'])) {
-        $search = $_REQUEST['search'];
+    $requestSearch = $_REQUEST['search'] ?? '';
+    if (is_array($requestSearch)) {
+        $requestSearch = $requestSearch['value'] ?? '';
+    }
+    if (is_scalar($requestSearch) && (string) $requestSearch !== '') {
+        $search = $requestSearch;
     } elseif (!empty($_REQUEST['q'])) {
         $search = $_REQUEST['q'];
     } elseif (!empty($_REQUEST['searchPhrase'])) {
         $search = $_REQUEST['searchPhrase'];
-    } elseif (!empty($_REQUEST['search']['value'])) {
-        $search = $_REQUEST['search']['value'];
     }
-    return mb_strtolower($search);
+    return is_scalar($search) ? mb_strtolower((string) $search) : '';
 }
 
 function isSearch()
@@ -4057,10 +5427,14 @@ function html2plainText($html)
     return $text;
 }
 
-function getInputPassword($id, $attributes = 'class="form-control"', $placeholder = '')
+function getInputPassword($id, $attributes = 'class="form-control"', $placeholder = '', $autofill = true)
 {
     if (empty($placeholder)) {
         $placeholder = __("Password");
+    }
+    if (!$autofill) {
+        $attributes .= ' autocomplete="new-password" autofill="off"  ';
+        echo '<input type="password" name="fakepassword" id="fakepassword" style="display:none;">';
     }
 ?>
     <div class="input-group">
@@ -4093,7 +5467,7 @@ function getInputCopyToClipboard($id, $value, $attributes = 'class="form-control
 ?>
     <div class="input-group">
         <input id="<?php echo $id; ?>" type="text" placeholder="<?php echo $placeholder; ?>" <?php echo $attributes; ?> <?php echo $valueAttr; ?>>
-        <span class="input-group-addon" style="cursor: pointer;" id="copyToClipboard_<?php echo $id; ?>" data-toggle="tooltip" data-placement="left" title="<?php echo __('Copy to Clipboard'); ?>"><i class="fas fa-clipboard"></i></span>
+        <span class="input-group-addon" style="cursor: pointer; background-color: #337ab7; border-color: #2e6da4;" id="copyToClipboard_<?php echo $id; ?>" data-toggle="tooltip" data-placement="left" title="<?php echo __('Copy to Clipboard'); ?>"><i class="fas fa-clipboard" style="color: #fff;"></i></span>
     </div>
     <script>
         var timeOutCopyToClipboard_<?php echo $id; ?>;
@@ -4111,7 +5485,12 @@ function getInputCopyToClipboard($id, $value, $attributes = 'class="form-control
                     $('#copyToClipboard_<?php echo $id; ?>').find('i').addClass("fa-clipboard");
                 }, 3000);
                 copyToClipboard($('#<?php echo $id; ?>').val());
-            })
+            });
+
+            // Auto-select the input text when the input is focused or clicked
+            $('#<?php echo $id; ?>').on('focus click', function() {
+                $(this).select();
+            });
         });
     </script>
 <?php
@@ -4240,7 +5619,31 @@ function getSEOTitle($text, $maxChars = 120)
 function getShareMenu($title, $permaLink, $URLFriendly, $embedURL, $img, $class = "row bgWhite list-group-item menusDiv", $videoLengthInSeconds = 0, $bitLyLink = '')
 {
     global $global, $advancedCustom;
-    include $global['systemRootPath'] . 'objects/functiongetShareMenu.php';
+
+    $varsArray = array(
+        'title' => $title,
+        'permaLink' => $permaLink,
+        'URLFriendly' => $URLFriendly,
+        'embedURL' => $embedURL,
+        'img' => $img,
+        'class' => $class,
+        'videoLengthInSeconds' => $videoLengthInSeconds,
+        'bitLyLink' => $bitLyLink,
+    );
+    return getIncludeFileContent($global['systemRootPath'] . 'objects/functiongetShareMenu.php', $varsArray);
+    //include $global['systemRootPath'] . 'objects/functiongetShareMenu.php';
+}
+
+function getShareSocialIcons($title, $url)
+{
+    global $global;
+
+    $varsArray = array(
+        'title' => $title,
+        'url' => $url,
+    );
+    return getIncludeFileContent($global['systemRootPath'] . 'view/include/social.php', $varsArray);
+    //include $global['systemRootPath'] . 'objects/functiongetShareMenu.php';
 }
 
 function getCaptcha($uid = "", $forceCaptcha = false)
@@ -4250,13 +5653,38 @@ function getCaptcha($uid = "", $forceCaptcha = false)
         $uid = "capcha_" . uniqid();
     }
     $contents = getIncludeFileContent($global['systemRootPath'] . 'objects/functiongetCaptcha.php', ['uid' => $uid, 'forceCaptcha' => $forceCaptcha]);
-    $parts = explode('<script>', $contents);
+
+    $result = [
+        'style' => '',
+        'html' => '',
+        'script' => ''
+    ];
+
+    // Match the style block
+    preg_match('/<style>(.*?)<\/style>/s', $contents, $styleMatch);
+    if (!empty($styleMatch[1])) {
+        $result['style'] = trim($styleMatch[1]);
+    }
+
+    // Match the HTML block
+    preg_match('/<div.*?<\/div>/s', $contents, $htmlMatch);
+    if (!empty($htmlMatch[0])) {
+        $result['html'] = trim($htmlMatch[0]);
+    }
+
+    // Match the script block
+    preg_match('/<script>(.*?)<\/script>/s', $contents, $scriptMatch);
+    if (!empty($scriptMatch[1])) {
+        $result['script'] = trim($scriptMatch[1]);
+    }
+
     return [
         'content' => $contents,
-        'btnReloadCapcha' => "$('#btnReload{$uid}').trigger('click');",
+        'btnReloadCapcha' => "if (typeof window.refreshCaptcha{$uid} === 'function') { window.refreshCaptcha{$uid}(); } else { $('#btnReload{$uid}').trigger('click'); }",
         'captchaText' => "$('#{$uid}Text').val()",
-        'html' => $parts[0],
-        'script' => str_replace('</script>', '', $parts[1])
+        'html' => $result['html'],
+        'script' => $result['script'],
+        'style' => $result['style']
     ];
 }
 
@@ -4266,7 +5694,7 @@ function isShareEnabled()
     return empty($advancedCustom->disableShareOnly) && empty($advancedCustom->disableShareAndPlaylist);
 }
 
-function getSharePopupButton($videos_id, $url = '', $title = '', $class='')
+function getSharePopupButton($videos_id, $url = '', $title = '', $class = '')
 {
     global $global, $advancedCustom;
     if (!isShareEnabled()) {
@@ -4303,70 +5731,13 @@ function isContentTypeXML()
     return preg_match('/xml/i', $contentType);
 }
 
-function forbiddenPage($message = '', $logMessage = false, $unlockPassword = '', $namespace = '', $pageCode = '403 Forbidden')
+function successJsonMessage($message)
 {
-    global $global;
-    if (!empty($unlockPassword)) {
-        if (empty($namespace)) {
-            $namespace = $_SERVER["SCRIPT_FILENAME"];
-        }
-        if (!empty($_REQUEST['unlockPassword'])) {
-            if ($_REQUEST['unlockPassword'] == $unlockPassword) {
-                _session_start();
-                if (!isset($_SESSION['user']['forbiddenPage'])) {
-                    $_SESSION['user']['forbiddenPage'] = [];
-                }
-                $_SESSION['user']['forbiddenPage'][$namespace] = $_REQUEST['unlockPassword'];
-            }
-        }
-        if (!empty($_SESSION['user']['forbiddenPage'][$namespace]) && $unlockPassword === $_SESSION['user']['forbiddenPage'][$namespace]) {
-            return true;
-        }
-    }
-    $_REQUEST['403ErrorMsg'] = $message;
-    if ($logMessage) {
-        _error_log($message);
-    }
-
-    header('HTTP/1.0 ' . $pageCode);
-    if (empty($unlockPassword) && isContentTypeJson()) {
-        header("Content-Type: application/json");
-        $obj = new stdClass();
-        $obj->error = true;
-        $obj->msg = $message;
-        $obj->forbiddenPage = true;
-        die(json_encode($obj));
-    } else {
-        if (empty($unlockPassword) && !User::isLogged()) {
-            $message .= ', ' . __('please login');
-            gotToLoginAndComeBackHere($message);
-        } else {
-            header("Content-Type: text/html");
-            include $global['systemRootPath'] . 'view/forbiddenPage.php';
-        }
-    }
-    exit;
-}
-
-function videoNotFound($message, $logMessage = false)
-{
-    //var_dump(debug_backtrace());exit;
-    global $global;
-    $_REQUEST['404ErrorMsg'] = $message;
-    if ($logMessage) {
-        _error_log($message);
-    }
-    include $global['systemRootPath'] . 'view/videoNotFound.php';
-    exit;
-}
-
-function isForbidden()
-{
-    global $global;
-    if (!empty($global['isForbidden'])) {
-        return true;
-    }
-    return false;
+    $obj = new stdClass();
+    $obj->error = false;
+    $obj->msg = $message;
+    header('Content-Type: application/json');
+    die(json_encode($obj));
 }
 
 function diskUsageBars()
@@ -4451,6 +5822,12 @@ function inIframe()
     return isIframe();
 }
 
+// SECURITY REVIEW (2026-10-30, GHSA-9cg7-6j92-q8wh): reported as "hands the user's login credential
+// (_user_hash_) to the third-party encoder host" — NOT a vulnerability / DO NOT FIX. The Encoder is the
+// admin-chosen component that acts as the user on this site (it logs in with this value and saves its own
+// copy, uploads/categorizes the video), and its login form also accepts the real password. Only the admin sets
+// encoderURL/encoderNetwork. The value expires and a password change revokes it. A scoped token would mean
+// redesigning Encoder authentication for every deployed Encoder. See the advisory before re-patching.
 function getCredentialsURL()
 {
     global $global;
@@ -4470,7 +5847,7 @@ function gotToLoginAndComeBackHere($msg = '')
     setAlertMessage($msg, $type = "msg");
     $url = "{$global['webSiteRootURL']}user?redirectUri=" . urlencode(getSelfURI());
     $url = addQueryStringParameter($url, 'comebackhere', 1);
-    _error_log("gotToLoginAndComeBackHere($msg) ".getRealIpAddr().' '.json_encode(debug_backtrace()));
+    _error_log("gotToLoginAndComeBackHere($msg) " . getRealIpAddr() . ' ' . json_encode(debug_backtrace()));
     header("Location: {$url}");
     exit;
 }
@@ -4508,7 +5885,8 @@ function showAlertMessage()
         unset($_SESSION['YPTalertMessage']);
     } else {
         if (!requestComesFromSafePlace()) {
-            echo PHP_EOL, "/** showAlertMessage !requestComesFromSafePlace [" . getRefferOrOrigin() . "] **/";
+            // avoid embedding raw Referer/Origin in a JS comment (CWE-79, "*/" breakout)
+            echo PHP_EOL, "/** showAlertMessage !requestComesFromSafePlace " . json_encode(getRefferOrOrigin()) . " **/";
             return false;
         }
     }
@@ -4531,34 +5909,19 @@ function showAlertMessage()
         }
     }
 
-    foreach ($check as $value) {
-        if (!empty($newAlerts[$value])) {
-            if (is_array($newAlerts[$value])) {
-                $newStr = [];
-                foreach ($newAlerts[$value] as $key => $value2) {
-                    $value2 = str_replace('"', "''", $value2);
-                    if (!empty($value2)) {
-                        $newStr[] = $value2;
-                    }
-                }
-                $newAlerts[$value] = $newStr;
-            } else {
-                $newAlerts[$value] = str_replace('"', "''", $newAlerts[$value]);
-            }
-        }
-    }
+    $selfURI = json_encode(getSelfURI());
     echo "/** showAlertMessage **/", PHP_EOL;
     if (!empty($newAlerts['error'])) {
-        echo 'avideoAlertError("' . $newAlerts['error'] . '");';
-        echo 'window.history.pushState({}, document.title, "' . getSelfURI() . '");';
+        echo 'avideoAlertError(' . json_encode($newAlerts['error']) . ');';
+        echo 'window.history.pushState({}, document.title, ' . $selfURI . ');';
     }
     if (!empty($newAlerts['msg'])) {
-        echo 'avideoAlertInfo("' . $newAlerts['msg'] . '");';
-        echo 'window.history.pushState({}, document.title, "' . getSelfURI() . '");';
+        echo 'avideoAlertInfo(' . json_encode($newAlerts['msg']) . ');';
+        echo 'window.history.pushState({}, document.title, ' . $selfURI . ');';
     }
     if (!empty($newAlerts['success'])) {
-        echo 'avideoAlertSuccess("' . $newAlerts['success'] . '");';
-        echo 'window.history.pushState({}, document.title, "' . getSelfURI() . '");';
+        echo 'avideoAlertSuccess(' . json_encode($newAlerts['success']) . ');';
+        echo 'window.history.pushState({}, document.title, ' . $selfURI . ');';
     }
     if (!empty($newAlerts['toast'])) {
         if (!is_array($newAlerts['toast'])) {
@@ -4577,11 +5940,11 @@ function showAlertMessage()
             }
 
             echo '$.toast({
-                    text: "' . strip_tags($value) . '",
+                    text: ' . json_encode(strip_tags($value)) . ',
                     hideAfter: ' . $hideAfter . '   // in milli seconds
-                });console.log("Toast Hide after ' . $hideAfter . '");';
+                });console.log(' . json_encode("Toast Hide after {$hideAfter}") . ');';
         }
-        echo 'window.history.pushState({}, document.title, "' . getSelfURI() . '");';
+        echo 'window.history.pushState({}, document.title, ' . $selfURI . ');';
     }
     echo PHP_EOL, "/** showAlertMessage END **/";
 }
@@ -4640,7 +6003,8 @@ function getValidFormats()
     $video = ['webm', 'mp4', 'm3u8'];
     $audio = ['mp3', 'ogg'];
     $image = ['jpg', 'gif', 'webp'];
-    return array_merge($video, $audio, $image);
+    $subtitle = ['vtt', 'srt'];
+    return array_merge($video, $audio, $image, $subtitle);
 }
 
 function isValidFormats($format)
@@ -4770,9 +6134,23 @@ function playHLSasMP4($filepath)
     exit;
 }
 
+function socialModalWasAdded($videos_id)
+{
+    global $global;
+    if (empty($global["socialModalWasAdded_{$videos_id}"])) {
+        return false;
+    }
+    return true;
+}
+
 function getSocialModal($videos_id, $url = "", $title = "")
 {
     global $global;
+    if (socialModalWasAdded($videos_id)) {
+        //_error_log("getSocialModal($videos_id) already added");
+        return false;
+    }
+    $global["socialModalWasAdded_{$videos_id}"] = 1;
     $video['id'] = $videos_id;
     $sharingUid = uniqid();
     $filePath = $global['systemRootPath'] . 'objects/functionGetSocialModal.php';
@@ -4858,8 +6236,48 @@ function url_exists($url)
 
 function getHeaderContentTypeFromURL($url)
 {
-    if (isValidURL($url) && $type = get_headers($url, 1)["Content-Type"]) {
-        return $type;
+    // SECURITY: isValidURL() only checks format, not destination - require isSSRFSafeURL()
+    // since $url here can be an attacker-controlled videoLink (Video::getIncludeType()).
+    if (!isValidURL($url) || !isSSRFSafeURL($url)) {
+        return false;
+    }
+    // SECURITY: get_headers() follows redirects without re-checking them, so a safe URL could
+    // redirect to an internal host. Follow redirects manually and re-validate every hop,
+    // same as url_get_contents().
+    $options = stream_context_get_options(stream_context_get_default());
+    // Preserve the stream wrapper's existing request limit and configured options.
+    $maxRequests = max(1, (int) ($options['http']['max_redirects'] ?? 20));
+    $options['http']['follow_location'] = 0;
+    $context = stream_context_create($options);
+    $currentUrl = $url;
+    for ($redirectCount = 0; $redirectCount < $maxRequests; $redirectCount++) {
+        $headers = get_headers($currentUrl, false, $context);
+        if (empty($headers)) {
+            return false;
+        }
+        $type = false;
+        $location = '';
+        $status = '';
+        foreach ($headers as $header) {
+            if (preg_match('/^HTTP\/\S+\s+\d{3}\b/i', $header)) {
+                // An informational response may precede the actual response headers.
+                $status = $header;
+                $type = false;
+                $location = '';
+            } elseif (preg_match('/^Content-Type:\s*(.+)$/i', $header, $matches)) {
+                $type = trim($matches[1]);
+            } elseif (preg_match('/^Location:\s*(.+)$/i', $header, $matches)) {
+                $location = trim($matches[1]);
+            }
+        }
+        if ($location === '' || !preg_match('/^HTTP\/\S+\s+3\d\d\b/i', $status)) {
+            return $type;
+        }
+        $currentUrl = ssrfResolveRedirectURL($currentUrl, $location);
+        if (empty($currentUrl) || !isSSRFSafeURL($currentUrl)) {
+            _error_log("getHeaderContentTypeFromURL: blocked unsafe redirect from {$url} to {$location}", AVideoLog::$SECURITY);
+            return false;
+        }
     }
     return false;
 }
@@ -4873,15 +6291,17 @@ function canFullScreen()
     return true;
 }
 
-function getTinyMCE($id, $simpleMode = false, $allowAttributes = false, $allowCSS = false, $allowAllTags = false)
+function getTinyMCE($id, $simpleMode = false, $allowAttributes = false, $allowCSS = false, $allowAllTags = false, $allowImageAndMedia = false)
 {
     global $global;
     $contents = getIncludeFileContent($global['systemRootPath'] . 'objects/functionsGetTinyMCE.php', [
-        'id' => $id, 
-        'simpleMode' => $simpleMode, 
-        'allowAttributes' => $allowAttributes, 
-        'allowCSS' => $allowCSS, 
-        'allowAllTags' => $allowAllTags]);
+        'id' => $id,
+        'simpleMode' => $simpleMode,
+        'allowAttributes' => $allowAttributes,
+        'allowCSS' => $allowCSS,
+        'allowAllTags' => $allowAllTags,
+        'allowImageAndMedia' => $allowImageAndMedia
+    ]);
     return $contents;
 }
 
@@ -4953,6 +6373,79 @@ function pathToRemoteURL($filename, $forceHTTP = false, $ignoreCDN = false)
     return $url;
 }
 
+function pathOrURLToValidURL($filenameOrURL)
+{
+    global $global;
+    $videosURL = "{$global['webSiteRootURL']}videos/";
+    $videosPath = getVideosDir();
+    $relativePath = '';
+    $filePath = '';
+
+    $parts = explode('?', $filenameOrURL);
+    $filenameOrURL = $parts[0];
+
+    $defaultURL = $filenameOrURL;
+    if (strpos($filenameOrURL, $videosURL) === 0) {
+        $relativePath = str_replace($videosURL, '', $filenameOrURL);
+        $filePath = "{$videosPath}{$relativePath}";
+        $defaultURL = getCDN() . 'videos/' . $relativePath;
+    } else if (file_exists($filenameOrURL)) {
+        $relativePath = str_replace($videosPath, '', $filenameOrURL);
+        $filePath = $filenameOrURL;
+        $defaultURL = getCDN() . 'videos/' . $relativePath;
+    } else if (file_exists("{$global['systemRootPath']}{$filenameOrURL}")) {
+        $relativePath = str_replace('videos/', '', $filenameOrURL);
+        $filePath = "{$global['systemRootPath']}videos/{$relativePath}";
+        $defaultURL = getCDN() . 'videos/' . $relativePath;
+    } else if (file_exists("{$videosPath}{$filenameOrURL}")) {
+        $relativePath = "{$filenameOrURL}";
+        $filePath = "{$global['systemRootPath']}videos/{$relativePath}";
+        $defaultURL = getCDN() . 'videos/' . $relativePath;
+    }
+
+    if (file_exists($filePath)) {
+        if (!isDummyFile($filePath)) {
+            return $defaultURL;
+        }
+
+        $obj = AVideoPlugin::getDataObjectIfEnabled('CDN');
+        if (!empty($obj) && $obj->enable_storage) {
+            $url = CDNStorage::getURLFromPZ($relativePath);
+            if (!empty($url)) {
+                return $url;
+            }
+        }
+        $yptStorage = AVideoPlugin::loadPluginIfEnabled("YPTStorage");
+        if (!empty($yptStorage)) {
+            $source = $yptStorage->getAddress($relativePath);
+            if (!empty($source['url'])) {
+                return $source['url'];
+            }
+        }
+
+        if (!preg_match('/index.m3u8$/', $filePath)) {
+            if ($aws_s3 = AVideoPlugin::loadPluginIfEnabled("AWS_S3")) {
+                $source = $aws_s3->getAddress("{$filePath}");
+                if (!empty($source['url'])) {
+                    return $source['url'];
+                }
+            } elseif ($bb_b2 = AVideoPlugin::loadPluginIfEnabled("Blackblaze_B2")) {
+                $source = $bb_b2->getAddress("{$filePath}");
+                if (!empty($source['url'])) {
+                    return $source['url'];
+                }
+            } elseif ($ftp = AVideoPlugin::loadPluginIfEnabled("FTP_Storage")) {
+                $source = $ftp->getAddress("{$filePath}");
+                if (!empty($source['url'])) {
+                    return $source['url'];
+                }
+            }
+        }
+    }
+
+    return $defaultURL;
+}
+
 function getFilenameFromPath($path)
 {
     global $global;
@@ -5001,7 +6494,6 @@ function getThemes()
     return $_getThemes;
 }
 
-
 function getThemesSeparated()
 {
     global $_getThemes, $global;
@@ -5012,37 +6504,96 @@ function getThemesSeparated()
     $_getThemesDark = [];
     foreach (glob("{$global['systemRootPath']}view/css/custom/*.css") as $filename) {
         $fileEx = basename($filename, ".css");
-        if(in_array($fileEx, AVideoConf::DARKTHEMES)){
+        if (in_array($fileEx, AVideoConf::DARKTHEMES)) {
             $_getThemesDark[] = $fileEx;
-        }else{
+        } else {
             $_getThemesLight[] = $fileEx;
         }
     }
-    return array('light'=>$_getThemesLight, 'dark'=>$_getThemesDark);
+    return array('light' => $_getThemesLight, 'dark' => $_getThemesDark);
 }
 
+function isCurrentThemeDark()
+{
+    global $config;
+    $isDefaultThemeDark = $config->isDefaultThemeDark();
+    if (empty($_COOKIE['themeMode'])) {
+        // it is default theme
+        if ($isDefaultThemeDark) {
+            return  true;
+        } else {
+            return  false;
+        }
+    } else {
+        // it is alrernative theme
+        if (!$isDefaultThemeDark) {
+            return  true;
+        } else {
+            return  false;
+        }
+    }
+}
+
+function getBodyClass()
+{
+    $bodyClass = 'lightTheme';
+    if (isCurrentThemeDark()) {
+        $bodyClass = 'darkTheme';
+    }
+    return $bodyClass;
+}
 
 function getCurrentTheme()
 {
-    global $config;
+    global $config, $global;
+    $customCSSPattern = '/^[a-zA-Z0-9_-]{1,64}$/';
+
     if (!empty($_REQUEST['customCSS'])) {
-        _setcookie('customCSS', $_REQUEST['customCSS']);
-        return $_REQUEST['customCSS'];
+        $theme = trim($_REQUEST['customCSS']);
+        $themeFile = $global['systemRootPath'] . "view/css/custom/{$theme}.css";
+        if (preg_match($customCSSPattern, $theme) && file_exists($themeFile)) {
+            _setcookie('customCSS', $theme);
+            return $theme;
+        }
+        _unsetcookie('customCSS');
     }
     if (!empty($_COOKIE['customCSS'])) {
-        return $_COOKIE['customCSS'];
+        $theme = trim($_COOKIE['customCSS']);
+        $themeFile = $global['systemRootPath'] . "view/css/custom/{$theme}.css";
+        if (preg_match($customCSSPattern, $theme) && file_exists($themeFile)) {
+            return $theme;
+        }
+        _unsetcookie('customCSS');
     }
 
     if (!empty($_COOKIE['themeMode'])) {
-        return $config->getAlternativeTheme();
-    }else{        
-        return  $config->getDefaultTheme();
+        $theme = $config->getAlternativeTheme();
+    } else {
+        $theme = $config->getDefaultTheme();
     }
+    // SECURITY: the stored theme name is rendered unescaped into a <link href> in head.php, whitelist it the same way as the cookie/request paths above
+    if (!preg_match($customCSSPattern, $theme)) {
+        return 'default';
+    }
+    return $theme;
+}
+
+function isWindowsServer()
+{
+    return strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 }
 
 function isWindows()
 {
-    return strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+    global $global;
+    // Check if the HTTP_USER_AGENT is set
+    if (isset($_SERVER['HTTP_USER_AGENT'])) {
+        // Look for 'Windows' in the user agent string
+        if (stripos($_SERVER['HTTP_USER_AGENT'], 'Windows') !== false) {
+            return true;
+        }
+    }
+    return !empty($global['isWindows']);
 }
 
 function isURL200($url, $forceRecheck = false)
@@ -5057,12 +6608,15 @@ function isURL200($url, $forceRecheck = false)
         }
     }
 
-
     $object = new stdClass();
     $object->url = $url;
     $object->forceRecheck = $forceRecheck;
 
     //error_log("isURL200 checking URL {$url}");
+    // SECURITY REVIEW (2026-10-16): GHSA-w4rg-28fw-mjr7 reported SSRF via redirects here — NOT a
+    // vulnerability / DO NOT FIX because every caller passes an admin-configured host (live server m3u8,
+    // CDN pull zone, encoderURL) that may legitimately be private, and only a boolean/Content-Length is
+    // used. Do not pass user-supplied URLs here. If re-reported, see the advisory.
     $headers = @get_headers($url);
     if (!is_array($headers)) {
         $headers = [$headers];
@@ -5083,7 +6637,7 @@ function isURL200($url, $forceRecheck = false)
             //_error_log('isURL200: '.$value);
         }
     }
-    if($object->result){
+    if ($object->result) {
         foreach ($headers as $value) {
             if (preg_match('/Content-Length: ?([0-9]+)/', $value, $matches)) {
                 $object->contentLenght = $matches[1];
@@ -5096,12 +6650,11 @@ function isURL200($url, $forceRecheck = false)
 
     ObjectYPT::setCacheGlobal($name, json_encode($object));
 
-    if($object->contentLenght === null){
+    if ($object->contentLenght === null) {
         return $object->result;
-    }else{
+    } else {
         return $object->contentLenght;
     }
-
 }
 
 function isURL200Clear()
@@ -5320,7 +6873,7 @@ function getStatsNotifications($force_recreate = false, $listItIfIsAdminOrOwner 
     $isLiveEnabled = AVideoPlugin::isEnabledByName('Live');
     $cacheHandler = new LiveCacheHandler();
     unset($_POST['sort']);
-    if ($force_recreate) {
+    if ($force_recreate || !empty($_REQUEST['debug'])) {
         if ($isLiveEnabled) {
             deleteStatsNotifications();
             TimeLogEnd($timeName, __LINE__);
@@ -5333,7 +6886,9 @@ function getStatsNotifications($force_recreate = false, $listItIfIsAdminOrOwner 
     }
     TimeLogEnd($timeName, __LINE__);
     if ($isLiveEnabled) {
-        //_error_log('getStatsNotifications: 1 ' . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
+        if (!empty($_REQUEST['debug'])) {
+            _error_log('getStatsNotifications: 1 ' . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
+        }
         $json = Live::getStats();
         $json = object_to_array($json);
         // make sure all the applications are listed on the same array, even from different live servers
@@ -5370,6 +6925,32 @@ function getStatsNotifications($force_recreate = false, $listItIfIsAdminOrOwner 
                 $json['applications'] = [];
             }
             $json['applications'] = array_merge($json['applications'], $appArray);
+        }
+        // Hide PPV when a live stream is active for the same user
+        if (!empty($json['applications'])) {
+            $liveStreams = [];
+            foreach ($json['applications'] as $app) {
+                if (isset($app['type']) && (strtolower($app['type']) === 'live' || strtolower($app['type']) === 'schedulelive')) {
+                    $liveStreams[] = $app;
+                }
+            }
+
+            $removedCount = 0;
+            foreach ($json['applications'] as $key => $app) {
+                if ((isset($app['type']) && (strtolower($app['type']) === 'ppvlive' || strtolower($app['type']) === 'ppv')) ||
+                    (isset($app['method']) && strpos($app['method'], 'PPVLive') !== false)
+                ) {
+
+                    foreach ($liveStreams as $live) {
+                        if (!empty($live['users_id']) && $live['users_id'] == $app['users_id']) {
+                            // If there's any live stream active for the same user, hide PPV
+                            unset($json['applications'][$key]);
+                            $removedCount++;
+                            break;
+                        }
+                    }
+                }
+            }
         }
         TimeLogEnd($timeName, __LINE__);
 
@@ -5415,9 +6996,18 @@ function getStatsNotifications($force_recreate = false, $listItIfIsAdminOrOwner 
 
     TimeLogEnd($timeName, __LINE__);
     foreach ($json['applications'] as $key => $value) {
-        if (!Live::isApplicationListed(@$value['key'], $listItIfIsAdminOrOwner)) {
+        $isListed = Live::isApplicationListed(@$value['key'], $listItIfIsAdminOrOwner);
+        // isApplicationListed() already lets the stream owner see their own live regardless of the
+        // 'public' column; canSeeLiveFromLiveKey() has no owner bypass, so don't let it override that.
+        $isOwnStream = $listItIfIsAdminOrOwner && User::isLogged() && !empty($value['users_id']) && ((int) User::getId() === (int) $value['users_id']);
+        if ($isListed && !$isOwnStream && !Live::canSeeLiveFromLiveKey(@$value['key'])) {
+            $isListed = false;
+        }
+        if (!$isListed) {
             $json['hidden_applications'][] = $value;
             unset($json['applications'][$key]);
+        } else {
+            $json['applications'][$key]['isListed'] = $isListed;
         }
     }
     TimeLogEnd($timeName, __LINE__);
@@ -5428,13 +7018,13 @@ function getStatsNotifications($force_recreate = false, $listItIfIsAdminOrOwner 
     }
     TimeLogEnd($timeName, __LINE__);
     $json['timezone'] = date_default_timezone_get();
-    if(!isset($json['error'])){
+    if (!isset($json['error'])) {
         $json['error'] = false;
     }
-    if(!isset($json['msg'])){
+    if (!isset($json['msg'])) {
         $json['msg'] = '';
     }
-    if(!isset($json['nclients'])){
+    if (!isset($json['nclients'])) {
         $json['nclients'] = $json['countLiveStream'];
     }
     $__getStatsNotifications__ = $json;
@@ -5508,7 +7098,7 @@ function getHTMLTitle($titleArray)
 {
     global $config, $global;
 
-    if(!empty($_REQUEST['catName'])){
+    if (!empty($_REQUEST['catName'])) {
         $cat = Category::getCategoryByName($_REQUEST['catName']);
         $titleArray[] = $cat['name'];
     }
@@ -5519,11 +7109,11 @@ function getHTMLTitle($titleArray)
     $titleArray[] = $config->getWebSiteTitle();
     $cleanTitleArray = array();
     foreach ($titleArray as $value) {
-        if(!empty($value) && !in_array($value, $cleanTitleArray)){
+        if (!empty($value) && !in_array($value, $cleanTitleArray)) {
             $cleanTitleArray[] = $value;
         }
     }
-    
+
     $title = implode($config->getPageTitleSeparator(), $cleanTitleArray);
     $global['pageTitle'] = $title;
     return "<title>{$title}</title>";
@@ -5613,11 +7203,16 @@ function outputAndContinueInBackground($msg = '')
     flush();
 }
 
-function cleanUpRowFromDatabase($row)
+function cleanUpRowFromDatabase(&$row)
 {
     if (is_array($row)) {
+        // Convert video_password to a presence flag before stripping it,
+        // so callers never receive the stored hash.
+        if (array_key_exists('video_password', $row)) {
+            $row['video_password'] = empty($row['video_password']) ? '' : '1';
+        }
         foreach ($row as $key => $value) {
-            if (preg_match('/pass/i', $key)) {
+            if ($key !== 'video_password' && preg_match('/pass/i', $key)) {
                 unset($row[$key]);
             }
         }
@@ -5665,15 +7260,7 @@ function getSystemTimezone()
         return $_getSystemTimezoneName;
     }
 
-    if (isWindows()) {
-        $cmd = 'tzutil /g';
-    } else {
-        $cmd = 'cat /etc/timezone';
-    }
-
-    $_getDatabaseTimezoneName = trim(preg_replace('/[^a-z0-9_ \/-]+/si', '', shell_exec($cmd)));
-
-    $_getDatabaseTimezoneName = fixTimezone($_getDatabaseTimezoneName);
+    $_getDatabaseTimezoneName = fixTimezone(date('e'));
 
     return $_getDatabaseTimezoneName;
 }
@@ -5687,59 +7274,22 @@ function get_js_availableLangs()
     return $global['js_availableLangs'];
 }
 
-function listAllWordsToTranslate()
+/**
+ * Every text passed to __() / printJSString() in the code, sorted (see LocaleTranslator).
+ * Cached for one hour; $refresh scans the code again.
+ */
+function listAllWordsToTranslate($refresh = false)
 {
     global $global;
-    $cacheName = 'listAllWordsToTranslate';
-    $cache = ObjectYPT::getCache($cacheName, 0);
-    if (!empty($cache)) {
-        return object_to_array($cache);
-    }
-    ini_set('max_execution_time', 300);
-
-    function listAll($dir)
-    {
-        $vars = [];
-        if (preg_match('/vendor.*$/', $dir)) {
-            return $vars;
+    require_once $global['systemRootPath'] . 'objects/LocaleTranslator.php';
+    $cacheName = 'listAllWordsToTranslate_v2';
+    if (!$refresh) {
+        $cache = ObjectYPT::getCache($cacheName, 3600);
+        if (!empty($cache)) {
+            return array_values(object_to_array($cache));
         }
-        //echo $dir.'<br>';
-        if ($handle = opendir($dir)) {
-            while (false !== ($entry = readdir($handle))) {
-                if ($entry !== '.' && $entry !== '..') {
-                    $filename = ($dir) . DIRECTORY_SEPARATOR . $entry;
-                    if (is_dir($filename)) {
-                        $vars_dir = listAll($filename);
-                        $vars = array_merge($vars, $vars_dir);
-                    } elseif (preg_match("/\.php$/", $entry)) {
-                        //echo $entry.PHP_EOL;
-                        $data = file_get_contents($filename);
-                        $regex = '/__\(["\']{1}(.*)["\']{1}\)/U';
-                        preg_match_all(
-                            $regex,
-                            $data,
-                            $matches
-                        );
-                        foreach ($matches[0] as $key => $value) {
-                            $vars[$matches[1][$key]] = $matches[1][$key];
-                        }
-                    }
-                }
-            }
-            closedir($handle);
-        }
-        return $vars;
     }
-
-    $vars1 = listAll($global['systemRootPath'] . 'plugin');
-    //var_dump($vars1);exit;
-    $vars2 = listAll($global['systemRootPath'] . 'view');
-    //var_dump($vars2);exit;
-    $vars3 = listAll($global['systemRootPath'] . 'objects');
-
-    $vars = array_merge($vars1, $vars2, $vars3);
-
-    sort($vars);
+    $vars = LocaleTranslator::extractStrings();
     ObjectYPT::setCache($cacheName, $vars);
     return $vars;
 }
@@ -5767,7 +7317,11 @@ function getHashMethodsAndInfo()
         if (empty($global['salt'])) {
             $global['salt'] = '11234567890abcdef';
         }
-        $saltMD5 = md5($global['salt']);
+
+        // SECURITY: Use saltV2 to prevent offline salt bruteforce via hashId oracle
+        // The old salt is predictable (uniqid), making hashId an oracle for bruteforce attacks
+        $activeSalt = !empty($global['saltV2']) ? $global['saltV2'] : $global['salt'];
+        $saltMD5 = md5($activeSalt);
         if (!empty($global['useLongHash'])) {
             $base = 2;
             $cipher_algo = 'des';
@@ -5791,7 +7345,7 @@ function getHashMethodsAndInfo()
         $iv = substr($saltMD5, 0, $ivlen);
         $key = substr($saltMD5, 0, $keylen);
 
-        $_getHashMethod = ['cipher_algo' => $cipher_algo, 'iv' => $iv, 'key' => $key, 'base' => $base, 'salt' => $global['salt']];
+        $_getHashMethod = ['cipher_algo' => $cipher_algo, 'iv' => $iv, 'key' => $key, 'base' => $base, 'salt' => $activeSalt];
     }
     return $_getHashMethod;
 }
@@ -5860,6 +7414,7 @@ function hashToID($hash)
  * @param string $hash
  * @return int
  */
+#[\Deprecated]
 function hashToID_old($hash)
 {
     global $global;
@@ -5893,7 +7448,9 @@ function videosHashToID($hash_of_videos_id)
     if (preg_match('/^\.([0-9a-z._-]+)/i', $hash_of_videos_id, $matches)) {
         $hash_of_videos_id = hashToID($matches[1]);
     }
-    return $hash_of_videos_id;
+    // Always return an integer — prevents SQL injection on any caller that
+    // embeds this value directly without a prepared statement placeholder.
+    return intval($hash_of_videos_id);
 }
 
 /**
@@ -5938,24 +7495,27 @@ function getURL($relativePath, $ignoreCDN = false)
     if (!isset($_SESSION['user']['sessionCache']['getURL'])) {
         $_SESSION['user']['sessionCache']['getURL'] = [];
     }
-    if (!empty($_SESSION['user']['sessionCache']['getURL'][$relativePath])) {
-        $_SESSION['user']['sessionCache']['getURL'][$relativePath] = fixTestURL($_SESSION['user']['sessionCache']['getURL'][$relativePath]);
-        return $_SESSION['user']['sessionCache']['getURL'][$relativePath];
-    }
 
     $file = "{$global['systemRootPath']}{$relativePath}";
+    $fileExists = file_exists($file);
+    // Recomputed every call (cheap stat calls) and compared below, instead of trusting whatever was
+    // first cached for this session - otherwise an edited file's URL never changes until logout.
+    $cache = $fileExists ? (@filemtime($file) . '_' . @filectime($file)) : 'not_found';
+
+    $cached = $_SESSION['user']['sessionCache']['getURL'][$relativePath] ?? null;
+    if (is_array($cached) && !empty($cached['url']) && ($cached['cache'] ?? null) === $cache) {
+        return fixTestURL($cached['url']);
+    }
+
     if (empty($ignoreCDN)) {
         $url = getCDN() . $relativePath;
     } else {
         $url = $global['webSiteRootURL'] . $relativePath;
     }
     $url = fixTestURL($url);
-    if (file_exists($file)) {
-        $cache = @filemtime($file) . '_' . @filectime($file);
-        $url = addQueryStringParameter($url, 'cache', $cache);
-        $_SESSION['user']['sessionCache']['getURL'][$relativePath] = $url;
-    } else {
-        $url = addQueryStringParameter($url, 'cache', 'not_found');
+    $url = addQueryStringParameter($url, 'cache', $cache);
+    if ($fileExists) {
+        $_SESSION['user']['sessionCache']['getURL'][$relativePath] = ['url' => $url, 'cache' => $cache];
     }
 
     return $url;
@@ -5963,7 +7523,7 @@ function getURL($relativePath, $ignoreCDN = false)
 
 function fixTestURL($text)
 {
-    if(empty($text) || !is_string($text)){
+    if (empty($text) || !is_string($text)) {
         return $text;
     }
     if (isAVideoMobileApp() || !empty($_REQUEST['isAVideoMobileApp'])) {
@@ -6062,22 +7622,44 @@ function useVideoHashOrLogin()
         $videos_id = Video::getVideoIdFromHash($_REQUEST['video_id_hash']);
         if (!empty($videos_id)) {
             $users_id = Video::getOwner($videos_id);
+            _error_log("useVideoHashOrLogin: users_id=" . json_encode($users_id) . " videos_id=$videos_id");
+            if (empty($users_id)) {
+                _error_log("useVideoHashOrLogin: ERROR - Video::getOwner($videos_id) returned empty. Attempting credential-based auth (bypassing do_not_login since hash is valid).");
+                // We have a valid video_id_hash proving encoder authorization for this video.
+                // Try authenticating via the user+pass credentials even if do_not_login is set.
+                $savedDoNotLogin = isset($_REQUEST['do_not_login']) ? $_REQUEST['do_not_login'] : null;
+                unset($_REQUEST['do_not_login']);
+                $result = User::loginFromRequest();
+                if ($savedDoNotLogin !== null) {
+                    $_REQUEST['do_not_login'] = $savedDoNotLogin;
+                }
+                _error_log("useVideoHashOrLogin: credential fallback result=$result for user=" . ($_REQUEST['user'] ?? 'empty'));
+                return $result;
+            }
+            // Skip login (and session regeneration) if the user is already authenticated.
+            if (!empty($_SESSION['user']['id']) && $_SESSION['user']['id'] == $users_id) {
+                _error_log("useVideoHashOrLogin: user already logged in as users_id=$users_id, skipping login");
+                return User::USER_LOGGED;
+            }
             $user = new User($users_id);
-            _error_log("useVideoHashOrLogin: $users_id, $videos_id");
-            return $user->login(true);
+            $loginResult = $user->login(true);
+            _error_log("useVideoHashOrLogin: login result=$loginResult for users_id=$users_id (" . User::USER_LOGGED . "=USER_LOGGED, " . User::USER_NOT_FOUND . "=USER_NOT_FOUND)");
+            return $loginResult;
+        } else {
+            _error_log("useVideoHashOrLogin: ERROR - could not decode video_id_hash into a valid videos_id. hash=" . $_REQUEST['video_id_hash']);
         }
     }
     return User::loginFromRequest();
 }
 
-function strip_specific_tags($string, $tags_to_strip = ['script', 'style', 'iframe', 'object', 'applet', 'link'], $removeContent=true)
+function strip_specific_tags($string, $tags_to_strip = ['script', 'style', 'iframe', 'object', 'applet', 'link'], $removeContent = true)
 {
     if (empty($string)) {
         return '';
     }
     foreach ($tags_to_strip as $tag) {
         $replacement = '$1';
-        if($removeContent){
+        if ($removeContent) {
             $replacement = '';
         }
         $string = preg_replace('/<' . $tag . '[^>]*>(.*?)<\/' . $tag . '>/s', $replacement, $string);
@@ -6348,12 +7930,15 @@ function getCSSAnimationClassAndStyle($type = 'animate__flipInX', $loaderSequenc
 
 function isHTMLEmpty($html_string)
 {
+    if ($html_string === null || $html_string === '') {
+        return true;
+    }
     // Remove HTML comments
-    $html_string_no_comments = preg_replace('/<!--(.*?)-->/', '', $html_string);    
+    $html_string_no_comments = preg_replace('/<!--(.*?)-->/', '', $html_string);
     $html_string_no_tags = strip_specific_tags($html_string_no_comments, ['br', 'p', 'span', 'div'], false);
-    $result = trim(str_replace(["\r", "\n"], ['', ''], $html_string_no_tags));    
+    $result = trim(str_replace(["\r", "\n"], ['', ''], $html_string_no_tags));
     // Uncomment the below line if you want to debug
-    // var_dump(empty($result), $result, $html_string_no_tags, $html_string_no_comments, $html_string);    
+    // var_dump(empty($result), $result, $html_string_no_tags, $html_string_no_comments, $html_string);
     return empty($result);
 }
 
@@ -6390,12 +7975,16 @@ function deleteMediaSessionPosters($imagePath)
     if (empty($imagePath)) {
         return false;
     }
+
+    if (isBot(false) && !isCommandLineInterface()) {
+        return false;
+    }
     $sizes = [96, 128, 192, 256, 384, 512];
 
     foreach ($sizes as $value) {
         $destination = str_replace('.jpg', "_{$value}.jpg", $imagePath);
-        
-        _error_log("deleteMediaSessionPosters ($destination) unlink line=".__LINE__);
+
+        _error_log("deleteMediaSessionPosters ($destination) unlink line=" . __LINE__);
         @unlink($destination);
     }
 }
@@ -6408,7 +7997,7 @@ function getMediaSession()
     if ($liveLink = isLiveLink()) {
         $MediaMetadata = LiveLinks::getMediaSession($liveLink);
     } elseif ($live = isLive()) {
-        $MediaMetadata = Live::getMediaSession($live['key'], $live['live_servers_id'], @$live['live_schedule_id']);
+        $MediaMetadata = Live::getMediaSession($live['key'], $live['live_servers_id'], @$live['live_schedule_id'], 0);
     } elseif (!empty($videos_id)) {
         if (!empty($videos_id)) {
             $MediaMetadata = Video::getMediaSession($videos_id);
@@ -6418,7 +8007,7 @@ function getMediaSession()
     } elseif (!empty($_REQUEST['videos_id'])) {
         $MediaMetadata = Video::getMediaSession($_REQUEST['videos_id']);
     } elseif (!empty($_REQUEST['key'])) {
-        $MediaMetadata = Live::getMediaSession($_REQUEST['key'], @$_REQUEST['live_servers_id'], @$_REQUEST['live_schedule_id']);
+        $MediaMetadata = Live::getMediaSession($_REQUEST['key'], @$_REQUEST['live_servers_id'], @$_REQUEST['live_schedule_id'], 0);
     }
     if (empty($MediaMetadata) || empty($MediaMetadata->title)) {
         $MediaMetadata = new stdClass();
@@ -6531,9 +8120,20 @@ function getUserOnlineLabel($users_id, $class = '', $style = '')
     }
 }
 
-function sendToEncoder($videos_id, $downloadURL, $checkIfUserCanUpload = false)
+/**
+ * Send a video to the encoder queue from a download URL.
+ * Uses Video::postToEncoderQueue() to avoid duplicating the curl logic.
+ *
+ * @param int    $videos_id
+ * @param string $downloadURL          Source URL the encoder will download from
+ * @param bool   $checkIfUserCanUpload  Verify the video owner has upload permission
+ * @param string $format               Encoder format constant (e.g. Video::ENCODER_FORMAT_MP4).
+ *                                      If empty, uses Video::getDefaultEncoderFormat()
+ * @return object|false
+ */
+function sendToEncoder($videos_id, $downloadURL, $checkIfUserCanUpload = false, $format = '')
 {
-    global $global, $config;
+    global $global;
     _error_log("sendToEncoder($videos_id, $downloadURL) start");
 
     // Get the video information
@@ -6553,7 +8153,7 @@ function sendToEncoder($videos_id, $downloadURL, $checkIfUserCanUpload = false)
     // Prepare the data to be sent to the encoder
     $postFields = [
         'user' => $user->getUser(),
-        'pass' => $user->getPassword(),
+        'pass' => User::getUserHash($video['users_id']),
         'fileURI' => $downloadURL,
         'videoDownloadedLink' => $downloadURL,
         'filename' => $video['filename'],
@@ -6561,38 +8161,14 @@ function sendToEncoder($videos_id, $downloadURL, $checkIfUserCanUpload = false)
         'notifyURL' => $global['webSiteRootURL'],
     ];
 
-    // Check if auto HLS conversion is enabled
-    if (AVideoPlugin::isEnabledByName("VideoHLS")) {
-        $postFields['inputAutoHLS'] = 1;
+    if (empty($format)) {
+        $format = Video::getDefaultEncoderFormat();
+    }
+    if (!empty($format)) {
+        $postFields[$format] = 1;
     }
 
-    // Send the data to the encoder
-    $encoderURL = $config->getEncoderURL();
-    $target = "{$encoderURL}queue";
-    _error_log("sendToEncoder: SEND To QUEUE: ($target) " . json_encode($postFields));
-    $curl = curl_init();
-    curl_setopt_array($curl, [
-        CURLOPT_URL => $target,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $postFields,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
-    ]);
-    $r = curl_exec($curl);
-    $obj = new stdClass();
-    $obj->error = true;
-    $obj->response = $r;
-    if ($errno = curl_errno($curl)) {
-        $error_message = curl_strerror($errno);
-        $obj->msg = "cURL error ({$errno}):\n {$error_message}";
-    } else {
-        $obj->error = false;
-    }
-    _error_log("sendToEncoder: QUEUE CURL: ($target) " . json_encode($obj));
-    curl_close($curl);
-    Configuration::deleteEncoderURLCache();
-    return $obj;
+    return Video::postToEncoderQueue($postFields);
 }
 
 function getExtension($link)
@@ -6832,91 +8408,9 @@ function is_port_open($port, $address = '127.0.0.1', $timeout = 5)
         fclose($socket);
         return true;
     }
-    _error_log("is_port_open($port, $address) error {$errstr}");
+    //_error_log("is_port_open($port, $address) error {$errstr}");
     // If the socket connection failed, the port is closed
     return false;
-}
-
-function rowToRoku($row)
-{
-    global $global;
-    if (!is_array($row)) {
-        $row = object_to_array($row);
-    }
-    if (empty($row)) {
-        return false;
-    }
-    $videoSource = Video::getSourceFileURL($row['filename'], false, 'video');
-    $videoResolution = Video::getResolutionFromFilename($videoSource);
-    //var_dump($videoSource);
-    if (empty($videoSource)) {
-        _error_log("Roku Empty video source {$row['id']}, {$row['clean_title']}, {$row['filename']}");
-        return false;
-    }
-
-    $movie = new stdClass();
-    $movie->id = 'video_' . $row['id'];
-    $movie->videos_id = $row['id'];
-    $movie->title = UTF8encode($row['title']);
-    $movie->longDescription = _substr(strip_tags(br2nl(UTF8encode($row['description']))), 0, 490);
-    if (empty($movie->longDescription)) {
-        $movie->longDescription = $movie->title;
-    }
-    $movie->shortDescription = _substr($movie->longDescription, 0, 200);
-    $movie->thumbnail = Video::getRokuImage($row['id']);
-    $movie->tags = [_substr(UTF8encode($row['category']), 0, 20)];
-    $movie->genres = ["special"];
-    $movie->releaseDate = date('c', strtotime($row['created']));
-    $movie->categories_id = $row['categories_id'];
-    $rrating = $row['rrating'];
-    $movie->rating = new stdClass();
-    if (!empty($rrating)) {
-        $movie->rating->rating = rokuRating($rrating);
-        $movie->rating->ratingSource = 'MPAA';
-    } else {
-        $movie->rating->rating = 'UNRATED';  // ROKU DIRECT PUBLISHER COMPLAINS IF NO RATING OR RATING SOURCE
-        $movie->rating->ratingSource = 'MPAA';
-    }
-
-    $content = new stdClass();
-    $content->dateAdded = date('c', strtotime($row['created']));
-    $content->captions = [];
-    $content->duration = durationToSeconds($row['duration']);
-    $content->language = "en";
-    $content->adBreaks = ["00:00:00"];
-    if (AVideoPlugin::isEnabledByName('GoogleAds_IMA')) {
-        $content->vmap_xml = "{$global['webSiteRootURL']}plugin/API/get.json.php?APIName=vmap&videos_id={$movie->videos_id}";
-        $content->vmap_json = "{$content->vmap_xml}&json=1";
-        $content->vast = "{$global['webSiteRootURL']}plugin/API/get.json.php?APIName=vast&videos_id={$movie->videos_id}";
-    } else {
-        $content->vmap_xml = "";
-        $content->vmap_json = "";
-        $content->vast = "";
-    }
-
-    $video = new stdClass();
-    $video->url = $videoSource;
-    $video->quality = getResolutionTextRoku($videoResolution);
-    $video->videoType = Video::getVideoTypeText($row['filename']);
-    $content->videos = [$video];
-
-    if (function_exists('getVTTTracks') || AVideoPlugin::isEnabled('SubtitleSwitcher')) {
-        $captions = getVTTTracks($row['filename'], true);
-        if (!empty($captions)) {
-            $content->captions = array();
-            foreach ($captions as $value) {
-                $value = object_to_array($value);
-                $content->captions[] = array(
-                    'language' => $value['srclang'],
-                    'captionType' => $value['label'],
-                    'url' => $value['src']
-                );
-            }
-        }
-    }
-
-    $movie->content = $content;
-    return $movie;
 }
 
 function canSearchUsers()
@@ -6954,17 +8448,17 @@ function canAdminUsers()
 
 function getRandomCode()
 {
+    // SECURITY: previously derived from uniqid()/rand() (predictable, clock-based, CWE-330);
+    // now drawn from a CSPRNG (random_int) so the XXXX-XXXX shape carries real entropy.
     $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $max = strlen($characters) - 1;
-    $char1 = $characters[rand(0, $max)];
-    $char2 = $characters[rand(0, $max)];
-    $char3 = $characters[rand(0, $max)];
-    $uniqueId = uniqid();
-    $uniquePart1 = str_pad(base_convert(substr($uniqueId, -5), 16, 36), 4, $char1, STR_PAD_LEFT);
-    $uniquePart2 = str_pad(base_convert(substr($uniqueId, 4, 4), 16, 36), 4, $char2, STR_PAD_LEFT);
-    $uniquePart3 = str_pad(base_convert(substr($uniqueId, 0, 4), 16, 36), 4, $char3, STR_PAD_LEFT);
-    $code = strtoupper("{$uniquePart2}-{$uniquePart1}");
-    return $code;
+    $part1 = '';
+    $part2 = '';
+    for ($i = 0; $i < 4; $i++) {
+        $part1 .= $characters[random_int(0, $max)];
+        $part2 .= $characters[random_int(0, $max)];
+    }
+    return "{$part1}-{$part2}";
 }
 
 function getActivationCode()
@@ -7005,32 +8499,32 @@ function generateHorizontalFlickity($items)
     $carouselClass = 'carousel_' . uniqid();
     ?>
     <div id="<?php echo $carouselClass; ?>" class=" HorizontalFlickity" style="visibility: hidden;">
-        <?php 
+        <?php
         $initialIndex = 0;
-        foreach ($items as $key => $item) { 
+        foreach ($items as $key => $item) {
             $isActive = false;
-            if(!empty($item['isActive'])){
+            if (!empty($item['isActive'])) {
                 $isActive = true;
             }
             $class = 'btn-default';
-            if($isActive){
+            if ($isActive) {
                 $class = 'btn-primary';
                 $initialIndex = $key;
             }
-            ?>
+        ?>
             <div class="carousel-cell">
-                <a title="<?php echo $item['tooltip']; ?>" 
-                href="<?php echo $item['href']; ?>" 
-                <?php 
-                if (preg_match('/^#[0-9a-z.-]+/', $item['href'])) {
-                    echo ' data-toggle="tab" ';
-                } else {
-                    echo ' data-toggle="tooltip" ';
-                }
-                if(!empty($item['onclick'])){
-                    echo 'onclick="'.$item['onclick'].'"';
-                } ?> 
-                class="btn <?php echo $class; ?>">
+                <a title="<?php echo $item['tooltip']; ?>"
+                    href="<?php echo $item['href']; ?>"
+                    <?php
+                    if (preg_match('/^#[0-9a-z.-]+/', $item['href'])) {
+                        echo ' data-toggle="tab" ';
+                    } else {
+                        echo ' data-toggle="tooltip" ';
+                    }
+                    if (!empty($item['onclick'])) {
+                        echo 'onclick="' . $item['onclick'] . '"';
+                    } ?>
+                    class="btn <?php echo $class; ?>">
                     <?php echo $item['label']; ?>
                 </a>
             </div>
@@ -7053,8 +8547,8 @@ function generateHorizontalFlickity($items)
                 groupCells: true,
                 //initialIndex: <?php echo $initialIndex; ?>,
             });
-            
-            $carousel.flickity( 'selectCell', <?php echo $initialIndex; ?> );
+
+            $carousel.flickity('selectCell', <?php echo $initialIndex; ?>);
         });
     </script>
     <?php
@@ -7066,24 +8560,25 @@ function generateHorizontalFlickity($items)
     $generateHorizontalFlickityLoaded = 1;
 }
 
-function saveRequestVars(){
+function saveRequestVars()
+{
     global $savedRequestVars;
 
     $array = array('GET', 'POST', 'REQUEST');
 
     foreach ($array as $value) {
-        eval('$savedRequestVars[$value] = $_'.$value.';');
+        eval('$savedRequestVars[$value] = $_' . $value . ';');
     }
 }
 
-
-function restoreRequestVars(){
+function restoreRequestVars()
+{
     global $savedRequestVars;
 
     $array = array('GET', 'POST', 'REQUEST');
 
     foreach ($array as $value) {
-        eval('$_'.$value.' = $savedRequestVars[$value];');
+        eval('$_' . $value . ' = $savedRequestVars[$value];');
     }
 }
 
@@ -7091,13 +8586,18 @@ function getMVideo($htmlMediaTag)
 {
     global $global;
     $filePath = "{$global['systemRootPath']}objects/functionGetMVideo.php";
-    $contents = getIncludeFileContent( $filePath, ['htmlMediaTag' => $htmlMediaTag] );
+    $contents = getIncludeFileContent($filePath, ['htmlMediaTag' => $htmlMediaTag]);
     return $contents;
 }
 
-function getDeviceName() {
-    if(empty($_SERVER['HTTP_USER_AGENT'])){
-        return 'unknown';
+function getDeviceName($returnIfEmptyUA = 'unknown')
+{
+    global $forceDeviceType;
+    if (!empty($forceDeviceType)) {
+        return $forceDeviceType;
+    }
+    if (empty($_SERVER['HTTP_USER_AGENT'])) {
+        return $returnIfEmptyUA;
     }
     $userAgent = strtolower($_SERVER['HTTP_USER_AGENT']);
     if (strpos($userAgent, 'roku') !== false) {
@@ -7114,35 +8614,41 @@ function getDeviceName() {
         }
     } elseif (strpos($userAgent, 'silk') !== false) {
         return 'firestick';
+    } elseif (preg_match('/Mozilla.*X11; Linux x86_64.*Chrome/', $userAgent) !== false) {
+        return 'androidMobileDesktopMode';
     } else {
         return 'web';
     }
 }
 
-function getValueOrBlank($array, $default=''){
+function getValueOrBlank($array, $default = '')
+{
     $text = $default;
     foreach ($array as $value) {
-        if(!empty($_REQUEST[$value])){
+        if (!empty($_REQUEST[$value])) {
             $text = $_REQUEST[$value];
         }
     }
     return $text;
 }
 
-function getRequestUniqueString(){
-    $text = getValueOrBlank(['app_bundle','ads_app_bundle', 'publisher_app_bundle']);
-    $text = getValueOrBlank(['ads_did']);
+function getRequestUniqueString()
+{
+    $text = getValueOrBlank(['app_bundle', 'ads_app_bundle', 'publisher_app_bundle']);
+    $text .= getValueOrBlank(['ads_did']);
     $text .= getValueOrBlank(['platform']);
-    $text .= isForKidsSet()?'forKids':'';
+    $text .= isForKidsSet() ? 'forKids' : '';
     return $text;
 }
 
-function isForKidsSet(){
+function isForKidsSet()
+{
     return !empty($_COOKIE['forKids']) || (!empty($_REQUEST['forKids']) && intval($_REQUEST['forKids']) > 0);
 }
 
-function calculateCenterCrop($originalWidth, $originalHeight, $aspectRatio) {
-    if( $aspectRatio == Video::ASPECT_RATIO_ORIGINAL){
+function calculateCenterCrop($originalWidth, $originalHeight, $aspectRatio)
+{
+    if ($aspectRatio == Video::ASPECT_RATIO_ORIGINAL) {
         return ['newWidth' => intval($originalWidth), 'newHeight' => intval($originalHeight), 'x' => 0, 'y' => 0];
     }
 
@@ -7184,18 +8690,130 @@ function calculateCenterCrop($originalWidth, $originalHeight, $aspectRatio) {
     return ['newWidth' => intval($newWidth), 'newHeight' => intval($newHeight), 'x' => intval($x), 'y' => intval($y)];
 }
 
+function getTourHelpButton($stepsFileRelativePath, $class = 'btn btn-default', $showLabel = true)
+{
+    /*
+    [
+        {
+            "element": "#elementId1",
+            "intro": "Welcome to our feature!"
+        },
+        {
+            "element": "#elementId2",
+            "intro": "Here's how you can use this tool."
+        }
+    ]
+    */
+    $label = '';
+    if ($showLabel) {
+        if (is_string($showLabel)) {
+            $label = __($showLabel);
+        } else {
+            $label = __('Help');
+        }
+    }
+    return "<button type=\"button\" class=\"startTourBtn {$class}\" onclick=\"startTour('{$stepsFileRelativePath}')\"><i class=\"fa-solid fa-circle-question\"></i> {$label}</button>";
+}
 
-require_once __DIR__.'/functionsSecurity.php';
-require_once __DIR__.'/functionsMySQL.php';
-require_once __DIR__.'/functionsDocker.php';
-require_once __DIR__.'/functionsImages.php';
-require_once __DIR__.'/functionsExec.php';
-require_once __DIR__.'/functionsLogs.php';
-require_once __DIR__.'/functionsMail.php';
-require_once __DIR__.'/functionsFile.php';
-require_once __DIR__.'/functionsFFMPEG.php';
-require_once __DIR__.'/functionsSocket.php';
-require_once __DIR__.'/functionsPHP.php';
-require_once __DIR__.'/functionsAVideo.php';
-require_once __DIR__.'/functionsBrowser.php';
-require_once __DIR__.'/functionsHuman.php';
+function getInfoButton($info)
+{
+    $html = '<button class="btn btn-default btn-block infoButton" data-toggle="tooltip" title="' . __('Info') . '"><i class="fa-solid fa-circle-info"></i><div class="hidden">' . $info . '</div></button>';
+    return $html;
+}
+
+function mkSubCategory($catId)
+{
+
+    global $global, $parsed_cats;
+    unset($_REQUEST['parentsOnly']);
+
+    $cacheName = "mkSubCategory_{$catId}_" . getVideoListVisibilityCacheKey();
+    $cache = ObjectYPT::getCache($cacheName, rand(300, 600));
+    if (!empty($cache)) {
+        return $cache;
+    }
+    $subcats = Category::getChildCategories($catId);
+    $html = '';
+    if (!empty($subcats)) {
+        $html .= "<ul class=\"nav\" style='margin-bottom: 0px; list-style-type: none;'>";
+        foreach ($subcats as $subcat) {
+            if ($subcat['parentId'] != $catId) {
+                continue;
+            }
+            if (empty($subcat['total'])) {
+                continue;
+            }
+            if (is_array($parsed_cats) && in_array($subcat['id'], $parsed_cats)) {
+                continue;
+            }
+            //$parsed_cats[] = $subcat['id'];
+            $html .= '<li class="navsub-toggle ' . ($subcat['clean_name'] == @$_REQUEST['catName'] ? "active" : "") . '">';
+            $html .= '<a href="' . $global['webSiteRootURL'] . 'cat/' . $subcat['clean_name'] . '" >';
+            $html .=  '<i class="' . (empty($subcat['iconClass']) ? "fa fa-folder" : $subcat['iconClass']) . '"></i>  <span class="menuLabel">' . __($subcat['name']) . ' <span class="badge">' . $subcat['total'] . '</span></span>';
+            $html .=  '</a>';
+            $html .= mkSubCategory($subcat['id']);
+            $html .=  '</li>';
+        }
+        $html .=  "</ul>";
+    }
+
+    ObjectYPT::setCache($cacheName, $html);
+    return $html;
+}
+
+/**
+ * Check if the user came from an external link, sanitize the referrer, store it in the session, and return it.
+ * Returns the sanitized external referrer or the existing referrer stored in the session.
+ */
+function storeAndGetExternalReferrer()
+{
+    global $global;
+
+    if (!isset($global['external_referrer'])) {
+        if (!preg_match('/GoogleInteractiveMediaAds/i', $_SERVER['HTTP_USER_AGENT']) && !preg_match('/imasdk/i', $_SERVER['HTTP_USER_AGENT']) && !preg_match('/imasdk/i', $_SERVER['HTTP_REFERER'])) {
+            // Get the current domain
+            $currentDomain = $_SERVER['HTTP_HOST'];
+
+            // Get the referrer URL, if available
+            $referrer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+
+            _session_start();
+            if (!empty($referrer)) {
+                // Sanitize the referrer URL to remove illegal characters
+                $sanitizedReferrer = filter_var($referrer, FILTER_SANITIZE_URL);
+                // Parse the referrer's host (domain) if referrer exists
+                $referrerHost = parse_url($sanitizedReferrer, PHP_URL_HOST);
+
+                // Check if the referrer is an external link (not the same as current domain)
+                if ($referrerHost && $referrerHost !== $currentDomain) {
+                    // Check if the session does not have an external referrer or if it's different from the current one
+                    if (!isset($_SESSION['external_referrer']) || $_SESSION['external_referrer'] !== $sanitizedReferrer) {
+                        if (!empty($sanitizedReferrer)) {
+                            //_error_log('external_referrer changed' . json_encode(debug_backtrace()));
+                            // Store the sanitized and escaped external referrer in the session
+                            $_SESSION['external_referrer'] = htmlspecialchars($sanitizedReferrer, ENT_QUOTES, 'UTF-8');
+                        }
+                    }
+                }
+            }
+        }
+
+        $global['external_referrer'] = isset($_SESSION['external_referrer']) ? $_SESSION['external_referrer'] : '';
+    }
+    return $global['external_referrer'];
+}
+
+require_once __DIR__ . '/functionsSecurity.php';
+require_once __DIR__ . '/functionsMySQL.php';
+require_once __DIR__ . '/functionsDocker.php';
+require_once __DIR__ . '/functionsImages.php';
+require_once __DIR__ . '/functionsExec.php';
+require_once __DIR__ . '/functionsLogs.php';
+require_once __DIR__ . '/functionsMail.php';
+require_once __DIR__ . '/functionsFile.php';
+require_once __DIR__ . '/functionsFFMPEG.php';
+require_once __DIR__ . '/functionsSocket.php';
+require_once __DIR__ . '/functionsPHP.php';
+require_once __DIR__ . '/functionsAVideo.php';
+require_once __DIR__ . '/functionsBrowser.php';
+require_once __DIR__ . '/functionsHuman.php';

@@ -24,15 +24,17 @@ set_time_limit($default_socket_timeout * 100);
 ini_set('max_execution_time', $default_socket_timeout * 100);
 
 $cacheNameEpgPage = 'epgPage_' . $timeLineElementSize . md5(json_encode($_GET));
+$pageCacheUsed = false;
 if (empty($forceRecreate)) {
     $content = ObjectYPT::getCache($cacheNameEpgPage, $cacheTimeout); // 1 minute
 }
 if (!empty($content)) {
     echo $content;
     $_end = microtime(true) - $_start;
-    echo '<!-- pageCache=' . $_end . ' -->';
+    echo '<!-- PAGE_CACHE_USED=YES pageCache=' . $_end . ' -->';
     exit;
 }
+$pageCacheUsed = true;
 require_once $global['systemRootPath'] . 'objects/EpgParser.php';
 
 $epgs = array();
@@ -42,7 +44,7 @@ $videos_id = intval(@$_REQUEST['videos_id']);
 $_GET['rowCount'] = $_REQUEST['rowCount'] = 500;
 $videos = Video::getAllActiveEPGs();
 foreach ($videos as $video) {
-    if ($video['status'] !== Video::$statusActive || !isValidURL($video['epg_link'])) {
+    if ($video['status'] !== Video::STATUS_ACTIVE || !isValidURL($video['epg_link'])) {
         continue;
     }
     //if($video['id']=='3847'){        var_dump($video['status']);exit;}
@@ -61,15 +63,19 @@ $secondSize = $minuteSize / 60;
 $cacheName = 'epg';
 
 $cacheName = '/channelsList_' . md5(json_encode($_GET));
+$channelsListCacheUsed = false;
 if (empty($forceRecreate)) {
     $channelsList = getEPGCache($cacheName);
     if (!empty($channelsList)) {
         $channelsList = json_decode($channelsList);
+        $channelsListCacheUsed = true;
     }
 }
 //var_dump($cacheName, $channelsList);exit;
 $_MaxDaysFromNow = strtotime('+24 hours');
 $errorMessages = [];
+$programCacheUsedCount = 0;
+$programCacheCreatedCount = 0;
 if ($forceRecreate || empty($channelsList)) {
     if (isCommandLineInterface()) {
         _error_log('Commandline: Command line EPG line: ' . __LINE__);
@@ -86,6 +92,7 @@ if ($forceRecreate || empty($channelsList)) {
             $programData = getEPGCache($programCacheName);
             if (!empty($programData)) {
                 $programData = json_decode($programData);
+                $programCacheUsedCount++;
             }
         }
         if ($forceRecreate || empty($programData)) {
@@ -110,16 +117,19 @@ if ($forceRecreate || empty($channelsList)) {
                     $channels[$key]['epgData'] = array();
                     foreach ($epgData as $key2 => $program) {
                         if ($program['channel'] != $value['id']) {
+                            _error_log("EPG program channel mismatch: {$program['channel']} != {$value['id']}");
                             continue;
                         }
                         // do not process the same start date
                         if(in_array($program['start'], $usedStartDate)){
+                            _error_log("EPG program start date already processed: {$program['start']}");
                             continue;
                         }
                         $usedStartDate[] = $program['start'];
                         $timeWillStart = strtotime($program['start']);
                         if ($timeWillStart > $_MaxDaysFromNow) {
                             unset($epgData[$key2]);
+                            //_error_log("EPG program start time exceeds max limit: {$program['start']}");
                             continue;
                         }
                         $minutes = getDurationInMinutes(date('Y-m-d 00:00:00'), $program['stop']);
@@ -146,7 +156,8 @@ if ($forceRecreate || empty($channelsList)) {
                     }
                 }
                 $file = setEPGCache($programCacheName, $channelsList);
-                _error_log("EPG program cache created videos_id={$this_videos_id} " . json_encode($file));
+                $programCacheCreatedCount++;
+                _error_log("EPG program cache created videos_id={$this_videos_id} {$programCacheName}" . json_encode($file));
             } catch (Exception $e) {
                 $error = new \RuntimeException($e);
                 $eMessage = "{$epg['title']}: videos_id={$this_videos_id} epg_link={$epg['epg_link']} ";
@@ -167,6 +178,8 @@ if ($forceRecreate || empty($channelsList)) {
         _error_log('Commandline: Command line EPG line:' . __LINE__);
     }
     usort($channelsList, "cmpChannels");
+    // Save the complete channels list cache
+    setEPGCache($cacheName, $channelsList);
 } else {
     if (isCommandLineInterface()) {
         _error_log('Commandline: EPG cache detected line: ' . __LINE__);
@@ -213,6 +226,9 @@ function getEPGCache($name) {
     $path = getEPGCacheFolder();
     make_path($path);
     $filename = $path . md5($name) . '.cache';
+    if (!file_exists($filename)) {
+        return false;
+    }
     if (time() - filemtime($filename) > 86400) { // older than 24 hours
         return false;
     }
@@ -312,7 +328,7 @@ function createEPG($channel) {
                       if($_stopTime<$nowTime){
                       continue;
                       }
-                     * 
+                     *
                      */
                     $minutes = getDurationInMinutes($program['start'], $program['stop']);
                     /**
@@ -320,19 +336,20 @@ function createEPG($channel) {
                      */
                     $left = ($minuteSize * $minutesSinceZeroTime) + $timeLineElementSize;
                     $width = ($minuteSize * $minutes);
+                    $safeTitle = htmlspecialchars($program['title'], ENT_QUOTES, 'UTF-8');
                     $pclass = '';
                     if ($width <= $minimumWidthHide) {
                         $text = '';
                     } else if ($width <= $minimumWidth1Dot) {
-                        $text = "<abbr title=\"{$program['title']}\">.</abbr>";
+                        $text = "<abbr title=\"{$safeTitle}\">.</abbr>";
                     } else if ($width <= $minimumWidth) {
-                        $text = "<abbr title=\"{$program['title']}\"><small class=\"duration\">{$minutes} Min</small></abbr>";
+                        $text = "<abbr title=\"{$safeTitle}\"><small class=\"duration\">{$minutes} Min</small></abbr>";
                     } else if ($width <= $minimumSmallFont) {
-                        $text = "<small class=\"small-font\">{$program['title']}<div><small class=\"duration\">{$minutes} Min</small></div></small>";
+                        $text = "<small class=\"small-font\">{$safeTitle}<div><small class=\"duration\">{$minutes} Min</small></div></small>";
                     } else {
                         $startTime = date('m-d H:i', strtotime($program['start']));
                         $stopTime = date('m-d H:i', $_stopTime);
-                        $text = "{$program['title']}<div><small class=\"duration\">{$minutes} Min</small></div>";
+                        $text = "{$safeTitle}<div><small class=\"duration\">{$minutes} Min</small></div>";
                     }
                     if ($_stopTime < $nowTime) {
                         $pclass = 'finished';
@@ -603,6 +620,11 @@ $animateJson .= '}';
 <!-- <?php echo date('Y-m-d H:i:s'); ?> -->
 <!-- <?php echo date_default_timezone_get(); ?> -->
 <!-- minutesSince0Time=<?php echo $minutesSince0Time; ?> -->
+<!-- PAGE_CACHE_CREATED=YES cacheTimeout=<?php echo $cacheTimeout; ?>s -->
+<!-- CHANNELS_LIST_CACHE_USED=<?php echo $channelsListCacheUsed ? 'YES' : 'NO'; ?> cacheName=<?php echo $cacheName; ?> -->
+<!-- PROGRAM_CACHE_USED_COUNT=<?php echo $programCacheUsedCount; ?> -->
+<!-- PROGRAM_CACHE_CREATED_COUNT=<?php echo $programCacheCreatedCount; ?> -->
+<!-- TOTAL_CHANNELS=<?php echo count($channelsList); ?> -->
 <?php
 $_end = microtime(true) - $_start;
 ?>

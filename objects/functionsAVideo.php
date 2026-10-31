@@ -6,6 +6,7 @@ $AVideoEncoder_UA = "AVideoEncoder";
 $AVideoEncoderNetwork_UA = "AVideoEncoderNetwork";
 $AVideoStreamer_UA = "AVideoStreamer";
 $AVideoStorage_UA = "AVideoStorage";
+$AVideoRestreamer_UA = "AVideoRestreamer";
 
 function isAVideoMobileApp($user_agent = "")
 {
@@ -16,7 +17,7 @@ function isAVideoMobileApp($user_agent = "")
         return false;
     }
     global $AVideoMobileAPP_UA;
-    if (preg_match("/{$AVideoMobileAPP_UA}(.*)/", $_SERVER["HTTP_USER_AGENT"], $match)) {
+    if (preg_match("/{$AVideoMobileAPP_UA}(.*)/", $user_agent, $match)) {
         $url = trim($match[1]);
         if (!empty($url)) {
             return $url;
@@ -70,7 +71,7 @@ function isAVideo($user_agent = "")
         return false;
     }
     global $AVideoEncoder_UA;
-    if (preg_match("/AVideo(.*)/", $_SERVER["HTTP_USER_AGENT"], $match)) {
+    if (preg_match("/AVideo(.*)/", $user_agent, $match)) {
         $url = trim($match[1]);
         if (!empty($url)) {
             return $url;
@@ -108,8 +109,10 @@ function isAVideoStreamer($user_agent = "")
         return false;
     }
     global $AVideoStreamer_UA, $global;
-    $md5 = md5($global['salt']);
-    if (preg_match("/{$AVideoStreamer_UA}_{$md5}/", $_SERVER["HTTP_USER_AGENT"])) {
+    // SECURITY: prefer saltV2 (CSPRNG) over legacy salt (uniqid-derived, brute-forceable)
+    $activeSalt = !empty($global['saltV2']) ? $global['saltV2'] : $global['salt'];
+    $md5 = md5($activeSalt);
+    if (preg_match("/{$AVideoStreamer_UA}_{$md5}/", $user_agent)) {
         return true;
     }
     return false;
@@ -117,20 +120,25 @@ function isAVideoStreamer($user_agent = "")
 
 function isAVideoUserAgent($user_agent = "")
 {
+    global $lastMatchedAVideoUserAgent;
+    $lastMatchedAVideoUserAgent = ''; // Reset to ensure clean state
+
     if (empty($user_agent)) {
         $user_agent = @$_SERVER['HTTP_USER_AGENT'];
     }
     if (empty($user_agent)) {
         return false;
     }
-    global $AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoEncoderNetwork_UA, $AVideoStreamer_UA, $AVideoStorage_UA, $global;
+    global $AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoEncoderNetwork_UA, $AVideoStreamer_UA, $AVideoStorage_UA, $AVideoRestreamer_UA, $global;
 
     // Lavf = ffmpeg
     //$agents = [$AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoEncoderNetwork_UA, $AVideoStreamer_UA, $AVideoStorage_UA, 'Lavf'];
-    $agents = [$AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoEncoderNetwork_UA, $AVideoStreamer_UA, $AVideoStorage_UA];
+    $agents = [$AVideoMobileAPP_UA, $AVideoEncoder_UA, $AVideoEncoderNetwork_UA, $AVideoStreamer_UA, $AVideoStorage_UA, $AVideoRestreamer_UA];
 
     foreach ($agents as $value) {
-        if (preg_match("/{$value}/", $user_agent)) {
+        // CRITICAL FIX: Only check if value is not empty to prevent false matches with empty regex
+        if (!empty($value) && preg_match("/{$value}/", $user_agent)) {
+            $lastMatchedAVideoUserAgent = $value;
             return true;
         }
     }
@@ -147,7 +155,7 @@ function isAVideoStorage($user_agent = "")
         return false;
     }
     global $AVideoStorage_UA;
-    if (preg_match("/{$AVideoStorage_UA}(.*)/", $_SERVER["HTTP_USER_AGENT"], $match)) {
+    if (preg_match("/{$AVideoStorage_UA}(.*)/", $user_agent, $match)) {
         $url = trim($match[1]);
         if (!empty($url)) {
             return $url;
@@ -161,10 +169,39 @@ function isAVideoStorage($user_agent = "")
 function getSelfUserAgent()
 {
     global $global, $AVideoStreamer_UA;
+    if(empty($AVideoStreamer_UA)){
+        $AVideoStreamer_UA = 'AVideoStreamer';
+    }
     $agent = $AVideoStreamer_UA . "_";
-    $agent .= md5($global['salt']);
+    // SECURITY: prefer saltV2 (CSPRNG) over legacy salt (uniqid-derived, brute-forceable)
+    $activeSalt = !empty($global['saltV2']) ? $global['saltV2'] : $global['salt'];
+    $agent .= md5($activeSalt.date('i'));
     return $agent;
 }
+
+function isSelfUserAgent()
+{
+    global $global, $AVideoStreamer_UA;
+
+    if (preg_match('/GStreamer souphttpsrc/', $_SERVER['HTTP_USER_AGENT'])) {
+        return true;
+    }
+
+    // SECURITY: prefer saltV2 (CSPRNG) over legacy salt (uniqid-derived, brute-forceable)
+    $activeSalt = !empty($global['saltV2']) ? $global['saltV2'] : $global['salt'];
+
+    // Generate the current and 1-minute previous user agent strings
+    $currentAgent = $AVideoStreamer_UA . "_" . md5($activeSalt . date('i'));
+    $previousAgent = $AVideoStreamer_UA . "_" . md5($activeSalt . date('i', strtotime('-1 minute')));
+
+    // Check if the provided user agent matches either the current or previous
+    if ($_SERVER['HTTP_USER_AGENT'] === $currentAgent || $_SERVER['HTTP_USER_AGENT'] === $previousAgent) {
+        return true;
+    }
+
+    return false;
+}
+
 
 function requestComesFromSameDomainAsMyAVideo()
 {
@@ -183,11 +220,17 @@ if (!isCommandLineInterface() && !isAVideoEncoder()) {
 
 function avideoShutdown()
 {
-    global $global;
+    global $global, $cache_setCacheToSaveAtTheEnd;
+
+    // Log session performance if applicable
+    if (function_exists('_log_session_performance')) {
+        _log_session_performance('script_end');
+    }
+
     $error = error_get_last();
     if ($error && ($error['type'] & E_FATAL)) {
-        var_dump($error);
-        _error_log($error, AVideoLog::$ERROR);
+        // The shutdown backtrace describes the handler, not the original failure.
+        avideoLogHttpError($error);
         header($_SERVER['SERVER_PROTOCOL'] . ' 500 Internal Server Error', true, 500);
         if (!User::isAdmin()) {
             if (!preg_match('/json\.php$/i', $_SERVER['PHP_SELF'])) {
@@ -196,19 +239,21 @@ function avideoShutdown()
             } else {
                 $o = new stdClass();
                 $o->error = true;
-                $o->msg = ('Under Maintanance');
+                $o->msg = ('Under Maintenance');
                 echo json_encode($o);
             }
         } else {
             echo '<pre>';
             var_dump($error);
-            var_dump(debug_backtrace());
             echo '</pre>';
         }
         exit;
     }else{
-        if(class_exists('Cache')){
-            Cache::saveCache();
+        if(class_exists('Cache') && !empty($cache_setCacheToSaveAtTheEnd)){
+            // Save deferred cache only while the database connection is valid.
+            if (_mysql_is_open()) {
+                Cache::saveCache();
+            }
         }
     }
 }

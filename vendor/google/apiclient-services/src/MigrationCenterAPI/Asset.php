@@ -32,6 +32,22 @@ class Asset extends \Google\Collection
    * @var string
    */
   public $createTime;
+  protected $databaseDeploymentDetailsType = DatabaseDeploymentDetails::class;
+  protected $databaseDeploymentDetailsDataType = '';
+  protected $databaseDetailsType = DatabaseDetails::class;
+  protected $databaseDetailsDataType = '';
+  /**
+   * @var bool
+   */
+  public $hidden;
+  /**
+   * @var string
+   */
+  public $hideReason;
+  /**
+   * @var string
+   */
+  public $hideTime;
   protected $insightListType = InsightList::class;
   protected $insightListDataType = '';
   /**
@@ -50,6 +66,10 @@ class Asset extends \Google\Collection
    * @var string[]
    */
   public $sources;
+  /**
+   * @var string
+   */
+  public $title;
   /**
    * @var string
    */
@@ -96,6 +116,76 @@ class Asset extends \Google\Collection
   public function getCreateTime()
   {
     return $this->createTime;
+  }
+  /**
+   * @param DatabaseDeploymentDetails
+   */
+  public function setDatabaseDeploymentDetails(DatabaseDeploymentDetails $databaseDeploymentDetails)
+  {
+    $this->databaseDeploymentDetails = $databaseDeploymentDetails;
+  }
+  /**
+   * @return DatabaseDeploymentDetails
+   */
+  public function getDatabaseDeploymentDetails()
+  {
+    return $this->databaseDeploymentDetails;
+  }
+  /**
+   * @param DatabaseDetails
+   */
+  public function setDatabaseDetails(DatabaseDetails $databaseDetails)
+  {
+    $this->databaseDetails = $databaseDetails;
+  }
+  /**
+   * @return DatabaseDetails
+   */
+  public function getDatabaseDetails()
+  {
+    return $this->databaseDetails;
+  }
+  /**
+   * @param bool
+   */
+  public function setHidden($hidden)
+  {
+    $this->hidden = $hidden;
+  }
+  /**
+   * @return bool
+   */
+  public function getHidden()
+  {
+    return $this->hidden;
+  }
+  /**
+   * @param string
+   */
+  public function setHideReason($hideReason)
+  {
+    $this->hideReason = $hideReason;
+  }
+  /**
+   * @return string
+   */
+  public function getHideReason()
+  {
+    return $this->hideReason;
+  }
+  /**
+   * @param string
+   */
+  public function setHideTime($hideTime)
+  {
+    $this->hideTime = $hideTime;
+  }
+  /**
+   * @return string
+   */
+  public function getHideTime()
+  {
+    return $this->hideTime;
   }
   /**
    * @param InsightList
@@ -180,6 +270,20 @@ class Asset extends \Google\Collection
   public function getSources()
   {
     return $this->sources;
+  }
+  /**
+   * @param string
+   */
+  public function setTitle($title)
+  {
+    $this->title = $title;
+  }
+  /**
+   * @return string
+   */
+  public function getTitle()
+  {
+    return $this->title;
   }
   /**
    * @param string

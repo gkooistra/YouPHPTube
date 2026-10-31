@@ -42,7 +42,8 @@ class Users_extra_info extends ObjectYPT {
     }
 
     public function setField_name($field_name) {
-        $this->field_name = $field_name;
+        // stored raw field name reaches typeToHTML() (label/placeholder/value attrs, no escaping) and extraInfo.php, so sanitize on write
+        $this->field_name = xss_esc($field_name);
     }
 
     public function setField_type($field_type) {
@@ -54,7 +55,8 @@ class Users_extra_info extends ObjectYPT {
     }
 
     public function setField_default_value($field_default_value) {
-        $this->field_default_value = $field_default_value;
+        // reaches typeToHTML()'s value="" attribute / textarea content unescaped, so sanitize on write
+        $this->field_default_value = xss_esc($field_default_value);
     }
 
     public function setParameters($parameters) {
@@ -107,11 +109,11 @@ class Users_extra_info extends ObjectYPT {
 
     public static function typeToHTML($row, $class1 = '', $class2 = '') {
         $required = '';
-        
+
         if(self::isRequiredField($row['status'])){
             $required = 'required';
         }
-        
+
         $html = "";
         if (isset($row['value'])) {
             $row['field_default_value'] = $row['value'];

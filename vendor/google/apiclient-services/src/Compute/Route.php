@@ -69,11 +69,23 @@ class Route extends \Google\Collection
   /**
    * @var string
    */
+  public $nextHopInterRegionCost;
+  /**
+   * @var string
+   */
   public $nextHopIp;
   /**
    * @var string
    */
+  public $nextHopMed;
+  /**
+   * @var string
+   */
   public $nextHopNetwork;
+  /**
+   * @var string
+   */
+  public $nextHopOrigin;
   /**
    * @var string
    */
@@ -82,6 +94,8 @@ class Route extends \Google\Collection
    * @var string
    */
   public $nextHopVpnTunnel;
+  protected $paramsType = RouteParams::class;
+  protected $paramsDataType = '';
   /**
    * @var string
    */
@@ -276,6 +290,20 @@ class Route extends \Google\Collection
   /**
    * @param string
    */
+  public function setNextHopInterRegionCost($nextHopInterRegionCost)
+  {
+    $this->nextHopInterRegionCost = $nextHopInterRegionCost;
+  }
+  /**
+   * @return string
+   */
+  public function getNextHopInterRegionCost()
+  {
+    return $this->nextHopInterRegionCost;
+  }
+  /**
+   * @param string
+   */
   public function setNextHopIp($nextHopIp)
   {
     $this->nextHopIp = $nextHopIp;
@@ -290,6 +318,20 @@ class Route extends \Google\Collection
   /**
    * @param string
    */
+  public function setNextHopMed($nextHopMed)
+  {
+    $this->nextHopMed = $nextHopMed;
+  }
+  /**
+   * @return string
+   */
+  public function getNextHopMed()
+  {
+    return $this->nextHopMed;
+  }
+  /**
+   * @param string
+   */
   public function setNextHopNetwork($nextHopNetwork)
   {
     $this->nextHopNetwork = $nextHopNetwork;
@@ -300,6 +342,20 @@ class Route extends \Google\Collection
   public function getNextHopNetwork()
   {
     return $this->nextHopNetwork;
+  }
+  /**
+   * @param string
+   */
+  public function setNextHopOrigin($nextHopOrigin)
+  {
+    $this->nextHopOrigin = $nextHopOrigin;
+  }
+  /**
+   * @return string
+   */
+  public function getNextHopOrigin()
+  {
+    return $this->nextHopOrigin;
   }
   /**
    * @param string
@@ -328,6 +384,20 @@ class Route extends \Google\Collection
   public function getNextHopVpnTunnel()
   {
     return $this->nextHopVpnTunnel;
+  }
+  /**
+   * @param RouteParams
+   */
+  public function setParams(RouteParams $params)
+  {
+    $this->params = $params;
+  }
+  /**
+   * @return RouteParams
+   */
+  public function getParams()
+  {
+    return $this->params;
   }
   /**
    * @param string

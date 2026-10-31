@@ -95,11 +95,14 @@ if (!empty($_GET['type'])) {
         $name = $userProfile->displayName;
         $photoURL = $userProfile->photoURL;
         $email = $userProfile->email;
-        $pass = rand();
+        $pass = bin2hex(random_bytes(32)); // SECURITY: cryptographically random, never typed by the user
         $users_id = User::createUserIfNotExists($user, $pass, $name, $email, $photoURL);
-        $adapter->disconnect();
         $userObject = new User($users_id);
-        header("Location: oauth2Success.php?user=" . $userObject->getUser() . "&pass=" . $userObject->getPassword());
+        // Log in by user ID and keep credentials out of URLs/logs/history.
+        $userObject->login(true);
+        $adapter->disconnect();
+        header("Location: oauth2Success.php");
+        exit;
     } catch (\Exception $e) {
         header("Location: oauth2Error.php?message=" . $e->getMessage());
     }

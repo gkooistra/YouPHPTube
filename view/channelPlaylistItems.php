@@ -42,12 +42,13 @@ if (User::isLogged() && $user_id == User::getId()) {
     $isMyChannel = true;
 }
 $_REQUEST['rowCount'] = 4;
+$playlistTotalPages = ceil(PlayList::getTotalFromUser($user_id, $publicOnly, false, 0, 0, true) / $_REQUEST['rowCount']);
 $sort = @$_POST['sort'];
 $_POST['sort'] = [];
 $_POST['sort']['created'] = 'DESC';
 $playlists = PlayList::getAllFromUser($user_id, $publicOnly, false, 0, 0, true);
 $_POST['sort'] = $sort;
-$current = $_POST['current'];
+$current = getCurrentPage();
 unset($_POST['current']);
 ?>
 <div class="programsContainerItem">
@@ -91,7 +92,8 @@ unset($_POST['current']);
         } elseif (empty($videosArrayId)) {
             $videosP = [];
         } else {
-            $videosP = Video::getAllVideos(Video::SORT_TYPE_VIEWABLE, false, true, $videosArrayId, false, true);
+            // only the owner's own channel view may bypass group/unlisted restrictions here
+            $videosP = Video::getAllVideos(Video::SORT_TYPE_VIEWABLE, false, $isMyChannel, $videosArrayId, false, $isMyChannel);
             //var_dump($videosArrayId);exit;
         } //var_dump($videosArrayId, $videosP); exit;
         $totalDuration = 0;
@@ -113,7 +115,7 @@ unset($_POST['current']);
         $startC = microtime(true);
         $countSuccess++;
     ?>
-
+        <!-- channelPlaylistItems -->
         <div class="panel panel-default" playListId="<?php echo $playlist['id']; ?>">
             <div class="panel-heading clearfix">
                 <div class="pull-left">
@@ -176,9 +178,9 @@ unset($_POST['current']);
                                         <?php echo humanTiming(strtotime($serie['created']), 0, true, true); ?>
 
                                         <?php
-                                        if (!empty($serie['trailer1'])) {
+                                        if (isValidURL($serie['trailer1'])) {
                                         ?>
-                                            <button class="btn btn-xs btn-warning" onclick="avideoModalIframe('<?php echo parseVideos($serie['trailer1'], 1, 0, 0, 0, 1, 0, 'fill'); ?>');">
+                                            <button class="btn btn-xs btn-warning" onclick="avideoModalIframe('<?php echo htmlspecialchars(parseVideos($serie['trailer1'], 1, 0, 0, 0, 1, 0, 'fill'), ENT_QUOTES, 'UTF-8'); ?>');">
                                                 <span class="fa fa-film"></span>
                                                 <span class="hidden-xs"><?php echo __("Trailer"); ?></span>
                                             </button>
@@ -367,7 +369,8 @@ unset($_POST['current']);
                             $.ajax({
                                 url: webSiteRootURL+'objects/playlistRemove.php',
                                 data: {
-                                    "playlist_id": playlist_id
+                                    "playlist_id": playlist_id,
+                                    "globalToken": '<?php echo getToken(300); ?>'
                                 },
                                 type: 'post',
                                 success: function(response) {
@@ -467,13 +470,14 @@ unset($_POST['current']);
         echo "Line: {$key} -> {$value}\n";
     }
     $_POST['current'] = $current;
+    resetCurrentPage();
     ?>
     -->
 </div>
 <?php
 $url = "{$global['webSiteRootURL']}view/channelPlaylistItems.php";
 $url = addQueryStringParameter($url, 'channelName', $_GET['channelName']);
-echo getPagination($totalPages, $url, 10, ".programsContainerItem", ".programsContainerItem");
+echo getPagination($playlistTotalPages, $url, 10, ".programsContainerItem", ".programsContainerItem");
 ?>
 <script>
     var timoutembed;

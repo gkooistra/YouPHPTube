@@ -31,6 +31,14 @@ class Spoke extends \Google\Collection
   /**
    * @var string
    */
+  public $etag;
+  /**
+   * @var string[]
+   */
+  public $fieldPathsPendingUpdate;
+  /**
+   * @var string
+   */
   public $group;
   /**
    * @var string
@@ -42,6 +50,8 @@ class Spoke extends \Google\Collection
   public $labels;
   protected $linkedInterconnectAttachmentsType = LinkedInterconnectAttachments::class;
   protected $linkedInterconnectAttachmentsDataType = '';
+  protected $linkedProducerVpcNetworkType = LinkedProducerVpcNetwork::class;
+  protected $linkedProducerVpcNetworkDataType = '';
   protected $linkedRouterApplianceInstancesType = LinkedRouterApplianceInstances::class;
   protected $linkedRouterApplianceInstancesDataType = '';
   protected $linkedVpcNetworkType = LinkedVpcNetwork::class;
@@ -102,6 +112,34 @@ class Spoke extends \Google\Collection
   /**
    * @param string
    */
+  public function setEtag($etag)
+  {
+    $this->etag = $etag;
+  }
+  /**
+   * @return string
+   */
+  public function getEtag()
+  {
+    return $this->etag;
+  }
+  /**
+   * @param string[]
+   */
+  public function setFieldPathsPendingUpdate($fieldPathsPendingUpdate)
+  {
+    $this->fieldPathsPendingUpdate = $fieldPathsPendingUpdate;
+  }
+  /**
+   * @return string[]
+   */
+  public function getFieldPathsPendingUpdate()
+  {
+    return $this->fieldPathsPendingUpdate;
+  }
+  /**
+   * @param string
+   */
   public function setGroup($group)
   {
     $this->group = $group;
@@ -154,6 +192,20 @@ class Spoke extends \Google\Collection
   public function getLinkedInterconnectAttachments()
   {
     return $this->linkedInterconnectAttachments;
+  }
+  /**
+   * @param LinkedProducerVpcNetwork
+   */
+  public function setLinkedProducerVpcNetwork(LinkedProducerVpcNetwork $linkedProducerVpcNetwork)
+  {
+    $this->linkedProducerVpcNetwork = $linkedProducerVpcNetwork;
+  }
+  /**
+   * @return LinkedProducerVpcNetwork
+   */
+  public function getLinkedProducerVpcNetwork()
+  {
+    return $this->linkedProducerVpcNetwork;
   }
   /**
    * @param LinkedRouterApplianceInstances

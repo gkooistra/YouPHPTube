@@ -16,6 +16,14 @@ if (!User::isLogged()) {
     die(json_encode($obj));
 }
 
+if (!empty($live_schedule_id)) {
+    $ls = new Live_schedule($live_schedule_id);
+    if (!User::isAdmin() && $ls->getUsers_id() != User::getId()) {
+        $obj->msg = 'You cant edit this file';
+        die(json_encode($obj));
+    }
+}
+
 $live = AVideoPlugin::loadPluginIfEnabled("Live");
 
 if (empty($live)) {
@@ -34,10 +42,10 @@ if (isset($_FILES['file_data']) && $_FILES['file_data']['error'] == 0) {
     }
 
     if (empty($live_schedule_id)) {
-        $obj->file = Live::_getPosterImage(User::getId(), $live_servers_id);
+        $obj->file = Live::_getPosterImage(User::getId(), $live_servers_id, 0);
         $obj->fileThumbs = Live::_getPosterThumbsImage(User::getId(), $live_servers_id);
     } else {
-        $paths = Live_schedule::getPosterPaths($live_schedule_id);
+        $paths = Live_schedule::getPosterPaths($live_schedule_id, 0);
         $obj->file = str_replace($global['systemRootPath'], '', $paths['path']);
         $obj->fileThumbs = str_replace($global['systemRootPath'], '', $paths['path_thumbs']);
     }

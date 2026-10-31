@@ -42,8 +42,18 @@ if (empty($canClone->canClone)) {
 }
 
 if (!empty($_GET['deleteDump'])) {
-    $resp->error = !unlink("{$clonesDir}{$_GET['deleteDump']}");
-    $resp->msg = "Delete Dump {$_GET['deleteDump']}";
+    // Security: Strip path traversal components and validate path stays within clonesDir
+    $deleteDump = basename($_GET['deleteDump']);
+    $filePath = "{$clonesDir}{$deleteDump}";
+    $realFilePath = realpath($filePath);
+    $realClonesDir = realpath($clonesDir);
+    $realClonesDirPrefix = rtrim($realClonesDir, '/\\') . DIRECTORY_SEPARATOR;
+    if ($realFilePath === false || $realClonesDir === false || strpos($realFilePath, $realClonesDirPrefix) !== 0) {
+        $resp->msg = "Invalid file path";
+        die(json_encode($resp));
+    }
+    $resp->error = !unlink($realFilePath);
+    $resp->msg = "Delete Dump {$deleteDump}";
     die(json_encode($resp));
 }
 
@@ -64,7 +74,7 @@ $resp->error = !$canClone->clone->updateLastCloneRequest();
 $tables = array();
 $res = sqlDAL::readSql("SHOW TABLES");
 $row = sqlDAL::fetchAllAssoc($res);
-foreach ($row as $value) {    
+foreach ($row as $value) {
     $firstElement = reset($value);
     if ($firstElement != 'CachesInDB') {
         $tables[] = $firstElement;
@@ -77,7 +87,7 @@ $cmd = "mysqldump -u {$mysqlUser} -p'{$mysqlPass}' --host {$mysqlHost} ".
 " --default-character-set=utf8mb4 {$mysqlDatabase} {$tablesList} > $sqlFile";
 //$cmd = "mysqldump -u {$mysqlUser} -p'{$mysqlPass}' --host {$mysqlHost} --skip-set-charset -N --routines --skip-triggers --databases {$mysqlDatabase} > {$clonesDir}{$resp->sqlFile}";
 _error_log("Clone: Dump to $sqlFile");
-exec($cmd . " 2>&1", $output, $return_val);
+exec($cmd . " 2>/dev/null", $output, $return_val);
 if (!file_exists($sqlFile)) {
     _error_log("Clone: error {$sqlFile} does not exists" . json_encode($output));
 }else{

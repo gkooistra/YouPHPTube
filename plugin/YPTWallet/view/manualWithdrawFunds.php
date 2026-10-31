@@ -6,10 +6,20 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 if (!User::isLogged()) {
     gotToLoginAndComeBackHere();
 }
-
 $plugin = AVideoPlugin::loadPluginIfEnabled("YPTWallet");
+$balance =  YPTWallet::getUserBalance();
 $obj = $plugin->getDataObject();
-$options = _json_decode($obj->withdrawFundsOptions);
+$_options = _json_decode($obj->withdrawFundsOptions);
+$options = array();
+foreach ($_options as $key => $value) {
+    if ($value < $balance) {
+        $options[] = $value;
+    }
+}
+$options[] = $balance;
+
+$withdrawFundsSiteCutPercentage = isset($obj->withdrawFundsSiteCutPercentage->value) ? floatval($obj->withdrawFundsSiteCutPercentage->value) : 0;
+
 $_page = new Page(array('Withdraw Funds'));
 ?>
 <div class="container">
@@ -33,7 +43,7 @@ $_page = new Page(array('Withdraw Funds'));
                 <div class="col-sm-6">
                     <?php
                     if (!empty($_GET['status'])) {
-                        $text = "unknow";
+                        $text = "unknown";
                         $class = "danger";
                         switch ($_GET['status']) {
                             case "fail":
@@ -60,8 +70,23 @@ $_page = new Page(array('Withdraw Funds'));
                         <select class="form-control" id="value">
                             <?php
                             foreach ($options as $value) {
+                                // Calculate fee and final value
+                                $fee = ($value * $withdrawFundsSiteCutPercentage) / 100;
+                                $finalValue = $value - $fee;
                             ?>
-                                <option value="<?php echo $value; ?>"><?php echo $obj->currency_symbol; ?> <?php echo $value; ?> <?php echo $obj->currency; ?></option>
+                                <option value="<?php echo $value; ?>" data-fee="<?php echo $fee; ?>" data-final-value="<?php echo $finalValue; ?>">
+                                    <?php
+                                    echo YPTWallet::formatCurrency($value);
+                                    ?>
+                                    (
+                                    <?php echo __("Fee:"); ?>
+                                    <?php
+                                    echo YPTWallet::formatCurrency($value);
+                                    ?>
+                                    , <?php echo __("Final:"); ?>
+                                    <?php echo YPTWallet::formatCurrency($finalValue); ?>
+                                    )
+                                </option>
                             <?php
                             }
                             ?>
@@ -82,6 +107,7 @@ $_page = new Page(array('Withdraw Funds'));
 </div>
 <script>
     $(document).ready(function() {
+
         $('#manualWithdrawFundsPageButton').click(function() {
             modal.showPleaseWait();
             $.ajax({

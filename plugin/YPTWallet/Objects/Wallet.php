@@ -107,6 +107,12 @@ class Wallet extends ObjectYPT {
         $this->balance = floatval($this->balance);
         $this->crypto_wallet_address = ($this->crypto_wallet_address);
         ObjectYPT::clearSessionCache();
+        // IGNORE_ARGS still keeps "args" on include/require frames: log locations only.
+        $trace = array_map(function ($frame) {
+            unset($frame['args'], $frame['object']);
+            return $frame;
+        }, debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS));
+        _error_log("save({$this->id}, {$this->users_id}, {$this->balance}) ".json_encode($trace));
         $id = parent::save();
         if(!empty($id)){
             $obj = AVideoPlugin::getObjectData('YPTWallet');
@@ -122,6 +128,33 @@ class Wallet extends ObjectYPT {
             );
         }
         return $id;
+    }
+
+    /**
+     * Like getFromUser() but issues SELECT … FOR UPDATE to lock the row.
+     * Must be called inside an active transaction (mysqlBeginTransaction()).
+     * Returns a populated Wallet object, or false if the row does not exist.
+     */
+    static function getFromUserForUpdate($users_id) {
+        global $global;
+        $users_id = intval($users_id);
+        $result = sqlDAL::readSql(
+            "SELECT * FROM " . static::getTableName() . " WHERE users_id = ? LIMIT 1 FOR UPDATE",
+            'i', [$users_id], true
+        );
+        if (!$result) {
+            return false;
+        }
+        $row = sqlDAL::fetchAssoc($result);
+        sqlDAL::close($result);
+        if (empty($row)) {
+            return false;
+        }
+        $wallet = new static(0);
+        foreach ($row as $key => $value) {
+            @$wallet->$key = $value;
+        }
+        return $wallet;
     }
 
     static function getOrCreateFromUser($users_id) {

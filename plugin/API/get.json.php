@@ -1,15 +1,18 @@
 <?php
-$configFile = '../../videos/configuration.php';
+$configFile = __DIR__.'/../../videos/configuration.php';
 if (!file_exists($configFile)) {
     [$scriptPath] = get_included_files();
     $path = pathinfo($scriptPath);
     $configFile = $path['dirname'] . "/" . $configFile;
 }
 $global['bypassSameDomainCheck'] = 1;
+// API clients may send another account's user/pass while still holding an old session cookie:
+// User::loginFromRequest() then logs the old session off and signs in the requested account
+$global['switchUserFromRequestCredentials'] = 1;
 
 require_once $configFile;
 require_once $global['systemRootPath'] . 'plugin/API/API.php';
-allowOrigin();
+allowOrigin(true);
 header("Access-Control-Allow-Headers: Content-Type, ua-resolution");
 
 $plugin = AVideoPlugin::loadPluginIfEnabled("API");

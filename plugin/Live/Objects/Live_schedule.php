@@ -1,5 +1,4 @@
 <?php
-
 require_once dirname(__FILE__) . '/../../../videos/configuration.php';
 
 class Live_schedule extends ObjectYPT
@@ -31,7 +30,7 @@ class Live_schedule extends ObjectYPT
     {
         return 'live_schedule';
     }
-    
+
     function getUsers_id_company(): int {
         return intval($this->users_id_company);
     }
@@ -67,8 +66,8 @@ class Live_schedule extends ObjectYPT
                 } else{
                     return array();
                 }
-            } 
-        }        
+            }
+        }
     }
 
     function setUserGroups($usergroups){
@@ -81,9 +80,9 @@ class Live_schedule extends ObjectYPT
                 $json = array();
             }else{
                 $json = object_to_array($json);
-            } 
-        } 
-        
+            }
+        }
+
         $json['usergoups'] = $usergroups;
         $this->setJson($json);
     }
@@ -103,7 +102,7 @@ class Live_schedule extends ObjectYPT
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } 
+        }
         return $rows;
     }
 
@@ -122,19 +121,23 @@ class Live_schedule extends ObjectYPT
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } 
+        }
         return $rows;
     }
 
-    public static function getPosterPaths($live_schedule_id, $posterType=0)
+    public static function getPosterPaths($live_schedule_id, $ppv_schedule_id, $posterType=0)
     {
         $live_schedule_id = intval($live_schedule_id);
+        $ppv_schedule_id = intval($ppv_schedule_id);
         $posterType = intval($posterType);
-        if (empty($live_schedule_id)) {
+        if (empty($live_schedule_id) && empty($ppv_schedule_id)) {
             return false;
         }
         if(!empty($posterType)){
             $live_schedule_id = "{$live_schedule_id}_{$posterType}";
+        }
+        if(!empty($ppv_schedule_id)){
+            $live_schedule_id = "ppv_{$ppv_schedule_id}_{$posterType}";
         }
 
         $subdir = "live_schedule_posters";
@@ -156,15 +159,15 @@ class Live_schedule extends ObjectYPT
         return $array;
     }
 
-    public static function getPosterURL($live_schedule_id, $posterType=0){
-        $paths = self::getPosterPaths($live_schedule_id, $posterType);
+    public static function getPosterURL($live_schedule_id, $ppv_schedule_id, $posterType=0){
+        $paths = self::getPosterPaths($live_schedule_id, $ppv_schedule_id, $posterType);
         if (file_exists($paths['path'])) {
             return $paths['url'];
         } else {
             return Live::getComingSoonImage();
         }
     }
-    
+
     public static function isLive($live_schedule_id){
         $ls = self::getFromDb($live_schedule_id);
         if(empty($ls['key'])){
@@ -190,7 +193,7 @@ class Live_schedule extends ObjectYPT
             $sql .= " AND (scheduled_time > DATE_SUB(NOW(), INTERVAL {$activeHoursAgo} HOUR) OR (scheduled_php_time >= ".time()."))";
         }
         $sql .= self::getSqlFromPost();
-        
+
         if(!preg_match('/order by/i', $sql)){
             $sql .= ' ORDER BY scheduled_time ASC';
         }
@@ -204,7 +207,7 @@ class Live_schedule extends ObjectYPT
                 $row['future'] = isTimeForFuture($row['scheduled_time'], $row['timezone']);
                 $row['secondsIntervalHuman'] = secondsIntervalHuman($row['scheduled_time'], $row['timezone']);
                 //var_dump($row['secondsIntervalHuman']);exit;
-                $row['posterURL'] = self::getPosterURL($row['id']);
+                $row['posterURL'] = self::getPosterURL($row['id'], 0);
                 $row['serverURL'] = Live::getServerURL($row['key'], $row['users_id']);
                 if(empty($row['json'])){
                     $row['json'] = array();
@@ -228,16 +231,16 @@ class Live_schedule extends ObjectYPT
             return false;
         }
         // to convert time must load time zone table into mysql
-        
+
         $users_id = intval($users_id);
         $limit = intval($limit);
-        
+
         $sql = "SELECT * FROM  " . static::getTableName() . " WHERE status='a' ";
-        
+
         if (!empty($users_id)) {
             $sql .= " AND users_id = $users_id ";
         }
-        
+
         $sql .= " AND ((CONVERT_TZ(scheduled_time, timezone, @@session.time_zone ) > NOW() || scheduled_time > NOW()) OR (scheduled_php_time >= ".time().")) "
                 . " ORDER BY scheduled_time ASC LIMIT {$limit} ";
         //echo $sql;
@@ -249,11 +252,11 @@ class Live_schedule extends ObjectYPT
             foreach ($fullData as $row) {
                 $row['future'] = isTimeForFuture($row['scheduled_time'], $row['timezone']);
                 $row['secondsIntervalHuman'] = secondsIntervalHuman($row['scheduled_time'], $row['timezone']);
-                $row['posterURL'] = self::getPosterURL($row['id']);
+                $row['posterURL'] = self::getPosterURL($row['id'], 0);
                 $row['serverURL'] = Live::getServerURL($row['key'], $row['users_id']);
                 $rows[] = $row;
             }
-        } 
+        }
         return $rows;
     }
 
@@ -264,12 +267,13 @@ class Live_schedule extends ObjectYPT
 
     public function setTitle($title)
     {
-        $this->title = $title;
+        // stored raw title reaches remindMe.php/modeYoutubeLive.php unescaped, so sanitize on write
+        $this->title = xss_esc($title);
     }
 
     public function setDescription($description)
     {
-        $this->description = $description;
+        $this->description = xss_esc($description);
     }
 
     public function setKey($key)
@@ -364,7 +368,7 @@ class Live_schedule extends ObjectYPT
         return intval($this->live_servers_id);
     }
     /**
-     * 
+     *
      * @return string
      */
     public function getScheduled_time()
@@ -420,17 +424,17 @@ class Live_schedule extends ObjectYPT
         if (empty($this->showOnTV)) {
             $this->showOnTV = 'NULL';
         }
-        
+
         if (empty($this->users_id_company)) {
             $this->users_id_company = 'NULL';
         }
-        
+
         if ($this->status != 'i') {
             $this->status = 'a';
         }
 
         if (empty($this->key)) {
-            $this->key = uniqid();
+            $this->key = _uniqid(); // SECURITY: same RTMP publish credential class as LiveTransmition::key, must be a CSPRNG value
         }
 
         $this->_setTimeZone(date_default_timezone_get());
@@ -489,10 +493,10 @@ class Live_schedule extends ObjectYPT
                 . " LEFT JOIN users u ON u.id = ls.users_id AND u.status='a' "
                 . " LEFT JOIN live_transmitions lt ON u.id = lt.users_id AND u.status='a' "
                 . " WHERE "
-                . " ls.`key` = '$key' "
+                . " ls.`key` = ? "
                 . " AND (ls.`scheduled_time` + INTERVAL 1 DAY) > NOW() " // expire in 1 day
                 . " LIMIT 1";
-        $res = sqlDAL::readSql($sql);
+        $res = sqlDAL::readSql($sql, 's', [$key]);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if (!empty($data)) {
@@ -504,16 +508,19 @@ class Live_schedule extends ObjectYPT
         }
         return $row;
     }
-    
+
     function getScheduled_password() {
         return $this->scheduled_password;
     }
-    
+
     function getPassword() {
         return $this->getScheduled_password();
     }
-    
-    function setScheduled_password($scheduled_password): void {
+
+    function setScheduled_password(
+        #[\SensitiveParameter]
+        $scheduled_password
+    ): void {
         $this->scheduled_password = $scheduled_password;
     }
 
@@ -525,7 +532,7 @@ class Live_schedule extends ObjectYPT
         }
         return $users_id;
     }
-    
+
     public function userCanSeeTransmition(){
         global $global;
         require_once $global['systemRootPath'] . 'objects/userGroups.php';
@@ -568,11 +575,16 @@ class Live_schedule extends ObjectYPT
             return true;
         }
     }
-    
+
     public function isAPrivateLive(){
         $ltRow = LiveTransmition::getFromDbByUser($this->getUsers_id());
         $lt = new LiveTransmition($ltRow['id']);
         return !empty($lt->getGroups());
     }
 
+    public function getIsRebroadcast() {
+        $ltRow = LiveTransmition::getFromDbByUser($this->getUsers_id());
+        $lt = new LiveTransmition($ltRow['id']);
+        return !empty($lt->getIsRebroadcast());
+    }
 }

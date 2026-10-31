@@ -25,9 +25,27 @@ if(!isTokenValid($_REQUEST['securityToken'])){
     forbiddenPage('Security token is invalid');
 }
 
+// a delegated "Users Admin" must not edit an admin account (saving would also demote it, see User::setIsAdmin());
+// the users manager already hides the admin rows' commands from non-admins
+if (!empty($_POST['id'])) {
+    $accountMutationLock = UserAccountMutationLock::acquire($_POST['id']);
+    if (!$accountMutationLock) {
+        forbiddenPage('Could not lock the account for editing', true);
+    }
+}
+if (!empty($_POST['id']) && !User::isAdmin()) {
+    if ($accountMutationLock->getIsAdmin()) {
+        forbiddenPage('Only an admin can edit an admin account');
+    }
+}
+
 _session_write_close();
 if (!empty($advancedCustomUser->forceLoginToBeTheEmail)) {
-    $_POST['email'] = $_POST['user'];
+    if (filter_var($_POST['user'], FILTER_VALIDATE_EMAIL)) {
+        $_POST['email'] = $_POST['user'];
+    }else if (filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)){
+        $_POST['user'] = $_POST['email'];
+    }
 }
 
 if (empty($_POST['id'])) {
@@ -38,8 +56,15 @@ if (empty($_POST['id'])) {
 
 if (!empty($advancedCustomUser->emailMustBeUnique)) {
     if (!empty($_POST['email'])) {
-    if(!User::isEmailUniqeOrFromUser($_POST['email'], @$_POST['id'])){
-            forbiddenPage('Email Must be unique');
+        if(!User::isEmailUniqeOrFromUser($_POST['email'], @$_POST['id'])){
+            $msg = 'Email Must be unique';
+
+            if(User::isAdmin()){
+                global $isEmailUniqeOrFromUserReason;
+                $msg = "$msg $isEmailUniqeOrFromUserReason";
+            }
+
+            forbiddenPage($msg);
         }
     }
 }

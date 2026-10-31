@@ -46,7 +46,8 @@ function generateMetaTags($videoType, $modifiedDate, $createdDate, $title, $desc
 {
     global $global, $config, $advancedCustom;
     $ogType = determineOgType($videoType);
-
+    $title = str_replace('"', '', $title);
+    $description = str_replace('"', '', $description);
     if (empty($customizePluginDescription)) {
         if (AVideoPlugin::isEnabledByName('Customize')) {
             $ec = new ExtraConfig();
@@ -69,6 +70,7 @@ function generateMetaTags($videoType, $modifiedDate, $createdDate, $title, $desc
     $description = getSEODescription($description);
     $metaTags = array();
     $metaTags[] = '<!-- OpenGraph -->';
+    $metaTags[] = '<meta property="og:logo" content="'.getURL($config->getLogo()).'" />';
     if (preg_match('/\.m3u8/', $sourceFileURL)) {
         $metaTags[] = '<meta property="og:video:type" content="application/x-mpegURL" />';;
     } else if (!empty($videoType)) {
@@ -110,11 +112,11 @@ function generateMetaTags($videoType, $modifiedDate, $createdDate, $title, $desc
     $metaTags[] = "<meta property='og:type' content='{$ogType}' />";
     if ($title) {
         $title = getSEOTitle(html2plainText($title));
-        $metaTags[] = "<meta property='og:title' content='{$title}' />";
+        $metaTags[] = "<meta property=\"og:title\" content=\"{$title}\" />";
         $metaTags[] = "<meta name=\"twitter:title\" content=\"{$title}\"/>";
     }
     if ($description) {
-        $metaTags[] = "<meta property='og:description' content='{$description}' />";
+        $metaTags[] = "<meta property=\"og:description\" content=\"{$description}\" />";
         $metaTags[] = "<meta name=\"twitter:description\" content=\"{$description}\"/>";
     }
     if ($pageURL) {
@@ -151,7 +153,7 @@ function generateMetaTags($videoType, $modifiedDate, $createdDate, $title, $desc
         $metaTags[] = "<meta property=\"og:video\"            content=\"{$pageURL}\" />";
         $metaTags[] = "<meta property=\"og:video:secure_url\" content=\"{$pageURL}\" />";
     }
-    if (!empty($advancedCustom->twitter_player)) {
+    if (!empty($advancedCustom->twitter_player) && !empty($pageURLEmbed)) {
         $metaTags[] = '<meta name="twitter:card" content="player" />';
         $metaTags[] = "<meta name=\"twitter:player\" content=\"{$pageURLEmbed}\" />";
         if (!$SecureVideosDirectoryIsEnabled && !empty($sourceFileURL)) {
@@ -312,14 +314,20 @@ function getOpenGraphVideo($videos_id)
         $imgPath = $images->posterPortraitPath;
     } else if (!isImageNotFound($images->posterPortrait)) {
         $imgURL = $images->posterPortrait;
-        $imgPath = $images->posterPortraitPath;
+        // Get path directly for internal server-side use
+        $pathSource = Video::getSourceFile($video['filename'], '_portrait.jpg', false, true);
+        $imgPath = $pathSource['path'];
     }
     if (!isImageNotFound($images->posterLandscapeThumbs)) {
         $imgURL = $images->posterLandscapeThumbs;
-        $imgPath = $images->posterLandscapePath;
+        // Get path directly for internal server-side use
+        $pathSource = Video::getSourceFile($video['filename'], '_thumbsV2.jpg', false, true);
+        $imgPath = $pathSource['path'];
     } else if (!isImageNotFound($images->posterLandscape)) {
         $imgURL = $images->posterLandscape;
-        $imgPath = $images->posterLandscapePath;
+        // Get path directly for internal server-side use
+        $pathSource = Video::getSourceFile($video['filename'], '.jpg', false, true);
+        $imgPath = $pathSource['path'];
     } else {
         $imgURL = $images->posterPortrait;
         $imgPath = $images->posterPortraitPath;
@@ -342,7 +350,7 @@ function getOpenGraphLiveLink($liveLink_id)
     $sourceFileURL = $liveLink->getLink();
     $pageURL = LiveLinks::getLinkToLiveFromId($liveLink_id);
     $pageURLEmbed = LiveLinks::getLinkToLiveFromId($liveLink_id, true);
-    $imgURL = LiveLinks::getImage($liveLink_id);
+    $imgURL = LiveLinks::getImageDafaultOrDynamic($liveLink_id);
     $imgPath = '';
     $extraMetatags = array();
     //var_dump(debug_backtrace());
@@ -360,7 +368,7 @@ function getOpenGraphLiveSchedule($live_schedule_id)
     $title = $liveS->getTitle();
     $description = '';
     $duration_in_seconds = 0;
-    $poster = Live_schedule::getPosterURL($live_schedule_id);
+    $poster = Live_schedule::getPosterURL($live_schedule_id, 0);
     $liveStreamObject = new LiveStreamObject($liveS->getKey(), $liveS->getLive_servers_id(), 0, 0, @$_REQUEST['live_schedule']);
     $sourceFileURL = $liveStreamObject->getM3U8(true);
     $pageURL = $liveStreamObject->getURL();
@@ -378,7 +386,7 @@ function getOpenGraphLive()
     $isLive = isLive();
     $liveT = LiveTransmition::getFromKey($isLive['cleanKey']);
     $users_id = $liveT['users_id'];
-    $poster = Live::getPosterImage($users_id, $isLive['live_servers_id'], $isLive['live_schedule']);
+    $poster = Live::getRegularPosterImage($users_id, $isLive['live_servers_id'], $isLive['live_schedule'], 0);
     $liveStreamObject = new LiveStreamObject($isLive['cleanKey'], $isLive['live_servers_id'], $isLive['live_index'], 0);
     echo PHP_EOL . "<!-- OpenGraph Live users_id={$users_id} ".json_encode($isLive)." -->" . PHP_EOL;
     $videoType = '';

@@ -42,6 +42,7 @@ class CloudBuild extends \Google\Service
   public $projects_locations_connections;
   public $projects_locations_connections_repositories;
   public $projects_locations_operations;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the CloudBuild service.
@@ -54,6 +55,7 @@ class CloudBuild extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://cloudbuild.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://cloudbuild.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v2';
@@ -83,6 +85,11 @@ class CloudBuild extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',
@@ -197,6 +204,10 @@ class CloudBuild extends \Google\Service
                 'pageToken' => [
                   'location' => 'query',
                   'type' => 'string',
+                ],
+                'returnPartialSuccess' => [
+                  'location' => 'query',
+                  'type' => 'boolean',
                 ],
               ],
             ],'patch' => [
@@ -379,6 +390,10 @@ class CloudBuild extends \Google\Service
                 'pageToken' => [
                   'location' => 'query',
                   'type' => 'string',
+                ],
+                'returnPartialSuccess' => [
+                  'location' => 'query',
+                  'type' => 'boolean',
                 ],
               ],
             ],

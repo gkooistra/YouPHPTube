@@ -8,8 +8,13 @@ $obj->error = true;
 $obj->msg = "";
 
 $plugin = AVideoPlugin::loadPluginIfEnabled('CustomizeUser');
-                                                
+
 if(!User::isLogged()){
+    forbiddenPage();
+}
+
+// editing an existing row requires being one of its two parties (or admin), same gate as confirm.json.php/delete.json.php
+if (!empty($_POST['id']) && !Users_affiliations::canEditAffiliation($_POST['id'])) {
     forbiddenPage();
 }
 
@@ -19,12 +24,15 @@ if(!User::isAdmin()){
     if(User::isACompany()){
         $_POST['users_id_company'] = User::getId();
         $_POST['company_agree_date'] = date('Y-m-d H:i:s');
+        $_POST['affiliate_agree_date'] = $o->getAffiliate_agree_date(); // only the affiliate may set this, via confirm.json.php
         _error_log('Users_affiliations: save is a company');
     }else{
         $_POST['users_id_affiliate'] = User::getId();
         $_POST['affiliate_agree_date'] = date('Y-m-d H:i:s');
+        $_POST['company_agree_date'] = $o->getCompany_agree_date(); // only the company may set this, via confirm.json.php
         _error_log('Users_affiliations: save is NOT a company');
     }
+    unset($_POST['status']); // status is derived in Users_affiliations::save(), never caller-supplied
 }
 _error_log('Users_affiliations: save '. _json_encode($_POST));
 

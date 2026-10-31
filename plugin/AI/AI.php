@@ -7,18 +7,44 @@ require_once $global['systemRootPath'] . 'plugin/AI/Objects/Ai_metatags_response
 require_once $global['systemRootPath'] . 'plugin/AI/Objects/Ai_transcribe_responses.php';
 require_once $global['systemRootPath'] . 'plugin/AI/Objects/Ai_responses_json.php';
 require_once $global['systemRootPath'] . 'plugin/AI/Objects/Ai_scheduler.php';
+require_once $global['systemRootPath'] . 'plugin/AI/companion.php';
 
 class AI extends PluginAbstract
 {
 
+    // Both URLs are fixed; only the environment changes. The local one is
+    // selected automatically on the development install, by the same
+    // isTestEnvironment() switch $url/$url_test already use - it must never be
+    // picked because a constant happens to be defined, which is how a
+    // developer's endpoint reaches production. A different dev host can still
+    // override both with $global['companionBaseUrl'] in configuration.php.
+    const COMPANION_BASE_URL = 'https://companion.ypt.me/';
+    const COMPANION_LOCAL_BASE_URL = 'http://host.docker.internal:8000/';
+
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('YPTWallet', 'Charges AI usage to the user wallet balance', false),
+            PluginDependency::create('VideoHLS', 'Optional dubbing/HLS track integration', false),
+            PluginDependency::create('SubtitleSwitcher', 'Optional subtitle track integration for transcriptions', false),
+            PluginDependency::create('Bookmark', 'Optional bookmark integration for AI Shorts', false),
+        );
+    }
+
     const PERMISSION_CAN_USE_AI_SUGGESTIONS = 0;
+    // Separate from the permission above on purpose: an editor/collaborator
+    // may be trusted with AI authoring tools (SEO suggestions, shorts, etc.)
+    // without necessarily being the intended audience for the VIEWER-facing
+    // chat widget, and vice-versa.
+    const PERMISSION_CAN_USE_COMPANION_CHAT = 1;
 
     static $typeTranslation = 'translation';
     static $typeTranscription = 'transcription';
     static $typeBasic = 'basic';
+    static $typeImage = 'image';
     static $typeShorts = 'shorts';
+    static $typeDubbing = 'dubbing';
 
-    static $languages = [
+    const LANGS = [
         'en' => 'English',
         'es' => 'Spanish',
         'fr' => 'French',
@@ -51,9 +77,59 @@ class AI extends PluginAbstract
         'vi' => 'Vietnamese'
     ];
 
+
+    const DubbingLANGS = [
+        ['name' => 'English', 'code' => 'en'],
+        ['name' => 'Hindi', 'code' => 'hi'],
+        ['name' => 'Portuguese', 'code' => 'pt'],
+        ['name' => 'Chinese', 'code' => 'zh'],
+        ['name' => 'Spanish', 'code' => 'es'],
+        ['name' => 'French', 'code' => 'fr'],
+        ['name' => 'German', 'code' => 'de'],
+        ['name' => 'Japanese', 'code' => 'ja'],
+        ['name' => 'Arabic', 'code' => 'ar'],
+        ['name' => 'Russian', 'code' => 'ru'],
+        ['name' => 'Korean', 'code' => 'ko'],
+        ['name' => 'Indonesian', 'code' => 'id'],
+        ['name' => 'Italian', 'code' => 'it'],
+        ['name' => 'Dutch', 'code' => 'nl'],
+        ['name' => 'Turkish', 'code' => 'tr'],
+        ['name' => 'Polish', 'code' => 'pl'],
+        ['name' => 'Swedish', 'code' => 'sv'],
+        ['name' => 'Filipino', 'code' => 'fil'],
+        ['name' => 'Malay', 'code' => 'ms'],
+        ['name' => 'Romanian', 'code' => 'ro'],
+        ['name' => 'Ukrainian', 'code' => 'uk'],
+        ['name' => 'Greek', 'code' => 'el'],
+        ['name' => 'Czech', 'code' => 'cs'],
+        ['name' => 'Danish', 'code' => 'da'],
+        ['name' => 'Finnish', 'code' => 'fi'],
+        ['name' => 'Bulgarian', 'code' => 'bg'],
+        ['name' => 'Croatian', 'code' => 'hr'],
+        ['name' => 'Slovak', 'code' => 'sk'],
+        ['name' => 'Tamil', 'code' => 'ta'],
+    ];
+
     static $isTest = 0;
     static $url = 'https://ai.ypt.me/';
     static $url_test = 'http://192.168.0.2:81/AI/';
+    const TEST_DOMAIN = 'vlu.me';
+
+    // Single answer to "is this the development install?", for every AI
+    // endpoint that has a fixed production URL and a fixed local one.
+    // getMetadataURL() used to inline this, so self::$isTest was only set if
+    // that one method happened to run first and read 0 everywhere else.
+    static function isTestEnvironment()
+    {
+        global $global;
+        if (!empty($_SERVER["SERVER_NAME"])) {
+            $domain = $_SERVER["SERVER_NAME"];
+        } else {
+            $domain = parse_url($global['webSiteRootURL'], PHP_URL_HOST);
+        }
+        self::$isTest = ($domain === self::TEST_DOMAIN);
+        return self::$isTest;
+    }
 
     public function getTags()
     {
@@ -67,14 +143,7 @@ class AI extends PluginAbstract
 
     static function getMetadataURL()
     {
-        global $global;
-        if (!empty($_SERVER["SERVER_NAME"])) {
-            $domain = $_SERVER["SERVER_NAME"];
-        } else {
-            $domain = parse_url($global['webSiteRootURL'], PHP_URL_HOST);
-        }
-        self::$isTest = ($domain == "vlu.me");
-        return self::$isTest ? self::$url_test : self::$url;
+        return self::isTestEnvironment() ? self::$url_test : self::$url;
     }
 
     static function getPricesURL()
@@ -87,7 +156,7 @@ class AI extends PluginAbstract
         $desc = "Optimize video visibility with AI-driven meta-tag suggestions and automatic transcription for enhanced SEO performance.";
         $desc .= "<br>You can overprice AI request prices and generate income from users who utilize these AI services.";
         $help = "<br><small><a href='https://github.com/WWBN/AVideo/wiki/AI-Plugin' target='_blank'><i class='fas fa-question-circle'></i> Help</a></small>";
-        $help .= "<br><small><a href='https://youphp.tube/marketplace/AI/privacyPolicy.php' target='_blank'><i class='fa-solid fa-money-check-dollar'></i> AI Services Pricing</a></small>";
+        $help .= "<br><small><a href='https://streamphp.com/marketplace/AI/privacyPolicy.php' target='_blank'><i class='fa-solid fa-money-check-dollar'></i> AI Services Pricing</a></small>";
 
         //$desc .= $this->isReadyLabel(array('YPTWallet'));
         return $desc . $help;
@@ -105,7 +174,25 @@ class AI extends PluginAbstract
 
     public function getPluginVersion()
     {
-        return "6.0";
+        return "6.1";
+    }
+
+    // AI usage is billed per token, so one request commonly costs a fraction
+    // of a cent and the wallet's default 2-decimal formatting prints every
+    // such row as "0.00". Keep 2 decimals for ordinary amounts and extend to
+    // the value's own precision, without changing YPTWallet's formatting for
+    // the other ~50 files that call it.
+    static function formatPrice($value)
+    {
+        return YPTWallet::formatCurrency($value, false, false, false, self::getPriceDecimals($value));
+    }
+
+    static function getPriceDecimals($value, $minimum = 2, $maximum = 8)
+    {
+        $text = rtrim(number_format(abs(floatval($value)), $maximum, '.', ''), '0');
+        $dot = strpos($text, '.');
+        $decimals = $dot === false ? 0 : strlen($text) - $dot - 1;
+        return max($minimum, min($maximum, $decimals));
     }
 
     public function getEmptyDataObject()
@@ -120,10 +207,34 @@ class AI extends PluginAbstract
         self::addDataObjectHelper('priceForTranslation', 'Price for Translation Service', "Enter the charge amount for AI processing. Insufficient wallet balance will prevent processing. Successful charges apply to both your and the admin's CDN wallet on the marketplace.");
         $obj->priceForShorts = 0;
         self::addDataObjectHelper('priceForShorts', 'Price for Shorts Service', "Enter the charge amount for AI processing. Insufficient wallet balance will prevent processing. Successful charges apply to both your and the admin's CDN wallet on the marketplace.");
+        $obj->priceForDubbing = 0;
+        self::addDataObjectHelper('priceForDubbing', 'Price per second for Dubbing Service', "Enter the charge amount for AI processing. Insufficient wallet balance will prevent processing. Successful charges apply to both your and the admin's CDN wallet on the marketplace.");
 
 
         $obj->autoProcessAll = false;
         self::addDataObjectHelper('autoProcessAll', 'Auto Process All', "This will create the transcription + basic + shorts automatically for all new videos");
+
+        $obj->showOnlyVideoChat = false;
+        self::addDataObjectHelper('showOnlyVideoChat', 'Show only Video Chat', "Show only the Video Chat button in My videos, hiding the full AI-Powered button.");
+
+        // --- Companion (AI video chat) integration ---------------------
+        // Reuses the SAME AccessToken above to also cover Companion's video
+        // processing + chat costs from this account's marketplace wallet.
+        $obj->CompanionApiToken = "";
+        self::addDataObjectHelper('CompanionApiToken', 'Companion API Token (auto-generated)', "Obtained automatically the first time this site connects to Companion. Do not edit manually - clear it to force a fresh reconnect.");
+        $obj->CompanionOrganizationId = "";
+        self::addDataObjectHelper('CompanionOrganizationId', 'Companion Organization ID (auto-generated)', "Set automatically once connected. Do not edit manually.");
+        $obj->CompanionSiteId = "";
+        self::addDataObjectHelper('CompanionSiteId', 'Companion Site ID (auto-generated)', "Set automatically once connected. Do not edit manually.");
+        $o = new stdClass();
+        $o->type = array(
+            'everyone' => __('Everyone'),
+            'logged_in' => __('Logged-in users'),
+            'usergroup' => __('Users with the Companion Chat permission'),
+        );
+        $o->value = 'everyone';
+        $obj->companionChatAccessMode = $o;
+        self::addDataObjectHelper('companionChatAccessMode', 'Who can use the video Chat', "Choose who can automatically see the AI chat widget on a video's watch page.");
 
         /*
           $obj->textSample = "text";
@@ -304,6 +415,48 @@ class AI extends PluginAbstract
         return $obj;
     }
 
+    static function getVideoDubbingMetadata($videos_id, $lang)
+    {
+        $obj = new stdClass();
+        $obj->error = true;
+        $obj->msg = '';
+        $obj->response = array();
+
+        if (empty($videos_id)) {
+            $obj->msg = 'empty videos id';
+            return $obj;
+        }
+
+        if (!isCommandLineInterface() && !Video::canEdit($videos_id)) {
+            $obj->msg = 'you cannot edit this video';
+            return $obj;
+        }
+
+        $video = new Video('', '', $videos_id);
+        $mp3 = false;
+
+        $paths = AI::getMP3Path($videos_id);
+        $fsize = 0;
+        if ($paths['url']) {
+            $mp3 = $paths['url'];
+            $fsize = filesize($paths['path']);
+        }
+
+        //var_dump($paths);exit;
+        $obj->response = array(
+            'type' => AI::$typeDubbing,
+            'videos_id' => $videos_id,
+            'mp3' => $mp3,
+            'filesize' => $fsize,
+            'language' => $lang,
+            'filesizeHuman' => humanFileSize($fsize),
+            'duration_in_seconds' => $video->getDuration_in_seconds(),
+        );
+
+        $obj->error = false;
+        return $obj;
+    }
+
     static function getTokenForVideo($videos_id, $ai_responses_id, $param)
     {
         global $global;
@@ -318,6 +471,11 @@ class AI extends PluginAbstract
     }
 
 
+    // SECURITY REVIEW (2026-10-23, GHSA-v64v-r7qm-w5x4): "token never expires / not bound to the requester" -
+    // DO NOT FIX. The payload is encrypted with the site salt (cannot be forged) and names one video its
+    // holder could already edit when the job started. The AI service calls back server-to-server with no
+    // user session, so binding it to the requester would break every callback. The path traversal it led
+    // to is closed in Ai_transcribe_responses::getVTTPaths().
     static function getTokenFromRequest()
     {
 
@@ -422,6 +580,14 @@ class AI extends PluginAbstract
             $pathsLower = self::getMP3LowerPath($videos_id);
             if (!empty($pathsLower)) {
                 $duration = getDurationFromFile($pathsLower['path']);
+                if ($duration == "EE:EE:EE" && !empty($pathsLower['url'])) {
+                    $duration = getDurationFromFile($pathsLower['url']);
+                    if ($duration == "EE:EE:EE") {
+                        $pathsLower['url'] = str_replace('_Low.mp3', '.mp3', $pathsLower['url']);
+                        $duration = getDurationFromFile($pathsLower['url']);
+                    }
+                }
+
                 $durationInSeconds = durationToSeconds($duration);
                 $arrayLower = array(
                     'paths' => $pathsLower,
@@ -435,17 +601,17 @@ class AI extends PluginAbstract
         }
         $msg = '';
         $isValid = false;
-        if ($arrayRegular['isValid'] && $arrayLower['isValid']) {
+        if ($arrayRegular['isValid'] && $arrayLower['isValid'] && !empty($arrayRegular['paths']['path']) && !empty($arrayLower['paths']['path'])) {
             $f = convertVideoFileWithFFMPEGIsLockedInfo($arrayRegular['paths']['path']);
-            _error_log("convertVideoFileWithFFMPEGIsLockedInfo({$arrayRegular['paths']['path']}) arrayRegular ".json_encode($f));
+            _error_log("convertVideoFileWithFFMPEGIsLockedInfo({$arrayRegular['paths']['path']}) arrayRegular " . json_encode($f));
             if (!$f['isUnlocked']) {
                 $msg = "The original audio is processing";
-            }else{
+            } else {
                 $f = convertVideoFileWithFFMPEGIsLockedInfo($arrayLower['paths']['path']);
-                _error_log("convertVideoFileWithFFMPEGIsLockedInfo({$arrayLower['paths']['path']}) arrayLower ".json_encode($f));
+                _error_log("convertVideoFileWithFFMPEGIsLockedInfo({$arrayLower['paths']['path']}) arrayLower " . json_encode($f));
                 if (!$f['isUnlocked']) {
                     $msg = "The audio is processing";
-                }else{
+                } else {
                     $diff = abs($arrayRegular['durationInSeconds'] - $arrayLower['durationInSeconds']);
                     if ($diff <= 2) {
                         $isValid = true;
@@ -485,7 +651,7 @@ class AI extends PluginAbstract
                 }
                 $fromFileLocationEscaped = escapeshellarg($mp3s['regular']['paths']['path']);
                 $toFileLocationEscaped = escapeshellarg($mp3s['lower']['paths']['path']);
-                $command = get_ffmpeg() . " -i {$fromFileLocationEscaped} -ar 16000 -ac 1 -b:a 16k {$toFileLocationEscaped}";
+                $command = get_ffmpeg() . " -i {$fromFileLocationEscaped} -ar 16000 -ac 1 -b:a 64k {$toFileLocationEscaped}";
                 $command = removeUserAgentIfNotURL($command);
                 exec($command, $output);
                 _error_log('getLowerMP3: ' . json_encode($output));
@@ -509,10 +675,16 @@ class AI extends PluginAbstract
         $obj = $this->getDataObject();
         $btn = '';
         if (AI::canUseAI()) {
+            if (empty($obj->showOnlyVideoChat)) {
+                $btn .= '<button type="button" ' .
+                    ' class="btn btn-default btn-light btn-sm btn-xs btn-block" ' .
+                    ' onclick="avideoModalIframe(webSiteRootURL+\\\'plugin/AI/page.php?videos_id=\'+row.id+\'\\\');" >' .
+                    ' <i class="fas fa-robot"></i> ' . __("AI-Powered") . '</button>';
+            }
             $btn .= '<button type="button" ' .
                 ' class="btn btn-default btn-light btn-sm btn-xs btn-block" ' .
-                ' onclick="avideoModalIframe(webSiteRootURL+\\\'plugin/AI/page.php?videos_id=\'+row.id+\'\\\');" >' .
-                ' <i class="fas fa-robot"></i> ' . __("AI-Powered") . '</button>';
+                ' onclick="avideoModalIframe(webSiteRootURL+\\\'plugin/AI/page.php?videoChatOnly=1&videos_id=\'+row.id+\'\\\');" >' .
+                ' <i class="fas fa-comments"></i> ' . __("Video chat") . '</button>';
         }
 
         return $btn;
@@ -572,6 +744,46 @@ class AI extends PluginAbstract
     {
         global $global;
         include $global['systemRootPath'] . 'plugin/AI/footer.php';
+        echo self::getCompanionChatWidgetHTML();
+    }
+
+    // Auto-injects the Companion chat widget (iframe) on a video's watch
+    // page - no code copying required by the admin. getFooterCode() fires
+    // on EVERY page, so every check here must be cheap and must fail
+    // closed to "don't render" rather than error.
+    static function getCompanionChatWidgetHTML()
+    {
+        // Other plugin pages may set player globals while rendering editor tabs.
+        // Only the watch-page entry points should receive the floating widget.
+        $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+        if (!preg_match('~/view/(modeYoutube|index)\.php$~', $script) || !isVideo()) {
+            return '';
+        }
+        $videos_id = getVideos_id();
+        if (empty($videos_id)) {
+            return '';
+        }
+        if (!CompanionAI::whoCanUseChatOnWatchPage()) {
+            return '';
+        }
+        $chat = CompanionAI::getStoredChatConfig($videos_id);
+        if (empty($chat) || empty($chat->enabled) || empty($chat->embedUrl)) {
+            return '';
+        }
+        // videos.externalOptions is writable by anyone who can edit the video
+        // (objects/videoAddNew.json.php merges $_POST['externalOptions']), so
+        // the stored URL is user input here, not Companion output. Escaping
+        // alone would still allow an arbitrary - or javascript: - src framed
+        // over every viewer's watch page.
+        if (!CompanionAI::isValidEmbedUrl($chat->embedUrl)) {
+            return '';
+        }
+        global $global;
+        $embedUrl = $chat->embedUrl;
+        $configUrl = CompanionAI::getWidgetConfigUrl($embedUrl, $chat->configUrl ?? '');
+        ob_start();
+        include $global['systemRootPath'] . 'plugin/AI/View/companionWidget.php';
+        return ob_get_clean();
     }
 
     static function getVTTFiles($videos_id)
@@ -600,9 +812,9 @@ class AI extends PluginAbstract
     static function getProgressBarHTML($classname, $text)
     {
         return '
-        <div class="progress progressAI ' . $classname . '" style="display:none;"> 
-            <div class="progress-bar progress-bar-striped progress-bar-animated" 
-            role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">                
+        <div class="progress progressAI ' . $classname . '" style="display:none;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated"
+            role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
             <strong class="progressAITitle">' . $text . '</strong>
             </div>
         </div>';
@@ -628,7 +840,11 @@ class AI extends PluginAbstract
         _error_log('AI:videoCut start ' . $ai->getJson() . "{$obj->startTimeInSeconds} => {$obj->endTimeInSeconds}");
         $vid = Video::getVideoLight($obj->videos_id);
         $sources = getVideosURLOnly($vid['filename'], false);
-        $source = end($sources);
+        if(!empty($sources['m3u8'])){
+            $source = $sources['m3u8'];
+        }else{
+            $source = end($sources);
+        }
         if (!empty($source)) {
             _error_log('AI:videoCut source found  ' . $source["url"]);
             $duration_in_seconds = $obj->endTimeInSeconds - $obj->startTimeInSeconds;
@@ -647,7 +863,7 @@ class AI extends PluginAbstract
 
                 $video = new Video('', '', $newVideos_id);
                 if (file_exists($outputFile)) {
-                    $video->setAutoStatus(Video::$statusActive);
+                    $video->setAutoStatus(Video::STATUS_ACTIVE);
                     AVideoPlugin::onUploadIsDone($newVideos_id);
                     AVideoPlugin::afterNewVideo($newVideos_id);
                     _error_log('AI:videoCut create file success  ' . $outputFile);
@@ -679,6 +895,15 @@ class AI extends PluginAbstract
                 break;
             case AI::$typeShorts:
                 $price = $obj->priceForShorts;
+                break;
+            case AI::$typeDubbing:
+                $video = new Video('', '', $videos_id);
+                $duration_in_seconds = $video->getDuration_in_seconds();
+                if(empty($duration_in_seconds)){
+                    _error_log("The video {$videos_id} has not duration set, the price will be calculated over 10 minutes", AVideoLog::$ERROR);
+                    $duration_in_seconds = 600; // 10 minutes
+                }
+                $price = $obj->priceForDubbing * $duration_in_seconds;
                 break;
         }
         if (empty($price)) {
@@ -714,8 +939,8 @@ class AI extends PluginAbstract
             _error_log("AI:asyncVideosId error the user $users_id has no balance to pay the service $type for videos_id $videos_id ");
             $obj = new stdClass();
             $obj->error = true;
-            $obj->msg = "Transaction failed: Insufficient funds. 
-            You currently do not have enough balance in your account to cover the AI-powered video $type service. 
+            $obj->msg = "Transaction failed: Insufficient funds.
+            You currently do not have enough balance in your account to cover the AI-powered video $type service.
             Please add funds to proceed. Thank you.";
             return $obj;
         }
@@ -741,6 +966,14 @@ class AI extends PluginAbstract
                 _error_log('AI:asyncVideosId ' . basename(__FILE__) . ' line=' . __LINE__);
                 $obj = AI::getVideoShortsMetadata($videos_id);
                 break;
+            case AI::$typeDubbing:
+                _error_log('AI:asyncVideosId ' . basename(__FILE__) . ' line=' . __LINE__);
+                $obj = AI::getVideoDubbingMetadata($videos_id, @$_REQUEST['language']);
+                break;
+            case AI::$typeImage:
+                _error_log('AI:asyncVideosId typeImage ' . basename(__FILE__) . ' line=' . __LINE__);
+                $obj = AI::getVideoBasicMetadata($videos_id);
+                break;
             default:
                 _error_log('AI:asyncVideosId ' . basename(__FILE__) . ' line=' . __LINE__);
                 $obj = new stdClass();
@@ -761,7 +994,7 @@ class AI extends PluginAbstract
 
         $json = $obj->response;
         $json['AccessToken'] = $objAI->AccessToken;
-        $json['isTest'] = AI::$isTest ? 1 : 0;
+        $json['isTest'] = AI::isTestEnvironment() ? 1 : 0;
         $json['webSiteRootURL'] = $global['webSiteRootURL'];
         $json['PlatformId'] = getPlatformId();
         $json['videos_id'] = $videos_id;
@@ -814,7 +1047,7 @@ class AI extends PluginAbstract
         if (empty($content)) {
             $obj = new stdClass();
             $obj->error = true;
-            $obj->msg = "Oops! Our system took a bit longer than expected to process your request. 
+            $obj->msg = "Oops! Our system took a bit longer than expected to process your request.
             Please try again in a few moments. We apologize for any inconvenience and appreciate your patience.";
             return $obj;
         }
@@ -979,6 +1212,8 @@ class AI extends PluginAbstract
                     $this->executeCutVideo($row);
                 } else if ($ai->getAi_scheduler_type() === Ai_scheduler::$typeProcessAll) {
                     AI::processAll($row);
+                } else if ($ai->getAi_scheduler_type() === Ai_scheduler::$typeCompanionSubtitle) {
+                    CompanionAI::processScheduledSubtitle($row);
                 } else {
                     $ai->setStatus(Ai_scheduler::$statusError);
                     $ai->save();
@@ -1007,6 +1242,7 @@ class AI extends PluginAbstract
         $permissions = array();
 
         $permissions[] = new PluginPermissionOption(self::PERMISSION_CAN_USE_AI_SUGGESTIONS, __("Can use AI Suggestions"), "Members of the designated user group will have access to AI suggestions and requests. Monetization options are available, as outlined here: <a href='https://github.com/WWBN/AVideo/wiki/AI-Plugin#monetization-and-pricing' target='_blank'>AI Plugin Monetization and Pricing</a>.", 'AI');
+        $permissions[] = new PluginPermissionOption(self::PERMISSION_CAN_USE_COMPANION_CHAT, __("Can use Companion Chat"), "Only used when 'Who can use the video Chat' is set to 'usergroup' above - members of the designated user group will automatically see the AI chat widget on video watch pages.", 'AI');
         return $permissions;
     }
 

@@ -94,6 +94,9 @@ class ProjectsLocationsGrpcRoutes extends \Google\Service\Resource
    * `ListGrpcRoutesResponse` Indicates that this is a continuation of a prior
    * `ListGrpcRoutes` call, and that the system should return the next page of
    * data.
+   * @opt_param bool returnPartialSuccess Optional. If true, allow partial
+   * responses for multi-regional Aggregated List requests. Otherwise if one of
+   * the locations is down or unreachable, the Aggregated List request will fail.
    * @return ListGrpcRoutesResponse
    * @throws \Google\Service\Exception
    */
@@ -106,7 +109,7 @@ class ProjectsLocationsGrpcRoutes extends \Google\Service\Resource
   /**
    * Updates the parameters of a single GrpcRoute. (grpcRoutes.patch)
    *
-   * @param string $name Required. Name of the GrpcRoute resource. It matches
+   * @param string $name Identifier. Name of the GrpcRoute resource. It matches
    * pattern `projects/locations/global/grpcRoutes/`
    * @param GrpcRoute $postBody
    * @param array $optParams Optional parameters.

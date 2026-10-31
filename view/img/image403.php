@@ -10,7 +10,7 @@ if (class_exists("User") && !User::isLogged()) {
 ?>
 <style>
 
-    @import url("https://fonts.googleapis.com/css?family=Bungee");
+    @import url("<?php echo getURL('view/css/custom/fonts/bungee.css'); ?>");
     #page403 {
         font-family: "Bungee", cursive;
         margin-top: 50px;
@@ -68,7 +68,7 @@ if (class_exists("User") && !User::isLogged()) {
         </g>
     </svg>
     <?php
-    echo $_REQUEST['403ErrorMsg'];
+    echo $_REQUEST['403ErrorMsg'] ?? '';
     ?>
 </div>
 <script>

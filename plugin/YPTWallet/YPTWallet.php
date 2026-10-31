@@ -1,5 +1,4 @@
 <?php
-
 global $global;
 if (empty($global)) {
     $global = [];
@@ -44,7 +43,15 @@ class YPTWallet extends PluginAbstract
 
     public function getPluginVersion()
     {
-        return "5.0";
+        return "6.3";
+    }
+
+    public function updateScript()
+    {
+        if (AVideoPlugin::compareVersion($this->getName(), '6.0') < 0 && !parent::updateScript()) {
+            return false;
+        }
+        return WalletLog::upgradePaymentLogSchema();
     }
 
 
@@ -150,13 +157,23 @@ class YPTWallet extends PluginAbstract
         $obj->enableManualWithdrawFundsPage = true;
         $obj->enableAutoWithdrawFundsPagePaypal = false;
         $obj->withdrawFundsOptions = "[5,10,20,50,100,1000]";
+
+        $o = new stdClass();
+        $o->type = array();
+        for ($i = 0; $i < 100; $i++) {
+            $o->type[$i] = "{$i}%";
+        }
+        $o->value = 10;
+        $obj->withdrawFundsSiteCutPercentage = $o;
+        self::addDataObjectHelper('withdrawFundsSiteCutPercentage', 'Withdraw Funds Site Cut Percentage', 'This percentage helps cover transaction fees charged by payment gateways when users load their wallets or make withdrawals.');
+
         $obj->manualWithdrawFundsMenuTitle = "Withdraw Funds";
         $obj->manualWithdrawFundsPageButton = "Request Withdraw";
         $obj->manualWithdrawFundsNotifyEmail = "yourEmail@yourDomain.com";
-        
+
         //$obj->manualWithdrawFundsminimum = 1;
         //$obj->manualWithdrawFundsmaximum = 100;
-        
+
         $obj->manualWithdrawFundsTransferToUserId = 1;
 
         $plugins = self::getAvailablePlugins();
@@ -170,23 +187,15 @@ class YPTWallet extends PluginAbstract
         return $obj;
     }
 
-    public function updateScript()
-    {
-        global $global;
-        if (AVideoPlugin::compareVersion($this->getName(), "4.0") < 0) {
-            $sqls = file_get_contents($global['systemRootPath'] . 'plugin/YPTWallet/install/updateV4.0.sql');
-            $sqlParts = explode(";", $sqls);
-            foreach ($sqlParts as $value) {
-                sqlDal::writeSql(trim($value));
-            }
-        }
-        return true;
-    }
-
     public function getBalance($users_id)
     {
         $wallet = self::getWallet($users_id);
         return $wallet->getBalance();
+    }
+
+    public function isStripePaymentCredited($paymentIntentId, $users_id)
+    {
+        return WalletLog::hasProcessedStripePaymentForUser($paymentIntentId, $users_id);
     }
 
     public function getBalanceText($users_id)
@@ -202,7 +211,14 @@ class YPTWallet extends PluginAbstract
         return number_format($balance, $obj->decimalPrecision);
     }
 
-    public static function formatCurrency($value, $addHTML = false, $doNotUseVirtualCurrency = false, $currency = false)
+    /**
+     * @param int|false $decimalPrecisionOverride Optional. Number of decimals
+     * to use instead of the configured wallet precision, for callers that
+     * display sub-cent amounts (e.g. per-token AI usage, which rounds to
+     * "0.00" at the default precision of 2). Omitted/false keeps the exact
+     * previous behavior for every existing caller.
+     */
+    public static function formatCurrency($value, $addHTML = false, $doNotUseVirtualCurrency = false, $currency = false, $decimalPrecisionOverride = false)
     {
         $value = floatval($value);
         $obj = AVideoPlugin::getObjectData('YPTWallet');
@@ -216,12 +232,15 @@ class YPTWallet extends PluginAbstract
             $decimalPrecision = $obj->virtual_currency_decimalPrecision;
             $currency = $obj->virtual_currency;
         }
+        if ($decimalPrecisionOverride !== false && is_numeric($decimalPrecisionOverride)) {
+            $decimalPrecision = intval($decimalPrecisionOverride);
+        }
         $value = number_format($value, $decimalPrecision);
 
         if ($addHTML) {
-            return "{$currency_symbol} <span class=\"walletBalance\">{$value}</span> {$currency}";
+            return "{$currency_symbol}<span class=\"walletBalance\">{$value}</span> {$currency}";
         } else {
-            return "{$currency_symbol} {$value} {$currency}";
+            return "{$currency_symbol}{$value} {$currency}";
         }
     }
 
@@ -276,7 +295,8 @@ class YPTWallet extends PluginAbstract
             $sql .= " AND status = 'a' ";
         }
 
-        $sql .= BootGrid::getSqlFromPost(array('name', 'email', 'user'));
+        // reachable by any logged-in user via transferFunds.php; must not allow ordering by password/recoverPass
+        $sql .= BootGrid::getSqlFromPost(array('name', 'email', 'user'), "", "", false, "", ['id', 'u.id', 'user_id', 'name', 'u.name', 'email', 'u.email', 'user', 'u.user', 'balance', 'status', 'u.status']);
 
         /**
          * Global variables.
@@ -306,6 +326,29 @@ class YPTWallet extends PluginAbstract
             die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
         }
         return $user;
+    }
+
+    /**
+     * Fields that are safe to expose to any authenticated (non-admin) user.
+     * Used by endpoints like the transferFunds autocomplete.
+     */
+    public static function getPublicUserFields(): array
+    {
+        return ['id', 'user_id', 'user', 'identification', 'background', 'photo'];
+    }
+
+    /**
+     * Returns getAllUsers() rows filtered down to public-safe fields only.
+     * Use this for any endpoint that non-admin users can reach.
+     */
+    public function getAllUsersPublicFields($activeOnly = true): array
+    {
+        $users = $this->getAllUsers($activeOnly);
+        if (empty($users)) {
+            return [];
+        }
+        $allowed = array_flip(self::getPublicUserFields());
+        return array_map(fn($row) => array_intersect_key($row, $allowed), $users);
     }
 
     public static function getTotalBalance()
@@ -361,6 +404,144 @@ class YPTWallet extends PluginAbstract
         return $value;
     }
 
+    private static $paymentTransactionActive = false;
+
+    /**
+     * Process a verified payment from any gateway atomically, including the gateway's own logs.
+     * $options accepts WalletLog::hasProcessedPayment()'s legacyDescriptions and legacyCheck.
+     * Use a stable provider name and payment IDs, not a subscription/agreement ID shared by renewals.
+     */
+    public function processPaymentOnce($provider, $paymentIds, $users_id, callable $process, array $options = [])
+    {
+        global $global, $mysqlDatabase;
+        $users_id = intval($users_id);
+        $paymentIds = array_values(array_unique(array_filter($paymentIds, function ($id) {
+            return is_string($id) && $id !== '';
+        })));
+        // Provider payment IDs are not secrets; they let admins find the payment in the provider dashboard.
+        $logContext = "provider={$provider} users_id={$users_id} payment_ids=" . implode(',', $paymentIds);
+        if ($users_id <= 0 || empty($paymentIds) || self::$paymentTransactionActive
+            || isset($global['mysqlTransactionConnection'])) {
+            throw new RuntimeException("Invalid or nested payment delivery {$logContext}");
+        }
+        $db = $global['mysqli'];
+        // Serialize ledger claims across users/providers, including first wallet creation.
+        $lockName = 'avideo-payment-' . substr(hash('sha256', (string) $mysqlDatabase), 0, 48);
+        $stmt = $db->prepare('SELECT GET_LOCK(?, 10) AS acquired');
+        if (!$stmt) {
+            throw new RuntimeException("Cannot acquire payment lock {$logContext} db_error=" . ($db->error ?? ''));
+        }
+        $stmt->bind_param('s', $lockName);
+        if (!$stmt->execute()) {
+            throw new RuntimeException("Cannot acquire payment lock {$logContext} db_error=" . ($db->error ?? ''));
+        }
+        $acquired = 0;
+        $stmt->bind_result($acquired);
+        $stmt->fetch();
+        $stmt->close();
+        if ((int) $acquired !== 1) {
+            _error_log("processPaymentOnce: another payment is being processed, the provider will retry {$logContext}", AVideoLog::$WARNING);
+            throw new RuntimeException("Payment is busy; retry delivery {$logContext}");
+        }
+        _error_log("processPaymentOnce: start {$logContext}");
+        $transactionStarted = false;
+        $global['mysqlTransactionConnection'] = $db;
+        $global['mysqlTransactionError'] = false;
+        try {
+            if (!$db->begin_transaction()) {
+                throw new RuntimeException('Cannot begin payment transaction');
+            }
+            $transactionStarted = true;
+            self::$paymentTransactionActive = true;
+            $wallet = $this->getOrCreateWallet($users_id);
+            if (empty($wallet->getId())) {
+                throw new RuntimeException('Cannot create payment wallet');
+            }
+            if (WalletLog::hasProcessedPayment($provider, $paymentIds, $wallet->getId(), $options)) {
+                $db->rollback();
+                _error_log("processPaymentOnce: already processed, duplicate delivery ignored {$logContext}");
+                return true;
+            }
+            if ($process() !== true) {
+                throw new RuntimeException('Payment processing failed');
+            }
+            if (!empty($global['mysqlTransactionError'])) {
+                throw new \mysqli_sql_exception('Payment database operation failed');
+            }
+            $wallet = $this->getOrCreateWallet($users_id);
+            foreach ($paymentIds as $paymentId) {
+                if (!WalletLog::addProcessedPayment($provider, $paymentId, $wallet->getId(), $wallet->getBalance())) {
+                    throw new RuntimeException('Cannot record processed payment');
+                }
+            }
+            if (!$db->commit()) {
+                throw new RuntimeException('Cannot commit payment');
+            }
+            _error_log("processPaymentOnce: done {$logContext}");
+            return true;
+        } catch (Throwable $error) {
+            $dbError = $db->error ?? ''; // read before rollback() clears it
+            if ($transactionStarted) {
+                $db->rollback();
+                ObjectYPT::clearSessionCache();
+            }
+            _error_log("processPaymentOnce: FAILED and rolled back, nothing was credited; the provider will retry {$logContext} error="
+                . get_class($error) . ': ' . $error->getMessage() . " db_error={$dbError}", AVideoLog::$ERROR);
+            throw $error;
+        } finally {
+            self::$paymentTransactionActive = false;
+            unset($global['mysqlTransactionConnection'], $global['mysqlTransactionError']);
+            $stmt = $db->prepare('SELECT RELEASE_LOCK(?)');
+            if ($stmt) {
+                $stmt->bind_param('s', $lockName);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                // MySQL also releases the lock when this connection closes at the end of the request.
+                _error_log("processPaymentOnce: could not release the payment lock {$logContext}", AVideoLog::$WARNING);
+            }
+        }
+    }
+
+    /**
+     * Runs an optional part of a verified payment (e.g. the subscription renewal) inside the
+     * payment transaction. If it fails, only that part is undone (savepoint), so the payment
+     * credit and its processed marker are still committed and the provider does not retry forever.
+     */
+    public function runPaymentStep(callable $step, $label = 'payment step')
+    {
+        global $global;
+        if (!self::$paymentTransactionActive) {
+            return $step() === true;
+        }
+        $db = $global['mysqli'];
+        // mysqli::rollback($flags, $name) does not roll back to a savepoint, so use explicit SQL.
+        if (!$db->query('SAVEPOINT avideo_payment_step')) {
+            throw new RuntimeException("Cannot start {$label} db_error=" . ($db->error ?? ''));
+        }
+        try {
+            $done = $step() === true;
+        } catch (Throwable $error) {
+            if ($error instanceof \mysqli_sql_exception) {
+                throw $error;
+            }
+            _error_log("runPaymentStep: {$label} failed: " . get_class($error) . ': ' . $error->getMessage(), AVideoLog::$ERROR);
+            $done = false;
+        }
+        if (!empty($global['mysqlTransactionError'])) {
+            throw new \mysqli_sql_exception('Payment database operation failed');
+        }
+        if ($done) {
+            $db->query('RELEASE SAVEPOINT avideo_payment_step');
+            return true;
+        }
+        if (!$db->query('ROLLBACK TO SAVEPOINT avideo_payment_step')) {
+            throw new RuntimeException("Cannot undo failed {$label} db_error=" . ($db->error ?? ''));
+        }
+        ObjectYPT::clearSessionCache();
+        return false;
+    }
+
     /**
      *
      * @param string $users_id
@@ -382,22 +563,31 @@ class YPTWallet extends PluginAbstract
             $description .= " Rate Exchanged {$originalValueFormated} => {$valueFormated} ";
         }
         $wallet = $this->getOrCreateWallet($users_id);
+        if (self::$paymentTransactionActive) {
+            $wallet = Wallet::getFromUserForUpdate($users_id);
+            if (!$wallet) {
+                throw new RuntimeException('Payment wallet not found');
+            }
+        }
         $balance = $wallet->getBalance();
         _error_log("YPTWallet::addBalance BEFORE (user_id={$users_id}) (balance={$balance})");
-        $balance += $value;
-        $wallet->setBalance($balance);
+        $newBalance = $balance + $value;
+        $wallet->setBalance($newBalance);
         $wallet_id = $wallet->save();
 
-        WalletLog::addLog($wallet_id, $value, $description, $json_data, "success", "addBalance");
+        $log_id = WalletLog::addLog($wallet_id, $value, $balance, $description, $json_data, "success", "addBalance");
+        if (self::$paymentTransactionActive && (empty($wallet_id) || empty($log_id))) {
+            throw new RuntimeException('Payment credit could not be saved');
+        }
 
         if (!empty($mainWallet_user_id)) {
             $wallet = $this->getOrCreateWallet($mainWallet_user_id);
             $balance = $wallet->getBalance();
-            $balance += ($value * -1);
-            $wallet->setBalance($balance);
+            $newBalance = $balance + ($value * -1);
+            $wallet->setBalance($newBalance);
             $wallet_id = $wallet->save();
             $user = new User($users_id);
-            WalletLog::addLog($wallet_id, ($value * -1), " From user ($users_id) " . $user->getUser() . " - " . $description, $json_data, "success", "addBalance to main wallet");
+            WalletLog::addLog($wallet_id, ($value * -1), $balance, " From user ($users_id) " . $user->getUser() . " - " . $description, $json_data, "success", "addBalance to main wallet");
         }
 
         $wallet = $this->getOrCreateWallet($users_id);
@@ -416,11 +606,18 @@ class YPTWallet extends PluginAbstract
         $wallet->setBalance($value);
         $wallet_id = $wallet->save();
         $description = "Admin set your balance, from {$balance} to {$value}";
-        WalletLog::addLog($wallet_id, $value, $description, "{}", "success", "saveBalance");
+        _error_log("saveBalance($users_id, $value) " . json_encode(debug_backtrace()));
+        WalletLog::addLog($wallet_id, $value, $balance, $description, "{}", "success", "saveBalance");
     }
 
     public static function transferBalanceToSiteOwner($users_id_from, $value, $description = "", $forceTransfer = false)
     {
+        // Cron / CLI processes run without a logged-in user (User::getId() == 0).
+        // Any call originating from the command line is a trusted system transfer,
+        // so forceTransfer is implied — even if an older caller omitted the flag.
+        if (isCommandLineInterface()) {
+            $forceTransfer = true;
+        }
         $obj = AVideoPlugin::getObjectData('YPTWallet');
         if (empty($obj->manualWithdrawFundsTransferToUserId)) {
             _error_log("YPTWallet::transferBalanceToSiteOwner site owner is not defined in the plugin, define it on the option manualWithdrawFundsTransferToUserId", AVideoLog::$ERROR);
@@ -430,6 +627,10 @@ class YPTWallet extends PluginAbstract
 
     public static function transferBalanceFromSiteOwner($users_id_from, $value, $description = "", $forceTransfer = false)
     {
+        // Same CLI / cron trust rule — see transferBalanceToSiteOwner.
+        if (isCommandLineInterface()) {
+            $forceTransfer = true;
+        }
         $obj = AVideoPlugin::getObjectData('YPTWallet');
         return self::transferBalance($obj->manualWithdrawFundsTransferToUserId, $users_id_from, $value, $description, $forceTransfer);
     }
@@ -450,59 +651,113 @@ class YPTWallet extends PluginAbstract
         return self::transferBalanceFromSiteOwner(User::getId(), $value);
     }
 
-    public static function transferBalance($users_id_from, $users_id_to, $value, $forceDescription = "", $forceTransfer = false)
+    public static function transferBalance($fromUserId, $toUserId, $amount, $customDescription = "", $forceTransfer = false)
     {
         global $global;
-        _error_log("transferBalance: $users_id_from, $users_id_to, $value, $forceDescription, $forceTransfer");
+        _error_log("transferBalance: $fromUserId, $toUserId, $amount, $customDescription, $forceTransfer");
+
         if (!User::isAdmin()) {
-            if ($users_id_from != User::getId() && !$forceTransfer) {
-                _error_log("transferBalance: you are not admin, $users_id_from,$users_id_to, $value");
+            if ($fromUserId != User::getId() && !$forceTransfer) {
+                _error_log("transferBalance: permission denied. currentUserId=" . intval(User::getId()) . ", fromUserId={$fromUserId}, toUserId={$toUserId}, amount={$amount}, forceTransfer=" . intval(!empty($forceTransfer)) . ". Automatic/system transfers must call this method with forceTransfer=true. " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
                 return false;
             }
         }
-        if (!User::idExists($users_id_from) || !User::idExists($users_id_to)) {
-            _error_log("transferBalance: user does not exists, $users_id_from,$users_id_to, $value");
+
+        if (!User::idExists($fromUserId) || !User::idExists($toUserId)) {
+            _error_log("transferBalance: user does not exist, $fromUserId, $toUserId, $amount " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
             return false;
         }
-        $value = floatval($value);
-        if ($value <= 0) {
+
+        $amount = floatval($amount);
+        if ($amount <= 0) {
             return false;
         }
-        $wallet = self::getWallet($users_id_from);
-        $balance = $wallet->getBalance();
-        $newBalance = $balance - $value;
-        if ($newBalance < 0) {
-            _error_log("transferBalance: you dont have balance, $users_id_from,$users_id_to, $value (Balance: {$balance}) (New Balance: {$newBalance})");
+
+        // Use a transaction with SELECT…FOR UPDATE to eliminate the TOCTOU race condition.
+        // Concurrent transfers from the same sender block on the row lock instead of reading
+        // a stale balance, preventing balance creation from nothing.
+        $ownsTransaction = !self::$paymentTransactionActive;
+        if ($ownsTransaction) {
+            mysqlBeginTransaction();
+        }
+
+        // Lock sender row and load into Wallet object
+        // Nothing was written yet: inside a payment just report false and keep its transaction.
+        $senderWallet = Wallet::getFromUserForUpdate($fromUserId);
+        if (!$senderWallet) {
+            if ($ownsTransaction) {
+                mysqlRollback();
+            }
+            _error_log("transferBalance: sender wallet not found, $fromUserId");
             return false;
         }
-        $identificationFrom = User::getNameIdentificationById($users_id_from);
-        $identificationTo = User::getNameIdentificationById($users_id_to);
 
-        $wallet->setBalance($newBalance);
-        $wallet_id = $wallet->save();
+        $senderBalance = $senderWallet->getBalance();
+        $senderNewBalance = $senderBalance - $amount;
 
-        $description = "Transfer Balance {$value} from <strong>YOU</strong> to user <a href='{$global['webSiteRootURL']}channel/{$users_id_to}'>{$identificationTo}</a>";
-        if (!empty($forceDescription)) {
-            $description = $forceDescription;
+        if ($senderNewBalance < 0) {
+            if ($ownsTransaction) {
+                mysqlRollback();
+            }
+            _error_log("transferBalance: insufficient balance. fromUserId={$fromUserId}, toUserId={$toUserId}, amount={$amount}, currentBalance={$senderBalance}, resultingBalance={$senderNewBalance}. Transfer canceled to avoid negative balance. " . json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));
+            return false;
         }
 
-        $log_id_from = WalletLog::addLog($wallet_id, "-" . $value, $description, "{}", "success", "transferBalance to");
+        $senderIdentification = User::getNameIdentificationById($fromUserId);
+        $receiverIdentification = User::getNameIdentificationById($toUserId);
 
+        $senderWallet->setBalance($senderNewBalance);
+        $senderWalletId = $senderWallet->save();
 
-        $wallet = self::getWallet($users_id_to);
-        $balance = $wallet->getBalance();
-        $newBalance = $balance + $value;
-        $wallet->setBalance($newBalance);
-        $wallet_id = $wallet->save();
-        $description = "Transfer Balance {$value} from user <a href='{$global['webSiteRootURL']}channel/{$users_id_from}'>{$identificationFrom}</a> to <strong>YOU</strong>";
-        if (!empty($forceDescription)) {
-            $description = $forceDescription;
+        $descriptionFrom = "Transfer Balance {$amount} from <strong>YOU</strong> to user <a href='{$global['webSiteRootURL']}channel/{$toUserId}'>{$receiverIdentification}</a>";
+        if (!empty($customDescription)) {
+            $descriptionFrom = $customDescription;
         }
-        ObjectYPT::clearSessionCache();
 
-        $log_id_to = WalletLog::addLog($wallet_id, $value, $description, "{}", "success", "transferBalance from");
-        return array('log_id_from' => $log_id_from, 'log_id_to' => $log_id_to);
+        $logIdFrom = WalletLog::addLog($senderWalletId, "-" . $amount, $senderBalance, $descriptionFrom, "{}", "success", "transferBalance to");
+
+        // Lock receiver row and load into Wallet object. A receiver who never had a wallet (e.g. the
+        // site owner receiving renewals) gets one, as the previous getWallet()-based code did on save.
+        $receiverWallet = Wallet::getFromUserForUpdate($toUserId);
+        if (!$receiverWallet && Wallet::getOrCreateFromUser($toUserId)) {
+            $receiverWallet = Wallet::getFromUserForUpdate($toUserId);
+        }
+        if (!$receiverWallet) {
+            if ($ownsTransaction) {
+                mysqlRollback();
+            } else {
+                // The sender was already debited; the caller's payment step must undo it.
+                throw new RuntimeException("Payment wallet transfer failed: receiver wallet not found, $toUserId");
+            }
+            _error_log("transferBalance: receiver wallet not found, $toUserId");
+            return false;
+        }
+
+        $receiverBalance = $receiverWallet->getBalance();
+        $receiverWallet->setBalance($receiverBalance + $amount);
+        $receiverWalletId = $receiverWallet->save();
+
+        $descriptionTo = "Transfer Balance {$amount} from user <a href='{$global['webSiteRootURL']}channel/{$fromUserId}'>{$senderIdentification}</a> to <strong>YOU</strong>";
+        if (!empty($customDescription)) {
+            $descriptionTo = $customDescription;
+        }
+
+        $logIdTo = WalletLog::addLog($receiverWalletId, $amount, $receiverBalance, $descriptionTo, "{}", "success", "transferBalance from");
+
+        if (self::$paymentTransactionActive && (empty($senderWalletId) || empty($receiverWalletId)
+            || empty($logIdFrom) || empty($logIdTo))) {
+            throw new RuntimeException('Payment wallet transfer could not be saved');
+        }
+        if ($ownsTransaction) {
+            mysqlCommit();
+        }
+
+        return [
+            'log_id_from' => $logIdFrom,
+            'log_id_to' => $logIdTo,
+        ];
     }
+
 
     public static function transferAndSplitBalanceWithSiteOwner($users_id_from, $users_id_to, $value, $siteowner_percentage, $forceDescription = "")
     {
@@ -565,7 +820,7 @@ class YPTWallet extends PluginAbstract
         return true;
     }
 
-    public static function getAvailableRecurrentPayments()
+    public static function getAvailableRecurrentPayments($plans_id)
     {
         global $global;
 
@@ -585,7 +840,7 @@ class YPTWallet extends PluginAbstract
             $file = $subdir . "{$value}.php";
             if (is_dir($subdir) && file_exists($file)) {
                 require_once $file;
-                $eval = "\$obj = new {$value}();\$obj->getRecurrentAprovalButton();";
+                $eval = "\$obj = new {$value}();\$obj->getRecurrentAprovalButton({$plans_id});";
                 eval($eval);
             }
         }
@@ -697,31 +952,77 @@ class YPTWallet extends PluginAbstract
         $emailsArray = array_unique($emailsArray);
 
         global $global, $config;
+        sendSiteEmail($emailsArray, $subject, $body, $config->getContactEmail(), $config->getWebSiteTitle());
+    }
+    /* TODO */
+    public static function transactionNotification($from_users_id, $to_users_id, $value, $status)
+    {
+        global $global;
+        $identification = User::getNameIdentificationById($from_users_id);
+        $element_id = "transactionNotification" . uniqid();
 
-        //Create a new PHPMailer instance
-        $mail = new \PHPMailer\PHPMailer\PHPMailer;
-        setSiteSendMessage($mail);
-        //Set who the message is to be sent from
-        $mail->setFrom($config->getContactEmail(), $config->getWebSiteTitle());
-        //Set who the message is to be sent to
-        foreach ($emailsArray as $value) {
-            if (empty($value)) {
-                continue;
-            }
-            $mail->addBCC($value);
-        }
-        //Set the subject line
-        $mail->Subject = $subject;
-        $mail->msgHTML($body);
+        // Set default values for title, message, icon, and type
+        $title = 'Transaction Notification';
+        $msg = 'Transaction update';
+        $icon = 'fa-solid fa-info-circle';
+        $type = UserNotifications::type_info;
 
-        //send the message, check for errors
-        if (!$mail->send()) {
-            _error_log("Wallet email FAIL [{$subject}] {$mail->ErrorInfo}");
-            return false;
-        } else {
-            _error_log("Wallet email sent [{$subject}]");
-            return true;
+        $valueFormated = YPTWallet::formatCurrency($value);
+        $href = "{$global['webSiteRootURL']}plugin/YPTWallet/view/history.php";
+
+        // Handle different statuses
+        switch ($status) {
+            case 'pending':
+                $title = 'Transaction Pending';
+                $msg = 'Your have a pending transaction of ' . $valueFormated;
+                $icon = 'fa-solid fa-hourglass-half'; // Icon for pending
+                $type = UserNotifications::type_warning;
+                $href = "{$global['webSiteRootURL']}plugin/YPTWallet/view/pendingRequests.php";
+                break;
+            case 'canceled':
+                $title = 'Transaction Canceled';
+                $msg = 'Your transaction of ' . $valueFormated . ' was canceled';
+                $icon = 'fa-solid fa-times-circle'; // Icon for canceled
+                $type = UserNotifications::type_danger;
+                break;
+            case 'success':
+                $title = 'Transaction Successful';
+                $msg = 'Your transaction of ' . $valueFormated . ' was successful complete';
+                $icon = 'fa-solid fa-check-circle'; // Icon for success
+                $type = UserNotifications::type_success;
+                break;
+            case 'credit':
+                // If it is a credit
+                $title = 'Funds Received';
+                $msg = 'You have received a credit of ' . $valueFormated . ' from ' . $identification;
+                $icon = 'fa-solid fa-hand-holding-usd'; // Credit icon
+                $type = UserNotifications::type_success;
+                break;
+            case 'debit':
+                // If it is a debit
+                $title = 'Funds Deducted';
+                $msg = 'A debit of ' . $valueFormated . ' has been processed to ' . $identification;
+                $icon = 'fa-solid fa-money-bill-wave'; // Debit icon
+                $type = UserNotifications::type_danger;
+                break;
+            default:
+                $msg = 'Unknown status update for your transaction.';
+                break;
         }
+
+        // Create the notification
+        return self::createNotification($from_users_id, $to_users_id, $title, $msg, $type, $element_id, $icon, $href);
+    }
+
+
+    /* TODO */
+    public static function createNotification($from_users_id, $to_users_id, $title, $msg, $type, $element_id, $icon, $href)
+    {
+        global $global;
+        $image = User::getPhoto($from_users_id, false, true);
+        $element_id = "{$element_id}_{$from_users_id}_{$to_users_id}";
+        //sendSocketSuccessMessageToUsers_id($msg, $friend_users_id);
+        return UserNotifications::createNotification($title, $msg, $to_users_id, $image, $href, $type, $element_id, $icon);
     }
 
     /**
@@ -736,46 +1037,73 @@ class YPTWallet extends PluginAbstract
         $walletLog = new WalletLog($wallet_log_id);
         $wallet = new Wallet($walletLog->getWallet_id());
         $oldStatus = $walletLog->getStatus();
+        $value = $walletLog->getValue();
+        $json = json_decode($walletLog->getJson_data());
+
+        if (!empty($json->value) && $json->value > $value) {
+            $value = $json->value;
+        }
+
         if ($walletLog->getType() == self::MANUAL_WITHDRAW) {
+            // Notify status change
             if ($new_status != $oldStatus) {
+                if ($new_status == "canceled") {
+                    // Notification for canceled withdrawal
+                    self::transactionNotification($obj->manualWithdrawFundsTransferToUserId, $wallet->getUsers_id(), $value, 'canceled');
+                } elseif ($new_status == "success") {
+                    // Notification for successful withdrawal
+                    self::transactionNotification($obj->manualWithdrawFundsTransferToUserId, $wallet->getUsers_id(), $value, 'success');
+                } elseif ($new_status == "pending") {
+                    // Notification for pending withdrawal
+                    self::transactionNotification($obj->manualWithdrawFundsTransferToUserId, $wallet->getUsers_id(), $value, 'pending');
+                }
+
                 if ($oldStatus == "success" || $oldStatus == "pending") {
                     if ($new_status == "canceled") {
-                        // return the value
-                        return self::transferBalance($obj->manualWithdrawFundsTransferToUserId, $wallet->getUsers_id(), $walletLog->getValue());
+                        // Return the value on cancel
+                        return self::transferBalance($obj->manualWithdrawFundsTransferToUserId, $wallet->getUsers_id(), $value);
                     } else {
-                        // keep the value
+                        // Keep the value on other statuses
                         return true;
                     }
                 }
-                // get the value again
+
                 if ($oldStatus == "canceled") {
-                    return self::transferBalance($wallet->getUsers_id(), $obj->manualWithdrawFundsTransferToUserId, $walletLog->getValue());
+                    // Transfer value when moving from canceled to another status
+                    return self::transferBalance($wallet->getUsers_id(), $obj->manualWithdrawFundsTransferToUserId, $value);
                 }
             }
         } elseif ($walletLog->getType() == self::MANUAL_ADD) {
+            // Handle MANUAL_ADD notifications
             if ($oldStatus == "pending") {
                 if ($new_status == "canceled") {
-                    // do nothing
+                    // Notify canceled add funds
+                    self::transactionNotification($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $value, 'canceled');
                     return true;
                 } elseif ($new_status == "success") {
-                    // transfer the value
-                    return self::transferBalance($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $walletLog->getValue());
+                    // Notify successful add funds
+                    self::transactionNotification($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $value, 'success');
+                    return self::transferBalance($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $value);
                 }
             } elseif ($oldStatus == "success") {
-                //get the money back
-                return self::transferBalance($wallet->getUsers_id(), $obj->manualAddFundsTransferFromUserId, $walletLog->getValue());
+                // Get the money back on cancel
+                return self::transferBalance($wallet->getUsers_id(), $obj->manualAddFundsTransferFromUserId, $value);
             } elseif ($oldStatus == "canceled") {
                 if ($new_status == "pending") {
-                    // do nothing
+                    // Do nothing
                     return true;
                 } elseif ($new_status == "success") {
-                    // transfer the value
-                    return self::transferBalance($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $walletLog->getValue());
+                    // Notify success on manual add funds
+                    self::transactionNotification($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $value, 'success');
+                    return self::transferBalance($obj->manualAddFundsTransferFromUserId, $wallet->getUsers_id(), $value);
                 }
             }
         }
+
+        // Default return if no status change occurs
         return true;
     }
+
 
     public static function getUserBalance($users_id = 0)
     {
@@ -815,12 +1143,23 @@ class YPTWallet extends PluginAbstract
         self::setAddFundsSuccessRedirectURL(getRedirectToVideo($videos_id));
     }
 
+    public static function showAdminMessage()
+    {
+        global $global;
+        if (User::isAdmin()) {
+            if (empty($global['getWalletConfigurationHTMLAdminMessageShowed'])) {
+                echo '<div class="alert alert-info" role="alert">
+                    <i class="fa fa-info-circle"></i>
+                    <strong>Admin Notice:</strong> This message is visible only to administrators.
+                </div>';
+                $global['getWalletConfigurationHTMLAdminMessageShowed'] = 1;
+            }
+        }
+    }
+
     public function getWalletConfigurationHTML($users_id, $wallet, $walletDataObject)
     {
         global $global;
-        if (empty($walletDataObject->CryptoWalletEnabled)) {
-            return '';
-        }
         include_once $global['systemRootPath'] . 'plugin/YPTWallet/getWalletConfigurationHTML.php';
     }
 
@@ -875,5 +1214,224 @@ class YPTWallet extends PluginAbstract
             return true;
         }
         return false;
+    }
+
+    static function setDonationNotificationURL($users_id, $url)
+    {
+        // Sanitize the URL string for safe database storage
+        $url = trim($url);
+
+        // Remove any null bytes and control characters that could cause issues
+        $url = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $url);
+
+        // Reject SSRF-unsafe URLs (loopback, RFC1918, cloud metadata, etc.) before storing
+        if (!empty($url) && !isSSRFSafeURL($url)) {
+            _error_log("setDonationNotificationURL: rejected SSRF-unsafe URL for user {$users_id}", AVideoLog::$SECURITY);
+            return false;
+        }
+
+        // HTML encode any special characters to prevent XSS when displayed
+        $url = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+
+        // Limit length to prevent database issues
+        if (strlen($url) > 2048) {
+            _error_log("URL too long. Maximum 2048 characters allowed");
+            return false;
+        }
+
+        $user = new User($users_id);
+        return $user->addExternalOptions('donation_notification_url', $url);
+    }
+
+    static function getDonationNotificationURL($users_id)
+    {
+        $user = new User($users_id);
+        return $user->getExternalOptions('donation_notification_url');
+    }
+
+
+    public function afterDonation($from_users_id, $how_much, $videos_id, $users_id, $extraParameters)
+    {
+        $extraParameters = object_to_array($extraParameters);
+        $donation_notification_url = self::getDonationNotificationURL($users_id);
+        $webhookSecret = self::getDonationNotificationSecret($users_id); // Get user's secret
+
+        $obj = AVideoPlugin::getObjectData('YPTWallet');
+
+        $data = array(
+            'from_users_id' => $from_users_id,
+            'from_users_name' => User::getNameIdentificationById($from_users_id),
+            'currency' => $obj->currency,
+            'how_much_human' => YPTWallet::formatCurrency($how_much),
+            'how_much' => $how_much,
+            'message' => $extraParameters['message'] ?? '',
+            'videos_id' => $videos_id,
+            'users_id' => $users_id,
+            'time' => time(),
+            'extraParameters' => $extraParameters
+        );
+
+        $resolvedIP = null;
+        if (!empty($donation_notification_url) && isSSRFSafeURL($donation_notification_url, $resolvedIP)) {
+            _error_log("Sending donation notification via POST to URL: {$donation_notification_url} for user ID: {$users_id}");
+
+            // Create POST data string
+            $postData = http_build_query($data);
+
+            // Generate signature using user's webhook secret
+            $signature = hash_hmac('sha256', $postData, $webhookSecret);
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $donation_notification_url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 1);
+            curl_setopt($ch, CURLOPT_NOSIGNAL, true);
+            // Disable redirect following to prevent 307-based SSRF bypass
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, getSelfUserAgent());
+
+            // Pin DNS to the IP resolved by isSSRFSafeURL to prevent DNS rebinding
+            $parsedWebhookURL = parse_url($donation_notification_url);
+            $webhookHost = $parsedWebhookURL['host'] ?? '';
+            $webhookPort = $parsedWebhookURL['port'] ?? (($parsedWebhookURL['scheme'] ?? 'http') === 'https' ? 443 : 80);
+            if (!empty($resolvedIP) && !empty($webhookHost)) {
+                curl_setopt($ch, CURLOPT_RESOLVE, ["{$webhookHost}:{$webhookPort}:{$resolvedIP}"]);
+            }
+
+            // Add signature to headers
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/x-www-form-urlencoded',
+                'X-Webhook-Signature: sha256=' . $signature,
+                'X-Webhook-Timestamp: ' . $data['time']
+            ));
+
+            // Silent execution
+            ob_start();
+            curl_exec($ch);
+            ob_end_clean();
+            curl_close($ch);
+        } else {
+            _error_log("Donation notification URL is not set or invalid for user ID: {$users_id} " . json_encode($data));
+        }
+    }
+
+    /**
+     * Generate a cryptographically secure random string.
+     * @param int $length
+     * @return string
+     */
+    private static function generateRandomString($length = 32)
+    {
+        if (function_exists('random_bytes')) {
+            return bin2hex(random_bytes($length / 2));
+        } elseif (function_exists('openssl_random_pseudo_bytes')) {
+            return bin2hex(openssl_random_pseudo_bytes($length / 2));
+        } else {
+            // fallback (not cryptographically secure)
+            return substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', $length)), 0, $length);
+        }
+    }
+
+    static function setDonationNotificationSecret($users_id, $secret = null)
+    {
+        // If no secret provided, generate a new one
+        if (empty($secret)) {
+            $secret = self::generateRandomString(32);
+        }
+
+        // Sanitize the secret
+        $secret = trim($secret);
+
+        // Limit length for database safety
+        if (strlen($secret) > 255) {
+            _error_log("Webhook secret too long. Maximum 255 characters allowed");
+            return false;
+        }
+
+        // Remove any dangerous characters
+        $secret = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $secret);
+
+        $user = new User($users_id);
+        return $user->addExternalOptions('donation_notification_secret', $secret);
+    }
+
+    static function getDonationNotificationSecret($users_id)
+    {
+        $user = new User($users_id);
+        $secret = $user->getExternalOptions('donation_notification_secret');
+
+        // If no secret exists, generate one
+        if (empty($secret)) {
+            $secret = self::generateRandomString(32);
+            self::setDonationNotificationSecret($users_id, $secret);
+        }
+
+        return $secret;
+    }
+
+    static function regenerateDonationNotificationSecret($users_id)
+    {
+        $newSecret = self::generateRandomString(32);
+        return self::setDonationNotificationSecret($users_id, $newSecret);
+    }
+
+    /**
+     * Given a plan's how_many_days value, returns a stdClass with
+     * provider-specific frequency/interval fields so all payment
+     * plugins stay in sync automatically.
+     *
+     * Properties returned:
+     *   ->dateExpr         — strtotime expression: '1 year' | '1 month' | 'N days'
+     *   ->paypalFrequency  — PayPal frequency string: 'Year' | 'Month' | 'Day'
+     *   ->paypalInterval   — PayPal interval count
+     *   ->stripeFrequency  — Stripe interval: 'year' | 'month' | 'day'
+     *   ->stripeInterval   — Stripe interval_count
+     *   ->razorpayPeriod   — RazorPay period: 'yearly' | 'monthly' | 'daily'
+     *   ->razorpayInterval — RazorPay interval count
+     *   ->authnetUnit      — AuthorizeNet unit: 'months' | 'days'
+     *   ->authnetInterval  — AuthorizeNet interval count (365 days → 12 months)
+     *
+     * @param  int    $howManyDays
+     * @return stdClass
+     */
+    public static function getBillingInterval($howManyDays)
+    {
+        $howManyDays = (int)$howManyDays;
+        $obj = new stdClass();
+        if ($howManyDays === 365) {
+            $obj->dateExpr         = '1 year';
+            $obj->paypalFrequency  = 'Year';
+            $obj->paypalInterval   = 1;
+            $obj->stripeFrequency  = 'year';
+            $obj->stripeInterval   = 1;
+            $obj->razorpayPeriod   = 'yearly';
+            $obj->razorpayInterval = 1;
+            $obj->authnetUnit      = 'months'; // ARB does not support 'years'; 12 months = 1 year
+            $obj->authnetInterval  = 12;
+        } elseif ($howManyDays === 30) {
+            $obj->dateExpr         = '1 month';
+            $obj->paypalFrequency  = 'Month';
+            $obj->paypalInterval   = 1;
+            $obj->stripeFrequency  = 'month';
+            $obj->stripeInterval   = 1;
+            $obj->razorpayPeriod   = 'monthly';
+            $obj->razorpayInterval = 1;
+            $obj->authnetUnit      = 'months';
+            $obj->authnetInterval  = 1;
+        } else {
+            $obj->dateExpr         = $howManyDays . ' days';
+            $obj->paypalFrequency  = 'Day';
+            $obj->paypalInterval   = $howManyDays;
+            $obj->stripeFrequency  = 'day';
+            $obj->stripeInterval   = $howManyDays;
+            $obj->razorpayPeriod   = 'daily';
+            $obj->razorpayInterval = $howManyDays;
+            $obj->authnetUnit      = 'days';
+            $obj->authnetInterval  = $howManyDays;
+        }
+        return $obj;
     }
 }

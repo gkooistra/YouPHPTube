@@ -62,7 +62,7 @@ $userCredentials = User::loginFromRequestToGet();
                                 <div class="form-check" style="white-space: nowrap;">
                                     <input class="form-check-input userGroups" type="checkbox" value="<?php echo $value['id']; ?>" name="userGroups[]" id="userGroupsCheck<?php echo $value['id']; ?>">
                                     <label class="form-check-label" for="defaultCheck<?php echo $value['id']; ?>">
-                                        <?php echo $value['group_name']; ?>
+                                        <?php echo htmlspecialchars($value['group_name'], ENT_QUOTES, 'UTF-8'); ?>
                                     </label>
                                 </div>
                                 <?php
@@ -155,7 +155,7 @@ $userCredentials = User::loginFromRequestToGet();
             modal.showPleaseWait();
             $.ajax({
                 url: webSiteRootURL+'plugin/Meet/saveMeet.json.php?<?php echo $userCredentials; ?>',
-                                data: $('#formMeetManager').serialize(),
+                                data: $('#formMeetManager').serialize() + '&globalToken=<?php echo getToken(300); ?>',
                                 type: 'post',
                                 success: function (response) {
                                     if (response.error) {

@@ -20,6 +20,10 @@ namespace Google\Service\Integrations;
 class GoogleCloudIntegrationsV1alphaExecution extends \Google\Collection
 {
   protected $collection_key = 'responseParams';
+  /**
+   * @var string
+   */
+  public $cloudKmsKey;
   protected $cloudLoggingDetailsType = GoogleCloudIntegrationsV1alphaCloudLoggingDetails::class;
   protected $cloudLoggingDetailsDataType = '';
   /**
@@ -44,6 +48,8 @@ class GoogleCloudIntegrationsV1alphaExecution extends \Google\Collection
    * @var string
    */
   public $name;
+  protected $replayInfoType = GoogleCloudIntegrationsV1alphaExecutionReplayInfo::class;
+  protected $replayInfoDataType = '';
   protected $requestParametersType = GoogleCloudIntegrationsV1alphaValueType::class;
   protected $requestParametersDataType = 'map';
   protected $requestParamsType = EnterpriseCrmFrontendsEventbusProtoParameterEntry::class;
@@ -65,6 +71,20 @@ class GoogleCloudIntegrationsV1alphaExecution extends \Google\Collection
    */
   public $updateTime;
 
+  /**
+   * @param string
+   */
+  public function setCloudKmsKey($cloudKmsKey)
+  {
+    $this->cloudKmsKey = $cloudKmsKey;
+  }
+  /**
+   * @return string
+   */
+  public function getCloudKmsKey()
+  {
+    return $this->cloudKmsKey;
+  }
   /**
    * @param GoogleCloudIntegrationsV1alphaCloudLoggingDetails
    */
@@ -176,6 +196,20 @@ class GoogleCloudIntegrationsV1alphaExecution extends \Google\Collection
   public function getName()
   {
     return $this->name;
+  }
+  /**
+   * @param GoogleCloudIntegrationsV1alphaExecutionReplayInfo
+   */
+  public function setReplayInfo(GoogleCloudIntegrationsV1alphaExecutionReplayInfo $replayInfo)
+  {
+    $this->replayInfo = $replayInfo;
+  }
+  /**
+   * @return GoogleCloudIntegrationsV1alphaExecutionReplayInfo
+   */
+  public function getReplayInfo()
+  {
+    return $this->replayInfo;
   }
   /**
    * @param GoogleCloudIntegrationsV1alphaValueType[]

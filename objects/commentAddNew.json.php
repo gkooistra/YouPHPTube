@@ -35,6 +35,7 @@ if (!User::canComment()) {
     $obj->msg = __("Permission denied");
     die(json_encode($obj));
 }
+forbidIfIsUntrustedRequest('commentAddNew');
 
 function isCommentASpam($comment, $videos_id)
 {
@@ -101,6 +102,8 @@ if (empty($_REQUEST['video']) && !empty($_REQUEST['comments_id'])) {
     $c = new Comment('', '', $_REQUEST['comments_id']);
     $_REQUEST['video'] = $c->getVideos_id();
 }
+
+forbiddenPageIfCannotWatchVideo($_REQUEST['video']);
 
 if (!empty($_REQUEST['id'])) {
     $_REQUEST['id'] = intval($_REQUEST['id']);

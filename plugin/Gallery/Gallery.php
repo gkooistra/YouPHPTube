@@ -1,11 +1,22 @@
 <?php
 
+use OpenApi\Attributes as OA;
+
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 require_once $global['systemRootPath'] . 'objects/Channel.php';
 
 class Gallery extends PluginAbstract
 {
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('PlayLists', 'Optional program/playlist sections on the gallery', false),
+            PluginDependency::create('Live', 'Optional live-stream sections on the gallery', false),
+            PluginDependency::create('YouPHPFlix2', 'Optional Flix-mode layout alternative', false),
+            PluginDependency::create('VideoTags', 'Optional video tags shown on channel sections', false),
+        );
+    }
+
     const BigVideoLiveDisabled = 0;
     const BigVideoLiveShowLiveAndVOD = 1;
     const BigVideoLiveShowLiveOnly = 2;
@@ -13,32 +24,32 @@ class Gallery extends PluginAbstract
 
     public function getTags()
     {
-        return array(
+        return [
             PluginTags::$RECOMMENDED,
             PluginTags::$FREE,
             PluginTags::$GALLERY,
             PluginTags::$LAYOUT,
-        );
+        ];
     }
 
     public function getDescription()
     {
-        return "Make the first page works as a gallery";
+        return 'Make the first page works as a gallery';
     }
 
     public function getName()
     {
-        return "Gallery";
+        return 'Gallery';
     }
 
     public function getUUID()
     {
-        return "a06505bf-3570-4b1f-977a-fd0e5cab205d";
+        return 'a06505bf-3570-4b1f-977a-fd0e5cab205d';
     }
 
     public function getPluginVersion()
     {
-        return "1.0";
+        return '1.0';
     }
 
     public function getHeadCode()
@@ -71,15 +82,21 @@ class Gallery extends PluginAbstract
         global $global;
         $obj = new stdClass();
         $obj->MainContainerFluid = true;
+        // SECURITY REVIEW (2026-08-21): defaults to showing group-restricted videos on the front
+        // page listings (title/thumbnail only, as a marketing teaser to sell access) - intentional
+        // business design, not an oversight. Playback itself still enforces the group restriction
+        // separately (e.g. view/infoFromURL.php uses the default $ignoreGroup=false), so this does
+        // not grant unauthorized viewing, only unauthorized *listing*. Do not change this default.
         $obj->hidePrivateVideos = false;
         $obj->BigVideo = true;
+        $obj->showLivesAboveBigVideo = false;
 
 
 
         $o = new stdClass();
         $o->type = [
-            Gallery::BigVideoLiveDisabled => 'Disable', 
-            Gallery::BigVideoLiveShowLiveAndVOD => 'Show Live and VOD', 
+            Gallery::BigVideoLiveDisabled => 'Disable',
+            Gallery::BigVideoLiveShowLiveAndVOD => 'Show Live and VOD',
             Gallery::BigVideoLiveShowLiveOnly => 'Show Live Only'
         ];
         $o->value = Gallery::BigVideoLiveShowLiveAndVOD;
@@ -89,7 +106,7 @@ class Gallery extends PluginAbstract
         self::addDataObjectHelper('BigVideoLiveOnFirstPageOnly', 'Big Video Live on First Page Only');
         $obj->BigVideoLiveForLoggedUsersOnly = false;
         self::addDataObjectHelper('BigVideoLiveForLoggedUsersOnly', 'Big Video Live will appear only if the user is logged');
-       
+
         $obj->useSuggestedVideosAsCarouselInBigVideo = true;
         $obj->GifOnBigVideo = true;
         $obj->Description = false;
@@ -150,6 +167,7 @@ class Gallery extends PluginAbstract
         $obj->Categories = true;
         $obj->CategoriesCustomTitle = "";
         $obj->CategoriesRowCount = 12;
+        $obj->CategoriesDisplayCount = 2;
         $obj->CategoriesOrder = 7;
         $obj->CategoriesShowOnlySuggested = false;
 
@@ -174,9 +192,9 @@ class Gallery extends PluginAbstract
         $themes = getThemes();
         foreach ($themes as $value) {
             $name = ucfirst($value);
-            eval('$obj->SwitchThemeShow' . $name . ' = true;');
+            $obj->{'SwitchThemeShow' . $name} = true;
             self::addDataObjectHelper('SwitchThemeShow' . $name, 'Show ' . $name . ' Option', 'Uncheck this button to not show the ' . $name . ' in your themes list');
-            eval('$obj->SwitchThemeLabel' . $name . ' = "' . $name . '";');
+            $obj->{'SwitchThemeLabel' . $name} = $name;
             self::addDataObjectHelper('SwitchThemeLabel' . $name, $name . ' Theme Label', 'Change the label name to the theme ' . $name . ' in your themes list');
         }
 
@@ -250,14 +268,14 @@ class Gallery extends PluginAbstract
             return false;
         }
         $themes = getThemes();
-        $selectedThemes = array();
+        $selectedThemes = [];
         foreach ($themes as $value) {
             $name = ucfirst($value);
-            eval('$t = $obj->SwitchThemeShow' . $name . ';');
+            $t = $obj->{'SwitchThemeShow' . $name};
             if (!empty($t)) {
                 $l = '';
-                eval('$l = $obj->SwitchThemeLabel' . $name . ';');
-                $selectedThemes[] = array('name' => $value, 'label' => $l);
+                $l = $obj->{'SwitchThemeLabel' . $name};
+                $selectedThemes[] = ['name' => $value, 'label' => $l];
             }
         }
         return $selectedThemes;
@@ -266,17 +284,22 @@ class Gallery extends PluginAbstract
     static function getSectionsOrder()
     {
         $obj = AVideoPlugin::getObjectData('Gallery');
-        $sections = array();
+        $sections = [];
         foreach ($obj as $key => $value) {
             if (preg_match('/(.*)Order$/', $key, $matches)) {
-                $index = $value;
-                while (isset($sections[$index])) {
-                    $index++;
-                }
-                $sections[$index] = array('name' => $matches[1], 'active' => $obj->{$matches[1]});
+                $index = intval($value);
+                $sections[] = [
+                    'name' => $matches[1],
+                    'active' => $obj->{$matches[1]},
+                    'order' => $index
+                ];
             }
         }
-        ksort($sections);
+
+        usort($sections, function ($a, $b) {
+            return $a['order'] <=> $b['order'];
+        });
+
         return $sections;
     }
 
@@ -290,7 +313,7 @@ class Gallery extends PluginAbstract
     {
         global $global, $config;
         $filePath = $global['systemRootPath'] . 'plugin/Gallery/buttonChannelToGallery.php';
-        $varsArray = array('users_id' => $users_id);
+        $varsArray = ['users_id' => $users_id];
         $button = getIncludeFileContent($filePath, $varsArray);
         return $button;
     }
@@ -331,7 +354,7 @@ class Gallery extends PluginAbstract
     static function getVideoDropdownMenu($videos_id)
     {
         global $global;
-        $varsArray = array('videos_id' => $videos_id);
+        $varsArray = ['videos_id' => $videos_id];
         $filePath = $global['systemRootPath'] . 'plugin/Gallery/view/videoDropDownMenu.php';
         return getIncludeFileContent($filePath, $varsArray);
     }
@@ -357,16 +380,70 @@ class Gallery extends PluginAbstract
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIPlugin={APIPlugin}&APIName={APIName}
      * @return \ApiObject
      */
-    static function API_get_firstPage($parameters){
+    #[OA\Get(
+        path: "/api/Gallery/firstPage",
+        summary: 'Get the homepage configuration and video list endpoints',
+        description: 'Returns homepage sections, each with an endpoint to retrieve a video list. Sections include Suggested, Trending, Shorts, Date Added, etc.',
+        tags: ['Gallery'],
+        security: [['APISecret' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Successful response with the first page configuration and endpoints',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(
+                            property: 'error',
+                            type: 'boolean',
+                            example: false
+                        ),
+                        new OA\Property(
+                            property: 'msg',
+                            type: 'string',
+                            example: ''
+                        ),
+                        new OA\Property(
+                            property: 'response',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(
+                                    property: 'sections',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        properties: [
+                                            new OA\Property(property: 'name', type: 'string'),
+                                            new OA\Property(property: 'title', type: 'string'),
+                                            new OA\Property(property: 'endpoint', type: 'string'),
+                                            new OA\Property(property: 'totalRows', type: 'integer')
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(property: 'countSections', type: 'integer', example: 5),
+                                new OA\Property(property: 'countVideos', type: 'integer', example: 25),
+                                new OA\Property(property: 'responseTime', type: 'number', format: 'float', example: 0.123),
+                                new OA\Property(property: 'responseCacheTime', type: 'number', format: 'float', example: 0.002)
+                            ]
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+
+    static function API_get_firstPage($parameters)
+    {
         global $global;
         $start = microtime(true);
-        $cacheName = 'Gallery_API_get_firstPage_'.md5(json_encode($parameters)).'_'.User::getId();
+        $cacheName = 'Gallery_API_get_firstPage_' . md5(json_encode($parameters)) . '_' . getVideoListVisibilityCacheKey();
         $object = ObjectYPT::getCache($cacheName, 3600); // 1 hour
-        if(empty($object)){
+        if (empty($object)) {
             $obj = AVideoPlugin::getObjectData("Gallery");
             $sections = Gallery::getSectionsOrder();
             $response = new stdClass();
-            $response->sections = array();
+            $response->type = 'Gallery';
+            $response->sections = [];
             $countSections = 0;
             $countVideos = 0;
             foreach ($sections as $value) {
@@ -384,7 +461,7 @@ class Gallery extends PluginAbstract
                     $response->sections[] = $section;
                 } else
                 if ($value['name'] == 'Suggested') {
-    
+
                     $title = !empty($obj->SuggestedCustomTitle) ? $obj->SuggestedCustomTitle : __("Suggested");
                     $rowCount = intval($obj->SuggestedRowCount);
                     $endpoint = "{$global['webSiteRootURL']}plugin/API/get.json.php?APIName=video&sort[suggested]=1";
@@ -408,7 +485,7 @@ class Gallery extends PluginAbstract
                     $countVideos += $section->totalRows;
                     $response->sections[] = $section;
                 } else
-                if ($value['name'] == 'Shorts' && empty($_REQUEST['catName'])) {
+                if ($value['name'] == 'Shorts' && empty($_REQUEST['catName']) && AVideoPlugin::isEnabledByName('Shorts')) {
                     $title = !empty($obj->ShortsCustomTitle) ? $obj->ShortsCustomTitle : __("Shorts");
                     $rowCount = intval($obj->ShortsRowCount);
                     $endpoint = "{$global['webSiteRootURL']}plugin/API/get.json.php?APIName=video&sort[shorts]=1";
@@ -493,20 +570,19 @@ class Gallery extends PluginAbstract
             }
             $response->countVideos = $countVideos;
             $response->countSections = $countSections;
-            
 
-            $finish = microtime(true)-$start;
+
+            $finish = microtime(true) - $start;
             $response->responseTime = $finish;
 
             $object = new ApiObject("", false, $response);
-            
+
             ObjectYPT::setCache($cacheName, $object);
-        }else{
-            $finish = microtime(true)-$start;
+        } else {
+            $finish = microtime(true) - $start;
             $object->response->responseCacheTime = $finish;
         }
-        
+
         return $object;
     }
 }
-

@@ -26,6 +26,7 @@ class VastCampaigns extends ObjectYPT
     protected $cpc_max_price_per_click;
     protected $cpm_max_prints;
     protected $cpm_current_prints;
+    protected $reward_per_impression;
 
     public static function getSearchFieldsNames()
     {
@@ -129,7 +130,8 @@ class VastCampaigns extends ObjectYPT
 
     public function setName($name)
     {
-        $this->name = $name;
+        // stored raw name reaches the admin DataTable unescaped, so sanitize on write
+        $this->name = xss_esc($name);
     }
 
     public function setType($type)
@@ -222,6 +224,16 @@ class VastCampaigns extends ObjectYPT
         $this->id = $id;
     }
 
+    public function getReward_per_impression()
+    {
+        return floatval($this->reward_per_impression);
+    }
+
+    public function setReward_per_impression($reward_per_impression)
+    {
+        $this->reward_per_impression = floatval($reward_per_impression);
+    }
+
     public function save()
     {
         $this->cpm_current_prints = intval($this->cpm_current_prints);
@@ -310,7 +322,7 @@ class VastCampaigns extends ObjectYPT
                 }
                 $rows[] = $row;
             }
-        } 
+        }
         return $rows;
     }
 
@@ -367,5 +379,21 @@ class VastCampaigns extends ObjectYPT
         }
 
         return $r;
+    }
+
+
+    public static function getAllActive()
+    {
+        global $global;
+        if (!static::isTableInstalled()) {
+            return false;
+        }
+        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE status='a' ";
+
+        //$sql .= self::getSqlFromPost();
+        $res = sqlDAL::readSql($sql);
+        $fullData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        return $fullData;
     }
 }

@@ -1,6 +1,11 @@
 var callerToast = [];
 var callingTimeoutSeconds = 30;
 
+// Opt in to the socket callback allowlist (plugin/YPTSocket/script.js) so peers can trigger these.
+if (typeof registerCallSocketCallbacks === 'function') {
+    registerCallSocketCallbacks('openMeetLink', openMeetLink);
+}
+
 function getCallJsonFromUser(to_users_id, to_identification) {
     var json = {
         to_users_id: to_users_id,
@@ -15,6 +20,16 @@ function getCallJsonFromUser(to_users_id, to_identification) {
 
 function callNow(to_users_id, to_identification) {
     var timeout;
+    if(typeof users_id_online == 'undefined' ){
+        if (!$('body').hasClass('loading')) {
+            avideoToastInfo('Loading ...');
+        }
+        setCallBodyClass('loading');
+        setTimeout(function () {
+            callNow(to_users_id, to_identification);
+        }, 1000);
+        return false;
+    }
     if ($('body').hasClass('calling')) {
         avideoToastError('Please finish the call first');
         return false;
@@ -22,12 +37,12 @@ function callNow(to_users_id, to_identification) {
         timeout = 1000;
         avideoToastInfo('Please wait ...');
     } else {
-        timeout = 1;
+        timeout = 10;
     }
     setTimeout(function () {
         if (!isUserOnline(to_users_id)) {
             avideoToastError('User is not online anymore');
-            console.log('User is not online anymore',to_users_id, users_id_online);
+            console.log('User is not online anymore', to_users_id, users_id_online);
             return false;
         } else {
             avideoToastSuccess('Calling ...');
@@ -43,7 +58,7 @@ function callNow(to_users_id, to_identification) {
 
 
 function callUserNow(to_users_id) {
-    avideoModalIframeFull(webSiteRootURL + 'plugin/YPTSocket/callUser.php?users_id='+to_users_id);
+    avideoModalIframeFull(webSiteRootURL + 'plugin/WebRTC/call/callUser.php?users_id=' + to_users_id);
     return false;
 }
 
@@ -71,12 +86,12 @@ function incomeCall(json) {
         return false;
     }
     if (typeof callerToast[users_id] !== 'undefined') {
-        console.log('incomeCall callerToast already active', users_id);
+        console.log('incomeCall callerToast already active', users_id, json);
         return false;
     }
     imageAndButton = getImageAndButton(json);
     callerToast[users_id] = $.toast({
-        heading: userIdentification,
+        heading: $('<span>').text(userIdentification).html(),
         text: imageAndButton,
         hideAfter: (callingTimeoutSeconds * 1000),
         showHideTransition: 'slide',
@@ -108,9 +123,10 @@ function getImageAndButton(json) {
     imageAndButton += '<img src="' + webSiteRootURL + 'user/' + users_id + '/foto.png" class="img img-circle img-responsive incomeCallImage glowBox">';
     imageAndButton += '</center>';
     imageAndButton += '<div class="clearfix"></div>';
-    imageAndButton += '<button class="btn btn-danger btn-circle incomeCallBtn" onclick=\'hangUpCall(' + JSON.stringify(json) + ')\'><i class="fas fa-phone-slash"></i></button>';
+    var _jsonStr = JSON.stringify(json).replace(/'/g, '&#39;');
+    imageAndButton += '<button class="btn btn-danger btn-circle incomeCallBtn" onclick=\'hangUpCall(' + _jsonStr + ')\'><i class="fas fa-phone-slash"></i></button>';
     if (isJsonReceivingCall(json)) {
-        imageAndButton += '<button class="btn btn-success btn-circle incomeCallBtn" onclick=\'acceptCall(' + JSON.stringify(json) + ')\'><i class="fas fa-phone"></i></button>';
+        imageAndButton += '<button class="btn btn-success btn-circle incomeCallBtn" onclick=\'acceptCall(' + _jsonStr + ')\'><i class="fas fa-phone"></i></button>';
     }
     return imageAndButton;
 }
@@ -146,7 +162,7 @@ function finishCall(json) {
     if (isCallerToastActive(users_id)) {
         console.log('finishCall', users_id);
         sendSocketMessageToUser(json, 'hangUpCall', users_id);
-        var obj = {users_id: users_id, shouldHangUpCall: 0};
+        var obj = { users_id: users_id, shouldHangUpCall: 0 };
         sendSocketMessageToUser(obj, 'hideCall', my_users_id);
         avideoToastWarning('Finished');
     } else {
@@ -156,6 +172,7 @@ function finishCall(json) {
 }
 
 function acceptCall(json) {
+    console.log('acceptCall socket', json);
     stopAllAudio();
     users_id = json.from_users_id;
     if (!isUserOnline(users_id)) {
@@ -164,7 +181,7 @@ function acceptCall(json) {
     }
     if (isCallerToastActive(users_id)) {
         console.log('acceptCall', users_id);
-        var obj = {users_id: users_id, shouldHangUpCall: 0};
+        var obj = { users_id: users_id, shouldHangUpCall: 0 };
         hideCall(obj);
         modal.showPleaseWait();
         if (!json.to_socketResourceId) {
@@ -174,12 +191,13 @@ function acceptCall(json) {
             sendSocketMessageToResourceId(json, 'callAccepted', json.from_socketResourceId);
             sendSocketMessageToUser(obj, 'hideCall', my_users_id);
         }, 1000);
+        setCallBodyClass('callActive');  // Ensure the class changes correctly
     } else {
-        if(typeof callerToast[users_id] !== 'object'){
+        if (typeof callerToast[users_id] !== 'object') {
             console.log('acceptCall ERROR callerToast[users_id] !== object', users_id);
         }
-        if(typeof callerToast[users_id].close !== 'function'){
-            console.log('typeof callerToast[users_id].close !== function', users_id);            
+        if (typeof callerToast[users_id].close !== 'function') {
+            console.log('typeof callerToast[users_id].close !== function', users_id);
         }
     }
 }
@@ -200,7 +218,7 @@ function callAccepted(json) {
     users_id = json.to_users_id;
     if (isCallerToastActive(users_id)) {
         console.log('callAccepted callerToast', users_id);
-        obj = {users_id: users_id, shouldHangUpCall: 0};
+        obj = { users_id: users_id, shouldHangUpCall: 0 };
         hideCall(obj);
     } else {
         setCallBodyClass('calling');
@@ -315,11 +333,15 @@ function isReceivingCall() {
 }
 
 function callerNewConnection(json) {
-    callerCheckUser(json.msg.users_id);
+    if (json?.msg?.users_id) {
+        callerCheckUser(json.msg.users_id);
+    }
 }
 
 function callerDisconnection(json) {
-    callerCheckUser(json.msg.users_id);
+    if (json?.msg?.users_id) {
+        callerCheckUser(json.msg.users_id);
+    }
 }
 
 var callerCheckUserList = [];
@@ -335,17 +357,17 @@ function callerCheckUser(users_id) {
 }
 
 async function callerCheckUserTimer() {
-    if(!isReadyToCheckIfIsOnline()){
-        setTimeout(function(){callerCheckUserTimer();},1000);
+    if (!isReadyToCheckIfIsOnline()) {
+        setTimeout(function () { callerCheckUserTimer(); }, 1000);
         return false;
     }
-    
+
     var localCallerCheckUserList = callerCheckUserList;
     callerCheckUserList = [];
-    
+
     for (var i in localCallerCheckUserList) {
         var users_id = localCallerCheckUserList[i];
-        if(typeof users_id == 'function'){
+        if (typeof users_id == 'function') {
             continue;
         }
         if (isUserOnline(users_id)) {
@@ -354,41 +376,46 @@ async function callerCheckUserTimer() {
         } else {
             //console.log('callerCheckUser NO', users_id, users_id_online);
             $('.caller' + users_id).hide();
-        }        
+        }
     }
-    setTimeout(function(){callerCheckUserTimer();},2000);
+    setTimeout(function () { callerCheckUserTimer(); }, 2000);
 }
 
 function setCallBodyClass(name) {
+    $('body').removeClass('loading');
     $('body').removeClass('calling');
     $('body').removeClass('callIncoming');
     $('body').removeClass('notCalling');
     $('body').removeClass('callActive');
     //$('body').removeClass('callerUserOffline');
     $('body').addClass(name);
+    // Stop all call sounds when transitioning to active call
+    if (name === 'callActive' || name === 'notCalling' || name === 'loading') {
+        stopAllCallSounds();
+    }
 }
 
-function isCallerToastActive(users_id){
+function isCallerToastActive(users_id) {
     return typeof callerToast[users_id] == 'object' && (typeof callerToast[users_id].close == 'function' || typeof callerToast[users_id].reset == 'function');
 }
 
-function closeCallerToast(users_id){
-    if(typeof callerToast[users_id].reset == 'function'){
+function closeCallerToast(users_id) {
+    if (typeof callerToast[users_id].reset == 'function') {
         callerToast[users_id].reset();
     }
-    if(typeof callerToast[users_id].close == 'function'){
+    if (typeof callerToast[users_id].close == 'function') {
         callerToast[users_id].close();
     }
+    callerToast[users_id] = undefined;
 }
 
 $(document).ready(function () {
     setInterval(function () {
         if (isCalling()) {
             playCallingSound();
-        } else if (isReceivingCall()) {
+        } else if (isReceivingCall() && !$('body').hasClass('callActive')) {
             playCallIncomingSound();
         }
     }, 5000);
     callerCheckUserTimer();
-
 });

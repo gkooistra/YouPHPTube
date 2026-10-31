@@ -42,6 +42,8 @@ class Settings extends \Google\Collection
    * @var string
    */
   public $collation;
+  protected $connectionPoolConfigType = ConnectionPoolConfig::class;
+  protected $connectionPoolConfigDataType = '';
   /**
    * @var string
    */
@@ -52,6 +54,14 @@ class Settings extends \Google\Collection
   public $crashSafeReplicationEnabled;
   protected $dataCacheConfigType = DataCacheConfig::class;
   protected $dataCacheConfigDataType = '';
+  /**
+   * @var string
+   */
+  public $dataDiskProvisionedIops;
+  /**
+   * @var string
+   */
+  public $dataDiskProvisionedThroughput;
   /**
    * @var string
    */
@@ -76,6 +86,14 @@ class Settings extends \Google\Collection
    * @var string
    */
   public $edition;
+  /**
+   * @var bool
+   */
+  public $enableDataplexIntegration;
+  /**
+   * @var bool
+   */
+  public $enableGoogleMlIntegration;
   protected $insightsConfigType = InsightsConfig::class;
   protected $insightsConfigDataType = '';
   protected $ipConfigurationType = IpConfiguration::class;
@@ -95,9 +113,17 @@ class Settings extends \Google\Collection
    */
   public $pricingPlan;
   /**
+   * @var int
+   */
+  public $replicationLagMaxSeconds;
+  /**
    * @var string
    */
   public $replicationType;
+  /**
+   * @var bool
+   */
+  public $retainBackupsOnDelete;
   /**
    * @var string
    */
@@ -224,6 +250,20 @@ class Settings extends \Google\Collection
     return $this->collation;
   }
   /**
+   * @param ConnectionPoolConfig
+   */
+  public function setConnectionPoolConfig(ConnectionPoolConfig $connectionPoolConfig)
+  {
+    $this->connectionPoolConfig = $connectionPoolConfig;
+  }
+  /**
+   * @return ConnectionPoolConfig
+   */
+  public function getConnectionPoolConfig()
+  {
+    return $this->connectionPoolConfig;
+  }
+  /**
    * @param string
    */
   public function setConnectorEnforcement($connectorEnforcement)
@@ -264,6 +304,34 @@ class Settings extends \Google\Collection
   public function getDataCacheConfig()
   {
     return $this->dataCacheConfig;
+  }
+  /**
+   * @param string
+   */
+  public function setDataDiskProvisionedIops($dataDiskProvisionedIops)
+  {
+    $this->dataDiskProvisionedIops = $dataDiskProvisionedIops;
+  }
+  /**
+   * @return string
+   */
+  public function getDataDiskProvisionedIops()
+  {
+    return $this->dataDiskProvisionedIops;
+  }
+  /**
+   * @param string
+   */
+  public function setDataDiskProvisionedThroughput($dataDiskProvisionedThroughput)
+  {
+    $this->dataDiskProvisionedThroughput = $dataDiskProvisionedThroughput;
+  }
+  /**
+   * @return string
+   */
+  public function getDataDiskProvisionedThroughput()
+  {
+    return $this->dataDiskProvisionedThroughput;
   }
   /**
    * @param string
@@ -364,6 +432,34 @@ class Settings extends \Google\Collection
     return $this->edition;
   }
   /**
+   * @param bool
+   */
+  public function setEnableDataplexIntegration($enableDataplexIntegration)
+  {
+    $this->enableDataplexIntegration = $enableDataplexIntegration;
+  }
+  /**
+   * @return bool
+   */
+  public function getEnableDataplexIntegration()
+  {
+    return $this->enableDataplexIntegration;
+  }
+  /**
+   * @param bool
+   */
+  public function setEnableGoogleMlIntegration($enableGoogleMlIntegration)
+  {
+    $this->enableGoogleMlIntegration = $enableGoogleMlIntegration;
+  }
+  /**
+   * @return bool
+   */
+  public function getEnableGoogleMlIntegration()
+  {
+    return $this->enableGoogleMlIntegration;
+  }
+  /**
    * @param InsightsConfig
    */
   public function setInsightsConfig(InsightsConfig $insightsConfig)
@@ -462,6 +558,20 @@ class Settings extends \Google\Collection
     return $this->pricingPlan;
   }
   /**
+   * @param int
+   */
+  public function setReplicationLagMaxSeconds($replicationLagMaxSeconds)
+  {
+    $this->replicationLagMaxSeconds = $replicationLagMaxSeconds;
+  }
+  /**
+   * @return int
+   */
+  public function getReplicationLagMaxSeconds()
+  {
+    return $this->replicationLagMaxSeconds;
+  }
+  /**
    * @param string
    */
   public function setReplicationType($replicationType)
@@ -474,6 +584,20 @@ class Settings extends \Google\Collection
   public function getReplicationType()
   {
     return $this->replicationType;
+  }
+  /**
+   * @param bool
+   */
+  public function setRetainBackupsOnDelete($retainBackupsOnDelete)
+  {
+    $this->retainBackupsOnDelete = $retainBackupsOnDelete;
+  }
+  /**
+   * @return bool
+   */
+  public function getRetainBackupsOnDelete()
+  {
+    return $this->retainBackupsOnDelete;
   }
   /**
    * @param string

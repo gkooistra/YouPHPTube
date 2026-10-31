@@ -21,11 +21,12 @@ if (empty($serie_playlists_id)) {
 }
 
 $pl = new PlayList($serie_playlists_id);
-if (!PlayLists::canManagePlaylist($playlists_id)) {
+if (!PlayLists::canManagePlaylist($serie_playlists_id)) {
     die('{"error":"' . __("Permission denied") . '"}');
 }
 $msg = "";
 if (!empty($_GET['action'])) {
+    forbidIfIsUntrustedRequest('playListToSerie');
     switch ($_GET['action']) {
         case 'delete':
             $id = PlayLists::removeSerie($serie_playlists_id);
@@ -56,7 +57,7 @@ if (!empty($_GET['action'])) {
         <link rel="icon" href="view/img/favicon.ico">
         <title><?php echo $config->getWebSiteTitle(); ?></title>
         <link href="<?php echo getURL('view/bootstrap/css/bootstrap.min.css'); ?>" rel="stylesheet" type="text/css"/>
-        <link href="<?php echo getURL('node_modules/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo getURL('node_modules/@fortawesome/fontawesome-free/css/all.min.css'); ?>" rel="stylesheet" type="text/css"/>
         <style>
 
 

@@ -21,6 +21,8 @@ class GoogleCloudDialogflowV2beta1SuggestionResult extends \Google\Model
 {
   protected $errorType = GoogleRpcStatus::class;
   protected $errorDataType = '';
+  protected $generateSuggestionsResponseType = GoogleCloudDialogflowV2beta1GenerateSuggestionsResponse::class;
+  protected $generateSuggestionsResponseDataType = '';
   protected $suggestArticlesResponseType = GoogleCloudDialogflowV2beta1SuggestArticlesResponse::class;
   protected $suggestArticlesResponseDataType = '';
   protected $suggestDialogflowAssistsResponseType = GoogleCloudDialogflowV2beta1SuggestDialogflowAssistsResponse::class;
@@ -29,6 +31,8 @@ class GoogleCloudDialogflowV2beta1SuggestionResult extends \Google\Model
   protected $suggestEntityExtractionResponseDataType = '';
   protected $suggestFaqAnswersResponseType = GoogleCloudDialogflowV2beta1SuggestFaqAnswersResponse::class;
   protected $suggestFaqAnswersResponseDataType = '';
+  protected $suggestKnowledgeAssistResponseType = GoogleCloudDialogflowV2beta1SuggestKnowledgeAssistResponse::class;
+  protected $suggestKnowledgeAssistResponseDataType = '';
   protected $suggestSmartRepliesResponseType = GoogleCloudDialogflowV2beta1SuggestSmartRepliesResponse::class;
   protected $suggestSmartRepliesResponseDataType = '';
 
@@ -45,6 +49,20 @@ class GoogleCloudDialogflowV2beta1SuggestionResult extends \Google\Model
   public function getError()
   {
     return $this->error;
+  }
+  /**
+   * @param GoogleCloudDialogflowV2beta1GenerateSuggestionsResponse
+   */
+  public function setGenerateSuggestionsResponse(GoogleCloudDialogflowV2beta1GenerateSuggestionsResponse $generateSuggestionsResponse)
+  {
+    $this->generateSuggestionsResponse = $generateSuggestionsResponse;
+  }
+  /**
+   * @return GoogleCloudDialogflowV2beta1GenerateSuggestionsResponse
+   */
+  public function getGenerateSuggestionsResponse()
+  {
+    return $this->generateSuggestionsResponse;
   }
   /**
    * @param GoogleCloudDialogflowV2beta1SuggestArticlesResponse
@@ -101,6 +119,20 @@ class GoogleCloudDialogflowV2beta1SuggestionResult extends \Google\Model
   public function getSuggestFaqAnswersResponse()
   {
     return $this->suggestFaqAnswersResponse;
+  }
+  /**
+   * @param GoogleCloudDialogflowV2beta1SuggestKnowledgeAssistResponse
+   */
+  public function setSuggestKnowledgeAssistResponse(GoogleCloudDialogflowV2beta1SuggestKnowledgeAssistResponse $suggestKnowledgeAssistResponse)
+  {
+    $this->suggestKnowledgeAssistResponse = $suggestKnowledgeAssistResponse;
+  }
+  /**
+   * @return GoogleCloudDialogflowV2beta1SuggestKnowledgeAssistResponse
+   */
+  public function getSuggestKnowledgeAssistResponse()
+  {
+    return $this->suggestKnowledgeAssistResponse;
   }
   /**
    * @param GoogleCloudDialogflowV2beta1SuggestSmartRepliesResponse

@@ -1,9 +1,17 @@
 <?php
-
+use OpenApi\Attributes as OA;
 require_once $global['systemRootPath'] . 'plugin/Plugin.abstract.php';
 require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
 class YouPHPFlix2 extends PluginAbstract
 {
+
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('VideoTags', 'Optional video tags shown on Flix-mode listings', false),
+            PluginDependency::create('PlayLists', 'Optional playlist-based Flix sections', false),
+            PluginDependency::create('PayPerView', 'Optional PPV-gated content indicator', false),
+        );
+    }
 
     public function getTags()
     {
@@ -45,6 +53,8 @@ class YouPHPFlix2 extends PluginAbstract
         $obj->SuggestedAutoPlay = true;
         $obj->PlayList = true;
         $obj->PlayListAutoPlay = true;
+        $obj->Favorites = true;
+        $obj->WatchLater = true;
         $obj->Channels = true;
         $obj->ChannelsAutoPlay = true;
         $obj->Trending = true;
@@ -63,6 +73,7 @@ class YouPHPFlix2 extends PluginAbstract
         $obj->SortByNameCustomTitle = 'Alphabetical';
         $obj->SortByNameAutoPlay = true;
         $obj->Categories = true;
+        $obj->CategoriesShowOnlySuggested = false;
         $obj->CategoriesAutoPlay = true;
         $obj->maxVideos = 20;
         $obj->BigVideo = true;
@@ -168,16 +179,69 @@ class YouPHPFlix2 extends PluginAbstract
      * @example {webSiteRootURL}plugin/API/{getOrSet}.json.php?APIPlugin={APIPlugin}&APIName={APIName}
      * @return \ApiObject
      */
+    #[OA\Get(
+        path: "/api/YouPHPFlix2/firstPage",
+        summary: 'Get homepage sections and their corresponding video list endpoints',
+        description: 'Returns configuration for the first page from the YouPHPFlix2 plugin, including sections like Suggested, Trending, Channels, Playlists, etc. Each section includes an endpoint to fetch related videos.',
+        tags: ['YouPHPFlix2'],
+        security: [['APISecret' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Returns a list of sections for the homepage, each with a video list endpoint',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(
+                            property: 'error',
+                            type: 'boolean',
+                            example: false
+                        ),
+                        new OA\Property(
+                            property: 'msg',
+                            type: 'string',
+                            example: ''
+                        ),
+                        new OA\Property(
+                            property: 'response',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(
+                                    property: 'sections',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        properties: [
+                                            new OA\Property(property: 'name', type: 'string', example: 'Suggested'),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Suggested Videos'),
+                                            new OA\Property(property: 'endpoint', type: 'string', example: 'https://yourdomain.com/plugin/API/get.json.php?APIName=video&sort[suggested]=1'),
+                                            new OA\Property(property: 'totalRows', type: 'integer', example: 20)
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(property: 'countSections', type: 'integer', example: 6),
+                                new OA\Property(property: 'countVideos', type: 'integer', example: 120),
+                                new OA\Property(property: 'responseTime', type: 'number', format: 'float', example: 0.201),
+                                new OA\Property(property: 'responseCacheTime', type: 'number', format: 'float', nullable: true)
+                            ]
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+
     static function API_get_firstPage($parameters)
     {
         global $global;
         $start = microtime(true);
-        $cacheName = 'YouPHPFlix2_API_get_firstPage_' . md5(json_encode($parameters)).'_'.User::getId();
+        $cacheName = 'YouPHPFlix2_API_get_firstPage_' . md5(json_encode($parameters)).'_'.getVideoListVisibilityCacheKey();
         $object = ObjectYPT::getCacheGlobal($cacheName, 3600); // 1 hour
         if (empty($object)) {
             $obj = AVideoPlugin::getObjectData("YouPHPFlix2");
 
             $response = new stdClass();
+            $response->type = 'Flix';
             $response->sections = array();
             $countSections = 0;
             $countVideos = 0;
@@ -208,7 +272,7 @@ class YouPHPFlix2 extends PluginAbstract
             if ($obj->PlayList) {
                 $plObj = AVideoPlugin::getDataObjectIfEnabled('PlayLists');
                 if (!empty($plObj)) {
-                    $programs = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !$obj->hidePrivateVideos, array(), false, false, true, false, true);
+                    $programs = Video::getAllVideos(Video::SORT_TYPE_VIEWABLENOTUNLISTED, false, !isToHidePrivateVideos(), array(), false, false, true, false, true);
                     cleanSearchVar();
                     if (!empty($programs)) {
                         $countSections++;
@@ -267,7 +331,7 @@ class YouPHPFlix2 extends PluginAbstract
             if ($obj->Categories) {
                 $countSections++;
                 cleanSearchVar();
-                $categories = Category::getAllCategories(false, true);
+                $categories = Category::getAllCategories(false, true, $obj->CategoriesShowOnlySuggested);
                 reloadSearchVar();
                 foreach ($categories as $value2) {
                     $type = 'Category';
@@ -299,7 +363,7 @@ class YouPHPFlix2 extends PluginAbstract
         return $object;
     }
 
-    
+
     public static function getAddChannelToYouPHPFlix2Button($users_id)
     {
         global $global, $config;

@@ -18,11 +18,11 @@ body.fullscreen {
     overflow: hidden;
 }
 
-#_avideoPageContentLoading{
+#_avideoPageContentLoading {
     display: none;
 }
 
-body._avideoPageContentLoading #_avideoPageContentLoading{
+body._avideoPageContentLoading #_avideoPageContentLoading {
     display: unset;
     position: fixed;
     top: 0;
@@ -187,7 +187,6 @@ footer ul.list-inline li {
 
 .main-video {
     background-color: #000;
-    margin-bottom: 10px;
 }
 
 .main-video {
@@ -239,7 +238,6 @@ footer ul.list-inline li {
     transition: width 0.3s, margin 0.3s;
 }
 
-.panel,
 #mainNavBar,
 #sidebar,
 .swal-modal {
@@ -252,10 +250,41 @@ footer ul.list-inline li {
 }
 
 .panel {
+    --avideo-panel-radius: 10px;
+    --avideo-panel-padding: 16px;
+    --avideo-panel-shadow: 0 4px 18px rgb(0 0 0 / 8%);
     margin-top: 10px;
+    border-radius: var(--avideo-panel-radius);
+    box-shadow: var(--avideo-panel-shadow);
+}
+
+.panel > .panel-heading {
+    border-radius: calc(var(--avideo-panel-radius) - 1px) calc(var(--avideo-panel-radius) - 1px) 0 0;
+}
+
+.panel > .panel-heading > h1,
+.panel > .panel-heading > h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.panel > .panel-body {
+    padding: var(--avideo-panel-padding);
+}
+
+.panel > .panel-footer {
+    border-radius: 0 0 calc(var(--avideo-panel-radius) - 1px) calc(var(--avideo-panel-radius) - 1px);
 }
 
 @media (max-width: 767px) {
+
+    .panel { --avideo-panel-padding: 12px; }
+
+    #mainNavBar .dropdown-menu {
+        max-height: calc(100vh - 250px);
+    }
 
     .navbar-form,
     #modeYoutubeBottomContent,
@@ -609,15 +638,15 @@ img.rotate-90 {
 
 .notificationButton button {
     display: none;
-    border-radius: 4px 0 0 4px !important;
+    border-radius: 999px 0 0 999px !important;
 }
 
 .notificationButton button.subscribe {
-    border-radius: 4px !important;
+    border-radius: 999px !important;
 }
 
 .notificationButton button.notifyBtn {
-    border-radius: 0 4px 4px 0 !important;
+    border-radius: 0 999px 999px 0 !important;
 }
 
 .notificationButton.subscribed .doNotNotify,
@@ -909,11 +938,24 @@ img.blur {
     border-radius: 50%;
     height: 25px;
     width: 25px;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+    /* Default shadow */
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+    /* Smooth transition */
+
 }
 
 #CloseButtonInVideo:hover {
     background-color: rgba(255, 255, 255, 1);
     color: #000;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.6);
+    /* Stronger shadow on hover */
+}
+
+body.rtl #CloseButtonInVideo {
+    right: auto;
+    left: 30px;
+    top: 30px;
 }
 
 .rightProfile li a {
@@ -1001,6 +1043,15 @@ img.blur {
     border-color: #000;
 }
 
+.btn-dark.watchLaterBtnAdded,
+.btn-dark.favoriteBtnAdded {
+    color: #4285f4;
+}
+
+.playlist-nav .navbar-header {
+    color: #FFF;
+}
+
 .opacityBtn {
     opacity: 0.2;
 }
@@ -1035,7 +1086,7 @@ img.blur {
 }
 
 #mainVideo_ima-controls-div {
-    max-height: 3.7em;
+    max-height: 3.7em !important;
 }
 
 .vjs-menu-item,
@@ -1108,7 +1159,8 @@ img.blur {
     filter: alpha(opacity=100);
 }
 
-.fa, .fas{
+.fa,
+.fas {
     display: inline-block;
 }
 
@@ -1166,7 +1218,6 @@ li.dropdown-submenu>ul>li>a {
 
 .socket_connected {
     color: #FFF;
-    animation: socketGlow 1s infinite alternate;
 }
 
 .socket_connected_icon {
@@ -1338,6 +1389,10 @@ li.dropdown-submenu>ul>li>a {
 .swal-modal-iframe-full-transparent .swal-content,
 .swal-modal-iframe-full-transparent iframe {
     background-color: transparent;
+}
+
+div.swal-overlay div.swal-icon{
+    overflow: hidden;
 }
 
 .swal-modal-iframe-full #avideoModalIframeDiv,
@@ -1995,6 +2050,17 @@ button.btn-sm.hamburger svg {
     display: block;
 }
 
+.carousel-cell .highlitedOnOver {
+    opacity: 0.7;
+    filter: alpha(opacity=70);
+}
+
+.carousel-cell:hover .highlitedOnOver {
+    opacity: 1;
+    filter: alpha(opacity=100);
+}
+
+
 body.ypt-is-compressed #videoCol {
     width: 100%;
     overflow-x: hidden;
@@ -2002,12 +2068,12 @@ body.ypt-is-compressed #videoCol {
     float: none;
 }
 
-#bigVideoCarousel div > div.galleryVideoButtons > div > ul > li > button,
-#modeYoutubeBottomContent div.galleryVideoButtons ul li > button{
+#bigVideoCarousel div>div.galleryVideoButtons>div>ul>li>button,
+#modeYoutubeBottomContent div.galleryVideoButtons ul li>button {
     display: inline-block;
 }
 
-#bigVideoCarousel div.galleryVideoButtons > div > ul{
+#bigVideoCarousel div.galleryVideoButtons>div>ul {
     padding: 10px;
 }
 
@@ -2034,20 +2100,255 @@ body.ypt-is-compressed #videoCol {
     border: 2px solid grey;
 }
 
+/* Dependency descriptions must remain readable in both light and dark themes. */
+.pluginDependencyStatus.text-muted,
+.pluginDependencyRequiredList.text-muted,
+.pluginDependencyOptionalList.text-muted,
+.pluginDependencyStatus .text-muted,
+.pluginDependencyRequiredList .text-muted,
+.pluginDependencyOptionalList .text-muted {
+    color: inherit;
+}
+
 #topMenuUserNotifications,
 .webui-popover-content {
     display: none;
 }
 
-.gallerySection{
+.gallerySection {
     z-index: 1;
     margin-bottom: 50px;
 }
 
-.loadInfiniteScrollButton .scroller-status{
+.infiniteScrollControls {
+    clear: both;
+    padding: 12px 0;
+    text-align: center;
+}
+
+.infiniteScrollControls .loadInfiniteScrollButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: auto;
+    min-width: 220px;
+    max-width: 100%;
+    min-height: 46px;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-weight: 600;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.infiniteScrollControls .infiniteScrollBusyIcon,
+.infiniteScrollControls.is-loading .infiniteScrollIdleIcon {
     display: none;
 }
 
-.loadInfiniteScrollButton:disabled .fas.fa-angle-double-down {
-    display: none;
+.infiniteScrollControls.is-loading .infiniteScrollBusyIcon {
+    display: inline-block;
+}
+
+.infiniteScrollControls .infiniteScrollStatus {
+    margin-top: 8px;
+    font-size: .9em;
+}
+
+.infiniteScrollControls .loadInfiniteScrollButton:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .infiniteScrollControls .fa-spin { animation: none; }
+}
+
+.displayJsonAsHtml .panel {
+    background-color: transparent;
+}
+
+.displayJsonAsHtml .panel .panel-heading {
+    padding: 0;
+}
+
+.displayJsonAsHtml .panel .panel-body {
+    padding: 3px 6px;
+}
+
+.largeSocialIcon {
+    font-size: 2em;
+}
+
+.input-group.largeSocialIcon i {
+    font-size: 1.5em;
+}
+
+.mediumSocialIcon {
+    font-size: 1.5em;
+}
+
+.blur-background {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.swal-overlay--show-modal {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.AdsDebug {
+    border: 2px dashed red;
+    padding: 10px;
+}
+
+.galleryVideoButtons div.dropdown.text-center.open>ul button {
+    width: 100%;
+}
+
+body>div.jq-toast-wrap {
+    z-index: 99999 !important;
+}
+
+/* Shared reusable helpers */
+.avideo-loading-container {
+    min-height: 120px;
+    position: relative;
+}
+
+.avideo-inline-loading {
+    border: 1px solid #e7e7e7;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px;
+}
+
+.avideo-inline-loading-row {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.avideo-inline-loading-line {
+    height: 10px;
+    border-radius: 6px;
+    display: block;
+    margin: 6px 0;
+    background: linear-gradient(90deg, #efefef 25%, #e3e3e3 37%, #efefef 63%);
+    background-size: 400% 100%;
+    animation: avideoInlineShimmer 1.15s linear infinite;
+}
+
+.avideo-inline-loading-line-title {
+    width: 58%;
+}
+
+.avideo-inline-loading-line-subtitle {
+    width: 34%;
+}
+
+.avideo-inline-loading-line-content {
+    width: 100%;
+}
+
+.avideo-inline-loading-text {
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+    margin-top: 5px;
+}
+
+@keyframes avideoInlineShimmer {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: 0 0;
+    }
+}
+
+/* Shared pagination: retain each theme's active, disabled and hover colors. */
+.pagination {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    max-width: 100%;
+}
+.pagination > li > a,
+.pagination > li > span,
+.pagination > li:first-child > a,
+.pagination > li:first-child > span,
+.pagination > li:last-child > a,
+.pagination > li:last-child > span {
+    border-radius: 7px;
+    margin: 0;
+    min-width: 34px;
+    text-align: center;
+}
+
+/* Local feedback shared by channel subscription controls. */
+.notificationButton.btn-group { position: relative; border-radius: 999px; isolation: isolate; }
+.btn.addChannelToGallery,
+.btn.removeChannelFromGallery,
+.notificationButton.btn-group > .btn { min-height: 34px; padding: 6px 10px; transition: background-color .2s ease, box-shadow .2s ease, filter .2s ease; }
+.btn.addChannelToGallery:hover:not(:disabled),
+.btn.removeChannelFromGallery:hover:not(:disabled),
+.notificationButton.btn-group > .btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.addChannelToGallery:focus-visible,
+.btn.removeChannelFromGallery:focus-visible,
+.notificationButton.btn-group > .btn:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.notificationButton.subscription-pending { cursor: progress; }
+.notificationButton.subscription-pending > .btn:disabled { opacity: .85; cursor: progress; }
+.notificationButton.subscription-pending::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 25%, rgba(255,255,255,.4) 50%, transparent 75%);
+    background-size: 250% 100%;
+    animation: subscription-shimmer 1.2s ease-in-out infinite;
+}
+.notificationButton.subscription-complete:not(.subscription-pending) { animation: subscription-confirm .45s cubic-bezier(.2,.8,.2,1); }
+.notificationButton.subscription-complete.notify .doNotify > i { animation: subscription-bell .55s ease-out; transform-origin: 50% 15%; }
+@keyframes subscription-shimmer {
+    from { background-position: 150% 0; }
+    to { background-position: -50% 0; }
+}
+@keyframes subscription-confirm {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.045); box-shadow: 0 0 0 5px rgba(128,128,128,.13); }
+    100% { transform: scale(1); box-shadow: 0 0 0 9px transparent; }
+}
+@keyframes subscription-bell {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(15deg); }
+    50% { transform: rotate(-12deg); }
+    75% { transform: rotate(6deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .notificationButton, .notificationButton > .btn, .notificationButton > .btn > i, .notificationButton::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+.btn.addChannelToGallery,
+.btn.removeChannelFromGallery {
+    border-radius: 999px;
+    vertical-align: middle;
+}
+.btn.addChannelToGallery small,
+.btn.removeChannelFromGallery small {
+    font-size: inherit;
+    font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+    .btn.addChannelToGallery,
+    .btn.removeChannelFromGallery { transition: none; }
 }

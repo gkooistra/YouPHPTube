@@ -64,9 +64,13 @@ class Ai_transcribe_responses extends ObjectYPT
         $this->duration = $duration;
     }
 
+    // SECURITY REVIEW (2026-10-07, GHSA-w7pr-xwjg-mq8j): hardening only, NOT a vulnerability - text is
+    // written only by the trusted AI service (receiveAsync.json.php, server-encrypted token) or admin CRUD;
+    // users cannot write it. Escaped anyway because processAIResponse() and the admin DataTable render HTML.
+    // Preserve literal entities and replace invalid UTF-8 without stripping transcript content.
     function setText($text)
     {
-        $this->text = $text;
+        $this->text = htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     function setTotal_price($total_price)
@@ -135,18 +139,26 @@ class Ai_transcribe_responses extends ObjectYPT
         return intval($this->ai_responses_id);
     }
 
-    static function getVTTPaths($videos_id, $lang='')
+    static function getVTTPaths($videos_id, $lang = '')
     {
         $video = new Video('', '', $videos_id);
         $filename = $video->getFilename();
-        if(empty($filename)){
+        if (empty($filename)) {
             return array('path' => '', 'relative' => '', 'url' => '');
         }
         $videos_dir = getVideosDir();
-        if(!empty($lang)){
-            $lang = ".{$lang}";
+        if (!empty($lang)) {
+            // SECURITY (GHSA-v64v-r7qm-w5x4): the language becomes part of the file name and can come from
+            // the AI callback request. A path separator or NUL would move the .vtt out of this video's
+            // folder; no real language code/name contains one, so removing them changes nothing legitimate.
+            $lang = is_scalar($lang) ? (string) $lang : '';
+            $safeLang = str_replace(['/', '\\', "\0"], '', $lang);
+            if ($safeLang !== $lang) {
+                _error_log('AI: getVTTPaths removed path characters from the language videos_id=' . intval($videos_id), AVideoLog::$SECURITY);
+            }
+            $lang = ".{$safeLang}";
         }
-        $relativePathVTT = $filename . DIRECTORY_SEPARATOR . $filename . $lang.'.vtt';
+        $relativePathVTT = $filename . DIRECTORY_SEPARATOR . $filename . $lang . '.vtt';
         $vtt = $videos_dir . $relativePathVTT;
         $subtitle = false;
         if (file_exists($vtt)) {
@@ -157,12 +169,43 @@ class Ai_transcribe_responses extends ObjectYPT
 
     public function save()
     {
-        if(empty($this->size_in_bytes)){
+        if (empty($this->size_in_bytes)) {
             $this->size_in_bytes = strlen($this->vtt);
-            if(empty($this->size_in_bytes)){
-                $this->size_in_bytes = strlen($this->text);
+            if (empty($this->size_in_bytes)) {
+                $this->size_in_bytes = strlen(htmlspecialchars_decode((string) $this->text, ENT_QUOTES));
             }
         }
         return parent::save();
+    }
+
+    static function saveVTT($vtt, $language, $duration, $text, $total_price, $size_in_bytes, $mp3, $jsonDecoded)
+    {
+        _error_log('AI: saveVTT line=' . __LINE__);
+        $token = $jsonDecoded->token;
+        $o = new Ai_transcribe_responses(0);
+        $o->setVtt($vtt);
+        $o->setLanguage($language);
+        $o->setDuration($duration);
+        $o->setText($text);
+        $o->setTotal_price($total_price);
+        $o->setSize_in_bytes($size_in_bytes);
+        $o->setMp3_url($mp3);
+        $o->setAi_responses_id($token->ai_responses_id);
+        $jsonDecoded->Ai_transcribe_responses = $o->save();
+
+        $jsonDecoded->vttsaved = false;
+        if (!empty($vtt) && !empty($jsonDecoded->Ai_transcribe_responses)) {
+            _error_log('AI: ' . basename(__FILE__) . ' line=' . __LINE__);
+            //$jsonDecoded->lines[] = __LINE__;
+            $paths = Ai_transcribe_responses::getVTTPaths($token->videos_id, $language);
+            if (!empty($paths['path'])) {
+                $jsonDecoded->vttsaved = file_put_contents($paths['path'], $vtt);
+                _error_log("VTTFile saveVTT success videos_id={$token->videos_id}, language={$language} " . json_encode($paths));
+            } else {
+                _error_log("VTTFile Path is empty videos_id={$token->videos_id}, language={$language} " . json_encode($paths));
+            }
+        }
+        $jsonDecoded->error = false;
+        return  $jsonDecoded;
     }
 }

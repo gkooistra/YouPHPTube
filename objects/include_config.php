@@ -1,15 +1,29 @@
 <?php
+global $global, $doNotConnectDatabaseIncludeConfig;
 if (!isset($global['skippPlugins'])) {
     $global['skippPlugins'] = array();
 }
 
 
 if (!empty($global['stopHeadRequests'])) {
-    if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+    if (!empty($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'HEAD') {
         // Optionally, you can send a specific status code or header before exiting
         http_response_code(200); // Set response code if needed
         error_log('stopIfIsHeadRequest '.$_SERVER['HTTP_USER_AGENT']);
         die();
+    }
+}
+
+// Scraping/cache-busting bots stuff many ';'-separated pseudo-params (page=, current=, lang=,
+// rowCount=, ...) URL-encoded into a single query key/value to force a full cache-miss render on
+// every hit while spoofing a normal browser User-Agent (bypasses UA-based bot checks). AVideo never
+// generates or relies on ';' as a query separator, so this pattern is never legitimate traffic.
+if (!empty($_SERVER['QUERY_STRING'])) {
+    $queryStringPollutionCount = substr_count($_SERVER['QUERY_STRING'], ';') + substr_count(strtolower($_SERVER['QUERY_STRING']), '%3b');
+    if ($queryStringPollutionCount >= 3) {
+        http_response_code(403);
+        error_log('Blocked query string pollution ip=' . ($_SERVER['REMOTE_ADDR'] ?? '') . ' qs=' . substr($_SERVER['QUERY_STRING'], 0, 300));
+        die('Forbidden');
     }
 }
 
@@ -21,12 +35,17 @@ if (!empty($global['stopHeadRequests'])) {
  * @property mixed $global[] Dynamically loaded variables.
  */
 if (!empty($doNotIncludeConfig)) {
-    error_log('AVideo includeconfig ignored');
+    //error_log('AVideo includeconfig ignored');
+    // in this line the mysql connection will not be opened and session will not be opened
+    require_once $global['systemRootPath'] . 'objects/functions.php';
     require_once $global['systemRootPath'] . 'objects/plugin.php';
     require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
-    require_once $global['systemRootPath'] . 'objects/functions.php';
     require_once $global['systemRootPath'] . 'objects/images.php';
-    return false;
+
+    includeSecurityChecks();
+    // Check and create saltV2 if it doesn't exist (security upgrade)
+    checkAndCreateSaltV2();
+        return false;
 }
 
 /*
@@ -43,18 +62,21 @@ if($_SERVER["HTTP_HOST"] === 'localhost' || $_SERVER["HTTP_HOST"] === '127.0.0.1
 if (!empty($global['stopBotsList']) && is_array($global['stopBotsList'])) {
     foreach ($global['stopBotsList'] as $value) {
         if (empty($_SERVER['HTTP_USER_AGENT'])) {
-            continue;
+            break;
         }
         if (stripos($_SERVER['HTTP_USER_AGENT'], $value) !== false) {
             if (!empty($global['stopBotsWhiteList']) && is_array($global['stopBotsWhiteList'])) {
                 // check if it is whitelisted
                 foreach ($global['stopBotsWhiteList'] as $key => $value2) {
                     if (stripos($_SERVER['HTTP_USER_AGENT'], $value2) !== false) {
+                        // timeout will be max 5 seconds
+                        set_time_limit(5);
+                        ini_set('max_execution_time', 5);
                         break 2;
                     }
                 }
             }
-            die("Bot Found [{$value}] " . $_SERVER['HTTP_USER_AGENT']);
+            die("Bot Found [{$value}] " . date('Y-m-d H:i:s') . ' ' . $_SERVER['HTTP_USER_AGENT']);
         }
     }
 }
@@ -107,13 +129,23 @@ session_name($global['session_name']);
 global $global, $config, $advancedCustom, $advancedCustomUser;
 
 $global['docker_vars'] = '/var/www/docker_vars.json';
+
 if (file_exists($global['docker_vars'])) {
-    $global['logfile'] = 'php://stdout';
+    // Log to stdout only if docker_vars.json exists and stdout is available
+    $global['logfile'] = '/dev/stdout';
 } else if (empty($global['logfile'])) {
+    // Fall back to file-based logging if stdout is not available
     $global['logfile'] = $global['systemRootPath'] . 'videos/avideo.log';
 }
 
+// Number of days to keep rotated log files (can be overridden in configuration.php)
+if (!isset($global['logRotationDays'])) {
+    $global['logRotationDays'] = 30;
+}
+
 ini_set('error_log', $global['logfile']);
+
+require_once $global['systemRootPath'] . 'objects/functionsPHP.php';
 
 if (empty($global['mysqli_charset'])) {
     //$global['mysqli_charset'] = 'latin1';
@@ -122,6 +154,8 @@ if (empty($global['mysqli_charset'])) {
 includeConfigLog(__LINE__);
 require_once $global['systemRootPath'] . 'objects/functions.php';
 includeConfigLog(__LINE__);
+// Check and create saltV2 if it doesn't exist (security upgrade)
+checkAndCreateSaltV2();
 set_error_reporting();
 if (empty($doNotConnectDatabaseIncludeConfig)) {
     _mysql_connect();
@@ -129,6 +163,7 @@ if (empty($doNotConnectDatabaseIncludeConfig)) {
     $mysql_connect_was_closed = 1;
 }
 $global['webSiteRootURL'] = fixTestURL($global['webSiteRootURL']);
+_applySessionCookieIniSettings();
 require_once $global['systemRootPath'] . 'objects/mysql_dal.php';
 includeConfigLog(__LINE__);
 require_once $global['systemRootPath'] . 'objects/configuration.php';
@@ -154,12 +189,15 @@ $global['dont_show_us_flag'] = false;
 
 if (empty($doNotStartSessionIncludeConfig)) {
     _session_start();
+    storeAndGetExternalReferrer();
     // DDOS protection can be disabled in video/configuration.php
     if (!empty($global['enableDDOSprotection'])) {
         ddosProtection();
     }
 }
 
+
+includeSecurityChecks();
 includeConfigLog(__LINE__);
 // set the referrer for aVideo
 $url1['host'] = '';
@@ -228,6 +266,10 @@ ObjectYPT::checkSessionCacheBasedOnLastDeleteALLCacheTime();
 getDeviceID();
 allowOrigin();
 
+if (!empty($closeSessionEarlyIncludeConfig)) {
+    _session_write_close();
+}
+
 includeConfigLog(__LINE__);
 $baseName = basename($_SERVER['SCRIPT_FILENAME']);
 if (empty($doNotConnectDatabaseIncludeConfig) && $baseName !== 'xsendfile.php' && class_exists('Plugin')) {
@@ -240,7 +282,7 @@ if (empty($doNotConnectDatabaseIncludeConfig) && $baseName !== 'xsendfile.php' &
 if (empty($global['bodyClass'])) {
     $global['bodyClass'] = '';
 }
-$global['allowedExtension'] = ['gif', 'jpg', 'mp4', 'webm', 'mp3', 'm4a', 'ogg', 'zip', 'm3u8'];
+$global['allowedExtension'] = ['gif', 'jpg', 'mp4', 'webm', 'mp3', 'm4a', 'ogg', 'zip', 'm3u8', 'webp'];
 
 if (empty($global['avideo_resolutions']) || !is_array($global['avideo_resolutions'])) {
     $global['avideo_resolutions'] = [240, 360, 480, 540, 720, 1080, 1440, 2160, 'offline'];
@@ -282,4 +324,28 @@ if (!empty($_GET['type'])) {
     $metaDescription = " {$_GET['showOnly']}";
 }
 
+// ── Auto CSRF guard + Auto rate limit ─────────────────────────────────────────
+// Blocks cross-origin requests (any method, not just POST) and throttles
+// abusive traffic to every *.json.php endpoint by default. Opt-out is always
+// explicit — see objects/functionsSecurity.php → autoCSRFGuard() /
+// autoRateLimitGuard() for the full bypass documentation (exact-name list,
+// fnmatch pattern list, or a $global flag set before configuration.php loads).
+// SECURITY REVIEW (2026-10-06): reported that this misses non-.json.php endpoints and should
+// guard every file by default — DO NOT FIX here: page renders, embeds, RTMP/IPN/webhook callbacks
+// and other cross-origin legitimate callers are plain *.php. Mutating non-.json.php endpoints
+// call forbidIfIsUntrustedRequest() explicitly instead (see objects/playlistStatus.php).
+if (
+    isset($_SERVER['REQUEST_METHOD']) &&
+    substr($baseName, -9) === '.json.php'
+) {
+    autoCSRFGuard($baseName, $_SERVER['SCRIPT_FILENAME']);
+    autoRateLimitGuard($baseName, $_SERVER['SCRIPT_FILENAME']);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 includeConfigLog(__LINE__);
+
+// Plugin startup can reopen the session after the first early close.
+if (!empty($closeSessionEarlyIncludeConfig)) {
+    _session_write_close();
+}

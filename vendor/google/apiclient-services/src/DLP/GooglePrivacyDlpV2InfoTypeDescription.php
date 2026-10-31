@@ -33,9 +33,17 @@ class GooglePrivacyDlpV2InfoTypeDescription extends \Google\Collection
   /**
    * @var string
    */
+  public $example;
+  /**
+   * @var string
+   */
   public $name;
   protected $sensitivityScoreType = GooglePrivacyDlpV2SensitivityScore::class;
   protected $sensitivityScoreDataType = '';
+  /**
+   * @var string[]
+   */
+  public $specificInfoTypes;
   /**
    * @var string[]
    */
@@ -88,6 +96,20 @@ class GooglePrivacyDlpV2InfoTypeDescription extends \Google\Collection
   /**
    * @param string
    */
+  public function setExample($example)
+  {
+    $this->example = $example;
+  }
+  /**
+   * @return string
+   */
+  public function getExample()
+  {
+    return $this->example;
+  }
+  /**
+   * @param string
+   */
   public function setName($name)
   {
     $this->name = $name;
@@ -112,6 +134,20 @@ class GooglePrivacyDlpV2InfoTypeDescription extends \Google\Collection
   public function getSensitivityScore()
   {
     return $this->sensitivityScore;
+  }
+  /**
+   * @param string[]
+   */
+  public function setSpecificInfoTypes($specificInfoTypes)
+  {
+    $this->specificInfoTypes = $specificInfoTypes;
+  }
+  /**
+   * @return string[]
+   */
+  public function getSpecificInfoTypes()
+  {
+    return $this->specificInfoTypes;
   }
   /**
    * @param string[]

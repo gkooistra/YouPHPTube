@@ -2,6 +2,7 @@
 $timeLog6Limit = 0.4;
 $timeLog6 = "row_info.php {$value['clean_title']}";
 TimeLogStart($timeLog6);
+//var_dump(debug_backtrace());
 ?>
 <!-- row_info start -->
 <div class="infoDetails">
@@ -64,7 +65,7 @@ TimeLogStart($timeLog6);
         <!-- row video 1 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
+                <img loading="lazy" decoding="async" alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive posterPortrait row_info_<?php echo __LINE__; ?>" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -73,7 +74,7 @@ TimeLogStart($timeLog6);
         <!-- row video 2 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
+                <img loading="lazy" decoding="async" alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive row_info_<?php echo __LINE__; ?>" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -82,7 +83,7 @@ TimeLogStart($timeLog6);
         <!-- row video 3 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive posterPortrait" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
+                <img loading="lazy" decoding="async" alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive posterPortrait row_info_<?php echo __LINE__; ?>" src="<?php echo $images->posterPortraitThumbs; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -91,7 +92,7 @@ TimeLogStart($timeLog6);
         <!-- row video 4 -->
         <div class="col-md-2 col-sm-3 col-xs-4 hidden-xs">
             <center>
-                <img alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
+                <img loading="lazy" decoding="async" alt="<?php echo str_replace('"', '', $value['title']); ?>" class="img img-responsive row_info_<?php echo __LINE__; ?>" src="<?php echo $images->poster; ?>" style="min-width: 86px;" />
             </center>
         </div>
         <?php
@@ -129,29 +130,39 @@ TimeLogStart($timeLog6);
             $url = "{$global['webSiteRootURL']}user";
             $url = addQueryStringParameter($url, 'redirectUri', $rowLink);
             ?>
-            <a class="btn btn-default" 
+            <a class="btn btn-default"
                href="<?php echo $url; ?>">
                 <i class="fas fa-sign-in-alt"></i>
-                <span class="hidden-xs"><?php echo __("Login"); ?></span>
+                <span><?php echo __("Login"); ?></span>
             </a>
             <?php
         }
     }
     TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     $_GET = $get;
+    if($rowLinkType === Video::$videoTypePdf){
     ?>
-    <a class="btn btn-danger playBtn <?php echo $canWatchPlayButton; ?>" 
-       href="<?php echo $rowLink; ?>" 
+    <button class="btn btn-danger playBtn <?php echo $canWatchPlayButton; ?>"
+       onclick="avideoModalIframe('<?php echo $rowLinkEmbed; ?>');return false;">
+        <i class="fas fa-file-pdf"></i>
+        <span><?php echo __("Open PDF"); ?></span>
+    </button>
+    <?php
+    }else{
+    ?>
+    <a class="btn btn-danger playBtn <?php echo $canWatchPlayButton; ?>"
+       href="<?php echo $rowLink; ?>"
        embed="<?php echo $rowLinkEmbed; ?>">
         <i class="fa fa-play"></i>
-        <span class="hidden-xs"><?php echo __("Play"); ?></span>
+        <span><?php echo __("Play"); ?></span>
     </a>
     <?php
-    if (!empty($value['trailer1'])) {
+    }
+    if (isValidURL($value['trailer1'])) {
         ?>
-        <a href="#" class="btn btn-warning" onclick="flixFullScreen('<?php echo parseVideos($value['trailer1'], 1, 0, 0, 0, 1); ?>', '');return false;">
+        <a href="#" class="btn btn-default" onclick="flixFullScreen('<?php echo htmlspecialchars(parseVideos($value['trailer1'], 1, 0, 0, 0, 1), ENT_QUOTES, 'UTF-8'); ?>', '');return false;">
             <span class="fa fa-film"></span>
-            <span class="hidden-xs"><?php echo __("Trailer"); ?></span>
+            <span><?php echo __("Trailer"); ?></span>
         </a>
         <?php
     }
@@ -163,5 +174,10 @@ TimeLogStart($timeLog6);
     getSharePopupButton($value['id']);
     TimeLogEnd($timeLog6, __LINE__, $timeLog6Limit);
     ?>
+    <span style="margin-left: 5px;">
+    <?php
+        echo Video::generatePlaylistButtons($value['id'], 'btn btn-dark', 'background-color: #11111199; ', false);
+    ?>
+    </span>
 </div>
 <!-- row_info end -->

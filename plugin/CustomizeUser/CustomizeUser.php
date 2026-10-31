@@ -12,7 +12,14 @@ require_once $global['systemRootPath'] . 'plugin/CustomizeUser/Objects/Users_aff
 
 class CustomizeUser extends PluginAbstract
 {
+    const PERMISSION_CAN_USE_DONATION_LINK = 0;
 
+    public function getPluginDependencies() {
+        return array(
+            PluginDependency::create('YPTWallet', 'Optional donation-to-wallet integration', false),
+            PluginDependency::create('VideoTags', 'Optional video tags shown on the user subscriptions tab', false),
+        );
+    }
 
     private static function _getSocialMedia()
     {
@@ -34,8 +41,8 @@ class CustomizeUser extends PluginAbstract
             'youtube' => [
                 'class' => 'icoYoutube',
                 'icon' => 'fab fa-youtube',
-                'label' => __("Youtube"),
-                'placeholder' => __("Youtube URL"),
+                'label' => __("YouTube"),
+                'placeholder' => __("YouTube URL"),
                 'isActive' => true,
             ],
             'instagram' => [
@@ -115,7 +122,6 @@ class CustomizeUser extends PluginAbstract
                 'placeholder' => __("Reddit URL"),
                 'isActive' => true,
             ],
-            /*
             'telegram' => [
                 'class' => 'icoTelegram',
                 'icon' => 'fab fa-telegram',
@@ -123,6 +129,7 @@ class CustomizeUser extends PluginAbstract
                 'placeholder' => __("Telegram URL"),
                 'isActive' => true,
             ],
+            /*
             'google' => [
                 'class' => 'icoGoogle',
                 'icon' => 'fab fa-google',
@@ -158,13 +165,6 @@ class CustomizeUser extends PluginAbstract
                 'icon' => 'fas fa-rss',
                 'label' => __("RSS"),
                 'placeholder' => __("RSS URL"),
-                'isActive' => true,
-            ],
-            'gab' => [
-                'class' => 'icoGab',
-                'icon' => 'fab fa-gab',
-                'label' => __("Gab"),
-                'placeholder' => __("Gab URL"),
                 'isActive' => true,
             ],
             */
@@ -205,6 +205,27 @@ class CustomizeUser extends PluginAbstract
                 'icon' => 'fas fa-shopping-cart',
                 'label' => __("Shopping Website"),
                 'placeholder' => __("Shopping Website URL"),
+            ],
+            'gab' => [
+                'class' => 'icoGab',
+                'icon' => 'fab fa-gab fa-extra',
+                'label' => __("Gab"),
+                'placeholder' => __("Gab URL"),
+                'isActive' => true,
+            ],
+            'substack' => [
+                'class' => 'icoSubstack',
+                'icon' => 'fas fa-substack fa-extra',
+                'label' => __("Substack"),
+                'placeholder' => __("Substack URL"),
+                'isActive' => true,
+            ],
+            'rumble' => [
+                'class' => 'icoRumble',
+                'icon' => 'fas fa-rumble fa-extra',
+                'label' => __("Rumble"),
+                'placeholder' => __("Rumble URL"),
+                'isActive' => true,
             ],
         ];
     }
@@ -290,6 +311,9 @@ class CustomizeUser extends PluginAbstract
         $obj->verificationMailTextLine4 = "All you need to do is to verify your e-mail by clicking the link below";
         $obj->verificationMailButtonLabel = "Verify";
 
+        $obj->recoverPassSubject = "Recover Pass from";
+        $obj->recoverPassText = "You asked for a recover link, click on the provided link";
+
         $obj->unverifiedEmailsCanNOTLogin = !isset($advancedCustom->unverifiedEmailsCanNOTLogin) ? false : $advancedCustom->unverifiedEmailsCanNOTLogin;
         $obj->unverifiedEmailsCanNOTComment = false;
         $obj->unverifiedEmailsCanNOTLiveStream = true;
@@ -363,7 +387,7 @@ class CustomizeUser extends PluginAbstract
         $obj->MyChannelLabel = "My Channel";
         $obj->showAllAboutTextOnChannel = false;
         self::addDataObjectHelper('showAllAboutTextOnChannel', 'Show All About Text On Channel', 'Instead of show the [Show more] button, it will show the whole text');
-        
+
         $obj->afterLoginGoToMyChannel = false;
         $obj->afterLoginGoToURL = "";
         $obj->afterLogoffGoToMyChannel = false;
@@ -372,10 +396,20 @@ class CustomizeUser extends PluginAbstract
         $obj->signupWelcomeAlert = "You are welcome and an even bigger thank you for registering";
 
         $obj->allowDonationLink = false;
+        $o = new stdClass();
+        $o->type = array(
+            'everyone' => ('All Users'),
+            'usergroup' => ('Selected user groups'),
+        );
+        $o->value = 'everyone';
+        $obj->donationLinkWhoCanUse = $o;
+        self::addDataObjectHelper('donationLinkWhoCanUse', 'Who can use the Donation Link', 'Only used when allowDonationLink is checked. With Selected user groups, give the permission Can use Donation Link to the user groups (Permissions plugin). Admins can always use it.');
         $obj->donationButtonLabel = ('Donation');
         $obj->allowWalletDirectTransferDonation = false;
         $obj->UsersCanCustomizeWalletDirectTransferDonation = false;
         $obj->donationWalletButtonLabel = ('Donate from your wallet');
+        $obj->defaultDonationMessage = 'Thank you for your great content!';
+        self::addDataObjectHelper('defaultDonationMessage', 'Default Donation Message', 'This message will be shown as the default donation message.');
         $obj->disableCaptchaOnWalletDirectTransferDonation = false;
 
         $obj->showEmailVerifiedMark = true;
@@ -405,8 +439,62 @@ class CustomizeUser extends PluginAbstract
 
         $obj->onSignUpSubscribeToChannelsIds = '[]';
         self::addDataObjectHelper('onSignUpSubscribeToChannelsIds', 'On Sign Up Subscribe To Channels Ids', 'This field is an json array with ids of users that will be auto-subscribed');
-        
+
+        $o = new stdClass();
+        $o->type = [0 => 'Do not Delete', 1 => '1 Day'];
+        for ($i = 2; $i <= 7; $i++) {
+            $o->type[$i] = "{$i} Days";
+        }
+        for ($i = 10; $i < 30; $i += 5) {
+            $o->type[$i] = "{$i} Days";
+        }
+        for ($i = 30; $i <= 90; $i += 10) {
+            $o->type[$i] = "{$i} Days";
+        }
+        $o->value = 0;
+        $obj->autoDeleteUnverifiedUsersAfterDays = $o;
+
+        $obj->enableResolutionsByUserGroup = false;
+        self::addDataObjectHelper('enableResolutionsByUserGroup', 'Enable Resolutions by User Group', 'Allow admins to restrict available video resolutions per user group');
+
+        $obj->hideVideoGroupTags = false;
+        self::addDataObjectHelper('hideVideoGroupTags', 'Hide Video Group Tags', 'When enabled, the user group tags (group icons) will not appear on videos in the frontend');
+
         return $obj;
+    }
+
+    function getPermissionsOptions()
+    {
+        $permissions = array();
+        $permissions[] = new PluginPermissionOption(self::PERMISSION_CAN_USE_DONATION_LINK, __("Can use Donation Link"), "Only used when 'Who can use the Donation Link' is set to 'Selected user groups' - members of the designated user group can add a Donation Link to their profile, and it will appear on their videos.", 'CustomizeUser');
+        return $permissions;
+    }
+
+    // $users_id is the owner of the donation link (the channel owner on a video page), not the viewer
+    static function canUseDonationLink($users_id)
+    {
+        $users_id = intval($users_id);
+        if (empty($users_id)) {
+            return false;
+        }
+        $obj = AVideoPlugin::getDataObjectIfEnabled('CustomizeUser');
+        if (empty($obj->allowDonationLink)) {
+            return false;
+        }
+        $mode = empty($obj->donationLinkWhoCanUse) ? 'everyone' : $obj->donationLinkWhoCanUse;
+        if (is_object($mode) && isset($mode->value)) {
+            $mode = $mode->value;
+        }
+        if ($mode !== 'usergroup') {
+            return true;
+        }
+        if (User::isAdmin($users_id)) {
+            return true;
+        }
+        if (!class_exists('Permissions')) {
+            return false;
+        }
+        return Permissions::hasPermission(self::PERMISSION_CAN_USE_DONATION_LINK, 'CustomizeUser', $users_id);
     }
 
     function onUserSocketConnect()
@@ -480,16 +568,26 @@ class CustomizeUser extends PluginAbstract
 
     public static function canDownloadVideosFromUser($users_id)
     {
-        global $config;
+        global $config, $canDownloadVideosFromUserReason;
+        $canDownloadVideosFromUserReason = '';
         $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
         if (!empty($obj->nonAdminCannotDownload) && !User::isAdmin()) {
+            $canDownloadVideosFromUserReason = 'you selected nonAdminCannotDownload and you are not admin';
             return false;
         }
         if (empty($obj) || empty($obj->userCanAllowFilesDownload)) {
-            return self::canDownloadVideos();
+            $can = self::canDownloadVideos();
+            if(!$can){
+                $canDownloadVideosFromUserReason = 'your site configuration can download option is not checked';
+            }
+            return $can;
         }
         $user = new User($users_id);
-        return !empty($user->getExternalOption('userCanAllowFilesDownload'));
+        $can = !empty($user->getExternalOption('userCanAllowFilesDownload'));
+        if(!$can){
+            $canDownloadVideosFromUserReason = "you selected userCanAllowFilesDownload but the user {$users_id} the option 'Allow Download My Videos' on user profile is not checked";
+        }
+        return $can;
     }
 
     public static function canDownloadVideos()
@@ -581,20 +679,22 @@ class CustomizeUser extends PluginAbstract
             return "";
         }
         $objcu = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
-        echo "<div style=\"float:right\">";
+        echo "<div class=\"clearfix\"></div><div style=\"float:right\">";
         if (!empty($objcu) && !empty($objcu->userCanAllowFilesDownload)) {
             echo '<div style=" margin:0 20px 10px 0;  height: 15px;">';
             echo '<div class="" style="max-width: 100px; float:right;"> ';
             self::getSwitchUserCanAllowFilesDownload(User::getId());
-            echo '</div>
-    <label class="control-label" style="float:right; margin:0 10px;">' . __("Allow Download My Videos") . '</label></div>';
+            echo '</div>';
+            echo '<label class="control-label" style="float:right; margin:0 10px;">' . __("Allow Download My Videos") . '</label>';
+            echo '</div>';
         }
         if (!empty($objcu) && !empty($objcu->userCanAllowFilesShare)) {
             echo '<div style=" margin:0 20px 10px 0; height: 15px;">';
             echo '<div class="" style="max-width: 100px; float:right;"> ';
             self::getSwitchUserCanAllowFilesShare(User::getId());
-            echo '</div>
-    <label class="control-label" style="float:right; margin:0 10px;">' . __("Allow Share My Videos") . '</label></div>';
+            echo '</div>';
+            echo '<label class="control-label" style="float:right; margin:0 10px;">' . __("Allow Share My Videos") . '</label>';
+            echo '</div>';
         }
         echo "</div>";
     }
@@ -608,10 +708,15 @@ class CustomizeUser extends PluginAbstract
 
     public static function canDownloadVideosFromVideo($videos_id)
     {
-        global $_lastCanDownloadVideosFromVideoReason;
+        global $_lastCanDownloadVideosFromVideoReason, $canDownloadVideosFromUserReason;
         $_lastCanDownloadVideosFromVideoReason = '';
         if (!CustomizeUser::canDownloadVideos()) {
-            $_lastCanDownloadVideosFromVideoReason = 'CustomizeUser::canDownloadVideos';
+            $obj = AVideoPlugin::getObjectDataIfEnabled("CustomizeUser");
+            if (!empty($obj->nonAdminCannotDownload)) {
+                $_lastCanDownloadVideosFromVideoReason = 'CustomizeUser::canDownloadVideos nonAdminCannotDownload';
+            } else {
+                $_lastCanDownloadVideosFromVideoReason = 'CustomizeUser::canDownloadVideos site Configuration';
+            }
             return false;
         }
         $video = new Video("", "", $videos_id);
@@ -621,7 +726,7 @@ class CustomizeUser extends PluginAbstract
         }
         $users_id = $video->getUsers_id();
         if (!CustomizeUser::canDownloadVideosFromUser($users_id)) {
-            $_lastCanDownloadVideosFromVideoReason = 'CustomizeUser::canDownloadVideosFromUser';
+            $_lastCanDownloadVideosFromVideoReason = 'CustomizeUser::canDownloadVideosFromUser - '.$canDownloadVideosFromUserReason;
             return false;
         }
         $category = new Category($video->getCategories_id());
@@ -665,9 +770,9 @@ class CustomizeUser extends PluginAbstract
     {
         global $global;
         $obj = $this->getDataObject();
-        if(!empty($obj->onSignUpSubscribeToChannelsIds)){
+        if (!empty($obj->onSignUpSubscribeToChannelsIds)) {
             $json = _json_decode($obj->onSignUpSubscribeToChannelsIds);
-            if(!empty($json) && is_array($json)){
+            if (!empty($json) && is_array($json)) {
                 foreach ($json as $channel_owner_users_id) {
                     $subsc = new Subscribe(0, '', $channel_owner_users_id, $users_id);
                     $subsc->setNotify(1);
@@ -723,7 +828,7 @@ class CustomizeUser extends PluginAbstract
                 forbiddenPage(__("Sorry, this video is private"));
             }
             /*
-              if (!AVideoPlugin::isEnabled('Gallery') && !AVideoPlugin::isEnabled('YouPHPFlix2') && !AVideoPlugin::isEnabled('YouTube')) {
+              if (!AVideoPlugin::isEnabledByName('Gallery') && !AVideoPlugin::isEnabledByName('YouPHPFlix2') && !AVideoPlugin::isEnabledByName('YouTube')) {
               header("Location: {$global['webSiteRootURL']}user?msg=" . urlencode(__("Sorry, this video is private")));
               } else {
               header("Location: {$global['webSiteRootURL']}?msg=" . urlencode(__("Sorry, this video is private")));
@@ -743,20 +848,21 @@ class CustomizeUser extends PluginAbstract
     public static function videoPasswordIsGood($videos_id)
     {
         $video = new Video("", "", $videos_id);
-        $videoPassword = $video->getVideo_password();
-        if (empty($videoPassword)) {
+        $storedHash = $video->getVideo_password();
+        if (empty($storedHash)) {
             return true;
         }
-        //var_dump($_REQUEST['video_password'], $videoPassword);exit;
-        if (empty($_SESSION['video_password'][$videos_id]) || $videoPassword !== $_SESSION['video_password'][$videos_id]) {
-            if (!empty($_REQUEST['video_password']) && $_REQUEST['video_password'] == $videoPassword) {
-                _session_start();
-                $_SESSION['video_password'][$videos_id] = $_REQUEST['video_password'];
-                return true;
-            }
-            return false;
+        // Session token is derived from the stored hash so it auto-invalidates when the password changes
+        $sessionToken = hash('sha256', $storedHash);
+        if (!empty($_SESSION['video_password_token'][$videos_id]) && $_SESSION['video_password_token'][$videos_id] === $sessionToken) {
+            return true;
         }
-        return true;
+        if (!empty($_REQUEST['video_password']) && Video::verifyVideoPassword($_REQUEST['video_password'], $storedHash)) {
+            _session_start();
+            $_SESSION['video_password_token'][$videos_id] = $sessionToken;
+            return true;
+        }
+        return false;
     }
 
     public function getEmbed($videos_id)
@@ -949,7 +1055,7 @@ class CustomizeUser extends PluginAbstract
 
       return $return;
       }
-     * 
+     *
      */
 
     static function getAffiliationNotifications()
@@ -976,7 +1082,7 @@ class CustomizeUser extends PluginAbstract
                             $users_id = $isACompany ? $value['users_id_affiliate'] : $value['users_id_company'];
                             $value['users_id'] = $users_id;
 
-                            $value['js'] = 'avideoAlertOnce('
+                            $value['js'] = 'avideoAlertOnceHTML('
                                 . '"' . __('You have a new affiliation request') . '",'
                                 . "\"<a href='{$global['webSiteRootURL']}user?tab=tabAffiliation'>" . __('Please click here') . '</a>", "info", "' . $value['id'] . $value['modified'] . '");';
 
@@ -998,15 +1104,74 @@ class CustomizeUser extends PluginAbstract
         include $global['systemRootPath'] . 'plugin/CustomizeUser/View/footer.php';
         return '';
     }
-    
-    public function getMobileInfo() {
+
+    public function getMobileInfo()
+    {
         $obj = $this->getDataObject();
-        $return = new stdClass();        
+        $return = new stdClass();
         $return->userCanChangeVideoOwner = $obj->userCanChangeVideoOwner;
         $return->usersCanCreateNewCategories = $obj->usersCanCreateNewCategories;
         $return->userCanNotChangeCategory = $obj->userCanNotChangeCategory;
         $return->userCanNotChangeUserGroup = $obj->userCanNotChangeUserGroup;
 
         return $return;
+    }
+
+    function executeEveryDay()
+    {
+        $obj = AVideoPlugin::getDataObject('CustomizeUser');
+        if (!empty($obj->autoDeleteUnverifiedUsersAfterDays->value)) {
+            self::deleteOldUsers($obj->autoDeleteUnverifiedUsersAfterDays->value);
+        }
+    }
+
+    public static function deleteOldUsers($days)
+    {
+        global $global;
+
+        // Calculate the date before which records should be selected
+        $dateThreshold = date('Y-m-d H:i:s', strtotime("-{$days} days"));
+
+        // Construct the SQL query to select users older than the threshold date
+        $sql = "SELECT id, user, name FROM users WHERE created < ? AND (emailVerified is NULL OR emailVerified = 0)";
+        $global['lastQuery'] = $sql;
+
+        // Fetch users that match the criteria
+        $res = sqlDAL::readSql($sql, "s", [$dateThreshold]);
+        $users = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+
+        if ($users !== false) {
+            // Loop through each user and attempt to delete
+            foreach ($users as $user) {
+                $deleteSql = "DELETE FROM users WHERE id = ?";
+                $deleteResult = sqlDAL::writeSql($deleteSql, "i", [$user['id']]);
+
+                // Check if deletion was successful
+                if (!$deleteResult) {
+                    // If deletion fails, echo user ID, username, and name
+                    echo "Failed to delete user: ID={$user['id']}, Username={$user['user']}, Name={$user['name']}".PHP_EOL;
+                }
+            }
+        }
+    }
+
+
+    function getChannelPageButtons($users_id)
+    {
+        global $advancedCustomUser;
+        $r = '';
+        if (!empty($advancedCustomUser->showChannelFeed)) {
+            $urlChannel = addLastSlash(User::getChannelLink($users_id));
+            $rss = "{$urlChannel}rss";
+            $mrss = "{$urlChannel}mrss";
+            $roku = "{$urlChannel}roku.json";
+            $r .= getFeedButton($rss, $mrss, $roku);
+        }
+
+        $r .= User::getAddChannelToGalleryButton($users_id);
+        $r .= User::getBlockUserButton($users_id);
+        $r .= Subscribe::getButton($users_id);
+        return $r;
     }
 }

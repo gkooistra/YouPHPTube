@@ -4,7 +4,9 @@ if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 User::loginFromRequestIfNotLogged();
-//_session_write_close();
+// read-only from here on; release the session lock so it doesn't block other
+// concurrent requests from the same browser session
+_session_write_close();
 header('Content-Type: application/json');
 $start = microtime(true);
 
@@ -42,10 +44,30 @@ resetCurrentPage();
 $total = Video::getTotalVideos($status, $showOnlyLoggedUserVideos, true, $showUnlisted, $activeUsersOnly, false, @$_REQUEST['type']);
 resetCurrentPage();
 TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
+
+$seriePlaylists = [];
+$seriePlaylistsIds = [];
+foreach ($videos as $video) {
+    if (!empty($video['serie_playlists_id'])) {
+        $seriePlaylistsIds[] = intval($video['serie_playlists_id']);
+    }
+}
+
+$seriePlaylistsIds = array_values(array_unique(array_filter($seriePlaylistsIds)));
+if (!empty($seriePlaylistsIds)) {
+    $sql = "SELECT id, name FROM playlists WHERE id IN (" . implode(',', $seriePlaylistsIds) . ")";
+    $res = sqlDAL::readSql($sql);
+    $rows = sqlDAL::fetchAllAssoc($res);
+    sqlDAL::close($res);
+    foreach ($rows as $row) {
+        $seriePlaylists[intval($row['id'])] = $row['name'];
+    }
+}
+
 foreach ($videos as $key => $value) {
     /*
       $video = new Video('', '', $value['id']);
-      $video->setStatus(Video::$statusActive);
+      $video->setStatus(Video::STATUS_ACTIVE);
       Video::clearCache($value['id']);continue;
      */
     unset($value['password'], $value['recoverPass']);
@@ -55,8 +77,12 @@ foreach ($videos as $key => $value) {
     $videos[$key]['description'] = @preg_replace('/[\x00-\x1F\x7F]/u', '', $videos[$key]['description']);
     $videos[$key]['title'] = @preg_replace('/[\x00-\x1F\x7F]/u', '', $videos[$key]['title']);
     $videos[$key]['clean_title'] = @preg_replace('/[\x00-\x1F\x7F]/u', '', $videos[$key]['clean_title']);
+    $seriePlaylistsId = intval($videos[$key]['serie_playlists_id']);
+    $videos[$key]['serie_playlist_name'] = $seriePlaylists[$seriePlaylistsId] ?? '';
     TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
     $videos[$key]['typeLabels'] = Video::getVideoTypeLabels($videos[$key]['filename']);
+    // TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
+    // $videos[$key]['type'] = Video::fixAudioTypeIfHasVideoFiles($videos[$key]['id']);
     TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
     $videos[$key]['maxResolution'] = Video::getHigestResolution($videos[$key]['filename']);
     TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
@@ -87,11 +113,17 @@ foreach ($videos as $key => $value) {
         TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
     }
     unset($videos[$key]['password'], $videos[$key]['recoverPass']);
+    // defense-in-depth: moderators are trusted staff and may see the joined owner's PII, but a non-moderator must not, regardless of the showOnlyLoggedUserVideos scoping above
+    if (!Permissions::canModerateVideos()) {
+        removeSensitiveUserFields($videos[$key]);
+    }
 }
 
 TimeLogEnd($timeLogName, __LINE__, $TimeLogLimit);
 $obj = new stdClass();
 $obj->users_id = User::getId();
+$obj->showAll = @$_REQUEST['showAll'];
+$obj->catName = @$_REQUEST['catName'];
 $obj->current = getCurrentPage();
 $obj->rowCount = getRowCount();
 $obj->total = $total;

@@ -278,7 +278,7 @@ function convertImageToOG($source, $destination)
             $tmpDir = getTmpDir();
             $fileConverted = $tmpDir . "_jpg_" . uniqid() . ".jpg";
             convertImage($source, $fileConverted, 100);
-            im_resize($fileConverted, $destination, $w, $h, 100);            
+            im_resize($fileConverted, $destination, $w, $h, 100);
             //_error_log("convertImageToOG ($destination) unlink line=".__LINE__);
             @unlink($fileConverted);
         }
@@ -351,6 +351,18 @@ function convertImageIfNotExists($source, $destination, $width, $height, $scaleU
     }
     return $destination;
 }
+
+function getVideoImagewithHoverAnimation($relativePath, $relativePathHoverAnimation = '', $title = '', $preloadImage = false, $doNotUseAnimatedGif = false)
+{
+    $id = uniqid();
+    //getImageTagIfExists($relativePath, $title = '', $id = '', $style = '', $class = 'img img-responsive', $lazyLoad = false, $preloadImage=false)
+    $img = getImageTagIfExists($relativePath, $title, "thumbsJPG{$id}", '', 'thumbsJPG img img-responsive', false, $preloadImage) . PHP_EOL;
+    if (empty($doNotUseAnimatedGif) && !empty($relativePathHoverAnimation) && empty($_REQUEST['noImgGif'])) {
+        $img .= getImageTagIfExists($relativePathHoverAnimation, $title, "thumbsGIF{$id}", 'position: absolute; top: 0;', 'thumbsGIF img img-responsive ', true, $preloadImage) . PHP_EOL;
+    }
+    return '<div class="thumbsImage">' . $img . '</div>';
+}
+
 
 function getImageTagIfExists($relativePath, $title = '', $id = '', $style = '', $class = 'img img-responsive', $lazyLoad = false, $preloadImage = false)
 {
@@ -987,7 +999,8 @@ function convertImage($originalImage, $outputImage, $quality, $useExif = false)
         }
     } elseif ($extOutput === 'png') {
         if (function_exists('imagepng')) {
-            $response = imagepng($imageTmp, $outputImage, $quality / 10);
+            $quality = max(-1, min(9, (int) round($quality / 10)));
+            $response = imagepng($imageTmp, $outputImage, $quality);
         } else {
             _error_log("convertImage ERROR: function imagepng does not exists");
         }
@@ -1016,6 +1029,107 @@ function base64DataToImage($imgBase64)
     $img = str_replace('data:image/png;base64,', '', $img);
     $img = str_replace(' ', '+', $img);
     return base64_decode($img);
+}
+
+function normalizeBase64ImageData($imgBase64)
+{
+    $imgBase64 = trim((string) $imgBase64);
+    if ($imgBase64 === '') {
+        return '';
+    }
+
+    if (preg_match('/^data:image\/[a-z0-9.+-]+;base64,/i', $imgBase64)) {
+        $parts = explode(',', $imgBase64, 2);
+        $imgBase64 = $parts[1] ?? '';
+    }
+
+    $imgBase64 = str_replace(' ', '+', $imgBase64);
+    return preg_replace('/\s+/', '', $imgBase64);
+}
+
+function estimateBase64DecodedSize($imgBase64)
+{
+    $length = strlen($imgBase64);
+    if ($length === 0) {
+        return 0;
+    }
+
+    $padding = 0;
+    if ($length >= 2 && substr($imgBase64, -2) === '==') {
+        $padding = 2;
+    } elseif (substr($imgBase64, -1) === '=') {
+        $padding = 1;
+    }
+
+    return (int) floor(($length * 3) / 4) - $padding;
+}
+
+function isValidImageBinaryData($fileData)
+{
+    if (!is_string($fileData) || $fileData === '') {
+        return false;
+    }
+
+    if (function_exists('getimagesizefromstring')) {
+        $imageInfo = @getimagesizefromstring($fileData);
+        if (is_array($imageInfo) && !empty($imageInfo[0]) && !empty($imageInfo[1]) && !empty($imageInfo['mime'])) {
+            return stripos($imageInfo['mime'], 'image/') === 0;
+        }
+    }
+
+    // Fallback for environments without GD: accept known image signatures.
+    if (strncmp($fileData, "\x89PNG\r\n\x1A\n", 8) === 0) {
+        return true;
+    }
+    if (strncmp($fileData, "\xFF\xD8\xFF", 3) === 0) {
+        return true;
+    }
+    if (strncmp($fileData, 'GIF87a', 6) === 0 || strncmp($fileData, 'GIF89a', 6) === 0) {
+        return true;
+    }
+    if (strncmp($fileData, 'RIFF', 4) === 0 && substr($fileData, 8, 4) === 'WEBP') {
+        return true;
+    }
+    if (strncmp($fileData, 'BM', 2) === 0) {
+        return true;
+    }
+
+    return false;
+}
+
+function getValidatedImageBinaryFromBase64($imgBase64, $maxBase64Size = 2097152, &$errorMsg = '')
+{
+    $errorMsg = '';
+    $imgBase64 = normalizeBase64ImageData($imgBase64);
+    $maxBase64Size = intval($maxBase64Size);
+
+    if (empty($imgBase64)) {
+        $errorMsg = __('Invalid image');
+        return false;
+    }
+
+    if (estimateBase64DecodedSize($imgBase64) > $maxBase64Size) {
+        $errorMsg = __('Image too large or invalid');
+        return false;
+    }
+
+    $fileData = base64_decode($imgBase64, true);
+    if (!is_string($fileData) || $fileData === '') {
+        $errorMsg = __('Invalid image');
+        return false;
+    }
+
+    if (strlen($fileData) > $maxBase64Size) {
+        $errorMsg = __('Image too large or invalid');
+        return false;
+    }
+
+    if (!isValidImageBinaryData($fileData)) {
+        $errorMsg = __('Invalid image');
+        return false;
+    }
+
+    return $fileData;
 }
 
 function saveBase64DataToPNGImage($imgBase64, $filePath)
@@ -1054,7 +1168,8 @@ function getCroppie(
     $viewportWidth = 0,
     $boundary = 25,
     $viewportHeight = 0,
-    $enforceBoundary = true
+    $enforceBoundary = true,
+    $options = []
 ) {
     global $global;
     require_once $global['systemRootPath'] . 'objects/functionCroppie.php';
@@ -1066,7 +1181,8 @@ function getCroppie(
         $viewportWidth,
         $boundary ,
         $viewportHeight,
-        $enforceBoundary );
+        $enforceBoundary,
+        $options );
 }
 
 function saveCroppieImage($destination, $postIndex = "imgBase64")
@@ -1081,6 +1197,59 @@ function isImageNotFound($imgURL){
     if(empty($imgURL)){
         return true;
     }
-    
+
     return ImagesPlaceHolders::isDefaultImage($imgURL);
+}
+
+function createColorfulTextSpans($string)
+{
+    $output = '<span class="colorful-text">';
+    for ($i = 0; $i < strlen($string); $i++) {
+        $char = htmlspecialchars($string[$i]);
+        $output .= "<span>$char</span>";
+    }
+    $output .= '</span>';
+    return $output;
+}
+
+function pwaIconsArray($favicon = '', $forceDelete = false)
+{
+    if(is_array($favicon) && !empty($favicon['file'])){
+        $favicon = $favicon['file'];
+    }
+    $icon = [];
+    //$faviconICO = Configuration::_getFavicon(false);
+
+    $sizes = [72, 96, 120, 128, 144, 152, 180, 192, 384, 512];
+
+    if($favicon && $forceDelete){
+        foreach ($sizes as $value) {
+            $pwaIcon = "faviconPWA{$value}.png";
+            if (file_exists(getVideosDir() . $pwaIcon)) {
+                _error_log("pwaIconsArray: deleting $pwaIcon");
+                unlink(getVideosDir() . $pwaIcon);
+            }
+        }
+    }
+
+    foreach ($sizes as $value) {
+        $pwaIcon = "faviconPWA{$value}.png";
+        if ($favicon && !file_exists(getVideosDir() . $pwaIcon)) {
+            im_resize($favicon, getVideosDir() . $pwaIcon, $value, $value);
+        }
+        $icon[] = pwaIcon(getURL('videos/' . $pwaIcon), 'image/png', "{$value}x{$value}");
+    }
+    //$icon[] = pwaIcon($favicon['url'], 'image/png', '180x180');
+    //$icon[] = pwaIcon($faviconICO['url'], 'image/x-icon', '16x16,24x24,32x32,48x48,144x144');
+
+    return $icon;
+}
+
+function pwaIcon($src, $type, $sizes)
+{
+    $icon = new stdClass();
+    $icon->src = $src;
+    $icon->type = $type;
+    $icon->sizes = $sizes;
+    return $icon;
 }

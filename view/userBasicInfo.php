@@ -14,10 +14,11 @@
         ;
     }
 </style>
-<form class="form-compact well form-horizontal" id="updateUserForm" onsubmit="">
+<form class="form-compact form-horizontal accountForm" id="updateUserForm" onsubmit="">
     <?php
     $bgURL = User::getBackgroundURLFromUserID(User::getId());
     ?>
+    <h2 class="accountSectionTitle"><?php echo __("Basic Info"); ?></h2>
     <div class="form-group">
         <label class="col-md-4 control-label"><?php echo __("Name"); ?></label>
         <div class="col-md-8 inputGroupContainer">
@@ -98,7 +99,7 @@
                 <?php getButtontCopyToClipboard('textAreaEmbed'); ?>
             </label>
             <div class="col-md-8 inputGroupContainer">
-                <textarea class="form-control min-width: 100%; margin: 10px 0 20px 0;" rows="2" id="textAreaEmbed" readonly="readonly"><?php
+                <textarea class="form-control" rows="2" id="textAreaEmbed" readonly="readonly"><?php
                                                                                                                                         $code = str_replace($search, $replace, $advancedCustom->embedCodeTemplate);
                                                                                                                                         echo htmlentities($code);
                                                                                                                                         ?></textarea>
@@ -108,7 +109,7 @@
     }
     ?>
     <div class="form-group <?php
-                            if (empty($advancedCustomUser->allowDonationLink)) {
+                            if (!class_exists('CustomizeUser') || !CustomizeUser::canUseDonationLink(User::getId())) {
                                 echo " hidden ";
                             }
                             ?>">
@@ -145,15 +146,17 @@
         <div class="col-md-8 inputGroupContainer">
             <textarea id="textAbout" placeholder="<?php echo __("About"); ?>" class="form-control"><?php echo $user->getAbout(); ?></textarea>
             <?php
-            echo getTinyMCE("textAbout", true);
+            echo getTinyMCE("textAbout", true, false, false, false, true);
             ?>
         </div>
     </div>
 
+    <h2 class="accountSectionTitle"><?php echo __("Options"); ?></h2>
     <?php
     AVideoPlugin::getMyAccount(User::getId());
     ?>
-    <div class="row">
+    <h2 class="accountSectionTitle"><?php echo __("Profile Photo"); ?> / <?php echo __("Channel Art"); ?></h2>
+    <div class="row accountImages">
         <div class="col-sm-3">
             <?php
             include $global['systemRootPath'] . 'view/userPhotoUploadInclude.php';
@@ -161,29 +164,17 @@
         </div>
         <div class="col-sm-9">
             <?php
-            $channelArtRelativePath = User::getBackgroundURLFromUserID(User::getId());
-
-            $finalWidth = 2560;
-            $finalHeight = 1440;
-            if (isMobile()) {
-                $screenWidth = 640;
-                $screenHeight = 360;
-            } else {
-                $screenWidth = 960;
-                $screenHeight = 540;
-            }
-            $factorW = $screenWidth / $finalWidth;
             include $global['systemRootPath'] . 'view/userChannelArtUploadInclude.php';
             ?>
         </div>
     </div>
 
     <!-- Button -->
-    <div class="form-group">
+    <div class="form-group accountSave">
         <hr>
         <div class="col-md-12">
             <center>
-                <button type="submit" class="btn btn-primary btn-block btn-lg">
+                <button type="submit" class="btn btn-primary btn-lg" id="saveAccountBtn">
                     <span class="fa fa-save"></span> <?php echo __("Save"); ?>
                 </button>
             </center>
@@ -191,6 +182,7 @@
     </div>
     <script>
         var uploadCrop;
+        var accountSavePending = false;
 
         function isAnalytics() {
             return true;
@@ -199,11 +191,13 @@
         }
 
         function updateUserFormSubmit() {
-            var content;
-            if (window.tinyMCE) {
-                content = tinyMCE.get('textAbout') ? tinyMCE.get('textAbout').getContent() : '';
-            } else {
-                content = $('#textAbout').val();
+            if (accountSavePending) { return; }
+            accountSavePending = true;
+            $('#saveAccountBtn').prop('disabled', true);
+            $('#updateUserForm').attr('aria-busy', 'true');
+            var content = $('#textAbout').val();
+            if (window.tinyMCE && tinyMCE.get('textAbout')) {
+                content = tinyMCE.get('textAbout').getContent();
             }
 
             $.ajax({
@@ -223,6 +217,14 @@
                 type: 'post',
                 success: function(response) {
                     avideoResponse(response);
+                },
+                error: function() {
+                    avideoToastError(__('An error occurred'));
+                },
+                complete: function() {
+                    accountSavePending = false;
+                    $('#saveAccountBtn').prop('disabled', false);
+                    $('#updateUserForm').attr('aria-busy', 'false');
                     modal.hidePleaseWait();
                 }
             });
@@ -230,6 +232,7 @@
         $(document).ready(function() {
             $('#updateUserForm').submit(function(evt) {
                 evt.preventDefault();
+                if (accountSavePending) { return false; }
                 if (!isAnalytics()) {
                     avideoAlert("<?php echo __("Sorry!"); ?>", "<?php echo __("Your analytics code is wrong"); ?>", "error");
                     $('#inputAnalyticsCode').focus();

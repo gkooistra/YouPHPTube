@@ -33,7 +33,7 @@ class ImagesPlaceHolders
         'zipPortrait' => 'view/img/placeholders/zipPortrait.png',
         'videoPlaceholder' => 'view/img/video-placeholder-gray.png',
         'videoPlaceholderPortrait' => 'view/img/video-placeholder-gray-portrait.png',
-        'videoNotFoundPoster' => 'view/img/videoNotFound.png'
+        'videoNotFoundPoster' => 'view/img/videoNotFound.png',
     ];
 
     static function getComponent($type, $return = 0)
@@ -44,9 +44,9 @@ class ImagesPlaceHolders
         }
         $relativePath = self::$placeholders[$type];
 
-        if(self::supportsWebP()){
+        if (self::supportsWebP()) {
             $relativePathWebp = str_replace(array('.jpg', '.png'), array('.webp', '.webp'), $relativePath);
-            if(file_exists($global['systemRootPath'] . $relativePathWebp)){
+            if (file_exists($global['systemRootPath'] . $relativePathWebp)) {
                 $relativePath = $relativePathWebp;
             }
         }
@@ -127,22 +127,42 @@ class ImagesPlaceHolders
     static function isDefaultImage($path)
     {
         global $global;
+        static $defaultImages = [];
+
+        // Reuse resolved placeholders within this request; each thumbnail checks the same files.
+        $context = serialize([$global['systemRootPath'] ?? '', $global['webSiteRootURL'] ?? '']);
 
         foreach (self::$placeholders as $key => $defaultImagePath) {
-            $defaultImage = self::getComponent($key);
-            if (strpos($defaultImage, $path) !== false) {
+            if (strpos($path, $defaultImagePath) !== false) {
+                //var_dump("isDefaultImage 1: {$defaultImagePath} === {$path}");
+                return true;
+            }
+            $cacheKey = $context . serialize([$key, $defaultImagePath, $global[$key] ?? null]);
+            if (!isset($defaultImages[$cacheKey])) {
+                $defaultImages[$cacheKey] = ['component' => self::getComponent($key)];
+            }
+            $defaultImage = $defaultImages[$cacheKey]['component'];
+            if (strpos($path, $defaultImage) !== false) {
+                //var_dump("isDefaultImage 2: {$defaultImage} === {$path}");
                 return true;
             }
             $basename = basename($path);
             if (strpos($defaultImage, $basename) !== false) {
+                //var_dump("isDefaultImage: {$defaultImage} contains {$basename}");
                 return true;
             }
             $fullPath = $global['systemRootPath'] . $defaultImage;
-            $urlPath = getURL($defaultImage);
+            if (!isset($defaultImages[$cacheKey]['url'])) {
+                $defaultImages[$cacheKey]['url'] = getURL($defaultImage);
+            }
+            $urlPath = $defaultImages[$cacheKey]['url'];
 
             if ($path === $defaultImage || $path === $fullPath || $path === $urlPath) {
+                //var_dump("isDefaultImage: {$path} === {$defaultImage} || {$fullPath} || {$urlPath}");
                 return true;
             }
+
+            //var_dump("isDefaultImage: {$path} does not match $defaultImagePath || {$defaultImage} || {$fullPath} || {$urlPath}");
         }
 
         return false;

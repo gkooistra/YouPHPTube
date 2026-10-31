@@ -36,8 +36,13 @@ if (empty($ignoreCaptcha)) {
     }
     require_once $global['systemRootPath'] . 'objects/captcha.php';
     $valid = Captcha::validation($_POST['captcha']);
+    if ($valid === null) {
+        $obj->error = __('The captcha session expired, please try again');
+        $obj->captchaSessionEmpty = true;
+        die(json_encode($obj));
+    }
     if (!$valid) {
-        $obj->error = __("The captcha is wrong");
+        $obj->error = __('The captcha is wrong');
         die(json_encode($obj));
     }
 }
@@ -45,7 +50,7 @@ if (empty($ignoreCaptcha)) {
 $userCheck = new User(0, $_POST['user'], false);
 
 if (!empty($userCheck->getBdId())) {
-    $obj->error = __("User already exists");
+    $obj->msg = __("User already exists");
     die(json_encode($obj));
 }
 
@@ -75,7 +80,7 @@ if (empty($_POST['user']) || empty($_POST['pass']) || empty($_POST['email']) || 
 }
 
 if (!empty($_POST['email']) && !filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
-    $obj->error = __("Invalid Email");
+    $obj->error = __("Invalid Email")." ({$_POST['email']})";
     die(json_encode($obj));
 }
 

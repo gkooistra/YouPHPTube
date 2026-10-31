@@ -20,7 +20,7 @@ if (!empty($_GET['type'])) {
 _session_write_close();
 require_once $global['systemRootPath'] . 'objects/video.php';
 
-$total = Video::getTotalVideos();
+$total = Video::getTotalVideos(Video::SORT_TYPE_VIEWABLE, false, !isToHidePrivateVideos());
 
 $_REQUEST['rowCount'] = 10;
 $_REQUEST['current'] = getCurrentPage();
@@ -29,7 +29,7 @@ $_REQUEST['current'] = getCurrentPage();
 $_GET['sort']['trending'] = 1;
 
 $pages = ceil($total / $_REQUEST['rowCount']);
-$videos = Video::getAllVideos();
+$videos = Video::getAllVideos(Video::SORT_TYPE_VIEWABLE, false, !isToHidePrivateVideos());
 unset($_POST['sort']);
 $metaDescription = __("Trending");
 $_page = new Page(array('Trending'));
@@ -55,7 +55,7 @@ $_page->setExtraStyles(
                 foreach ($videos as $key => $value) {
                 ?>
                     <div class="col-lg-12 searchResult thumbsImage mb-2 <?php echo getCSSAnimationClassAndStyle('animate__fadeInUp', 'trending', 0.2); ?> overflow: hidden;">
-                        <a class="galleryLink col-sm-4 col-md-4 col-lg-4" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>" title="<?php echo $value['title']; ?>">
+                        <a class="galleryLink col-sm-4 col-md-4 col-lg-4" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>" title="<?php echo htmlspecialchars($value['title'], ENT_QUOTES, 'UTF-8'); ?>">
                             <?php
                             $images = Video::getImageFromFilename($value['filename'], $value['type']);
                             $imgGif = $images->thumbsGif;
@@ -69,15 +69,15 @@ $_page->setExtraStyles(
                                     <img src="<?php echo ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_URL); ?>" data-src="<?php echo $imgGif; ?>" style="position: absolute; top: 0; display: none;" alt="<?php echo str_replace('"', '', $value['title']); ?>" id="thumbsGIF<?php echo $value['id']; ?>" class="thumbsGIF img-responsive" height="196" />
                                 <?php }
                                 ?>
-                                <time class="duration"><?php echo Video::getCleanDuration($value['duration']); ?></time>
+                                <time class="duration"><?php echo htmlspecialchars(Video::getCleanDuration($value['duration']), ENT_QUOTES, 'UTF-8'); ?></time>
                             </div>
                             <div class="progress" style="height: 3px; margin-bottom: 2px;">
                                 <div class="progress-bar progress-bar-danger" role="progressbar" style="width: <?php echo $value['progress']['percent'] ?>%;" aria-valuenow="<?php echo $value['progress']['percent'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </a>
                         <div class=" col-sm-8 col-md-8 col-lg-8">
-                            <a class="h6 galleryLink col-lg-12" style="font-size: 1.5em;" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>" title="<?php echo $value['title']; ?>">
-                                <strong><?php echo $value['title']; ?></strong>
+                            <a class="h6 galleryLink col-lg-12" style="font-size: 1.5em;" videos_id="<?php echo $value['id']; ?>" href="<?php echo Video::getLink($value['id'], $value['clean_title']); ?>" title="<?php echo htmlspecialchars($value['title'], ENT_QUOTES, 'UTF-8'); ?>">
+                                <strong><?php echo htmlspecialchars($value['title'], ENT_QUOTES, 'UTF-8'); ?></strong>
                             </a>
 
                             <div class="galeryDetails col-lg-12" style="overflow: hidden;">
@@ -135,7 +135,7 @@ $_page->setExtraStyles(
                                             <?php echo User::getNameIdentificationById($value['users_id']); ?>
                                         </a>
                                         <?php if ((!empty($value['description'])) && !empty($obj->Description)) { ?>
-                                            <button type="button" data-trigger="focus" class="label label-danger" data-toggle="popover" data-placement="top" data-html="true" title="<?php echo $value['title']; ?>" data-content="<div> <?php echo str_replace('"', '&quot;', $value['description']); ?> </div>"><?php echo __("Description"); ?></button>
+                                            <button type="button" data-trigger="focus" class="label label-danger" data-toggle="popover" data-placement="top" data-html="true" title="<?php echo htmlspecialchars($value['title'], ENT_QUOTES, 'UTF-8'); ?>" data-content="<div> <?php echo str_replace('"', '&quot;', $value['description']); ?> </div>"><?php echo __("Description"); ?></button>
                                         <?php } ?>
                                     </div>
                                 <?php

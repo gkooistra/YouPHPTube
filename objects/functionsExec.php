@@ -18,19 +18,22 @@ function getDurationFromFile($file)
     $hls = str_replace(".zip", "/index.m3u8", $file);
     $file = str_replace(".zip", ".mp4", $file);
 
+    // download-protected HLS sources only bypass the token check for this UA (see VideoHLS::isUserAgentWhitelisted())
+    $uaContext = function_exists('getSelfUserAgent') ? stream_context_create(['http' => ['header' => 'User-Agent: ' . getSelfUserAgent()]]) : null;
+
     // get movie duration HOURS:MM:SS.MICROSECONDS
     $videoFile = $file;
     if (!file_exists($videoFile)) {
-        $file_headers = @get_headers($videoFile);
+        $file_headers = @get_headers($videoFile, false, $uaContext);
         if (!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found') {
-            error_log('getDurationFromFile try 1, File (' . $videoFile . ') Not Found');
+            error_log('getDurationFromFile try 1, File (' . $videoFile . ') Not Found original=' . $file);
             $videoFile = $hls;
         }
     }
     if (!file_exists($videoFile)) {
-        $file_headers = @get_headers($videoFile);
+        $file_headers = @get_headers($videoFile, false, $uaContext);
         if (!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found') {
-            error_log('getDurationFromFile try 2, File (' . $videoFile . ') Not Found');
+            error_log('getDurationFromFile try 2, File (' . $videoFile . ') Not Found original=' . $file);
             $videoFile = '';
         }
     }
@@ -65,11 +68,13 @@ function getDurationFromFile($file)
     return $duration;
 }
 
-function wget($url, $filename, $debug = false)
+function wget($url, $filename, $debug = false, $verifyTLS = false, $failOnError = false)
 {
     if (empty($url) || $url == "php://input" || !isValidURL($url)) {
         return false;
     }
+    // Strict callers (verified TLS or $failOnError) never accept an error page or a partial file.
+    $strict = $verifyTLS || $failOnError;
     if ($lockfilename = wgetIsLocked($url)) {
         if ($debug) {
             _error_log("wget: ERROR the url is already downloading {$lockfilename} $url, $filename");
@@ -78,23 +83,49 @@ function wget($url, $filename, $debug = false)
     }
     wgetLock($url);
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-        $content = @file_get_contents($url);
-        if (!empty($content) && file_put_contents($filename, $content) > 100) {
-            wgetRemoveLock($url);
-            return true;
+        // SECURITY: Use a stream context with follow_location=0 so that file_get_contents
+        // does NOT follow redirects automatically. Without this, an attacker could set up
+        // a redirect from a trusted URL to an internal address (e.g. 192.168.x.x or the
+        // cloud metadata endpoint 169.254.169.254) and bypass our SSRF checks.
+        // On Windows we use file_get_contents as a last resort (wget is not available),
+        // so we must disable redirects here too.
+        $noRedirectCtx = stream_context_create(['http' => ['follow_location' => 0]]);
+        $content = @file_get_contents($url, false, $noRedirectCtx);
+        $successfulResponse = !empty($http_response_header[0])
+            && preg_match('/^HTTP\/\S+\s+2\d\d\s/i', $http_response_header[0]);
+        if ((!$strict || $successfulResponse) && !empty($content)) {
+            $written = file_put_contents($filename, $content);
+            if ($written === strlen($content) && $written > 100) {
+                wgetRemoveLock($url);
+                return true;
+            }
+            // A disk-full/short write must never become a partial SQL restore.
+            @unlink($filename);
         }
         wgetRemoveLock($url);
         return false;
     }
 
-    $filename = escapeshellarg($filename);
-    $url = escapeshellarg($url);
-    $cmd = "wget --tries=1 {$url} -O {$filename} --no-check-certificate";
+    $quotedFilename = escapeshellarg($filename);
+    $quotedURL = escapeshellarg($url);
+    // SECURITY: --max-redirect=0 tells wget to NOT follow any HTTP redirects.
+    // By default wget follows up to 20 redirects. An attacker that can make us
+    // fetch a URL they control could redirect us to an internal server address,
+    // bypassing the isSSRFSafeURL() check that was only done on the original URL.
+    // With --max-redirect=0, wget fetches exactly the URL we give it and stops.
+    $certificateOption = $verifyTLS ? '' : ' --no-check-certificate';
+    $cmd = "wget --tries=1 --max-redirect=0 {$quotedURL} -O {$quotedFilename}{$certificateOption}";
     if ($debug) {
         _error_log("wget Start ({$cmd}) ");
     }
     //echo $cmd;
-    exec($cmd);
+    exec($cmd, $output, $exitCode);
+    if ($exitCode !== 0) {
+        _error_log("wget: ERROR exit code {$exitCode}, download discarded");
+        @unlink($filename);
+        wgetRemoveLock($url);
+        return false;
+    }
     wgetRemoveLock($url);
     if (!file_exists($filename)) {
         _error_log("wget: ERROR the url does not download $url, $filename");
@@ -102,7 +133,8 @@ function wget($url, $filename, $debug = false)
     }
     if ($_SERVER['SCRIPT_NAME'] !== '/plugin/Live/m3u8.php' && empty(filesize($filename))) {
         _error_log("wget: ERROR the url download but is empty $url, $filename");
-        return true;
+        @unlink($filename);
+        return false;
     }
     return file_exists($filename);
 }
@@ -120,7 +152,7 @@ function getDirSize($dir, $forceNew = false)
 
     _error_log("getDirSize: start {$dir}");
 
-    if (isWindows()) {
+    if (isWindowsServer()) {
         $return = foldersize($dir);
         $_getDirSize[$dir] = $return;
         return $return;
@@ -155,7 +187,7 @@ function rrmdirCommandLine($dir, $async = false)
 {
     if (is_dir($dir)) {
         $dir = escapeshellarg($dir);
-        if (isWindows()) {
+        if (isWindowsServer()) {
             $command = ('rd /s /q ' . $dir);
         } else {
             $command = ('rm -fR ' . $dir);
@@ -169,11 +201,198 @@ function rrmdirCommandLine($dir, $async = false)
     }
 }
 
+// Add this function to handle secure ZIP extraction
+function secureUnzipDirectory($zipFile, $destination)
+{
+    global $obj;
+
+    if (empty($zipFile)) {
+        $msg = "[secureUnzipDirectory] ZIP file path is empty; destination={$destination}";
+        if (function_exists('_error_log') && class_exists('AVideoLog')) {
+            _error_log($msg, AVideoLog::$ERROR);
+        } else {
+            error_log($msg);
+        }
+        if (isset($obj) && is_object($obj) && isset($obj->errorMSG) && is_array($obj->errorMSG)) {
+            $obj->errorMSG[] = $msg;
+        }
+        return false;
+    }
+
+    if (empty($destination)) {
+        $msg = "[secureUnzipDirectory] Destination path is empty for ZIP file {$zipFile}";
+        if (function_exists('_error_log') && class_exists('AVideoLog')) {
+            _error_log($msg, AVideoLog::$ERROR);
+        } else {
+            error_log($msg);
+        }
+        if (isset($obj) && is_object($obj) && isset($obj->errorMSG) && is_array($obj->errorMSG)) {
+            $obj->errorMSG[] = $msg;
+        }
+        return false;
+    }
+
+    error_log("[secureUnzipDirectory] Starting unzip for file: $zipFile");
+
+    // Create lock file to prevent race conditions
+    $lockFile = $destination . '.lock';
+    $fp = fopen($lockFile, 'w');
+    if ($fp === false) {
+        $msg = "[secureUnzipDirectory] Could not create lock file {$lockFile}";
+        if (function_exists('_error_log') && class_exists('AVideoLog')) {
+            _error_log($msg, AVideoLog::$ERROR);
+        } else {
+            error_log($msg);
+        }
+        return false;
+    }
+    if (!flock($fp, LOCK_EX)) {
+        error_log("[secureUnzipDirectory] Could not acquire lock for ZIP extraction");
+        return false;
+    }
+
+    try {
+        $tempDir = getTmpDir('avideo_' . uniqid());
+        error_log("[secureUnzipDirectory] Temporary directory created: $tempDir");
+
+        if (!is_dir($tempDir) && !mkdir($tempDir, 0755, true)) {
+            throw new Exception("Could not create temporary directory {$tempDir}");
+        }
+
+        $zip = new ZipArchive();
+        $result = $zip->open($zipFile);
+        if ($result !== TRUE) {
+            throw new Exception("Could not open ZIP file: " . $result);
+        }
+        error_log("[secureUnzipDirectory] ZIP file opened successfully");
+
+        $allowedExtensions = ['key', 'm3u8', 'ts', 'vtt', 'jpg', 'gif', 'mp3', 'webm', 'webp', 'mp4', 'avi', 'mov', 'flv', 'mkv', 'ogg', 'ogv', 'wav', 'aac', 'mpg', 'mpeg', 'zip', 'txt', 'json', 'xml', 'html', 'css', 'js', 'png', 'svg'];
+        $dangerousExtensions = ['php', 'phar', 'phtml', 'php3', 'php4', 'php5', 'inc', 'htaccess', 'htpasswd', 'sh', 'bat', 'exe', 'dll', 'so', 'py', 'rb', 'pl', 'jar', 'class', 'asp', 'aspx', 'jsp', 'jspx', 'cfm', 'cfml', 'cshtml', 'vbhtml', 'cer', 'cerx', 'cgi', 'fcgi', 'rbx', 'pyc', 'pyo', 'swf', 'xap', 'jar', 'war', 'ear', 'apk', 'appx', 'msix', 'deb', 'rpm', 'dmg', 'iso', 'bin', 'cmd', 'com', 'cpl', 'msc', 'msp'];
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $fileInfo = $zip->statIndex($i);
+            $fileName = $fileInfo['name'];
+
+            if (strpos($fileName, '..') !== false || strpos($fileName, '/') === 0 || strpos($fileName, '\\') !== false) {
+                $zip->close();
+                throw new Exception("Path traversal attempt detected: " . $fileName);
+            }
+
+            $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            if (in_array($extension, $dangerousExtensions)) {
+                $zip->close();
+                throw new Exception("Dangerous file extension detected: " . $fileName);
+            }
+
+            if (!empty($extension) && !in_array($extension, $allowedExtensions)) {
+                $zip->close();
+                throw new Exception("File extension not allowed: " . $fileName);
+            }
+
+            error_log("[secureUnzipDirectory] File validated: $fileName");
+        }
+
+        $zip->extractTo($tempDir);
+        $zip->close();
+        error_log("[secureUnzipDirectory] Files extracted to temporary folder");
+
+        if (!is_dir($destination)) {
+            mkdir($destination, 0755, true);
+            error_log("[secureUnzipDirectory] Destination directory created: $destination");
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($tempDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $extension = strtolower($file->getExtension());
+                if (in_array($extension, $allowedExtensions)) {
+                    $absolutePath = $file->getPathname();
+                    $relativePath = str_replace($tempDir, '', $absolutePath);
+                    $relativePath = ltrim($relativePath, DIRECTORY_SEPARATOR);
+                    $destPath = $destination . DIRECTORY_SEPARATOR . $relativePath;
+
+                    $destDir = dirname($destPath);
+                    if (!is_dir($destDir)) {
+                        mkdir($destDir, 0755, true);
+                        error_log("[secureUnzipDirectory] Created subdirectory: $destDir");
+                    }
+
+                    if (!rename($absolutePath, $destPath)) {
+                        throw new Exception("Could not move file: " . $relativePath);
+                    }
+                    error_log("[secureUnzipDirectory] Moved file: $relativePath");
+                }
+            }
+        }
+
+        removeDirectory($tempDir);
+        error_log("[secureUnzipDirectory] Temporary directory cleaned up");
+
+        return true;
+    } catch (Exception $e) {
+        error_log("[secureUnzipDirectory] Error: " . $e->getMessage());
+        if (isset($tempDir) && is_dir($tempDir)) {
+            removeDirectory($tempDir);
+            error_log("[secureUnzipDirectory] Cleaned up tempDir after error");
+        }
+        return false;
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        if (file_exists($lockFile)) {
+            unlink($lockFile);
+        }
+        error_log("[secureUnzipDirectory] Lock released and finished process");
+    }
+}
+
+// Add helper function to remove directory recursively
+function removeDirectory($dir)
+{
+    if (!is_dir($dir)) {
+        return;
+    }
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($iterator as $file) {
+        if ($file->isDir()) {
+            rmdir($file->getRealPath());
+        } else {
+            unlink($file->getRealPath());
+        }
+    }
+
+    rmdir($dir);
+}
+
 function unzipDirectory($filename, $destination)
 {
     // Set memory limit and execution time to avoid issues with large files
     ini_set('memory_limit', '-1');
     set_time_limit(0);
+
+    // Ensure the destination directory exists, create it if it doesn't
+    if (!is_dir($destination)) {
+        if (!mkdir($destination, 0755, true)) {
+            _error_log("unzipDirectory: Failed to create destination directory: {$destination}");
+            return false;
+        }
+        _error_log("unzipDirectory: Destination directory created: {$destination}");
+    }
+
+    // Ensure the destination directory is writable
+    if (!is_writable($destination)) {
+        _error_log("unzipDirectory: Destination directory is not writable: {$destination}");
+        return false;
+    }
 
     // Escape the input parameters to prevent command injection attacks
     $filename = escapeshellarg($filename);
@@ -185,19 +404,30 @@ function unzipDirectory($filename, $destination)
     // Log the command for debugging purposes
     _error_log("unzipDirectory: {$cmd}");
 
-    // Execute the command and check the return value
+    // Execute the command and capture the output and return value
     exec($cmd, $output, $return_val);
 
     if ($return_val !== 0) {
-        // If the unzip command fails, try using PHP's ZipArchive class as a fallback
+        // Log the output and return value
+        _error_log("unzipDirectory: Command failed with return value {$return_val}");
+        _error_log("unzipDirectory: Command output: " . implode("\n", $output));
+
+        // Check if the file exists
+        if (!file_exists($filename)) {
+            _error_log("unzipDirectory: Error - file does not exist: {$filename}");
+        } else {
+            _error_log("unzipDirectory: Error - file exists: {$filename}");
+        }
+
+        // Try using PHP's ZipArchive class as a fallback
         if (class_exists('ZipArchive')) {
             $zip = new ZipArchive();
             if ($zip->open($filename) === true) {
                 $zip->extractTo($destination);
                 $zip->close();
-                _error_log("unzipDirectory: Success {$destination}");
+                _error_log("unzipDirectory: Success using ZipArchive for {$destination}");
             } else {
-                _error_log("unzipDirectory: Error opening zip archive: {$filename}");
+                _error_log("unzipDirectory: Error opening zip archive using ZipArchive: {$filename}");
             }
         } else {
             _error_log("unzipDirectory: Error: ZipArchive class is not available");
@@ -208,7 +438,152 @@ function unzipDirectory($filename, $destination)
 
     // Delete the original zip file
     _error_log("unzipDirectory($filename) unlink line=" . __LINE__);
-    @unlink($filename);
+    if (@unlink($filename)) {
+        _error_log("unzipDirectory: Successfully deleted the zip file: {$filename}");
+    } else {
+        _error_log("unzipDirectory: Error deleting the zip file: {$filename}");
+    }
+
+    return $return_val === 0;
+}
+
+function zipDirectory($source, $destination)
+{
+    // Set memory limit and execution time to avoid issues with large files
+    ini_set('memory_limit', '-1');
+    set_time_limit(0);
+    make_path($source);
+    // Check if the source directory exists
+    if (!is_dir($source)) {
+        _error_log("zipDirectory: Source directory does not exist: {$source}");
+        return false;
+    }
+
+    // Ensure the destination directory exists, create it if it doesn't
+    $destinationDir = dirname($destination);
+    if (!is_dir($destinationDir)) {
+        if (!mkdir($destinationDir, 0755, true)) {
+            _error_log("zipDirectory: Failed to create destination directory: {$destinationDir}");
+            return false;
+        }
+        _error_log("zipDirectory: Destination directory created: {$destinationDir}");
+    }
+    chmod($source, 0755);
+
+    // Escape the input parameters to prevent command injection attacks
+    $sourceOriginal = rtrim($source, '/'); // Remove trailing slash for consistency
+    $destinationOriginal = $destination;
+    $source = escapeshellarg($source);
+    $destination = escapeshellarg($destination);
+
+    // Build the command for zipping the directory
+    $cmd = "zip -r -q {$destination} {$source} 2>&1";
+
+    // Log the command for debugging purposes
+    _error_log("zipDirectory: {$cmd}");
+
+    // Execute the command and capture the output and return value
+    exec($cmd, $output, $return_val);
+
+    if ($return_val !== 0) {
+        // Log the output and return value
+        _error_log("zipDirectory: Command failed with return value {$return_val}");
+        _error_log("zipDirectory: Command output: " . implode("\n", $output));
+
+        // Try using PHP's ZipArchive class as a fallback
+        if (class_exists('ZipArchive')) {
+            $zip = new ZipArchive();
+            if ($zip->open($destinationOriginal, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+                $dirIterator = new RecursiveDirectoryIterator($sourceOriginal);
+                $files = new RecursiveIteratorIterator($dirIterator, RecursiveIteratorIterator::LEAVES_ONLY);
+
+                // Get the base directory name to use as root folder in the zip
+                $baseFolder = basename($sourceOriginal);
+
+                foreach ($files as $name => $file) {
+                    if (!$file->isDir()) {
+                        $filePath = $file->getRealPath();
+                        // Calculate relative path, including the base folder
+                        $relativePath = $baseFolder . '/' . substr($filePath, strlen($sourceOriginal) + 1);
+                        $zip->addFile($filePath, $relativePath);
+                    }
+                }
+
+                $zip->close();
+                _error_log("zipDirectory: Success using ZipArchive for {$destination}");
+            } else {
+                _error_log("zipDirectory: Error opening zip archive using ZipArchive: {$destination}");
+            }
+        } else {
+            _error_log("zipDirectory: Error: ZipArchive class is not available");
+        }
+    } else {
+        _error_log("zipDirectory: Success {$destination}");
+    }
+
+    return file_exists($destinationOriginal);
+}
+
+function isPortOpenInternal($host, $port)
+{
+    $output = [];
+    $result = null;
+
+    // Check if 'nc' is available
+    exec("command -v nc", $output, $result);
+    if ($result === 0) {
+        // Use 'nc' to check the port
+        $output = [];
+        $result = null;
+        // The port can come from a plugin setting (e.g. YPTSocket port), so both are escaped.
+        exec('nc -zv ' . escapeshellarg($host) . ' ' . intval($port) . ' 2>&1', $output, $result);
+        foreach ($output as $line) {
+            error_log($line);
+        }
+        return $result === 0;
+    } else {
+        // Fallback to PHP socket method
+        //error_log("nc command not found, falling back to socket connection.");
+        $connection = @fsockopen($host, $port, $errno, $errstr, 5); // 5 seconds timeout
+        if ($connection) {
+            fclose($connection);
+            return true;
+        } else {
+            error_log("Socket error: $errstr");
+            return false;
+        }
+    }
+}
+
+
+function isLocalPortOpen($port)
+{
+    return isPortOpenInternal('127.0.0.1', $port);
+}
+
+function isPortOpenExternal($port, $timeout = 10)
+{
+    global $global;
+    global $isPortOpenExternalResponse;
+    $ports = array($port);
+    //postVariables($url, $array, $httpcodeOnly = true, $timeout = 10)
+    $isPortOpenExternalResponse = new stdClass();
+    $host = parse_url($global['webSiteRootURL'], PHP_URL_HOST);
+    $postURL = 'https://search.ypt.me/checkPorts.json.php';
+    $postURL = addQueryStringParameter($postURL, 'host', $host);
+    $response = postVariables($postURL, $ports, false, $timeout);
+    if (!empty($response)) {
+        $json = json_decode($response);
+        if (!empty($json)) {
+            $isPortOpenExternalResponse = $json;
+            $resp = $json->ports[0]->isOpen;
+            if ($resp) {
+                return true;
+            }
+        }
+    }
+    _error_log("isPortOpenExternal($port) {$response}");
+    return false;
 }
 
 function getPIDUsingPort($port)
@@ -247,48 +622,31 @@ function getPIDUsingPort($port)
     return false;
 }
 
-function execAsync($command)
+function killProcessRuningOnPort($port)
 {
-    //$command = escapeshellarg($command);
-    // If windows, else
-    if (isWindows()) {
-        //echo $command;
-        //$pid = system("start /min  ".$command. " > NUL");
-        //$commandString = "start /B " . $command;
-        //pclose($pid = popen($commandString, "r"));
-        _error_log($command);
-        $pid = exec($command, $output, $retval);
-        _error_log('execAsync Win: ' . json_encode($output) . ' ' . $retval);
-    } else {
-        $newCommand = $command . " > /dev/null 2>&1 & echo $!; ";
-        _error_log('execAsync Linux: ' . $newCommand);
-        $pid = exec($newCommand);
+    if (!empty($port)) {
+        _error_log('Searching for port: ' . $port);
+        //$command = 'netstat -ano | findstr ' . $port;
+        //exec($command, $output, $retval);
+        $pid = getPIDUsingPort($port);
+        if (!empty($pid)) {
+            _error_log('Server is already runing on port ' . $port . ' Killing, PID ' . $pid);
+            killProcess($pid);
+        } else {
+            _error_log('No Need to kill, port NOT found');
+        }
     }
-    return $pid;
 }
 
-function killProcess($pid)
+function canExecutePgrep()
 {
-    $pid = intval($pid);
-    if (empty($pid)) {
-        return false;
-    }
-    if (isWindows()) {
-        exec("taskkill /F /PID $pid");
-    } else {
-        exec("kill -9 $pid");
-    }
-    return true;
-}
-
-
-function canExecutePgrep() {
     // Check if we can successfully pgrep the init or systemd process
     $test = shell_exec('pgrep -f init || pgrep -f systemd');
     return !empty($test); // Return true if we can execute pgrep, false otherwise
 }
 
-function getProcessPids($processName) {
+function getProcessPids($processName)
+{
     if (!canExecutePgrep()) {
         return null; // If we can't execute pgrep, return null
     }
@@ -311,14 +669,15 @@ function getProcessPids($processName) {
         }
         //_error_log("getProcessPids($processName) $line");
         // Extract PID from the start of the line
-        list($pid, ) = explode(' ', trim($line), 2);
+        list($pid,) = explode(' ', trim($line), 2);
         $pids[] = $pid;
     }
 
     return $pids;
 }
 
-function getCommandByPid($pid) {
+function getCommandByPid($pid)
+{
     $cmdlineFile = "/proc/{$pid}/cmdline";
 
     // Check if the cmdline file exists for the given PID
@@ -331,9 +690,220 @@ function getCommandByPid($pid) {
     $cmdArray = explode("\0", $cmd);
 
     // Remove any empty elements from the array
-    $cmdArray = array_filter($cmdArray, function($value) {
+    $cmdArray = array_filter($cmdArray, function ($value) {
         return $value !== '';
     });
 
     return $cmdArray;
+}
+
+function execAsync($command, $keyword = null)
+{
+    if ($keyword) {
+        // Sanitize the keyword to make it a valid filename
+        $keyword = preg_replace('/[^a-zA-Z0-9_-]/', '_', $keyword);
+    }
+
+    if (isWindowsServer()) {
+        $command = addcslashes($command, '"');
+        if ($keyword) {
+            // Add the keyword as a comment to the command for Windows
+            $commandWithKeyword = "start /B cmd /c \"$command & REM $keyword\" > NUL 2>&1";
+        } else {
+            $commandWithKeyword = "start /B cmd /c \"$command\" > NUL 2>&1";
+        }
+        _error_log($commandWithKeyword);
+        $pid = exec($commandWithKeyword, $output, $retval);
+        if ($retval !== 0) {
+            _error_log('execAsync Win Error: ' . json_encode($output) . ' Return Value: ' . $retval);
+        } else {
+            _error_log('execAsync Win: ' . json_encode($output) . ' ' . $retval);
+        }
+    } else {
+        if ($keyword) {
+            $pidFile = "/tmp/{$keyword}.pid";
+            // Quote the full script for the outer shell, but capture $! inside sh -c
+            // so existing callers still get the PID of the launched command.
+            $commandWithPidCapture = "{$command} & echo \$! > " . escapeshellarg($pidFile);
+            $commandWithKeyword = "nohup sh -c " . escapeshellarg($commandWithPidCapture) . " > /dev/null 2>&1 &";
+        } else {
+            $commandWithKeyword = "nohup sh -c " . escapeshellarg($command) . " > /dev/null 2>&1 &";
+        }
+        $execAsyncUserAgent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : (isCommandLineInterface() ? 'CLI' : 'unknown');
+        _error_log('execAsync Linux: ' . $commandWithKeyword . ' [' . $execAsyncUserAgent . '] [' . getRealIpAddr() . '] ');
+        exec($commandWithKeyword, $output, $retval);
+        _error_log('Command output: ' . json_encode($output));
+        _error_log('Return value: ' . $retval);
+        if ($retval !== 0) {
+            _error_log('execAsync Linux Error: ' . json_encode($output) . ' Return Value: ' . $retval);
+        } else {
+            if ($keyword) {
+                $pidFile = "/tmp/$keyword.pid";
+                _error_log('Checking PID file: ' . $pidFile);
+                sleep(1); // Wait a bit to ensure the PID file is written
+                if (file_exists($pidFile) && filesize($pidFile) > 0) {
+                    $pid = (int)file_get_contents($pidFile);
+                    _error_log('PID file exists, PID: ' . $pid);
+                } else {
+                    _error_log('PID file does not exist or is empty. Using output[0].');
+                    if (!empty($output[0])) {
+                        $pid = (int)$output[0];
+                        _error_log('PID from output[0]: ' . $pid);
+                        // Save the PID to the file as a fallback
+                        file_put_contents($pidFile, $pid);
+                        _error_log('PID saved to file: ' . $pidFile);
+                    } else {
+                        _error_log('Output[0] is also empty. Unable to determine PID.');
+                        $pid = null;
+                    }
+                }
+            } else {
+                if (empty($output)) {
+                    return $output;
+                }
+                $pid = (int)$output[0];
+            }
+        }
+    }
+    return $pid;
+}
+
+// Function to find the process by keyword using the pid file
+function findProcess($keyword)
+{
+    $output = [];
+    if ($keyword) {
+        // Sanitize the keyword to make it a valid filename
+        $keyword = preg_replace('/[^a-zA-Z0-9_-]/', '_', $keyword);
+    }
+    // Use pgrep to find processes with the keyword (case insensitive)
+    exec("pgrep -fai " . escapeshellarg($keyword), $pgrepOutput, $retval);
+    //var_dump($pgrepOutput);
+    if ($retval === 0) {
+        foreach ($pgrepOutput as $pgrepPid) {
+            if (preg_match('/pgrep /i', $pgrepPid)) {
+                continue;
+            }
+            if (preg_match('/([0-9]+) (.*)/i', $pgrepPid, $matches)) {
+                if (!empty($matches[2])) {
+                    $output[] = array('pid' => (int)$matches[1], 'command' => trim($matches[2]));
+                }
+            }
+            //$output[] = (int)$pgrepPid;
+            //$output[] = $pgrepPid;
+        }
+    }
+
+    // Remove duplicate PIDs
+    $output = array_unique($output);
+
+    return $output; // Returns an array of PIDs
+}
+
+
+// Function to kill the process by keyword using the pid file
+function killProcessFromKeyword($keyword, $ageInSeconds = 0)
+{
+    _error_log("killProcessFromKeyword: Starting to search for processes with keyword '$keyword'");
+    $pids = findProcess($keyword);
+    _error_log("killProcessFromKeyword($keyword) findProcess " . json_encode($pids));
+    foreach ($pids as $pid) {
+        _error_log("killProcessFromKeyword: Checking if process $pid is older than $ageInSeconds seconds.");
+        if (isProcessOlderThan($pid, $ageInSeconds)) {
+            _error_log("killProcessFromKeyword: Process $pid is older than $ageInSeconds seconds. Attempting to kill it.");
+            killProcess($pid);
+        } else {
+            _error_log("killProcessFromKeyword: Skipping process $pid as it is less than $ageInSeconds seconds old.");
+        }
+    }
+    _error_log("killProcessFromKeyword: Finished processing for keyword '$keyword'");
+}
+
+function killProcess($pid)
+{
+    if (is_array($pid)) {
+        $pid = $pid['pid'];
+    }
+
+    $pid = intval($pid);
+    if (empty($pid)) {
+        _error_log("killProcess: Invalid PID $pid");
+        return false;
+    }
+
+    _error_log("killProcess: Attempting to kill process $pid");
+
+    if (isWindowsServer()) {
+        $cmd = "taskkill /F /PID $pid";
+    } else {
+        $cmd = "kill -9 $pid";
+    }
+    _error_log("killProcess: Executing command: $cmd");
+
+    exec($cmd, $output, $retval);
+
+    if ($retval === 0) {
+        _error_log("killProcess: Successfully killed process $pid");
+        return true;
+    } else {
+        _error_log("killProcess: Failed to kill process $pid. Command output: " . json_encode($output) . " Return value: $retval");
+        return false;
+    }
+}
+
+function isProcessOlderThan($pid, $ageInSeconds)
+{
+    $pid = intval($pid);
+    if (empty($pid)) {
+        _error_log("isProcessOlderThan: Invalid PID $pid");
+        return false;
+    }
+
+    _error_log("isProcessOlderThan: Checking if process $pid is older than $ageInSeconds seconds.");
+
+    if (isWindowsServer()) {
+        // For Windows, use the "wmic" command to get the process creation time
+        $cmd = "wmic process where processid=$pid get CreationDate /value";
+        _error_log("isProcessOlderThan: Executing command: $cmd");
+        exec($cmd, $output, $retval);
+        _error_log("isProcessOlderThan: Command output: " . json_encode($output) . " Return value: $retval");
+        if ($retval === 0 && !empty($output)) {
+            foreach ($output as $line) {
+                if (strpos($line, "CreationDate=") === 0) {
+                    $creationDate = substr($line, strlen("CreationDate="));
+                    $timestamp = strtotime(substr($creationDate, 0, 14));
+                    _error_log("isProcessOlderThan: Process $pid creation timestamp: $timestamp");
+                    return (time() - $timestamp) >= $ageInSeconds;
+                }
+            }
+        }
+    } else {
+        // For Unix/Linux, use the "ps" command to get the process start time
+        $cmd = "ps -o etimes= -p $pid";
+        _error_log("isProcessOlderThan: Executing command: $cmd");
+        exec($cmd, $output, $retval);
+        _error_log("isProcessOlderThan: Command output: " . json_encode($output) . " Return value: $retval");
+        if ($retval === 0 && !empty($output)) {
+            $elapsedTime = intval(trim($output[0])); // Elapsed time in seconds
+            _error_log("isProcessOlderThan: Process $pid elapsed time: $elapsedTime seconds");
+            return $elapsedTime >= $ageInSeconds;
+        }
+    }
+
+    _error_log("isProcessOlderThan: Unable to determine age of process $pid");
+    return false;
+}
+
+function setServerTimezone()
+{
+    $tz = trim(exec('cat /etc/timezone')); // Debian/Ubuntu
+
+    // fallback
+    if (empty($tz)) {
+        $tz = trim(exec('timedatectl | grep "Time zone" | awk \'{print $3}\''));
+    }
+    if (!empty($tz)) {
+        date_default_timezone_set($tz);
+    }
+    return $tz;
 }

@@ -3,8 +3,17 @@ require_once '../../../../videos/configuration.php';
 require_once $global['systemRootPath'] . 'plugin/AI/Objects/Ai_transcribe_responses.php';
 header('Content-Type: application/json');
 
+if (!User::isAdmin()) {
+    die(json_encode(['error' => true, 'msg' => "You can't do this"]));
+}
+
 $rows = Ai_transcribe_responses::getAll();
 $total = Ai_transcribe_responses::getTotal();
+
+foreach ($rows as $key => $value) {
+    // The DataTable text renderer and edit textarea both consume plain text.
+    $rows[$key]['text'] = htmlspecialchars_decode((string) $value['text'], ENT_QUOTES);
+}
 
 $response = array(
     'data' => $rows,

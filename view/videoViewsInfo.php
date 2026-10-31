@@ -4,6 +4,8 @@ if (!isset($global['systemRootPath'])) {
     require_once '../videos/configuration.php';
 }
 
+// SECURITY REVIEW (2026-08-21): see videoViewsInfo.json.php - hash branch intentionally skips
+// Video::canEdit(), it is the no-login "Share link" capability URL. DO NOT FIX here.
 if (!empty($_REQUEST['hash'])) {
     $string = decryptString($_REQUEST['hash']);
     $obj = json_decode($string);
@@ -31,6 +33,11 @@ $_page->loadBasicCSSAndJS();
                 echo Video::getVideosListItem($_videos_id);
                 //echo Video::getVideoImagewithHoverAnimationFromVideosId($_videos_id);
                 //echo $v->getTitle();
+                // SECURITY REVIEW (2026-08-21): this bare {videos_id} blob was reported as reusable
+                // as an encoder video_id_hash (full owner login). NOT reproducible - Video::getVideoIdFromHash()
+                // requires a timeout+ownerFingerprint that this blob doesn't carry, so it decrypts fine here
+                // but is rejected wherever video_id_hash is used for auth (useVideoHashOrLogin(), canEncoderEdit()).
+                // Do not "fix" by adding those fields here - that would just make this link an auth credential.
                 $obj = new stdClass();
                 $obj->videos_id = $_videos_id;
                 $hash = encryptString($obj);
@@ -89,6 +96,7 @@ $_page->loadBasicCSSAndJS();
                         <th>When</th>
                         <th>Time</th>
                         <th>Location</th>
+                        <th>Device</th>
                     </tr>
                 </thead>
                 <tfoot>
@@ -97,6 +105,7 @@ $_page->loadBasicCSSAndJS();
                         <th>When</th>
                         <th>Time</th>
                         <th>Location</th>
+                        <th>Device</th>
                     </tr>
                 </tfoot>
             </table>
@@ -148,6 +157,11 @@ $_page->loadBasicCSSAndJS();
                     render: function(data, type, row) {
                         return row.location_name
                     }
+                },
+                {
+                    // app is derived from the client User-Agent and is not sanitized on write, escape on render
+                    data: 'app',
+                    render: $.fn.dataTable.render.text()
                 }
             ],
             select: true,

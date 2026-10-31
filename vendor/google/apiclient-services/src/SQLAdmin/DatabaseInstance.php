@@ -19,7 +19,7 @@ namespace Google\Service\SQLAdmin;
 
 class DatabaseInstance extends \Google\Collection
 {
-  protected $collection_key = 'suspensionReason';
+  protected $collection_key = 'upgradableDatabaseVersions';
   /**
    * @var string[]
    */
@@ -28,6 +28,10 @@ class DatabaseInstance extends \Google\Collection
    * @var string
    */
   public $backendType;
+  /**
+   * @var bool
+   */
+  public $clearNetwork;
   /**
    * @var string
    */
@@ -56,6 +60,8 @@ class DatabaseInstance extends \Google\Collection
    * @var string
    */
   public $dnsName;
+  protected $dnsNamesType = DnsNameMapping::class;
+  protected $dnsNamesDataType = 'array';
   /**
    * @var string
    */
@@ -66,6 +72,12 @@ class DatabaseInstance extends \Google\Collection
    * @var string
    */
   public $gceZone;
+  protected $geminiConfigType = GeminiInstanceConfig::class;
+  protected $geminiConfigDataType = '';
+  /**
+   * @var bool
+   */
+  public $includeReplicasForMajorVersionUpgrade;
   /**
    * @var string
    */
@@ -96,10 +108,18 @@ class DatabaseInstance extends \Google\Collection
    * @var string
    */
   public $name;
+  /**
+   * @var int
+   */
+  public $nodeCount;
+  protected $nodesType = PoolNodeConfig::class;
+  protected $nodesDataType = 'array';
   protected $onPremisesConfigurationType = OnPremisesConfiguration::class;
   protected $onPremisesConfigurationDataType = '';
   protected $outOfDiskReportType = SqlOutOfDiskReport::class;
   protected $outOfDiskReportDataType = '';
+  protected $pitrFieldsType = PITRFields::class;
+  protected $pitrFieldsDataType = '';
   /**
    * @var string
    */
@@ -122,10 +142,16 @@ class DatabaseInstance extends \Google\Collection
    * @var string[]
    */
   public $replicaNames;
+  protected $replicationClusterType = ReplicationCluster::class;
+  protected $replicationClusterDataType = '';
   /**
    * @var string
    */
   public $rootPassword;
+  /**
+   * @var bool
+   */
+  public $satisfiesPzi;
   /**
    * @var bool
    */
@@ -161,6 +187,16 @@ class DatabaseInstance extends \Google\Collection
    */
   public $suspensionReason;
   /**
+   * @var bool
+   */
+  public $switchTransactionLogsToCloudStorageEnabled;
+  /**
+   * @var string[]
+   */
+  public $tags;
+  protected $upgradableDatabaseVersionsType = AvailableDatabaseVersion::class;
+  protected $upgradableDatabaseVersionsDataType = 'array';
+  /**
    * @var string
    */
   public $writeEndpoint;
@@ -192,6 +228,20 @@ class DatabaseInstance extends \Google\Collection
   public function getBackendType()
   {
     return $this->backendType;
+  }
+  /**
+   * @param bool
+   */
+  public function setClearNetwork($clearNetwork)
+  {
+    $this->clearNetwork = $clearNetwork;
+  }
+  /**
+   * @return bool
+   */
+  public function getClearNetwork()
+  {
+    return $this->clearNetwork;
   }
   /**
    * @param string
@@ -306,6 +356,20 @@ class DatabaseInstance extends \Google\Collection
     return $this->dnsName;
   }
   /**
+   * @param DnsNameMapping[]
+   */
+  public function setDnsNames($dnsNames)
+  {
+    $this->dnsNames = $dnsNames;
+  }
+  /**
+   * @return DnsNameMapping[]
+   */
+  public function getDnsNames()
+  {
+    return $this->dnsNames;
+  }
+  /**
    * @param string
    */
   public function setEtag($etag)
@@ -346,6 +410,34 @@ class DatabaseInstance extends \Google\Collection
   public function getGceZone()
   {
     return $this->gceZone;
+  }
+  /**
+   * @param GeminiInstanceConfig
+   */
+  public function setGeminiConfig(GeminiInstanceConfig $geminiConfig)
+  {
+    $this->geminiConfig = $geminiConfig;
+  }
+  /**
+   * @return GeminiInstanceConfig
+   */
+  public function getGeminiConfig()
+  {
+    return $this->geminiConfig;
+  }
+  /**
+   * @param bool
+   */
+  public function setIncludeReplicasForMajorVersionUpgrade($includeReplicasForMajorVersionUpgrade)
+  {
+    $this->includeReplicasForMajorVersionUpgrade = $includeReplicasForMajorVersionUpgrade;
+  }
+  /**
+   * @return bool
+   */
+  public function getIncludeReplicasForMajorVersionUpgrade()
+  {
+    return $this->includeReplicasForMajorVersionUpgrade;
   }
   /**
    * @param string
@@ -460,6 +552,34 @@ class DatabaseInstance extends \Google\Collection
     return $this->name;
   }
   /**
+   * @param int
+   */
+  public function setNodeCount($nodeCount)
+  {
+    $this->nodeCount = $nodeCount;
+  }
+  /**
+   * @return int
+   */
+  public function getNodeCount()
+  {
+    return $this->nodeCount;
+  }
+  /**
+   * @param PoolNodeConfig[]
+   */
+  public function setNodes($nodes)
+  {
+    $this->nodes = $nodes;
+  }
+  /**
+   * @return PoolNodeConfig[]
+   */
+  public function getNodes()
+  {
+    return $this->nodes;
+  }
+  /**
    * @param OnPremisesConfiguration
    */
   public function setOnPremisesConfiguration(OnPremisesConfiguration $onPremisesConfiguration)
@@ -486,6 +606,20 @@ class DatabaseInstance extends \Google\Collection
   public function getOutOfDiskReport()
   {
     return $this->outOfDiskReport;
+  }
+  /**
+   * @param PITRFields
+   */
+  public function setPitrFields(PITRFields $pitrFields)
+  {
+    $this->pitrFields = $pitrFields;
+  }
+  /**
+   * @return PITRFields
+   */
+  public function getPitrFields()
+  {
+    return $this->pitrFields;
   }
   /**
    * @param string
@@ -572,6 +706,20 @@ class DatabaseInstance extends \Google\Collection
     return $this->replicaNames;
   }
   /**
+   * @param ReplicationCluster
+   */
+  public function setReplicationCluster(ReplicationCluster $replicationCluster)
+  {
+    $this->replicationCluster = $replicationCluster;
+  }
+  /**
+   * @return ReplicationCluster
+   */
+  public function getReplicationCluster()
+  {
+    return $this->replicationCluster;
+  }
+  /**
    * @param string
    */
   public function setRootPassword($rootPassword)
@@ -584,6 +732,20 @@ class DatabaseInstance extends \Google\Collection
   public function getRootPassword()
   {
     return $this->rootPassword;
+  }
+  /**
+   * @param bool
+   */
+  public function setSatisfiesPzi($satisfiesPzi)
+  {
+    $this->satisfiesPzi = $satisfiesPzi;
+  }
+  /**
+   * @return bool
+   */
+  public function getSatisfiesPzi()
+  {
+    return $this->satisfiesPzi;
   }
   /**
    * @param bool
@@ -724,6 +886,48 @@ class DatabaseInstance extends \Google\Collection
   public function getSuspensionReason()
   {
     return $this->suspensionReason;
+  }
+  /**
+   * @param bool
+   */
+  public function setSwitchTransactionLogsToCloudStorageEnabled($switchTransactionLogsToCloudStorageEnabled)
+  {
+    $this->switchTransactionLogsToCloudStorageEnabled = $switchTransactionLogsToCloudStorageEnabled;
+  }
+  /**
+   * @return bool
+   */
+  public function getSwitchTransactionLogsToCloudStorageEnabled()
+  {
+    return $this->switchTransactionLogsToCloudStorageEnabled;
+  }
+  /**
+   * @param string[]
+   */
+  public function setTags($tags)
+  {
+    $this->tags = $tags;
+  }
+  /**
+   * @return string[]
+   */
+  public function getTags()
+  {
+    return $this->tags;
+  }
+  /**
+   * @param AvailableDatabaseVersion[]
+   */
+  public function setUpgradableDatabaseVersions($upgradableDatabaseVersions)
+  {
+    $this->upgradableDatabaseVersions = $upgradableDatabaseVersions;
+  }
+  /**
+   * @return AvailableDatabaseVersion[]
+   */
+  public function getUpgradableDatabaseVersions()
+  {
+    return $this->upgradableDatabaseVersions;
   }
   /**
    * @param string

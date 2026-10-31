@@ -28,6 +28,8 @@ class GoogleCloudDialogflowCxV3WebhookGenericWebService extends \Google\Collecti
    * @var string
    */
   public $httpMethod;
+  protected $oauthConfigType = GoogleCloudDialogflowCxV3WebhookGenericWebServiceOAuthConfig::class;
+  protected $oauthConfigDataType = '';
   /**
    * @var string[]
    */
@@ -44,6 +46,16 @@ class GoogleCloudDialogflowCxV3WebhookGenericWebService extends \Google\Collecti
    * @var string[]
    */
   public $requestHeaders;
+  /**
+   * @var string
+   */
+  public $secretVersionForUsernamePassword;
+  protected $secretVersionsForRequestHeadersType = GoogleCloudDialogflowCxV3WebhookGenericWebServiceSecretVersionHeaderValue::class;
+  protected $secretVersionsForRequestHeadersDataType = 'map';
+  /**
+   * @var string
+   */
+  public $serviceAgentAuth;
   /**
    * @var string
    */
@@ -84,6 +96,20 @@ class GoogleCloudDialogflowCxV3WebhookGenericWebService extends \Google\Collecti
   public function getHttpMethod()
   {
     return $this->httpMethod;
+  }
+  /**
+   * @param GoogleCloudDialogflowCxV3WebhookGenericWebServiceOAuthConfig
+   */
+  public function setOauthConfig(GoogleCloudDialogflowCxV3WebhookGenericWebServiceOAuthConfig $oauthConfig)
+  {
+    $this->oauthConfig = $oauthConfig;
+  }
+  /**
+   * @return GoogleCloudDialogflowCxV3WebhookGenericWebServiceOAuthConfig
+   */
+  public function getOauthConfig()
+  {
+    return $this->oauthConfig;
   }
   /**
    * @param string[]
@@ -140,6 +166,48 @@ class GoogleCloudDialogflowCxV3WebhookGenericWebService extends \Google\Collecti
   public function getRequestHeaders()
   {
     return $this->requestHeaders;
+  }
+  /**
+   * @param string
+   */
+  public function setSecretVersionForUsernamePassword($secretVersionForUsernamePassword)
+  {
+    $this->secretVersionForUsernamePassword = $secretVersionForUsernamePassword;
+  }
+  /**
+   * @return string
+   */
+  public function getSecretVersionForUsernamePassword()
+  {
+    return $this->secretVersionForUsernamePassword;
+  }
+  /**
+   * @param GoogleCloudDialogflowCxV3WebhookGenericWebServiceSecretVersionHeaderValue[]
+   */
+  public function setSecretVersionsForRequestHeaders($secretVersionsForRequestHeaders)
+  {
+    $this->secretVersionsForRequestHeaders = $secretVersionsForRequestHeaders;
+  }
+  /**
+   * @return GoogleCloudDialogflowCxV3WebhookGenericWebServiceSecretVersionHeaderValue[]
+   */
+  public function getSecretVersionsForRequestHeaders()
+  {
+    return $this->secretVersionsForRequestHeaders;
+  }
+  /**
+   * @param string
+   */
+  public function setServiceAgentAuth($serviceAgentAuth)
+  {
+    $this->serviceAgentAuth = $serviceAgentAuth;
+  }
+  /**
+   * @return string
+   */
+  public function getServiceAgentAuth()
+  {
+    return $this->serviceAgentAuth;
   }
   /**
    * @param string

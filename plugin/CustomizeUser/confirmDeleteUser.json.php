@@ -19,6 +19,11 @@ if (empty($valid)) {
     die(json_encode($obj));
 }
 
+// destructive action (deletes a user + all their videos); captcha alone is not CSRF protection
+// (see SECURITY REVIEW in objects/captcha.php - admin sessions get a fixed, guessable captcha answer)
+forbidIfNotPost();
+forbidIfInvalidToken();
+
 $obj->users_id = intval(@$_REQUEST['users_id']);
 User::loginFromRequest();
 if (empty($obj->users_id) || !Permissions::canAdminUsers()) {
@@ -30,17 +35,26 @@ if (empty($obj->users_id)) {
     die(json_encode($obj));
 }
 
+$accountMutationLock = UserAccountMutationLock::acquire($obj->users_id);
+if (!$accountMutationLock) {
+    $obj->msg = 'Could not lock the account for deletion';
+    die(json_encode($obj));
+}
 $user = new User($obj->users_id);
+// checked before the videos are deleted; a delegated "Users Admin" must not delete an admin account
+if ($accountMutationLock->getIsAdmin() && !User::isAdmin()) {
+    forbiddenPage('Only an admin can delete an admin account');
+}
 
 
 $videos = Video::getAllVideosLight('', $obj->users_id);
 
 foreach ($videos as $value) {
-    
+
     if($value['users_id'] != $obj->users_id){
         continue;
     }
-    
+
     $video = new Video('', '', $value['id']);
     $video->delete();
 }

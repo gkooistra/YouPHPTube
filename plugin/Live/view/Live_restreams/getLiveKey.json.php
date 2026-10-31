@@ -15,7 +15,7 @@ header('Content-Type: application/json');
 
 $byPassPermissionCheck = false;
 if (!empty($_REQUEST['token'])) {
-    $_REQUEST['live_restreams_id'] = intval(decryptString($_REQUEST['token']));
+    $_REQUEST['live_restreams_id'] = Live::getRestreamsIdFromToken($_REQUEST['token']);
     $byPassPermissionCheck = true;
 }
 //var_dump($_REQUEST['token'], decryptString($_REQUEST['token']));exit;
@@ -35,7 +35,7 @@ if (!$byPassPermissionCheck && $Live_restreams->getUsers_id() !== User::getId() 
 
 $parameters = $Live_restreams->getParameters();
 if (empty($parameters)) {
-    _error_log('Restream parameters not present', true);
+    _error_log('Restream parameters not present', AVideoLog::$WARNING);
 }else{
     $parametersJson = json_decode($parameters);
 }
@@ -49,6 +49,21 @@ if (empty($parametersJson) || empty($parametersJson->{'restream.ypt.me'})) {
     $response->provider = 'Local';
     $response->subtitle = $Live_restreams->getName();
     $response->http_code = 200;
+
+    // Optional, reversible, admin-only diagnostic toggle to isolate whether a YouTube
+    // destination's disconnects are specific to RTMPS vs RTMP, without touching encoding
+    // parameters or any other destination. Off by default (empty string = no change).
+    // Only wired into this "Local" (manually configured) provider branch: the automatic
+    // restream.ypt.me-proxied branch below echoes a third-party response verbatim and is
+    // intentionally left untouched here.
+    require_once __DIR__ . '/../../standAloneFiles/restreamProfiles.php';
+    if (getRestreamProvider($response->stream_url) === 'youtube') {
+        $liveObj = AVideoPlugin::getObjectData('Live');
+        if (!empty($liveObj->restreamForceProtocolForYouTubeTest)) {
+            $response->forceProtocol = $liveObj->restreamForceProtocolForYouTubeTest;
+        }
+    }
+
     $json = json_encode($response);
     _error_log('Restreamer get live keys 1 ' . $json);
     echo $json;
@@ -64,6 +79,7 @@ if (empty($parametersJson) || empty($parametersJson->{'restream.ypt.me'})) {
         'title' => $lt['title'],
         'description' => $lt['description'],
         'parameters64' => base64_encode(json_encode($parametersJson->{'restream.ypt.me'})),
+        'poster_url' => Live::getPosterThumbsImage($lt['users_id'], $lt['live_servers_id']),
     );
 
     if (!empty($_REQUEST['live_schedule_id'])) {
@@ -74,6 +90,11 @@ if (empty($parametersJson) || empty($parametersJson->{'restream.ypt.me'})) {
         }
         if (!empty($ls->getDescription())) {
             $array['description'] = $ls->getDescription();
+        }
+
+        $poster_url = $ls->getPosterURL(@$_REQUEST['live_schedule_id'], @$_REQUEST['ppv_schedule_id']);
+        if (!empty($poster_url)) {
+            $array['poster_url'] = $poster_url;
         }
     }
 

@@ -1,7 +1,7 @@
 <?php
 if (!empty($default_videos_id)) {
     $u = new Video('', '', $default_videos_id);
-    if (!empty($u->getvideo())) {
+    if (!empty($u->getVideo())) {
         $name = $u->getTitle();
         $video_image = Video::getPoster($default_videos_id);
     }
@@ -14,18 +14,23 @@ if (empty($name)) {
 }
 ?>
 <div class="clearfix"></div>
-<div class="col-xs-2 text-center" style="padding-right: 2px;">
-    <img id="videoAutocomplete-img<?php echo $id; ?>" src="<?php echo $video_image; ?>" class="img img-responsive " style="max-height: 50px; margin-bottom: 5px; display: inline-flex;" alt="video Photo">
+<div class="col-xs-2 text-center"  style="padding: 0;">
+    <img id="videoAutocomplete-img<?php echo $id; ?>" src="<?php echo $video_image; ?>" class="img img-responsive"
+        style="min-height: 35px; min-width: 50px; max-height: 50px; width: 100%; object-fit: contain; margin-bottom: 5px; display: inline-flex;"
+        alt="video Photo">
 </div>
-<div class="col-xs-10" style="padding-left: 2px;">
+<div class="col-xs-10">
     <input id="videoAutocomplete<?php echo $id; ?>" placeholder="<?php echo __("video"); ?>" class="form-control" name="video<?php echo $id; ?>" value="<?php echo $name; ?>">
     <input type="hidden" id="<?php echo $id; ?>" value="<?php echo $default_videos_id; ?>" name="<?php echo $id; ?>">
 </div>
+
+
 <div class="clearfix"></div>
 <script>
     function updateVideoAutocomplete<?php echo $id; ?>() {
         var data = <?php echo _json_encode((object) $parameters); ?>;
         data.videos_id = $('#<?php echo $id; ?>').val();
+        data.rowCount = 10;
         var videos_id = data.videos_id;
         console.log('updateVideoAutocomplete<?php echo $id; ?>', data.videos_id);
         resetvideoAutocomplete<?php echo $id; ?>();

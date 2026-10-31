@@ -17,6 +17,7 @@ class LiveTransmition extends ObjectYPT {
     protected $description;
     protected $showOnTV;
     protected $password;
+    protected $isRebroadcast;
 
     public static function getSearchFieldsNames() {
         return ['title'];
@@ -51,7 +52,7 @@ class LiveTransmition extends ObjectYPT {
     }
 
     /**
-     * 
+     *
      * @return string
      */
     public function getKey() {
@@ -140,7 +141,7 @@ class LiveTransmition extends ObjectYPT {
         return true;
     }
 
-    public static function getFromDbByUser($user_id, $refreshCache = false) {
+    public static function getFromDbByUser($user_id, $refreshCache = false, $allowOnlineIndex = false) {
         global $global;
         if (!self::isTableInstalled(static::getTableName())) {
             _error_log("Save error, table " . static::getTableName() . " does not exists", AVideoLog::$ERROR);
@@ -162,7 +163,7 @@ class LiveTransmition extends ObjectYPT {
                 $data['live_servers_id'] = Live::getLiveServersIdRequest();
                 $liveStreamObject = new LiveStreamObject($data['key'], $data['live_servers_id']);
             }
-            $data['key_with_index'] = $liveStreamObject->getKeyWithIndex(true);
+            $data['key_with_index'] = $liveStreamObject->getKeyWithIndex(true, $allowOnlineIndex);
             $data['live_index'] = $liveStreamObject->getIndex();
 
             $user = $data;
@@ -183,7 +184,7 @@ class LiveTransmition extends ObjectYPT {
             $l = new LiveTransmition(0);
             $l->setTitle("I am Live");
             $l->setDescription("");
-            $l->setKey(uniqid());
+            $l->setKey(_uniqid()); // SECURITY: this is the RTMP publish credential, must be a CSPRNG value, not clock-based uniqid()
             $l->setCategories_id(1);
             $l->setUsers_id($user_id);
             $l->setPublicAutomatic();
@@ -202,7 +203,7 @@ class LiveTransmition extends ObjectYPT {
         $row = static::getFromDbByUser($user_id);
 
         $l = new LiveTransmition($row['id']);
-        $newKey = uniqid();
+        $newKey = _uniqid(); // SECURITY: this is the RTMP publish credential, must be a CSPRNG value, not clock-based uniqid()
         $l->setKey($newKey);
         if ($l->save()) {
             return $newKey;
@@ -223,7 +224,7 @@ class LiveTransmition extends ObjectYPT {
             return LiveTransmition::getFromDbByUserName($_REQUEST['u']);
         } elseif (!empty($_REQUEST['c'])) {
             //_error_log('LiveTransmition::getFromRequest line'.__LINE__);
-            return LiveTransmition::getFromDbByChannelName($_REQUEST['c']);
+            return LiveTransmition::getFromDbByChannelName($_REQUEST['c'], true);
         }
         //_error_log('LiveTransmition::getFromRequest line'.__LINE__);
         return false;
@@ -231,7 +232,7 @@ class LiveTransmition extends ObjectYPT {
 
     public static function getFromDbByUserName($userName) {
         global $global;
-        _mysql_connect();
+        //_mysql_connect();
         $sql = "SELECT * FROM users WHERE user = ? LIMIT 1";
         $res = sqlDAL::readSql($sql, "s", [$userName]);
         $data = sqlDAL::fetchAssoc($res);
@@ -249,9 +250,9 @@ class LiveTransmition extends ObjectYPT {
         }
     }
 
-    public static function getFromDbByChannelName($channelName) {
+    public static function getFromDbByChannelName($channelName, $allowOnlineIndex = false) {
         global $global;
-        _mysql_connect();
+        //_mysql_connect();
         $sql = "SELECT * FROM users WHERE channelName = ? LIMIT 1";
         $res = sqlDAL::readSql($sql, "s", [$channelName]);
         $data = sqlDAL::fetchAssoc($res);
@@ -261,7 +262,7 @@ class LiveTransmition extends ObjectYPT {
             if (empty($user)) {
                 return false;
             }
-            return static::getFromDbByUser($user['id']);
+            return static::getFromDbByUser($user['id'], false, $allowOnlineIndex);
         } else {
             return false;
         }
@@ -287,7 +288,7 @@ class LiveTransmition extends ObjectYPT {
     }
 
     public static function keyExists($key, $checkSchedule = true) {
-        global $global;
+        global $global, $_keyExistsSQL;
         if (!is_string($key)) {
             return false;
         }
@@ -295,10 +296,12 @@ class LiveTransmition extends ObjectYPT {
             return false;
         }
         $key = Live::cleanUpKey($key);
+        // Security: parameterized query to prevent SQL injection via stream key.
         $sql = "SELECT u.*, lt.*, lt.password as live_password FROM " . static::getTableName() . " lt "
                 . " LEFT JOIN users u ON u.id = users_id AND u.status='a' "
-                . " WHERE  `key` = '$key' LIMIT 1";
-        $res = sqlDAL::readSql($sql);
+                . " WHERE  `key` = ? ORDER BY lt.modified DESC, lt.id DESC LIMIT 1";
+        $_keyExistsSQL = $sql;
+        $res = sqlDAL::readSql($sql, 's', [$key]);
         $data = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
         if ($res) {
@@ -347,9 +350,20 @@ class LiveTransmition extends ObjectYPT {
     }
 
     public function save() {
+        global $_keyExistsSQL;
         if (empty($this->users_id)) {
             return false;
         }
+
+        $lt = LiveTransmition::getFromKey($this->key);
+        if(!empty($lt)){
+            if($lt['users_id'] != $this->users_id){
+                $oldLt = LiveTransmition::getFromDbByUser($this->users_id);
+                _error_log("LiveTransmition::save ERROR the key [{$this->key}] already associated to users_id=[{$lt['users_id']}] and you are user [{$this->users_id}], reverting the key to [{$oldLt['key']}] $_keyExistsSQL");
+                $this->key = $oldLt['key'];
+            }
+        }
+
         $row = self::getFromDbByUser($this->users_id, true);
         if (!empty($row)) {
             $this->id = $row['id'];
@@ -362,10 +376,16 @@ class LiveTransmition extends ObjectYPT {
             $this->password = '';
         }
         $id = parent::save();
+
+        _error_log("LiveTransmition::save key=[{$this->key}] id={$id} users_id={$this->users_id} saveTransmition={$this->saveTransmition} logged_users_id=".User::getId().' IP='.getRealIpAddr().' '.json_encode(debug_backtrace()));
+
         //Category::clearCacheCount();
         deleteStatsNotifications(true);
 
-        $socketObj = sendSocketMessageToAll(['stats' => getStatsNotifications(false, false)], "socketLiveONCallback");
+        $liveTransmitionSaveStats = getStatsNotifications(false, false);
+        // this is broadcast to every connected client, never include streams a given recipient may not be authorized to see
+        unset($liveTransmitionSaveStats['hidden_applications']);
+        $socketObj = sendSocketMessageToAll(['stats' => $liveTransmitionSaveStats], "socketLiveONCallback");
 
         return $id;
     }
@@ -415,6 +435,10 @@ class LiveTransmition extends ObjectYPT {
             return true;
         }
 
+        $objLive = AVideoPlugin::getDataObject("Live");
+        if($objLive->hideUserGroups){
+            return true;
+        }
         $transmitionGroups = $this->getGroups();
         if (!empty($transmitionGroups)) {
             _error_log('LiveTransmition::userCanSeeTransmition usergroup not empty '.json_encode($transmitionGroups));
@@ -472,6 +496,14 @@ class LiveTransmition extends ObjectYPT {
 
     public function setPassword($password): void {
         $this->password = trim($password);
+    }
+
+    public function getIsRebroadcast() {
+        return !empty($this->isRebroadcast);
+    }
+
+    public function setIsRebroadcast($isRebroadcast): void {
+        $this->isRebroadcast = !_empty($isRebroadcast)?1:0;
     }
 
     public static function canSaveTransmition($users_id) {

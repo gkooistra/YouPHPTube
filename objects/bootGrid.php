@@ -1,7 +1,21 @@
 <?php
 class BootGrid
 {
-    public static function getSqlFromPost($searchFieldsNames = [], $keyPrefix = "", $alternativeOrderBy = "", $doNotSearch=false, $FIND_IN_SET = "")
+    private const SEARCH_CHARSET = 'utf8mb4';
+    private const SEARCH_COLLATION = 'utf8mb4_unicode_ci';
+
+    public static function populateSortFromDataTablesOrder()
+    {
+        if (empty($_POST['sort']) && !empty($_GET['order'][0]['dir'])) {
+            $index = intval($_GET['order'][0]['column']);
+            $data = $_GET['columns'][$index]['data'] ?? '';
+            if ($data !== '') {
+                $_POST['sort'][$data] = $_GET['order'][0]['dir'];
+            }
+        }
+    }
+
+    public static function getSqlFromPost($searchFieldsNames = [], $keyPrefix = "", $alternativeOrderBy = "", $doNotSearch=false, $FIND_IN_SET = "", $allowedSortColumns = [])
     {
         global $global;
         if (empty($doNotSearch) && empty($global['doNotSearch']) ) {
@@ -10,11 +24,7 @@ class BootGrid
             $sql = '';
         }
 
-        if (empty($_POST['sort']) && !empty($_GET['order'][0]['dir'])) {
-            $index = intval($_GET['order'][0]['column']);
-            $_GET['columns'][$index]['data'];
-            $_POST['sort'][$_GET['columns'][$index]['data']] = $_GET['order'][0]['dir'];
-        }
+        self::populateSortFromDataTablesOrder();
 
 
         if (!empty($FIND_IN_SET)) {
@@ -25,7 +35,7 @@ class BootGrid
                 $direction = "ASC";
                 if (strtoupper($value)==="DESC") {
                     $direction = "DESC";
-                }else 
+                }else
                 if (strtoupper($value)==="IS NULL") {
                     $direction = "IS NULL";
                 }else if (strtoupper($value)==="IS NOT NULL DESC") {
@@ -35,13 +45,21 @@ class BootGrid
                 if ($key=='order') {
                     $key = '`order`';
                 }
+                // charset filter above only blocks syntax injection, not naming an unrelated/sensitive column; callers that pass $allowedSortColumns rely on this to cap it to their own known-safe fields
+                if (!empty($allowedSortColumns) && !in_array($key, $allowedSortColumns, true)) {
+                    continue;
+                }
                 if (strpos($key, $keyPrefix) === 0) {
                     $orderBy[] = " {$key} {$direction} ";
                 } else {
                     $orderBy[] = " {$keyPrefix}{$key} {$direction} ";
                 }
             }
-            $sql .= " ORDER BY ".implode(",", $orderBy);
+            if (!empty($orderBy)) {
+                $sql .= " ORDER BY ".implode(",", $orderBy);
+            } else {
+                $sql .= $alternativeOrderBy;
+            }
         } else {
             $sql .= $alternativeOrderBy;
         }
@@ -57,8 +75,8 @@ class BootGrid
         return $sql;
     }
 
-    public static function getSqlSearchFromPost($searchFieldsNames = [], $connection = "AND"){
-        $sql = '';
+    public static function getSearchPhraseFromPost()
+    {
         if (!empty($_GET['searchPhrase'])) {
             $_POST['searchPhrase'] = $_GET['searchPhrase'];
         } elseif (!empty($_GET['search']['value'])) {
@@ -67,18 +85,61 @@ class BootGrid
             $_POST['searchPhrase'] = $_GET['q'];
         }
 
-        if (!empty($_POST['searchPhrase'])) {
-            global $global;
-            $search = strtolower(xss_esc($_POST['searchPhrase']));
-            $search = str_replace('&quot;', '"', $search);
+        if (empty($_POST['searchPhrase'])) {
+            return '';
+        }
+
+        $search = mb_strtolower(xss_esc($_POST['searchPhrase']));
+        return str_replace('&quot;', '"', $search);
+    }
+
+    public static function escapeSearchPhraseForSQL($search)
+    {
+        global $global;
+        return $global['mysqli']->real_escape_string($search);
+    }
+
+    private static function getSearchFieldAsUtf8($field)
+    {
+        return "CAST({$field} AS CHAR CHARACTER SET " . self::SEARCH_CHARSET . ") COLLATE " . self::SEARCH_COLLATION;
+    }
+
+    private static function getBinarySearchFieldAsUtf8($field)
+    {
+        return "CONVERT(CAST({$field} as BINARY) USING " . self::SEARCH_CHARSET . ") COLLATE " . self::SEARCH_COLLATION;
+    }
+
+    private static function getSearchNeedle($search)
+    {
+        return "_" . self::SEARCH_CHARSET . " '%{$search}%' COLLATE " . self::SEARCH_COLLATION;
+    }
+
+    public static function getCollationSafeLike($field, $search)
+    {
+        $needle = self::getSearchNeedle($search);
+        return " (" . self::getSearchFieldAsUtf8($field) . " LIKE {$needle} OR " .
+            self::getBinarySearchFieldAsUtf8($field) . " LIKE {$needle}) ";
+    }
+
+    public static function getCollationSafeRegexp($field, $search)
+    {
+        return " " . self::getBinarySearchFieldAsUtf8($field) .
+            " REGEXP (_" . self::SEARCH_CHARSET . " '\\b{$search}\\b' COLLATE " . self::SEARCH_COLLATION . ") ";
+    }
+
+    public static function getSqlSearchFromPost($searchFieldsNames = [], $connection = "AND", $search = null){
+        $sql = '';
+        $search = isset($search) ? $search : self::getSearchPhraseFromPost();
+
+        if (!empty($search)) {
+            $search = self::escapeSearchPhraseForSQL($search);
+            $searchRegexpSafe = preg_quote($search, '/');
+            $searchRegexpSafe = self::escapeSearchPhraseForSQL($searchRegexpSafe);
             $like = [];
             foreach ($searchFieldsNames as $value) {
-                $like[] = " {$value} LIKE '%{$search}%' ";
-                //$like[] = " {$value} LIKE _utf8 '%{$search}%' collate utf8_general_ci ";
-                //$like[] = " {$value} LIKE _utf8 '%{$search}%' collate utf8_unicode_ci ";
-                $like[] = " CONVERT(CAST({$value} as BINARY) USING utf8) LIKE _utf8 '%{$search}%'  collate utf8_unicode_ci ";
+                $like[] = self::getCollationSafeLike($value, $search);
                 if (preg_match('/description/', $value)) {
-                    $like[] = " CONVERT(CAST({$value} as BINARY) USING utf8) regexp '\\b{$search}\\b' ";
+                    $like[] = self::getCollationSafeRegexp($value, $searchRegexpSafe);
                 }
             }
             if (!empty($like)) {

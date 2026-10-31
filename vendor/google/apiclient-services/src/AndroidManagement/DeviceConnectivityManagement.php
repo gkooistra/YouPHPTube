@@ -19,10 +19,18 @@ namespace Google\Service\AndroidManagement;
 
 class DeviceConnectivityManagement extends \Google\Model
 {
+  protected $apnPolicyType = ApnPolicy::class;
+  protected $apnPolicyDataType = '';
+  /**
+   * @var string
+   */
+  public $bluetoothSharing;
   /**
    * @var string
    */
   public $configureWifi;
+  protected $preferentialNetworkServiceSettingsType = PreferentialNetworkServiceSettings::class;
+  protected $preferentialNetworkServiceSettingsDataType = '';
   /**
    * @var string
    */
@@ -35,7 +43,39 @@ class DeviceConnectivityManagement extends \Google\Model
    * @var string
    */
   public $wifiDirectSettings;
+  protected $wifiRoamingPolicyType = WifiRoamingPolicy::class;
+  protected $wifiRoamingPolicyDataType = '';
+  protected $wifiSsidPolicyType = WifiSsidPolicy::class;
+  protected $wifiSsidPolicyDataType = '';
 
+  /**
+   * @param ApnPolicy
+   */
+  public function setApnPolicy(ApnPolicy $apnPolicy)
+  {
+    $this->apnPolicy = $apnPolicy;
+  }
+  /**
+   * @return ApnPolicy
+   */
+  public function getApnPolicy()
+  {
+    return $this->apnPolicy;
+  }
+  /**
+   * @param string
+   */
+  public function setBluetoothSharing($bluetoothSharing)
+  {
+    $this->bluetoothSharing = $bluetoothSharing;
+  }
+  /**
+   * @return string
+   */
+  public function getBluetoothSharing()
+  {
+    return $this->bluetoothSharing;
+  }
   /**
    * @param string
    */
@@ -49,6 +89,20 @@ class DeviceConnectivityManagement extends \Google\Model
   public function getConfigureWifi()
   {
     return $this->configureWifi;
+  }
+  /**
+   * @param PreferentialNetworkServiceSettings
+   */
+  public function setPreferentialNetworkServiceSettings(PreferentialNetworkServiceSettings $preferentialNetworkServiceSettings)
+  {
+    $this->preferentialNetworkServiceSettings = $preferentialNetworkServiceSettings;
+  }
+  /**
+   * @return PreferentialNetworkServiceSettings
+   */
+  public function getPreferentialNetworkServiceSettings()
+  {
+    return $this->preferentialNetworkServiceSettings;
   }
   /**
    * @param string
@@ -91,6 +145,34 @@ class DeviceConnectivityManagement extends \Google\Model
   public function getWifiDirectSettings()
   {
     return $this->wifiDirectSettings;
+  }
+  /**
+   * @param WifiRoamingPolicy
+   */
+  public function setWifiRoamingPolicy(WifiRoamingPolicy $wifiRoamingPolicy)
+  {
+    $this->wifiRoamingPolicy = $wifiRoamingPolicy;
+  }
+  /**
+   * @return WifiRoamingPolicy
+   */
+  public function getWifiRoamingPolicy()
+  {
+    return $this->wifiRoamingPolicy;
+  }
+  /**
+   * @param WifiSsidPolicy
+   */
+  public function setWifiSsidPolicy(WifiSsidPolicy $wifiSsidPolicy)
+  {
+    $this->wifiSsidPolicy = $wifiSsidPolicy;
+  }
+  /**
+   * @return WifiSsidPolicy
+   */
+  public function getWifiSsidPolicy()
+  {
+    return $this->wifiSsidPolicy;
   }
 }
 

@@ -104,6 +104,10 @@ class UserNotifications extends PluginAbstract {
         $template = self::getTemplate();
         
         $template = str_replace("{placeholder}",  ImagesPlaceHolders::getVideoAnimationLandscape(ImagesPlaceHolders::$RETURN_URL), $template);
+        if(empty($itemsArray['element_class'])){
+            $itemsArray['element_class'] = '';
+        }
+
         foreach ($itemsArray as $search => $replace) {
             if ($search == 'icon') {
                 $replace = '<i class="' . $replace . '"></i>';
@@ -128,8 +132,10 @@ class UserNotifications extends PluginAbstract {
 
     public static function notifySocket($array, $to_users_id = 0) {
         if (!empty($to_users_id)) {
+            //error_log('notifySocket line='.__LINE__);return false;
             $socketObj = sendSocketMessageToUsers_id($array, $to_users_id, 'socketUserNotificationCallback');
         } else {
+            //error_log('notifySocket line='.__LINE__);return false;
             $socketObj = sendSocketMessageToAll($array, 'socketUserNotificationCallback');
         }
         return $socketObj;

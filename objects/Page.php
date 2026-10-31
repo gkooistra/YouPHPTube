@@ -32,7 +32,10 @@ class Page
         $this->setExtraScripts(
             array(
                 'view/css/DataTables/datatables.min.js',
-                'view/js/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js'
+                'view/js/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js',
+                // shared $.fn.bootgrid->DataTables bridge; must load after both datatables.min.js
+                // above and bootgrid.min.js (loaded earlier by view/include/footer.php)
+                'view/js/avideoDataTable.js'
             )
         );
         $this->setExtraStyles(
@@ -137,7 +140,8 @@ class Page
         }
         if (!empty($this->extraStyles)) {
             foreach ($this->extraStyles as $style) {
-                echo "<link href=\"" . $global['webSiteRootURL'] . $style . "\" rel=\"stylesheet\" type=\"text/css\" />";
+                // getURL() appends a filemtime-based ?cache= param, so an edited file busts the CDN/browser cache automatically
+                echo "<link href=\"" . getURL($style) . "\" rel=\"stylesheet\" type=\"text/css\" />";
             }
         }
 
@@ -186,7 +190,8 @@ class Page
         }
         if (!empty($this->extraScripts)) {
             foreach ($this->extraScripts as $script) {
-                echo "<script src=\"" . $global['webSiteRootURL'] . $script . "\" type=\"text/javascript\"></script>";
+                // getURL() appends a filemtime-based ?cache= param, so an edited file busts the CDN/browser cache automatically
+                echo "<script src=\"" . getURL($script) . "\" type=\"text/javascript\"></script>";
             }
         }
         if (!empty($this->inlineScripts)) {
@@ -237,12 +242,15 @@ class Page
     public function print($include_end = true)
     {
         global $config, $global;
+        if(!empty($global['doNotPrintPage'])){
+            return;
+        }
         $html = _ob_get_clean();
         _ob_start();
         $this->bodyContent = $html;
         $this->getPage();
         if ($include_end) {
-            include $global['systemRootPath'] . 'objects/include_end.php';
+            include_once $global['systemRootPath'] . 'objects/include_end.php';
         }
     }
 

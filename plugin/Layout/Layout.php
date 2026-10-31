@@ -302,7 +302,8 @@ class Layout extends PluginAbstract
         return $html;
     }
 
-    private static function getSearch2Code($id){
+    private static function getSearch2Code($id)
+    {
         $code = '<script>$(document).ready(function() {
             $(\'#' . $id . '\').select2({
                 templateSelection: templateSelectionAndResult, 
@@ -311,7 +312,7 @@ class Layout extends PluginAbstract
                 dropdownParent: $(\'#' . $id . '\').parent()
             });
         });</script>';
-            return $code;
+        return $code;
     }
 
     static function getSelectSearchableHTML($optionsArray, $name, $selected, $id = "", $class = "", $placeholder = false, $templatePlaceholder = '')
@@ -321,7 +322,7 @@ class Layout extends PluginAbstract
             $id = $name;
         }
         $html = self::getSelectSearchable($optionsArray, $name, $selected, $id, $class, $placeholder, $templatePlaceholder);
-        
+
         $html .= self::getSearch2Code($id);
         return $html;
     }
@@ -334,7 +335,7 @@ class Layout extends PluginAbstract
         if (empty($id)) {
             $id = uniqid();
         }
-                                  
+
         $html = self::getSearch2Code($id);
         self::addFooterCode($html);
         return self::getSelectSearchable($icons, $name, $selected, $id, $class . " iconSelect", true);
@@ -381,28 +382,48 @@ class Layout extends PluginAbstract
 
     static function getLangsSelect($name, $selected = "", $id = "", $class = "navbar-btn", $flagsOnly = false, $getAll = false)
     {
-        global $getLangsSelect;
+        global $getLangsSelect, $sortedFlagsCache;
         $getLangsSelect = 1;
+
+        // Determine whether to get all flags or available flags
         if ($getAll) {
             $flags = self::getAllFlags();
         } else {
             $flags = self::getAvailableFlags();
         }
+
+        // Cache sorted flags to avoid repeated sorting on each request
+        if (!isset($sortedFlagsCache)) {
+            // Sort flags alphabetically based on the 'text' field
+            uasort($flags, function ($a, $b) {
+                $infoA = json_decode($a[0]);
+                $infoB = json_decode($b[0]);
+                return strcmp($infoA->text, $infoB->text); // Compare language names alphabetically
+            });
+            $sortedFlagsCache = $flags; // Cache the sorted flags
+        } else {
+            $flags = $sortedFlagsCache; // Use cached sorted flags
+        }
+
         if (empty($id)) {
             $id = uniqid();
         }
+
         if ($selected == 'us') {
             $selected = 'en_US';
         }
+
         $selected = revertLangString($selected);
-        //var_dump($selected, $flags[$selected], $flags);
+
+        // Determine the selected flag's icon (if available)
         if (!empty($flags[$selected])) {
-            $selectedJson = _json_decode($flags[$selected][0]);
+            $selectedJson = json_decode($flags[$selected][0]);
             $selectedJsonIcon = $selectedJson->icon;
         } else {
             $selectedJsonIcon = '';
         }
 
+        // Build the HTML for the dropdown
         $html = '<div class="btn-group" id="div_' . $id . '">
             <input type="hidden" name="' . $name . '" value="' . $selected . '" id="' . $id . '"/>
             <button type="button" class="btn btn-default dropdown-toggle ' . $class . '" data-toggle="dropdown" aria-expanded="true">
@@ -411,24 +432,31 @@ class Layout extends PluginAbstract
             <ul class="dropdown-menu dropdown-menu-right dropdown-menu-arrow" role="menu">';
 
         $selfURI = getSelfURI();
+
+        // Generate the list of flags in alphabetical order
         foreach ($flags as $key => $value) {
             $info = json_decode($value[0]);
             $url = addQueryStringParameter($selfURI, 'lang', $key);
 
-            $active = '';
-            if ($selectedJsonIcon === $info->icon) {
-                $active = 'active';
-            }
+            // Mark the selected flag as active
+            $active = ($selectedJsonIcon === $info->icon) ? 'active' : '';
 
+            // Add FontAwesome check icon for the selected option
+            $checkIcon = $active ? ' <i class="fas fa-check"></i>' : '';
+
+            // Add the flag option to the HTML
             $html .= '<li class="dropdown-submenu ' . $active . '">
                     <a tabindex="-1" rel="nofollow" hreflang="' . $key . '" href="' . $url . '" value="' . $key . '" onclick="$(\'#div_' . $id . ' > button > span.flag\').html($(this).find(\'span.flag\').html());$(\'input[name=' . $name . ']\').val(\'' . $key . '\');">
-                        <span class="flag"><i class="' . $info->icon . '" aria-hidden="true"></i></span> ' . $info->text . '</a>
-                    </li>';
+                        <span class="flag"><i class="' . $info->icon . '" aria-hidden="true"></i></span> ' . $info->text . $checkIcon . '</a>
+                  </li>';
         }
 
         $html .= '</ul></div>';
+
         return $html;
     }
+
+
 
     static function getUserSelect($name, $users_id_list, $selected = "", $id = "", $class = "")
     {
@@ -464,7 +492,7 @@ class Layout extends PluginAbstract
         if (empty($id)) {
             $id = uniqid();
         }
-                                  
+
         $html = self::getSearch2Code($id);
         self::addFooterCode($html);
         return self::getSelectSearchable($cats, $name, $selected, $id, $class, true);
@@ -855,7 +883,7 @@ class Layout extends PluginAbstract
         $divs = array();
         $id = str_replace('[]', '', $name) . uniqid();
         foreach (Layout::$searchOptions as $key => $value) {
-            
+
             $divs[] = '<div class="form-check">
                             <label class="form-check-label">
                             <input class="form-check-input" type="checkbox" name="' . $name . '" checked value="' . $value['value'] . '"> 
@@ -905,7 +933,7 @@ class Layout extends PluginAbstract
                         <input class="form-check-input" type="radio" name="' . $name . '" value="1"> 
                         1 ' . __('Day') . '
                     </label></div>';
-        for ($i = 5; $i <= 30; $i += 5) {
+        for ($i = 5; $i < 30; $i += 5) {
             $divs[] = '<div class="form-check">
                             <label class="form-check-label">
                             <input class="form-check-input" type="radio" name="' . $name . '" value="' . $i . '"> 
@@ -932,9 +960,10 @@ class Layout extends PluginAbstract
     {
         global $global;
         $video = Video::getVideoWithMoreViews();
+        $viewsCount = intval($video['views_count'] ?? 0);
 
-        if ($video['views_count'] > 10) {
-            $step = $video['views_count'] / 10;
+        if ($viewsCount > 10) {
+            $step = $viewsCount / 10;
         } else {
             $step = 1;
         }
@@ -949,14 +978,14 @@ class Layout extends PluginAbstract
 
         $divs = array();
         $id = str_replace('[]', '', $name) . uniqid();
-                                    
+
         $divs[] = '<div class="form-check">
                         <label class="form-check-label">
                         <input class="form-check-input" type="radio" name="' . $name . '" checked value="0"> 
                         ' . __('All') . ' 
                     </label></div>';
-        for ($i = $step; $i <= $video['views_count']; $i += $step) {
-            $count = intval($i);                            
+        for ($i = $step; $i <= $viewsCount; $i += $step) {
+            $count = intval($i);
             $divs[] = '<div class="form-check">
                             <label class="form-check-label">
                             <input class="form-check-input" type="radio" name="' . $name . '" value="' . $count . '"> 
@@ -980,13 +1009,13 @@ class Layout extends PluginAbstract
             return array();
         }
         $divs = array();
-        $id = str_replace('[]', '', $name) . uniqid();                    
+        $id = str_replace('[]', '', $name) . uniqid();
         $divs[] = '<div class="form-check">
                         <label class="form-check-label">
                         <input class="form-check-input" type="radio" name="' . $name . '" checked value=""> 
                         <i class="fas fa-tags"></i> ' . __('All') . ' 
                     </label></div>';
-        foreach ($tags as $key => $value) {                          
+        foreach ($tags as $key => $value) {
             $divs[] = '<div class="form-check">
                         <label class="form-check-label">
                         <input class="form-check-input" type="radio" name="' . $name . '" value="' . $value['id'] . '"> 
@@ -1008,11 +1037,22 @@ class Layout extends PluginAbstract
             <div class="panel-body <?php echo $id; ?>">
                 <?php echo implode('', $elements); ?>
             </div>
+            <p class="text-muted text-center hidden searchFilterEmpty" role="status"><?php echo __('No results found!'); ?></p>
         </div>
         <script>
             $(document).ready(function() {
                 searchInList('#<?php echo $id; ?>-search', '.<?php echo $id; ?> .form-check');
+                $('#<?php echo $id; ?>-search').on('input', function() {
+                    var hasResults = $('.<?php echo $id; ?> .form-check').filter(function() {
+                        return this.style.display !== 'none';
+                    }).length > 0;
+                    $('#<?php echo $id; ?>-panel .searchFilterEmpty').toggleClass('hidden', hasResults);
+                });
                 $('#<?php echo $id; ?>-panel .form-check-input').on('change', function() {
+                    // The backend searches all fields when none are submitted; keep at least one selected.
+                    if (this.type === 'checkbox' && !$('#<?php echo $id; ?>-panel .form-check-input:checked').length) {
+                        this.checked = true;
+                    }
                     var checked = $(this).prop('checked');
                     var value = $(this).val();
                     $('.<?php echo $class; ?> input[type="checkbox"], .<?php echo $class; ?> input[type="radio"]').each(function() {
@@ -1025,7 +1065,6 @@ class Layout extends PluginAbstract
                         return this.value;
                     }).get();
 
-                    console.log('#<?php echo $id; ?>-panel .form-check-input', checkedValues, JSON.stringify(checkedValues));
                     Cookies.set('<?php echo $name; ?>', JSON.stringify(checkedValues), {
                         expires: 365,
                         path: '/'
@@ -1033,12 +1072,31 @@ class Layout extends PluginAbstract
                     setSearchFilterIcon();
                 });
 
-                var savedCookies = Cookies.get('<?php echo $name; ?>');
-                if (savedCookies) {
-                    var checkedValues = JSON.parse(savedCookies);
-                    $('#<?php echo $id; ?>-panel .form-check-input').each(function() {
-                        this.checked = checkedValues.includes(this.value);
-                    });
+                var name = <?php echo json_encode($name); ?>;
+                var params = new URLSearchParams(window.location.search);
+                var values = null;
+                var paramName = params.has(name) ? name : name.replace('[]', '');
+                if (params.has(paramName)) {
+                    values = params.getAll(paramName);
+                } else if (!params.has('search')) {
+                    var savedCookies = Cookies.get(name);
+                    if (savedCookies) {
+                        try {
+                            values = JSON.parse(savedCookies);
+                        } catch (error) {
+                            Cookies.remove(name, {path: '/'});
+                        }
+                    }
+                }
+                if (Array.isArray(values)) {
+                    values = values.map(String);
+                    var $inputs = $('#<?php echo $id; ?>-panel .form-check-input');
+                    // Obsolete choices fall back to the defaults, as the search backend does.
+                    if ($inputs.filter(function() { return values.indexOf(this.value) !== -1; }).length) {
+                        $inputs.each(function() {
+                            this.checked = values.indexOf(this.value) !== -1;
+                        });
+                    }
                 }
                 setSearchFilterIcon();
             });
@@ -1146,6 +1204,7 @@ function _sortJS($a, $b)
         "jquery.lazy.plugins.min.js",
         "flickity.pkgd.min.js",
         "flickity-bg-lazyload/bg-lazyload.js",
+        "@fullcalendar/core/index.global.min.js",
     ];
     $lastOrder = [
         "js/script.js",

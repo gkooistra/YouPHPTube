@@ -29,7 +29,7 @@ use Google\Client;
  *
  * <p>
  * For more information about this service, see the API
- * <a href="https://developers.google.com/admin-sdk/" target="_blank">Documentation</a>
+ * <a href="https://developers.google.com/workspace/admin/" target="_blank">Documentation</a>
  * </p>
  *
  * @author Google, Inc.
@@ -48,10 +48,10 @@ class Directory extends \Google\Service
   /** View customer related information. */
   const ADMIN_DIRECTORY_CUSTOMER_READONLY =
       "https://www.googleapis.com/auth/admin.directory.customer.readonly";
-  /** View and manage your Chrome OS devices' metadata. */
+  /** View and manage your ChromeOS devices' metadata. */
   const ADMIN_DIRECTORY_DEVICE_CHROMEOS =
       "https://www.googleapis.com/auth/admin.directory.device.chromeos";
-  /** View your Chrome OS devices' metadata. */
+  /** View your ChromeOS devices' metadata. */
   const ADMIN_DIRECTORY_DEVICE_CHROMEOS_READONLY =
       "https://www.googleapis.com/auth/admin.directory.device.chromeos.readonly";
   /** View and manage your mobile devices' metadata. */
@@ -152,6 +152,7 @@ class Directory extends \Google\Service
   public $users_aliases;
   public $users_photos;
   public $verificationCodes;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the Directory service.
@@ -164,6 +165,7 @@ class Directory extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://admin.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://admin.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'directory_v1';

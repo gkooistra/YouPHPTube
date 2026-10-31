@@ -1,6 +1,6 @@
 <?php
-// if you want to usea  third party app to submit video files, please check this https://github.com/WWBN/Upload-Sample
-    
+// If you want to use a third-party app to submit video files, please check https://github.com/WWBN/Upload-Sample
+
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
 require_once dirname(__FILE__) . '/../../videos/configuration.php';
@@ -21,13 +21,13 @@ $userObj = new User(0, $user, $password);
 $userObj->login(false, true);
 
 if (!User::canUpload()) {
-    $object->msg = "You can not upload [".User::getId()."] ".(User::getUserName());
+    $object->msg = "You can not upload [" . User::getId() . "] " . (User::getUserName());
     die(json_encode($object));
 }
 
 // A list of permitted file extensions
 $allowed = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'mp3', 'wav', 'm4v', 'webm', 'wmv', 'mpg', 'mpeg', 'f4v', 'm4v', 'm4a', 'm2p', 'rm', 'vob', 'mkv', 'jpg', 'jpeg', 'gif', 'png', 'webp'];
-_error_log("MOBILE UPLOAD: Starts");
+_error_log("MOBILE UPLOAD: Starts " . getRealIpAddr() . ' ' . json_encode(getServerLimits()));
 if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
     $extension = pathinfo($_FILES['upl']['name'], PATHINFO_EXTENSION);
     _error_log("MOBILE UPLOAD: extension {$extension}");
@@ -41,7 +41,7 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
         $prefix = 'i';
         $extension = $image;
     } else {
-        //chack if is an audio
+        // Check whether it's an audio file
         $type = "video";
         $prefix = 'v';
         if (strcasecmp($extension, 'mp3') == 0 || strcasecmp($extension, 'wav') == 0) {
@@ -53,7 +53,7 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
     require_once $global['systemRootPath'] . 'objects/video.php';
     $duration = Video::getDurationFromFile($_FILES['upl']['tmp_name']);
 
-    // check if can upload video (about time limit storage)
+    // Check whether video can be uploaded (about time limit storage)
     if (!empty($global['videoStorageLimitMinutes'])) {
         $maxDuration = $global['videoStorageLimitMinutes'] * 60;
         $currentStorageUsage = getSecondsTotalVideosLength();
@@ -61,10 +61,10 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
         $limitAfterThisFile = $currentStorageUsage + $thisFile;
         if ($maxDuration < $limitAfterThisFile) {
             $object->msg = "Sorry, your storage limit has run out."
-                    . "<br>[Max Duration: {$maxDuration} Seconds]"
-                    . "<br>[Current Srotage Usage: {$currentStorageUsage} Seconds]"
-                    . "<br>[This File Duration: {$thisFile} Seconds]"
-                    . "<br>[Limit after this file: {$limitAfterThisFile} Seconds]";
+                . "<br>[Max Duration: {$maxDuration} Seconds]"
+                . "<br>[Current Srotage Usage: {$currentStorageUsage} Seconds]"
+                . "<br>[This File Duration: {$thisFile} Seconds]"
+                . "<br>[Limit after this file: {$limitAfterThisFile} Seconds]";
 
             if (!empty($_FILES['upl']['videoId'])) {
                 $video = new Video("", "", $_FILES['upl']['videoId']);
@@ -100,23 +100,23 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
         $video->setVideo_password($_REQUEST['video_password']);
     }
     if ($type == "image") {
-        $video->setStatus(Video::$statusActive);
+        $video->setStatus(Video::STATUS_ACTIVE);
         make_path($paths['path']);
         $file = "{$paths['path']}{$paths['filename']}.{$extension}";
         if (!move_uploaded_file($_FILES['upl']['tmp_name'], $file)) {
             $object->msg = "Error on move_uploaded_file(" . $_FILES['upl']['tmp_name'] . ", " . $file . ")";
-            _error_log("MOBILE UPLOAD IMAGE ERROR: ".  json_encode($object));
+            _error_log("MOBILE UPLOAD IMAGE ERROR: " .  json_encode($object));
             die(json_encode($object));
         }
         $object->error = false;
         $object->msg = "your image was posted";
         $object->videos_id = $video->save();
     } else {
-        $video->setStatus(Video::$statusEncoding);
+        $video->setStatus(Video::STATUS_ENCODING);
 
-        if (!move_uploaded_file($_FILES['upl']['tmp_name'], Video::getStoragePath()."original_" . $filename)) {
-            $object->msg = "Error on move_uploaded_file(" . $_FILES['upl']['tmp_name'] . ", " . Video::getStoragePath()."original_" . $filename . ")";
-            _error_log("MOBILE UPLOAD ERROR: ".  json_encode($object));
+        if (!move_uploaded_file($_FILES['upl']['tmp_name'], Video::getStoragePath() . "original_" . $filename)) {
+            $object->msg = "Error on move_uploaded_file(" . $_FILES['upl']['tmp_name'] . ", " . Video::getStoragePath() . "original_" . $filename . ")";
+            _error_log("MOBILE UPLOAD ERROR: " .  json_encode($object));
             die(json_encode($object));
         }
         $object->videos_id = $video->save();
@@ -125,16 +125,16 @@ if (isset($_FILES['upl']) && $_FILES['upl']['error'] == 0) {
         $object->msg = "We sent your video to the encoder";
     }
     $object->posterSent = false;
-    
-    if(!empty($object->videos_id) && !empty($_REQUEST['base64PNG'])){
+
+    if (!empty($object->videos_id) && !empty($_REQUEST['base64PNG'])) {
         $filePng = "{$paths['path']}{$paths['filename']}.png";
         $fileJpg = "{$paths['path']}{$paths['filename']}.jpg";
         $object->posterSent = saveBase64DataToPNGImage($_REQUEST['base64PNG'], $filePng);
         convertImage($filePng, $fileJpg, 90);
         Video::clearImageCache($paths['filename']);
     }
-    
-    _error_log("MOBILE SUCCESS UPLOAD: ".  json_encode($object));
+
+    _error_log("MOBILE SUCCESS UPLOAD: " .  json_encode($object));
     die(json_encode($object));
 } else {
     _error_log("MOBILE UPLOAD: File Not exists - " . json_encode($_FILES));

@@ -1,53 +1,31 @@
 <?php
-//streamer config
-require_once '../videos/configuration.php';
+require_once __DIR__.'/../videos/configuration.php';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 if (php_sapi_name() !== 'cli') {
-    return die('Command Line only');
+    die('Command Line only');
 }
-
-ob_end_flush();
-
-$prefix = 'mysqldump';
-if(!empty($restore)){
-    $prefix = 'mysqldumpBackup';
+$global['printLogs'] = 1;
+// Example usage
+$filePath = createPrivateMySQLDumpPath();
+if ($filePath === false) {
+    _error_log('Cannot create a private database dump outside the web directories.');
+    exit(1);
 }
+$extraOptions = []; // You can add custom options here if needed
 
-$file = Video::getStoragePath().$prefix.'-'.date('YmdHis').'.sql';
-$excludeTables = ['CachesInDB', 'audit'];  // tables to exclude from the dump
+// Call the function to dump the database
+$result = dumpMySQLDatabase($filePath, $extraOptions);
 
-// Create a connection to the database to retrieve all table names
-$connection = new mysqli($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase, $mysqlPort);
-
-if ($connection->connect_error) {
-    die("Connection failed: " . $connection->connect_error);
+if ($result === false) {
+    @unlink($filePath);
+    @rmdir(dirname($filePath));
+    _error_log("Failed to create database dump.");
+    exit(1);
+} else {
+    _error_log("Database dump created successfully: " . $result);
 }
-
-$res = sqlDAL::readSql("SHOW TABLES");
-$row = sqlDAL::fetchAllAssoc($res);
-foreach ($row as $value) {    
-    $firstElement = reset($value);
-    if (!in_array($firstElement, $excludeTables)) {
-        $tables[] = $firstElement;
-    }
-}
-
-if(empty($mysqlPort)){
-    $mysqlPort = 3306;
-}
-
-// Use the mysqldump command to get the database dump
-$dumpCommand = "mysqldump --host=$mysqlHost --port=$mysqlPort --user=$mysqlUser --password=$mysqlPass "
-             . "--default-character-set=utf8mb4 $mysqlDatabase $tableList > {$file}";
-
-// Execute the command
-system($dumpCommand, $output);
-
-// Check the result
-if ($output !== 0) {
-    die("Error occurred while taking the database dump.");
-}
-
-echo "Database dumped successfully to {$file}".PHP_EOL;
 
 ?>

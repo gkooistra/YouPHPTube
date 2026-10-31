@@ -1,22 +1,35 @@
 <?php
 require_once __DIR__ . '/../../videos/configuration.php';
 
-if (!isCommandLineInterface() && !User::isAdmin()) {
-    forbiddenPage();
-}
+if (!isCommandLineInterface()) {
+    if (!User::isAdmin()) {
+        forbiddenPage();
+    }
 
-if (!AVideoPlugin::isEnabledByName("Rebroadcaster")) {
-    forbiddenPage(__("Rebroadcaster plugin is required"));
-}
+    if (!AVideoPlugin::loadPlugin("Rebroadcaster")) {
+        forbiddenPage(__("Rebroadcaster plugin is required"));
+    }
 
-$obj = AVideoPlugin::getObjectDataIfEnabled("PlayLists");
-if (empty($obj)) {
-    forbiddenPage(__("PlayLists is disabled"));
+    $obj = AVideoPlugin::getObjectDataIfEnabled("PlayLists");
+    if (empty($obj)) {
+        forbiddenPage(__("PlayLists is disabled"));
+    }
+} else {
+    if (!AVideoPlugin::loadPlugin("Rebroadcaster")) {
+        return false;
+    }
+
+    $obj = AVideoPlugin::getObjectDataIfEnabled("PlayLists");
+    if (empty($obj)) {
+        return false;
+    }
 }
 
 require_once $global['systemRootPath'] . 'plugin/PlayLists/Objects/Playlists_schedules.php';
 _session_write_close();
-header('Content-Type: application/json');
+if (!headers_sent()) {
+    header('Content-Type: application/json');
+}
 $obj = new stdClass();
 $obj->error = true;
 $obj->msg = "";
@@ -66,7 +79,7 @@ foreach ($rows as $key => $value) {
 }
 
 $rows = Playlists_schedules::getAllExecuting();
-foreach ($rows as $value) {
+foreach ($rows as $key => $value) {
     if (in_array($value['id'], $processed)) {
         _error_log("Playlist rebroadcast line " . __LINE__);
         continue;

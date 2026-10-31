@@ -3,7 +3,9 @@ header('Content-Type: application/json');
 if (empty($global['systemRootPath'])) {
     $global['systemRootPath'] = '../';
 }
+$closeSessionEarlyIncludeConfig = 1;
 require_once $global['systemRootPath'] . 'videos/configuration.php';
+allowOrigin(true);
 
 $obj = new stdClass();
 $obj->_serverTime = time();

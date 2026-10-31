@@ -12,17 +12,8 @@ allowOrigin();
 $objMM = AVideoPlugin::getObjectData("MobileYPT");
 
 $customizeUser = AVideoPlugin::getDataObject('CustomizeUser');
-if(AVideoPlugin::isEnabledByName('YouPHPFlix2')){
-    $firstPage = "{$global['webSiteRootURL']}plugin/API/get.json.php?APIPlugin=YouPHPFlix2&APIName=firstPage";
-}else{
-    $firstPage = "{$global['webSiteRootURL']}plugin/API/get.json.php?APIPlugin=Gallery&APIName=firstPage";
-}
-if(User::isLogged()){
-    $firstPage = addQueryStringParameter($firstPage, 'rowCount', 50);
-    $firstPage = addQueryStringParameter($firstPage, 'user', User::getUserName());
-    $firstPage = addQueryStringParameter($firstPage, 'pass', User::getUserPass());
-    $firstPage = addQueryStringParameter($firstPage, 'webSiteRootURL', $global['webSiteRootURL']);
-}
+// shared with MobileYPT::deleteFirstPageCache(), which must build the same cache key
+$firstPage = MobileYPT::getFirstPageEndpoint();
 $objMM->firstPageEndpoint = $firstPage;
 
 //$content = url_get_contents($objMM->firstPageEndpoint, "", 0, true, true);
@@ -30,9 +21,11 @@ $content = url_get_contents_with_cache($objMM->firstPageEndpoint, 600, "", 0, fa
 
 $objMM->firstPage = _json_decode($content);
 
+$objMM->disableNativeSignUp = $customizeUser->disableNativeSignUp;
 $objMM->doNotShowPhoneOnSignup = $customizeUser->doNotShowPhoneOnSignup;
 
-$objMM->doNotShowPhoneOnSignup = $customizeUser->doNotShowPhoneOnSignup;
+$objMM->userMustBeLoggedIn = $customizeUser->userMustBeLoggedIn || $objMM->doNotAllowAnonimusAccess;
+$objMM->forceLoginToBeTheEmail = $customizeUser->forceLoginToBeTheEmail;
 
 $chat2 = AVideoPlugin::getDataObjectIfEnabled('Chat2');
 if(!empty($chat2)){
@@ -45,15 +38,38 @@ if(!empty($chat2)){
     $objMM->chat2ShowOnUserVideos = false;
 }
 
+// Lets the app hide features whose plugin is disabled on this site.
+$objMM->plugins = array(
+    'Live' => !empty(AVideoPlugin::isEnabledByName('Live')),
+    'UserNotifications' => !empty(AVideoPlugin::isEnabledByName('UserNotifications')),
+    'ReportVideo' => !empty(AVideoPlugin::isEnabledByName('ReportVideo')),
+);
+
+// Published contact information for the app (Settings > About). Empty when the site hides the contact page.
+$advancedCustom = AVideoPlugin::getDataObjectIfEnabled('CustomizeAdvanced');
+if (empty($advancedCustom) || empty($advancedCustom->disableContactLeftMenu)) {
+    $objMM->contactURL = "{$global['webSiteRootURL']}contact";
+} else {
+    $objMM->contactURL = '';
+}
+$objMM->privacyPolicyURL = empty($objMM->privacyPolicyURL) ? '' : trim((string) $objMM->privacyPolicyURL);
+$objMM->termsOfUseURL = empty($objMM->termsOfUseURL) ? '' : trim((string) $objMM->termsOfUseURL);
+// Authors the viewer blocked: the app hides their rows in every list (see MobileYPT::getBlockedUsersIds)
+$objMM->blockedUsersIds = MobileYPT::getBlockedUsersIds();
+
 $objMM->stats = getStatsNotifications();
+// never echo streams the caller isn't authorized to see (same reasoning as plugin/Live/stats.json.php)
+unset($objMM->stats['hidden_applications']);
 
 $notifications = AVideoPlugin::getDataObjectIfEnabled('Notifications');
 if(!empty($notifications)){
     $objMM->oneSignalEnabled = !_empty($notifications->oneSignalEnabled);
     $objMM->oneSignalAPPID = $notifications->oneSignalAPPID;
+    $objMM->oneSignalFIREBASE_SENDER_ID = $notifications->oneSignalFIREBASE_SENDER_ID;
 }else{
     $objMM->oneSignalEnabled = false;
     $objMM->oneSignalAPPID = '';
+    $objMM->oneSignalFIREBASE_SENDER_ID = '';
 }
 
 $objMM->homePageURL = AVideoPlugin::getMobileHomePageURL();
@@ -66,8 +82,8 @@ $objMM->encoder = $config->getEncoderURL(true);
 $objMM->EULA_original = $objMM->EULA->value;
 $objMM->EULA = nl2br($objMM->EULA->value);
 $objMM->YPTSocket = AVideoPlugin::getDataObjectIfEnabled('YPTSocket');
-$unset = array('debugSocket', 'debugAllUsersSocket', 
-'server_crt_file', 'server_key_file', 'allow_self_signed', 'showTotalOnlineUsersPerVideo', 
+$unset = array('debugSocket', 'debugAllUsersSocket',
+'server_crt_file', 'server_key_file', 'allow_self_signed', 'showTotalOnlineUsersPerVideo',
 'showTotalOnlineUsersPerLive', 'showTotalOnlineUsersPerLiveLink', 'enableCalls');
 
 foreach ($unset as $value) {
@@ -75,6 +91,7 @@ foreach ($unset as $value) {
 }
 
 $objMM->enabledLangs = getEnabledLangs();
+$objMM->flags = Layout::getAvailableFlags();
 $objMM->defaultLang = getLanguage();
 
 @include_once "{$global['systemRootPath']}locale/{$objMM->defaultLang}.php";

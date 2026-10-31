@@ -1,6 +1,11 @@
 <?php
 require_once '../../../videos/configuration.php';
 AVideoPlugin::loadPlugin("Gallery");
+// saveSort.json.php (the only consumer of the token below) requires User::isAdmin();
+// this page must too, otherwise it hands out a valid CSRF token to anyone.
+if (!User::isAdmin()) {
+    forbiddenPage('Permission denied');
+}
 $_page = new Page(array('Gallery'));
 $_page->setInlineStyles('#sortable { list-style-type: none; margin: 0; padding: 0; }#sortable li{ cursor: n-resize; }');
 $_page->setExtraScripts(array('plugin/Gallery/view/sections.js'));
@@ -9,6 +14,7 @@ $_page->setExtraScripts(array('plugin/Gallery/view/sections.js'));
     <div class="panel panel-default">
         <div class="panel-heading"><?php echo __('Sort Gallery Sections') ?> </div>
         <div class="panel-body">
+            <input type="hidden" id="galleryToken" value="<?php echo getToken(300); ?>">
             <ul class="list-group" id="sortable">
                 <?php
                 $sections = Gallery::getSectionsOrder(false);

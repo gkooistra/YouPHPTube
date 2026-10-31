@@ -26,6 +26,10 @@ class CodeCompilationConfig extends \Google\Model
   /**
    * @var string
    */
+  public $builtinAssertionNamePrefix;
+  /**
+   * @var string
+   */
   public $databaseSuffix;
   /**
    * @var string
@@ -35,6 +39,8 @@ class CodeCompilationConfig extends \Google\Model
    * @var string
    */
   public $defaultLocation;
+  protected $defaultNotebookRuntimeOptionsType = NotebookRuntimeOptions::class;
+  protected $defaultNotebookRuntimeOptionsDataType = '';
   /**
    * @var string
    */
@@ -65,6 +71,20 @@ class CodeCompilationConfig extends \Google\Model
   public function getAssertionSchema()
   {
     return $this->assertionSchema;
+  }
+  /**
+   * @param string
+   */
+  public function setBuiltinAssertionNamePrefix($builtinAssertionNamePrefix)
+  {
+    $this->builtinAssertionNamePrefix = $builtinAssertionNamePrefix;
+  }
+  /**
+   * @return string
+   */
+  public function getBuiltinAssertionNamePrefix()
+  {
+    return $this->builtinAssertionNamePrefix;
   }
   /**
    * @param string
@@ -107,6 +127,20 @@ class CodeCompilationConfig extends \Google\Model
   public function getDefaultLocation()
   {
     return $this->defaultLocation;
+  }
+  /**
+   * @param NotebookRuntimeOptions
+   */
+  public function setDefaultNotebookRuntimeOptions(NotebookRuntimeOptions $defaultNotebookRuntimeOptions)
+  {
+    $this->defaultNotebookRuntimeOptions = $defaultNotebookRuntimeOptions;
+  }
+  /**
+   * @return NotebookRuntimeOptions
+   */
+  public function getDefaultNotebookRuntimeOptions()
+  {
+    return $this->defaultNotebookRuntimeOptions;
   }
   /**
    * @param string

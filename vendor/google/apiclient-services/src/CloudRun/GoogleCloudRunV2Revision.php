@@ -35,6 +35,10 @@ class GoogleCloudRunV2Revision extends \Google\Collection
   /**
    * @var string
    */
+  public $creator;
+  /**
+   * @var string
+   */
   public $deleteTime;
   /**
    * @var string
@@ -65,6 +69,10 @@ class GoogleCloudRunV2Revision extends \Google\Collection
    */
   public $generation;
   /**
+   * @var bool
+   */
+  public $gpuZonalRedundancyDisabled;
+  /**
    * @var string[]
    */
   public $labels;
@@ -84,6 +92,8 @@ class GoogleCloudRunV2Revision extends \Google\Collection
    * @var string
    */
   public $name;
+  protected $nodeSelectorType = GoogleCloudRunV2NodeSelector::class;
+  protected $nodeSelectorDataType = '';
   /**
    * @var string
    */
@@ -108,6 +118,8 @@ class GoogleCloudRunV2Revision extends \Google\Collection
    * @var string
    */
   public $serviceAccount;
+  protected $serviceMeshType = GoogleCloudRunV2ServiceMesh::class;
+  protected $serviceMeshDataType = '';
   /**
    * @var bool
    */
@@ -184,6 +196,20 @@ class GoogleCloudRunV2Revision extends \Google\Collection
   public function getCreateTime()
   {
     return $this->createTime;
+  }
+  /**
+   * @param string
+   */
+  public function setCreator($creator)
+  {
+    $this->creator = $creator;
+  }
+  /**
+   * @return string
+   */
+  public function getCreator()
+  {
+    return $this->creator;
   }
   /**
    * @param string
@@ -298,6 +324,20 @@ class GoogleCloudRunV2Revision extends \Google\Collection
     return $this->generation;
   }
   /**
+   * @param bool
+   */
+  public function setGpuZonalRedundancyDisabled($gpuZonalRedundancyDisabled)
+  {
+    $this->gpuZonalRedundancyDisabled = $gpuZonalRedundancyDisabled;
+  }
+  /**
+   * @return bool
+   */
+  public function getGpuZonalRedundancyDisabled()
+  {
+    return $this->gpuZonalRedundancyDisabled;
+  }
+  /**
    * @param string[]
    */
   public function setLabels($labels)
@@ -366,6 +406,20 @@ class GoogleCloudRunV2Revision extends \Google\Collection
   public function getName()
   {
     return $this->name;
+  }
+  /**
+   * @param GoogleCloudRunV2NodeSelector
+   */
+  public function setNodeSelector(GoogleCloudRunV2NodeSelector $nodeSelector)
+  {
+    $this->nodeSelector = $nodeSelector;
+  }
+  /**
+   * @return GoogleCloudRunV2NodeSelector
+   */
+  public function getNodeSelector()
+  {
+    return $this->nodeSelector;
   }
   /**
    * @param string
@@ -464,6 +518,20 @@ class GoogleCloudRunV2Revision extends \Google\Collection
   public function getServiceAccount()
   {
     return $this->serviceAccount;
+  }
+  /**
+   * @param GoogleCloudRunV2ServiceMesh
+   */
+  public function setServiceMesh(GoogleCloudRunV2ServiceMesh $serviceMesh)
+  {
+    $this->serviceMesh = $serviceMesh;
+  }
+  /**
+   * @return GoogleCloudRunV2ServiceMesh
+   */
+  public function getServiceMesh()
+  {
+    return $this->serviceMesh;
   }
   /**
    * @param bool

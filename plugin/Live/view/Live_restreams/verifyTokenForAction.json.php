@@ -1,5 +1,6 @@
 <?php
 
+$global['skipAutoCSRFCheck'] = true;
 require_once '../../../../videos/configuration.php';
 
 header('Content-Type: application/json');
@@ -7,6 +8,14 @@ header('Content-Type: application/json');
 $obj = new stdClass();
 $obj->error = true;
 $obj->msg = "";
+
+if (empty($_REQUEST['token'])) {
+    $request = file_get_contents("php://input");
+    $json = json_decode($request);
+    if (!empty($json->token)) {
+        $_REQUEST['token'] = $json->token;
+    }
+}
 
 if (!AVideoPlugin::isEnabledByName('Live')) {
     forbiddenPage('Plugin is disabled');
@@ -16,6 +25,7 @@ if (empty($_REQUEST['token'])) {
     forbiddenPage('Token is empty');
 }
 
+$liveObj = AVideoPlugin::getDataObject('Live');
 
 $token = Live_restreams_logs::verifyToken($_REQUEST['token']);
 
@@ -44,11 +54,14 @@ $obj->users_id = $lr->getUsers_id();
 $obj->restreamsDestinations = array($obj->live_restreams_id=>$lr->getName());
 $obj->restreamsToken = array($obj->live_restreams_id=>encryptString($obj->live_restreams_id));
 $obj->m3u8 = Live::getM3U8File($lhistory->getKey(), true, true);
-$obj->token = encryptString(array('users_id' => $obj->users_id, 'time' => time(), 'liveTransmitionHistory_id' => $obj->liveTransmitionHistory_id, 'live_restreams_id' => $obj->live_restreams_id));        
+$obj->token = encryptString(array('users_id' => $obj->users_id, 'time' => time(), 'liveTransmitionHistory_id' => $obj->liveTransmitionHistory_id, 'live_restreams_id' => $obj->live_restreams_id));
 $obj->responseToken = $obj->token;
+$obj->restreamStandAloneFFMPEG = $liveObj->restreamStandAloneFFMPEG ;
 
 switch ($token->action) {
     case 'log':
+        break;
+    case 'logContent':
         break;
     case 'stop':
         break;

@@ -11,7 +11,8 @@ if (empty($MediaMetadata)) {
 }
 ?>
 <script>
-    if ('mediaSession' in navigator) {
+    // Android WebView exposes navigator.mediaSession but not MediaMetadata.
+    if ('mediaSession' in navigator && typeof MediaMetadata === 'function') {
         navigator.mediaSession.metadata = new MediaMetadata(<?php echo _json_encode($MediaMetadata); ?>);
 
         setActionHandlerIfSupported('play', function() {
@@ -30,10 +31,12 @@ if (empty($MediaMetadata)) {
         });
         setActionHandlerIfSupported('seekbackward', function() {
             /* Code excerpted. */
+            console.log('currentTime mediasession 1');
             player.currentTime(player.currentTime() - 5);
         });
         setActionHandlerIfSupported('seekforward', function() {
             /* Code excerpted. */
+            console.log('currentTime mediasession 1');
             player.currentTime(player.currentTime() + 5);
         });
         setActionHandlerIfSupported('seekto', function() {
@@ -106,7 +109,7 @@ if (empty($MediaMetadata)) {
             live_schedule_id = isLive.live_schedule_id;
             console.log('updateMediaSessionMetadata isLive', key);
         }
-        if (videos_id) {
+        if (videos_id && 'mediaSession' in navigator && typeof MediaMetadata === 'function') {
             console.log('updateMediaSessionMetadata', videos_id);
             $.ajax({
                 url: webSiteRootURL + 'plugin/PlayerSkins/mediaSession.json.php',

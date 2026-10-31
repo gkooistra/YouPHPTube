@@ -42,6 +42,7 @@ class CloudFunctions extends \Google\Service
   public $projects_locations_functions;
   public $projects_locations_operations;
   public $projects_locations_runtimes;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the CloudFunctions service.
@@ -54,6 +55,7 @@ class CloudFunctions extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://cloudfunctions.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://cloudfunctions.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v2';
@@ -73,6 +75,11 @@ class CloudFunctions extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',
@@ -141,6 +148,16 @@ class CloudFunctions extends \Google\Service
                   'required' => true,
                 ],
               ],
+            ],'detachFunction' => [
+              'path' => 'v2/{+name}:detachFunction',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'name' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
             ],'generateDownloadUrl' => [
               'path' => 'v2/{+name}:generateDownloadUrl',
               'httpMethod' => 'POST',
@@ -169,6 +186,10 @@ class CloudFunctions extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'revision' => [
+                  'location' => 'query',
+                  'type' => 'string',
                 ],
               ],
             ],'getIamPolicy' => [

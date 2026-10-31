@@ -36,12 +36,18 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
   public $currentState;
   protected $customMetadataType = StorageDatabasecenterPartnerapiV1mainCustomMetadataData::class;
   protected $customMetadataDataType = '';
+  /**
+   * @var string
+   */
+  public $edition;
   protected $entitlementsType = StorageDatabasecenterPartnerapiV1mainEntitlement::class;
   protected $entitlementsDataType = 'array';
   /**
    * @var string
    */
   public $expectedState;
+  protected $gcbdrConfigurationType = StorageDatabasecenterPartnerapiV1mainGCBDRConfiguration::class;
+  protected $gcbdrConfigurationDataType = '';
   protected $idType = StorageDatabasecenterPartnerapiV1mainDatabaseResourceId::class;
   protected $idDataType = '';
   /**
@@ -52,8 +58,14 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
    * @var string
    */
   public $location;
+  protected $machineConfigurationType = StorageDatabasecenterPartnerapiV1mainMachineConfiguration::class;
+  protected $machineConfigurationDataType = '';
   protected $primaryResourceIdType = StorageDatabasecenterPartnerapiV1mainDatabaseResourceId::class;
   protected $primaryResourceIdDataType = '';
+  /**
+   * @var string
+   */
+  public $primaryResourceLocation;
   protected $productType = StorageDatabasecenterProtoCommonProduct::class;
   protected $productDataType = '';
   /**
@@ -67,11 +79,15 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
   /**
    * @var string
    */
-  public $updationTime;
+  public $suspensionReason;
+  protected $tagsSetType = StorageDatabasecenterPartnerapiV1mainTags::class;
+  protected $tagsSetDataType = '';
   /**
-   * @var string[]
+   * @var string
    */
-  public $userLabels;
+  public $updationTime;
+  protected $userLabelSetType = StorageDatabasecenterPartnerapiV1mainUserLabels::class;
+  protected $userLabelSetDataType = '';
 
   /**
    * @param StorageDatabasecenterPartnerapiV1mainAvailabilityConfiguration
@@ -158,6 +174,20 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
     return $this->customMetadata;
   }
   /**
+   * @param string
+   */
+  public function setEdition($edition)
+  {
+    $this->edition = $edition;
+  }
+  /**
+   * @return string
+   */
+  public function getEdition()
+  {
+    return $this->edition;
+  }
+  /**
    * @param StorageDatabasecenterPartnerapiV1mainEntitlement[]
    */
   public function setEntitlements($entitlements)
@@ -184,6 +214,20 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
   public function getExpectedState()
   {
     return $this->expectedState;
+  }
+  /**
+   * @param StorageDatabasecenterPartnerapiV1mainGCBDRConfiguration
+   */
+  public function setGcbdrConfiguration(StorageDatabasecenterPartnerapiV1mainGCBDRConfiguration $gcbdrConfiguration)
+  {
+    $this->gcbdrConfiguration = $gcbdrConfiguration;
+  }
+  /**
+   * @return StorageDatabasecenterPartnerapiV1mainGCBDRConfiguration
+   */
+  public function getGcbdrConfiguration()
+  {
+    return $this->gcbdrConfiguration;
   }
   /**
    * @param StorageDatabasecenterPartnerapiV1mainDatabaseResourceId
@@ -228,6 +272,20 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
     return $this->location;
   }
   /**
+   * @param StorageDatabasecenterPartnerapiV1mainMachineConfiguration
+   */
+  public function setMachineConfiguration(StorageDatabasecenterPartnerapiV1mainMachineConfiguration $machineConfiguration)
+  {
+    $this->machineConfiguration = $machineConfiguration;
+  }
+  /**
+   * @return StorageDatabasecenterPartnerapiV1mainMachineConfiguration
+   */
+  public function getMachineConfiguration()
+  {
+    return $this->machineConfiguration;
+  }
+  /**
    * @param StorageDatabasecenterPartnerapiV1mainDatabaseResourceId
    */
   public function setPrimaryResourceId(StorageDatabasecenterPartnerapiV1mainDatabaseResourceId $primaryResourceId)
@@ -240,6 +298,20 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
   public function getPrimaryResourceId()
   {
     return $this->primaryResourceId;
+  }
+  /**
+   * @param string
+   */
+  public function setPrimaryResourceLocation($primaryResourceLocation)
+  {
+    $this->primaryResourceLocation = $primaryResourceLocation;
+  }
+  /**
+   * @return string
+   */
+  public function getPrimaryResourceLocation()
+  {
+    return $this->primaryResourceLocation;
   }
   /**
    * @param StorageDatabasecenterProtoCommonProduct
@@ -286,6 +358,34 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
   /**
    * @param string
    */
+  public function setSuspensionReason($suspensionReason)
+  {
+    $this->suspensionReason = $suspensionReason;
+  }
+  /**
+   * @return string
+   */
+  public function getSuspensionReason()
+  {
+    return $this->suspensionReason;
+  }
+  /**
+   * @param StorageDatabasecenterPartnerapiV1mainTags
+   */
+  public function setTagsSet(StorageDatabasecenterPartnerapiV1mainTags $tagsSet)
+  {
+    $this->tagsSet = $tagsSet;
+  }
+  /**
+   * @return StorageDatabasecenterPartnerapiV1mainTags
+   */
+  public function getTagsSet()
+  {
+    return $this->tagsSet;
+  }
+  /**
+   * @param string
+   */
   public function setUpdationTime($updationTime)
   {
     $this->updationTime = $updationTime;
@@ -298,18 +398,18 @@ class StorageDatabasecenterPartnerapiV1mainDatabaseResourceMetadata extends \Goo
     return $this->updationTime;
   }
   /**
-   * @param string[]
+   * @param StorageDatabasecenterPartnerapiV1mainUserLabels
    */
-  public function setUserLabels($userLabels)
+  public function setUserLabelSet(StorageDatabasecenterPartnerapiV1mainUserLabels $userLabelSet)
   {
-    $this->userLabels = $userLabels;
+    $this->userLabelSet = $userLabelSet;
   }
   /**
-   * @return string[]
+   * @return StorageDatabasecenterPartnerapiV1mainUserLabels
    */
-  public function getUserLabels()
+  public function getUserLabelSet()
   {
-    return $this->userLabels;
+    return $this->userLabelSet;
   }
 }
 

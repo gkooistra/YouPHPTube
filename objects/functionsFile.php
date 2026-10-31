@@ -1,6 +1,7 @@
 <?php
 
-function checkFileModified($filePath) {
+function checkFileModified($filePath)
+{
     // Check if the file exists
     if (file_exists($filePath)) {
         // Get the last modified time of the file
@@ -36,6 +37,31 @@ function file_upload_max_size()
     return $max_size;
 }
 
+function getServerLimits()
+{
+    // Get PHP limits
+    $limits = [
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'max_execution_time' => ini_get('max_execution_time'),
+        'max_input_time' => ini_get('max_input_time')
+    ];
+
+    // Check for Apache-specific limits if running under Apache
+    if (function_exists('apache_get_version')) {
+        $limits['apache_version'] = apache_get_version();
+    }
+
+    // Check if mod_reqtimeout is enabled
+    if (file_exists('/etc/apache2/mods-enabled/reqtimeout.conf')) {
+        $reqtimeout = file_get_contents('/etc/apache2/mods-enabled/reqtimeout.conf');
+        preg_match_all('/RequestReadTimeout\s+(header=.*?,minrate=.*?|body=.*?,minrate=.*?)/', $reqtimeout, $matches);
+        $limits['apache_reqtimeout'] = isset($matches[0]) ? $matches[0] : 'Not set';
+    }
+
+    return $limits;
+}
+
 function parse_size($size)
 {
     $unit = preg_replace('/[^bkmgtpezy]/i', '', $size); // Remove the non-unit characters from the size.
@@ -48,7 +74,8 @@ function parse_size($size)
     }
 }
 
-function humanFileSize($size, $unit = "") {
+function humanFileSize($size, $unit = "")
+{
     if ((!$unit && $size >= 1 << 40) || $unit == "TB") {
         return number_format($size / (1 << 40), 2) . "TB";
     }
@@ -86,8 +113,66 @@ function checkVideosDir()
 
 function getVideosDir()
 {
-    return Video::getStoragePath();
+    global $isStandAlone, $global;
+    if (empty($isStandAlone)) {
+        return Video::getStoragePath();
+    } else {
+        return "{$global['systemRootPath']}videos/";
+    }
 }
+
+function rrmdir($dir)
+{
+    //if(preg_match('/cache/i', $dir)){_error_log("rrmdir($dir) ". json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)));exit;}
+
+    $dir = str_replace(['//', '\\\\'], DIRECTORY_SEPARATOR, $dir);
+    //_error_log('rrmdir: ' . $dir);
+    if (empty($dir)) {
+        _error_log('rrmdir: the dir was empty');
+        return false;
+    }
+    global $global;
+    $dir = fixPath($dir);
+    $pattern = '/' . addcslashes($dir, DIRECTORY_SEPARATOR) . 'videos[\/\\\]?$/i';
+    if ($dir == getVideosDir() || $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR || preg_match($pattern, $dir)) {
+        _error_log('rrmdir: A script ties to delete the videos Directory [' . $dir . '] ' . json_encode([$dir == getVideosDir(), $dir == "{$global['systemRootPath']}videos" . DIRECTORY_SEPARATOR, preg_match($pattern, $dir)]));
+        return false;
+    }
+    rrmdirCommandLine($dir);
+    if (is_dir($dir)) {
+        //_error_log('rrmdir: The Directory was not deleted, trying again ' . $dir);
+        $objects = @scandir($dir);
+        if (!empty($objects)) {
+            //_error_log('rrmdir: scandir ' . $dir . ' '. json_encode($objects));
+            foreach ($objects as $object) {
+                if ($object !== '.' && $object !== '..') {
+                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object)) {
+                        rrmdir($dir . DIRECTORY_SEPARATOR . $object);
+                    } else {
+                        unlink($dir . DIRECTORY_SEPARATOR . $object);
+                    }
+                }
+            }
+        }
+        if (preg_match('/(\/|^)videos(\/cache)?\/?$/i', $dir)) {
+            _error_log('rrmdir: do not delete videos or cache folder ' . $dir);
+            // do not delete videos or cache folder
+            return false;
+        }
+        if (is_dir($dir)) {
+            if (@rmdir($dir)) {
+                return true;
+            } elseif (is_dir($dir)) {
+                _error_log('rrmdir: could not delete folder ' . $dir);
+                return false;
+            }
+        }
+    } else {
+        //_error_log('rrmdir: The Directory does not exists '.$dir);
+        return true;
+    }
+}
+
 
 function make_path($path)
 {
@@ -107,13 +192,29 @@ function make_path($path)
         $created = true;
     }
 
-    if (preg_match('/cache/i', $path) || isCommandLineInterface()) {
-        $mode = 0777;
-    } else {
-        $mode = 0755;
-    }
-    @chmod($path, $mode);
+    setPathPermissions($path);
     return $created;
+}
+
+function setPathPermissions($path)
+{
+    if (empty($path) || !file_exists($path)) {
+        return false;
+    }
+
+    if (preg_match('/cache/i', $path) || isCommandLineInterface()) {
+        $dirMode = 0777;
+        $fileMode = 0666;
+    } else {
+        $dirMode = 0755;
+        $fileMode = 0644;
+    }
+
+    if (is_dir($path)) {
+        return @chmod($path, $dirMode);
+    }
+
+    return @chmod($path, $fileMode);
 }
 
 function local_get_contents($path)
@@ -130,22 +231,57 @@ function try_get_contents_from_local($url)
 {
     if (substr($url, 0, 1) === '/') {
         // it is not a URL
+        // SECURITY REVIEW (2026-10-11): no containment check here on purpose; url_get_contents() already
+        // limits local paths with isValidURLOrPath(). See the GHSA-92c3-6rq2-q65q comment there.
         return file_get_contents($url);
     }
     global $global;
 
     $parts = explode('/videos/', $url);
     if (!empty($parts[1])) {
-        if (preg_match('/cache\//', $parts[1])) {
+        // Drop any query string or fragment so a traversal payload in the query
+        // string (e.g. ?a=/videos/../../etc/passwd) cannot be interpreted as part
+        // of the local file path.
+        $relativePath = preg_replace('/[?#].*$/', '', $parts[1]);
+
+        if (preg_match('/cache\//', $relativePath)) {
             $encoder = '';
         } else {
             $encoder = 'Encoder/';
         }
-        $tryFile = "{$global['systemRootPath']}{$encoder}videos/{$parts[1]}";
-        //_error_log("try_get_contents_from_local {$url} => {$tryFile}");
-        if (file_exists($tryFile)) {
-            return file_get_contents($tryFile);
+
+        $videosBaseDir = realpath("{$global['systemRootPath']}{$encoder}videos");
+        if ($videosBaseDir === false) {
+            return false;
         }
+
+        // Defense-in-depth: block explicit traversal payloads before touching the
+        // filesystem. This is the only case that is an actual security violation.
+        if (strpos($relativePath, '..') !== false) {
+            _error_log("try_get_contents_from_local: blocked path traversal attempt for url={$url}");
+            return false;
+        }
+
+        $tryFile = "{$global['systemRootPath']}{$encoder}videos/{$relativePath}";
+
+        // When the file is not stored locally (e.g. it lives on a remote storage
+        // server and the local copy is just a dummy) we simply return false so the
+        // caller can fetch it over HTTP. This is a normal condition, not a security
+        // violation, so do not log it as a path traversal attempt.
+        if (!file_exists($tryFile)) {
+            return false;
+        }
+
+        // Final check: confirm the resolved real path stays within the videos dir.
+        $realTryFile = realpath($tryFile);
+        if ($realTryFile === false
+            || strpos($realTryFile, $videosBaseDir . DIRECTORY_SEPARATOR) !== 0
+        ) {
+            _error_log("try_get_contents_from_local: blocked path traversal attempt for url={$url}");
+            return false;
+        }
+        //_error_log("try_get_contents_from_local {$url} => {$tryFile}");
+        return file_get_contents($tryFile);
     }
     return false;
 }
@@ -688,10 +824,14 @@ function getTmpDir($subdir = "")
     }
     if (empty($_SESSION['getTmpDir'][$subdir . "_"])) {
         if (empty($global['tmpDir'])) {
-            $tmpDir = sys_get_temp_dir();
+            // disabled it because command line and web were generating different caches
+            //$tmpDir = sys_get_temp_dir();
+            $tmpDir = '/var/www/tmp/';
             if (empty($tmpDir) || !_isWritable($tmpDir)) {
                 $obj = AVideoPlugin::getDataObjectIfEnabled('Cache');
-                $tmpDir = $obj->cacheDir;
+                if (!empty($obj)) {
+                    $tmpDir = $obj->cacheDir;
+                }
                 if (empty($tmpDir) || !_isWritable($tmpDir)) {
                     $tmpDir = getVideosDir() . "cache" . DIRECTORY_SEPARATOR;
                 }
@@ -721,11 +861,19 @@ function getTmpFile()
 
 function _file_put_contents($filename, $data, $flags = 0, $context = null)
 {
+    if (!is_string($filename) || trim($filename) === '') {
+        _error_log("_file_put_contents: empty filename");
+        return false;
+    }
     make_path($filename);
     if (!is_string($data)) {
         $data = _json_encode($data);
     }
-    return file_put_contents($filename, $data, $flags, $context);
+    $bytes = file_put_contents($filename, $data, $flags, $context);
+    if ($bytes !== false) {
+        setPathPermissions($filename);
+    }
+    return $bytes;
 }
 
 // just realize the readdir is a lot faster then glob
@@ -780,14 +928,14 @@ function globVideosDir($filename, $filesOnly = false, $recreateCache = false)
         $cleanfilename = '';
     }
 
-    $pattern = "/{$cleanfilename}.*";
+    $pattern = "/({$cleanfilename}|index).*";
     if (!empty($filesOnly)) {
         $formats = getValidFormats();
-        $pattern .= ".(" . implode("|", $formats) . ")";
+        $pattern .= ".(" . implode("|", $formats) . ")$";
     }
     $pattern .= "/";
     //_error_log("_glob($dir, $pattern)");
-    //var_dump($dir, $pattern);
+    // var_dump($dir, $pattern);
     return _glob($dir, $pattern, $recreateCache);
 }
 
@@ -830,8 +978,8 @@ function getIncludeFileContent($filePath, $varsArray = [], $setCacheName = false
     //$return = "<!-- {$basename} start -->";
     $return = '';
     if (!empty($setCacheName)) {
-        $name = $filePath . '_' . User::getId() . '_' . getLanguage(). '_'.(isForKidsSet()?'kids':'');
-        if(is_string($setCacheName)){
+        $name = $filePath . '_' . User::getId() . '_' . getLanguage() . '_' . (isForKidsSet() ? 'kids' : '');
+        if (is_string($setCacheName)) {
             $name .= $setCacheName;
         }
         //var_dump($name);exit;
@@ -1029,7 +1177,7 @@ function fixPath($path, $addLastSlash = false)
     if (empty($path)) {
         return false;
     }
-    if (isWindows()) {
+    if (isWindowsServer()) {
         $path = str_replace('/', DIRECTORY_SEPARATOR, $path);
         $path = str_replace('\\\\\\', DIRECTORY_SEPARATOR, $path);
     } else {
@@ -1039,4 +1187,106 @@ function fixPath($path, $addLastSlash = false)
         $path = rtrim($path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
     }
     return $path;
+}
+
+function getVideosDirectoryUsageInfo()
+{
+    $dir = getVideosDir();
+    // Verify if the directory exists
+    if (!file_exists($dir)) {
+        return "Directory does not exist.";
+    }
+
+    // Check if the directory is a symbolic link
+    $isSymbolicLink = is_link($dir);
+
+    // Get the real path of the directory
+    $realPath = realpath($dir);
+
+    // Get disk usage information using 'du' command
+    $command = "du -s $realPath 2>&1"; // Removed 'h' to get the usage in bytes
+    $usageOutput = shell_exec($command);
+    $usageBytes = intval(preg_split('/\s+/', $usageOutput)[0]) * 1024; // Convert from KB to bytes
+
+    // Get the total space and free space on the partition
+    $totalSpace = disk_total_space($realPath);
+    $freeSpace = disk_free_space($realPath);
+    $usedSpace = $totalSpace - $freeSpace;
+    $usedPercentage = ($usedSpace / $totalSpace) * 100;
+
+    // Format the size values and percentage
+    $totalSpaceFormatted = humanFileSize($totalSpace);
+    $freeSpaceFormatted = humanFileSize($freeSpace);
+    $usedSpaceFormatted = humanFileSize($usedSpace);
+    $usedPercentageFormatted = sprintf('%.2f%%', $usedPercentage);
+
+    return [
+        'is_symbolic_link' => $isSymbolicLink,
+        'real_path' => $realPath,
+        'directory_usage' => trim($usageOutput),
+        'directory_bytes_used' => $usageBytes,  // Total bytes used by the directory
+        'total_space_bytes' => $totalSpace,     // Total bytes in the partition
+        'free_space_bytes' => $freeSpace,       // Free bytes in the partition
+        'used_space_bytes' => $usedSpace,       // Used bytes in the partition
+        'directory_used' => humanFileSize($usageBytes),
+        'total_space' => $totalSpaceFormatted,
+        'free_space' => $freeSpaceFormatted,
+        'used_space' => $usedSpaceFormatted,
+        'used_percentage' => $usedPercentageFormatted,
+        'used_percentage_number' => $usedPercentage
+    ];
+}
+
+function findMP4File($folderPath)
+{
+    // Ensure the folder path ends with a slash
+    $folderPath = addLastSlash($folderPath);
+
+    // Open the folder and iterate over files
+    if (is_dir($folderPath)) {
+        $files = scandir($folderPath);
+        foreach ($files as $file) {
+            // Check if the file has a .mp4 extension
+            if (pathinfo($file, PATHINFO_EXTENSION) === 'mp4') {
+                // Return the absolute path to the first .mp4 file found
+                return $folderPath . $file;
+            }
+        }
+    }
+
+    // Return false if no .mp4 file is found
+    return false;
+}
+
+
+function findMP3File($folderPath)
+{
+    // Ensure the folder path ends with a slash
+    $folderPath = addLastSlash($folderPath);
+
+    // Open the folder and iterate over files
+    if (is_dir($folderPath)) {
+        $files = scandir($folderPath);
+        foreach ($files as $file) {
+            // Check if the file has a .mp4 extension
+            if (pathinfo($file, PATHINFO_EXTENSION) === 'mp3') {
+                // Return the absolute path to the first .mp4 file found
+                return $folderPath . $file;
+            }
+        }
+    }
+
+    // Return false if no .mp4 file is found
+    return false;
+}
+
+
+// Helper function to read JSON files
+function readJsonFile($filePath)
+{
+    if (!file_exists($filePath)) {
+        return null;
+    }
+    $content = file_get_contents($filePath);
+    return json_decode($content, true);
 }

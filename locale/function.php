@@ -10,6 +10,10 @@ if (!empty($_GET['lang'])) {
 includeLangFile();
 
 function includeLangFile() {
+    global $isStandAlone;
+    if(!empty($isStandAlone)){
+        return false;
+    }
     global $t, $global;
     if(empty($_SESSION) && function_exists('_session_start')){
         _session_start();
@@ -17,9 +21,17 @@ function includeLangFile() {
     if(empty($_SESSION['language'])){
         $_SESSION['language'] = '';
     }
-    $_SESSION['language'] = str_replace('../', '', $_SESSION['language']);
+    if (!isValidLanguageCode($_SESSION['language'])) {
+        $_SESSION['language'] = '';
+    }
     setSiteLang();
     @include_once "{$global['systemRootPath']}locale/{$_SESSION['language']}.php";
+
+    // Close session immediately after reading language to prevent session locks
+    // This is critical for feeds and public pages that don't need session persistence
+    if(function_exists('_session_write_close')){
+        _session_write_close();
+    }
 }
 
 function __($str, $allowHTML = false) {
@@ -121,7 +133,7 @@ function textToLink($string, $targetBlank = false) {
     if ($targetBlank) {
         $target = "target=\"_blank\"";
     }
-    return preg_replace('$(\s|^)(https?://[a-z0-9_./?=&-]+)(?![^<>]*>)$i', ' <a href="$2" ' . $target . '>$2</a> ', $string);
+    return preg_replace('$(\s|^)(https?://[a-z0-9_./?=&@:-]+)(?![^<>]*>)$i', ' <a href="$2" ' . $target . '>$2</a> ', $string);
 }
 
 function br2nl($html) {
@@ -138,65 +150,87 @@ function flag2Lang($flagCode) {
     return $flagCode;
 }
 
+function getUserLocationLanguageSettings()
+{
+    global $doNotConnectDatabaseIncludeConfig;
+    if (!class_exists('sqlDAL') || !empty($doNotConnectDatabaseIncludeConfig) || !function_exists('_mysql_is_open')) {
+        return false;
+    }
+    $sql = "SELECT object_data, status FROM plugins WHERE name = ? LIMIT 1";
+    $res = sqlDAL::readSql($sql, 's', ['User_Location']);
+    $row = sqlDAL::fetchAssoc($res);
+    sqlDAL::close($res);
+    if (empty($row) || empty($row['object_data']) || $row['status'] !== 'active') {
+        return false;
+    }
+    $data = _json_decode(stripslashes($row['object_data']));
+    if (empty($data)) {
+        $data = _json_decode($row['object_data']);
+    }
+    return $data;
+}
+
 function setSiteLang() {
     global $config, $global;
     if (empty($global['systemRootPath'])) {
         if (function_exists('getLanguageFromBrowser')) {
-            
+
             setLanguage(getLanguageFromBrowser());
         } else {
-            
+
             setLanguage('en_US');
         }
-        
-    } else {
-        
-        require_once $global['systemRootPath'] . 'plugin/AVideoPlugin.php';
-        $userLocation = false;
-        
-        $obj = AVideoPlugin::getDataObjectIfEnabled('User_Location');
-        
-        $userLocation = !empty($obj) && !empty($obj->autoChangeLanguage);
 
+    } else {
+        $userLocation = getUserLocationLanguageSettings();
         if (!empty($_GET['lang'])) {
-            
+
             _session_start();
-            
+
             setLanguage($_GET['lang']);
-        } else if ($userLocation) {
-            
-            User_Location::changeLang();
+        } else if (!empty($userLocation) && !empty($userLocation->autoChangeLanguage)) {
+            $lang = '';
+            if (!empty($userLocation->useLanguageFrom->value) && $userLocation->useLanguageFrom->value == 'browser') {
+                if (function_exists('getLanguageFromBrowser')) {
+                    $lang = getLanguageFromBrowser();
+                }
+            }
+
+            if (!empty($lang)) {
+                _session_start();
+                setLanguage($lang);
+            }
         }
-        
+
         try {
             if (empty($config) || !is_object($config)) {
-                
+
                 require_once $global['systemRootPath'] . 'objects/configuration.php';
                 if (class_exists('Configuration')) {
                     $config = new Configuration();
                 } else {
                     //_error_log("setSiteLang ERROR 1 systemRootPath=[{$global['systemRootPath']}] " . json_encode(debug_backtrace()));
                 }
-                
+
             }
         } catch (Exception $exc) {
             _error_log("setSiteLang ERROR 2 systemRootPath=[{$global['systemRootPath']}] " . $exc->getMessage() . ' ' . json_encode(debug_backtrace()));
         }
 
         if (empty($_SESSION['language']) && is_object($config)) {
-            
+
             setLanguage($config->getLanguage());
-            
+
         }
         if (empty($_SESSION['language'])) {
             if (function_exists('getLanguageFromBrowser')) {
-                
+
                 setLanguage(getLanguageFromBrowser());
             } else {
-                
+
                 setLanguage('en_US');
             }
-            
+
         }
     }
 }
@@ -207,16 +241,17 @@ function setLanguage($lang) {
         return false;
     }
     global $global;
+    if(empty($global['systemRootPath'])){
+        return false;
+    }
     $lang = flag2Lang($lang);
     if (empty($lang) || $lang === '-') {
         return false;
     }
 
-    $lang = str_replace('../', '', $lang);
-
     $file = "{$global['systemRootPath']}locale/{$lang}.php";
     _session_start();
-    if (file_exists($file)) {
+    if (isValidLanguageCode($lang) && file_exists($file)) {
         $_SESSION['language'] = $lang;
         include_once $file;
         return true;
@@ -224,7 +259,7 @@ function setLanguage($lang) {
         //_error_log('setLanguage: File does not exists 1 ' . $file);
         $lang = strtolower($lang);
         $file = "{$global['systemRootPath']}locale/{$lang}.php";
-        if (file_exists($file)) {
+        if (isValidLanguageCode($lang) && file_exists($file)) {
             $_SESSION['language'] = $lang;
             include_once $file;
             return true;
@@ -232,7 +267,7 @@ function setLanguage($lang) {
             $parts = explode('_', $lang);
             $lang = $parts[0];
             $file = "{$global['systemRootPath']}locale/{$lang}.php";
-            if (file_exists($file)) {
+            if (isValidLanguageCode($lang) && file_exists($file)) {
                 $_SESSION['language'] = $lang;
                 include_once $file;
                 return true;
@@ -242,6 +277,15 @@ function setLanguage($lang) {
         }
     }
     return false;
+}
+
+// A language code names a translation file in locale/ (en_US, pt_BR, zh_Hant_TW). It comes from
+// ?lang=, the Accept-Language header or the session, so it must never contain a path.
+function isValidLanguageCode($lang) {
+    if (!is_string($lang) || !preg_match('/^[a-z0-9_-]+$/i', $lang)) {
+        return false;
+    }
+    return !in_array(strtolower($lang), ['index', 'function', 'save'], true);
 }
 
 function getLanguage() {

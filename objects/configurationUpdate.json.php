@@ -15,41 +15,16 @@ require_once $global['systemRootPath'] . 'videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/configuration.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 
-_error_log("save configuration {$_POST['language']}");
+forbidIfIsUntrustedRequest('configurationUpdate');
 
+require_once __DIR__ . '/configurationForm.php';
 $config = new AVideoConf();
-$config->setContactEmail($_POST['contactEmail']);
-$config->setLanguage($_POST['language']);
-$config->setWebSiteTitle($_POST['webSiteTitle']);
-$config->setDescription($_POST['description']);
-$config->setAuthCanComment($_POST['authCanComment']);
-$config->setAuthCanUploadVideos($_POST['authCanUploadVideos']);
-$config->setAuthCanViewChart($_POST['authCanViewChart']);
-if (empty($global['disableAdvancedConfigurations'])) {
-    $config->setDisable_analytics($_POST['disable_analytics']);
-    $config->setAllow_download($_POST['allow_download']);
-    $config->setSession_timeout($_POST['session_timeout']);
-    $config->setEncoderURL($_POST['encoder_url']);
-    $config->setSmtp($_POST['smtp']);
-    $config->setSmtpAuth($_POST['smtpAuth']);
-    $config->setSmtpSecure($_POST['smtpSecure']);
-    $config->setSmtpHost($_POST['smtpHost']);
-    $config->setSmtpUsername($_POST['smtpUsername']);
-    $config->setSmtpPassword($_POST['smtpPassword']);
-    $config->setSmtpPort($_POST['smtpPort']);
-}
-
-$config->setHead($_POST['head']);
-$config->setAdsense($_POST['adsense']);
-$config->setMode('Youtube');
-
-$config->setAutoplay($_POST['autoplay']);
-$config->setTheme($_POST['theme']);
+applySiteConfigurationValues($config, $_POST, empty($global['disableAdvancedConfigurations']));
 
 $imagePath = "videos/userPhoto/";
 
 //Check write Access to Directory
-if (!file_exists($global['systemRootPath'] . $imagePath)) {
+if (!empty($_POST['logoImgBase64']) && !file_exists($global['systemRootPath'] . $imagePath)) {
     mkdir($global['systemRootPath'] . $imagePath, 0755, true);
 }
 /*
@@ -64,6 +39,8 @@ if (!is_writable($global['systemRootPath'] . $imagePath)) {
  *
  */
 $response = [];
+$response2 = [];
+$warning = null;
 if (!empty($_POST['logoImgBase64'])) {
     $fileData = base64DataToImage($_POST['logoImgBase64']);
     $fileName = 'logo.png';
@@ -90,21 +67,31 @@ if (!empty($_POST['faviconBase64'])) {
     $photoURL = $imagePath . $fileName;
     $bytes = file_put_contents($global['systemRootPath'] . $photoURL, $fileData);
     if ($bytes > 10) {
+
+        pwaIconsArray($global['systemRootPath'] . $photoURL, true);
+
         $response2 = [
             "status" => 'success',
             "url" => $global['systemRootPath'] . $photoURL,
         ];
 
-        $sizes = [
-            [16, 16],
-            [24, 24],
-            [32, 32],
-            [48, 48],
-            [144, 144],
-        ];
+        $sizes = [16, 24, 32, 48, 144];
+        $input = $global['systemRootPath'] . $photoURL;
+        $output = $global['systemRootPath'] . $imagePath . 'favicon.ico';
 
-        $ico_lib = new PHP_ICO($global['systemRootPath'] . $photoURL, $sizes);
-        $ico_lib->save_ico($global['systemRootPath'] . $imagePath.'favicon.ico');
+        // An optional ICO conversion must not abort saving the other settings.
+        $convertPath = function_exists('shell_exec') ? trim((string) shell_exec('command -v convert')) : '';
+        if (empty($convertPath) || !function_exists('exec')) {
+            $warning = __('Settings saved, but favicon.ico could not be generated. Check ImageMagick.');
+        } else {
+            $sizesStr = implode(',', $sizes);
+            $cmd = escapeshellarg($convertPath) . ' ' . escapeshellarg($input)
+                . ' -define icon:auto-resize=' . escapeshellarg($sizesStr) . ' ' . escapeshellarg($output);
+            exec($cmd, $outputLog, $returnCode);
+            if ($returnCode !== 0) {
+                $warning = __('Settings saved, but favicon.ico could not be generated. Check ImageMagick.');
+            }
+        }
     } else {
         $response2 = [
             "status" => 'error',
@@ -114,4 +101,13 @@ if (!empty($_POST['faviconBase64'])) {
     }
 }
 
-echo '{"status":"' . $config->save() . '", "respnseLogo": ' . json_encode($response) . ', "respnseFavicon": ' . json_encode($response2) . '}';
+$saved = $config->save();
+$imageError = ($response['status'] ?? '') === 'error' || ($response2['status'] ?? '') === 'error';
+echo json_encode([
+    'status' => (string) $saved,
+    'error' => empty($saved) || $imageError,
+    'warning' => $warning,
+    // Keep the existing response keys for integrations.
+    'respnseLogo' => $response,
+    'respnseFavicon' => $response2,
+]);

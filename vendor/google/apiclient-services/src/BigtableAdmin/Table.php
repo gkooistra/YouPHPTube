@@ -19,6 +19,8 @@ namespace Google\Service\BigtableAdmin;
 
 class Table extends \Google\Model
 {
+  protected $automatedBackupPolicyType = AutomatedBackupPolicy::class;
+  protected $automatedBackupPolicyDataType = '';
   protected $changeStreamConfigType = ChangeStreamConfig::class;
   protected $changeStreamConfigDataType = '';
   protected $clusterStatesType = ClusterState::class;
@@ -39,9 +41,25 @@ class Table extends \Google\Model
   public $name;
   protected $restoreInfoType = RestoreInfo::class;
   protected $restoreInfoDataType = '';
+  protected $rowKeySchemaType = GoogleBigtableAdminV2TypeStruct::class;
+  protected $rowKeySchemaDataType = '';
   protected $statsType = TableStats::class;
   protected $statsDataType = '';
 
+  /**
+   * @param AutomatedBackupPolicy
+   */
+  public function setAutomatedBackupPolicy(AutomatedBackupPolicy $automatedBackupPolicy)
+  {
+    $this->automatedBackupPolicy = $automatedBackupPolicy;
+  }
+  /**
+   * @return AutomatedBackupPolicy
+   */
+  public function getAutomatedBackupPolicy()
+  {
+    return $this->automatedBackupPolicy;
+  }
   /**
    * @param ChangeStreamConfig
    */
@@ -139,6 +157,20 @@ class Table extends \Google\Model
   public function getRestoreInfo()
   {
     return $this->restoreInfo;
+  }
+  /**
+   * @param GoogleBigtableAdminV2TypeStruct
+   */
+  public function setRowKeySchema(GoogleBigtableAdminV2TypeStruct $rowKeySchema)
+  {
+    $this->rowKeySchema = $rowKeySchema;
+  }
+  /**
+   * @return GoogleBigtableAdminV2TypeStruct
+   */
+  public function getRowKeySchema()
+  {
+    return $this->rowKeySchema;
   }
   /**
    * @param TableStats

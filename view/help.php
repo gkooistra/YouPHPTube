@@ -20,7 +20,7 @@ $_page = new Page(array('Help'));
             <p><?php echo __('Here you can find help, how this platform works.'); ?></p>
             <?php if (User::isAdmin()) { ?>
                 <h2><?php echo __('Admin\'s manual'); ?></h2>
-                <p><?php echo __('Only you can see this, because you are a admin.'); ?></p>
+                <p><?php echo __('Only you can see this, because you are an admin.'); ?></p>
                 <h3><?php echo __('Settings and plugins'); ?></h3>
                 <p><?php echo __('The default'); ?> <a href='<?php echo $global['webSiteRootURL']; ?>siteConfigurations'><?php echo __('site config'); ?></a>, <?php echo __('you can find on the menu-point. But there are more settings avaible; go to the'); ?> <a href='<?php echo $global['webSiteRootURL']; ?>plugins'><?php echo __('plugins'); ?></a> <?php echo __('and check the'); ?> "CustomiseAdvanced"<?php echo __('-Plugin'); ?>.</p>
                 <p><?php echo __('Like on a lot of plugins, on the right site, you will find a button'); ?> "<i class="fa-solid fa-pen-to-square"></i><?php echo __('Edit parameters'); ?>". <?php echo __('This button is always a click worth'); ?>.</p>
@@ -33,8 +33,8 @@ $_page = new Page(array('Help'));
                 <p><?php echo __('Done'); ?>!</p>
                 <hr />
                 <h3><?php echo __('Update via ftp/files'); ?></h3>
-                <p><?php echo __('Download this file'); ?>: <a href="https://github.com/WWBN/AVideo/archive/master.zip">github.com/DanielnetoDotCom/AVideo/archive/master.zip</a> (<?php echo __('always the newest'); ?>).</p>
-                <p><?php echo __('Unzip and upload/replace the'); ?> <b><?php echo __('all'); ?></b> <?php echo __('the files. Only the videos-folder should stay untouched.'); ?></p>
+                <p><?php echo __('Download this file'); ?>: <a href="https://github.com/WWBN/AVideo/archive/master.zip">https://github.com/WWBN/AVideo/archive/master.zip</a> (<?php echo __('always the newest'); ?>).</p>
+                <p><?php echo __('Unzip and upload/replace <b>all</b> of the files. Only the videos folder should stay untouched.'); ?></p>
                 <p><?php echo __('It can be, that you will need a database-update after. For this, go as admin to the menu-point'); ?> "<a href='<?php echo $global['webSiteRootURL']; ?>update'><?php echo __('Update version'); ?></a>".</p>
                 <p><?php echo __('Done'); ?>!</p>
                 <hr />

@@ -80,7 +80,11 @@ function getDeviceID($useRandomString = true)
     $ip = md5(getRealIpAddr());
     $pattern = "/[^0-9a-z_.-]/i";
     if (empty($_SERVER['HTTP_USER_AGENT'])) {
-        $device = "unknowDevice-{$ip}";
+        if(isCommandLineInterface()){
+            $device = "commandLine";
+        }else{
+            $device = "unknowDevice-{$ip}";
+        }
         $device .= '-' . intval(User::getId());
         return preg_replace($pattern, '-', $device);
     }
@@ -136,12 +140,15 @@ function fakeBrowser($url)
     return $output;
 }
 
-function getUserAgentInfo(){
-    return get_browser_name() . '/' . getOS(). ' ('.(isMobile() ? "Mobile" : "PC").')';
+function getUserAgentInfo($user_agent = ''){
+    return get_browser_name($user_agent) . '/' . getOS($user_agent). ' ('.(isMobile($user_agent) ? "Mobile" : "PC").')';
 }
 
 function get_browser_name($user_agent = "")
 {
+    if(isCommandLineInterface()){
+        return 'Commandline';
+    }
     if (empty($user_agent)) {
         $user_agent = @$_SERVER['HTTP_USER_AGENT'];
     }
@@ -157,11 +164,12 @@ function get_browser_name($user_agent = "")
     $t = " " . $t;
 
     // Humans / Regular Users
-    if (isAVideoStreamer($t)) {
+    // These detectors match case-sensitively against the real UA, so pass $user_agent (not the lowercased $t)
+    if (isAVideoMobileApp($user_agent)) {
         return 'AVideo Mobile App';
-    } elseif ($url = isAVideoEncoder($t)) {
+    } elseif ($url = isAVideoEncoder($user_agent)) {
         return 'AVideo Encoder ' . $url;
-    } elseif ($url = isAVideoStreamer($t)) {
+    } elseif ($url = isAVideoStreamer($user_agent)) {
         return 'AVideo Streamer ' . $url;
     } elseif (strpos($t, 'crkey')) {
         return 'Chromecast';
@@ -229,10 +237,10 @@ function get_browser_name($user_agent = "")
         strpos($t, 'bot') || strpos($t, 'archive') ||
         strpos($t, 'info') || strpos($t, 'data')
     ) {
-        return '[Bot] Other';
+        return '[Bot] Other '.$user_agent;
     }
     //_error_log("Unknow user agent ($t) IP=" . getRealIpAddr() . " URI=" . getRequestURI());
-    return 'Other (Unknown)';
+    return 'Other (Unknown) '.$user_agent;
 }
 
 /**
@@ -298,7 +306,7 @@ function getOS($user_agent = "")
             '/tizen/i' => 'Tizen',
             '/webos tv/i' => 'WebOS TV'
         ];
-        
+
 
         foreach ($os_array as $regex => $value) {
             if (preg_match($regex, $user_agent)) {

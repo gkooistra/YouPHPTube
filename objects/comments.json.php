@@ -1,14 +1,11 @@
 <?php
 global $global, $config;
-if (!isset($global['systemRootPath'])) {
-    $global['systemRootPath'] = '../';
-}
+require_once __DIR__.'/../videos/configuration.php';
 require_once $global['systemRootPath'] . 'objects/comment.php';
 require_once $global['systemRootPath'] . 'objects/user.php';
 require_once $global['systemRootPath'] . 'objects/video.php';
 require_once $global['systemRootPath'] . 'objects/functions.php';
 header('Content-Type: application/json');
-
 setRowCount(10);
 
 //setDefaultSort('id', 'DESC');
@@ -20,11 +17,13 @@ if(empty($_REQUEST['id'])){
        //$_POST['sort']['comments_id_pai'] = 'DESC';
        $_POST['sort']['id'] = 'DESC';
     }
+    forbiddenPageIfCannotWatchVideo(@$_REQUEST['video_id']);
     $comments = Comment::getAllComments(@$_REQUEST['video_id'], @$_REQUEST['comments_id'], 0, true);
     $total = Comment::getTotalComments(@$_REQUEST['video_id'], @$_REQUEST['comments_id']);
 }else{
     $comment = Comment::getComment($_REQUEST['id']);
     if(!empty($comment)){
+        forbiddenPageIfCannotWatchVideo($comment['videos_id']);
         $comments = [$comment];
         $total = 1;
     }else{

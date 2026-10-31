@@ -28,6 +28,10 @@ class AccessApprovalSettings extends \Google\Collection
    * @var bool
    */
   public $ancestorHasActiveKeyVersion;
+  protected $approvalPolicyType = CustomerApprovalApprovalPolicy::class;
+  protected $approvalPolicyDataType = '';
+  protected $effectiveApprovalPolicyType = CustomerApprovalApprovalPolicy::class;
+  protected $effectiveApprovalPolicyDataType = '';
   /**
    * @var bool
    */
@@ -58,6 +62,14 @@ class AccessApprovalSettings extends \Google\Collection
    * @var int
    */
   public $preferredRequestExpirationDays;
+  /**
+   * @var string
+   */
+  public $requestScopeMaxWidthPreference;
+  /**
+   * @var bool
+   */
+  public $requireCustomerVisibleJustification;
 
   /**
    * @param string
@@ -86,6 +98,34 @@ class AccessApprovalSettings extends \Google\Collection
   public function getAncestorHasActiveKeyVersion()
   {
     return $this->ancestorHasActiveKeyVersion;
+  }
+  /**
+   * @param CustomerApprovalApprovalPolicy
+   */
+  public function setApprovalPolicy(CustomerApprovalApprovalPolicy $approvalPolicy)
+  {
+    $this->approvalPolicy = $approvalPolicy;
+  }
+  /**
+   * @return CustomerApprovalApprovalPolicy
+   */
+  public function getApprovalPolicy()
+  {
+    return $this->approvalPolicy;
+  }
+  /**
+   * @param CustomerApprovalApprovalPolicy
+   */
+  public function setEffectiveApprovalPolicy(CustomerApprovalApprovalPolicy $effectiveApprovalPolicy)
+  {
+    $this->effectiveApprovalPolicy = $effectiveApprovalPolicy;
+  }
+  /**
+   * @return CustomerApprovalApprovalPolicy
+   */
+  public function getEffectiveApprovalPolicy()
+  {
+    return $this->effectiveApprovalPolicy;
   }
   /**
    * @param bool
@@ -198,6 +238,34 @@ class AccessApprovalSettings extends \Google\Collection
   public function getPreferredRequestExpirationDays()
   {
     return $this->preferredRequestExpirationDays;
+  }
+  /**
+   * @param string
+   */
+  public function setRequestScopeMaxWidthPreference($requestScopeMaxWidthPreference)
+  {
+    $this->requestScopeMaxWidthPreference = $requestScopeMaxWidthPreference;
+  }
+  /**
+   * @return string
+   */
+  public function getRequestScopeMaxWidthPreference()
+  {
+    return $this->requestScopeMaxWidthPreference;
+  }
+  /**
+   * @param bool
+   */
+  public function setRequireCustomerVisibleJustification($requireCustomerVisibleJustification)
+  {
+    $this->requireCustomerVisibleJustification = $requireCustomerVisibleJustification;
+  }
+  /**
+   * @return bool
+   */
+  public function getRequireCustomerVisibleJustification()
+  {
+    return $this->requireCustomerVisibleJustification;
   }
 }
 

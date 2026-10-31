@@ -44,7 +44,9 @@ class Comment {
     }
 
     public function setComments_id_pai($comments_id_pai) {
-        $this->comments_id_pai = $comments_id_pai;
+        // Always cast to int - $comments_id_pai is interpolated directly into SQL in save()
+        // (see objects/security.php: *_id suffix rule also covers the input side)
+        $this->comments_id_pai = intval($comments_id_pai);
     }
 
     public function getComments_id_pai() {
@@ -67,7 +69,7 @@ class Comment {
         return $this->videos_id;
     }
 
-    public function load($id) {
+    public function load($id, $refreshCache = false) {
         $row = self::getComment($id);
         if (empty($row)) {
             return false;
@@ -136,7 +138,7 @@ class Comment {
         } else {
             AVideoPlugin::afterNewResponse($this->id);
         }
-        
+
         $cacheHandler = new VideoCacheHandler($this->videos_id);
         $cacheHandler->deleteCache();
         return $id;
@@ -226,7 +228,8 @@ class Comment {
             $values[] = $video_owner_users_id;
         }
 
-        $sql .= BootGrid::getSqlFromPost(['name']);
+        // reachable without login when $videoId is set; must not allow ordering by joined users columns (password/recoverPass)
+        $sql .= BootGrid::getSqlFromPost(['name'], "", "", false, "", ['id', 'c.id', 'name', 'u.name', 'user', 'u.user', 'created', 'c.created', 'likes', 'dislikes']);
         if($comments_id_pai == 9){
             //echo PHP_EOL.PHP_EOL.'>>>>'.PHP_EOL.PHP_EOL;var_dump($comments_id_pai,$video_owner_users_id, $sql, $values);echo PHP_EOL.'<<<<'.PHP_EOL.PHP_EOL;exit;
         }
@@ -240,7 +243,8 @@ class Comment {
                 $row = cleanUpRowFromDatabase($row);
                 $row['comment'] = str_replace('\n', "\n", $row['comment']);
                 $row['commentPlain'] = xss_esc_back($row['comment']);
-                $row['commentHTML'] = nl2br($row['commentPlain']);
+                $row['commentHTML'] = markDownToHTML(str_replace('`', "'", $row['commentPlain']));
+                $row['commentHTML'] = linkifyTimestamps($row['commentHTML']);
                 $row['responses'] = array();
                 if($includeResponses){
                     $row['responses'] = self::getAllComments($videoId, $row['id'], $video_owner_users_id, $includeResponses);
@@ -307,6 +311,168 @@ class Comment {
         $countRow = sqlDAL::num_rows($res);
         sqlDAL::close($res);
 
+        return $countRow;
+    }
+
+    public static function getMyPostedComments($includeResponses = false) {
+        global $global;
+        if (!User::isLogged()) {
+            return [];
+        }
+        $users_id = User::getId();
+        $format = 'i';
+        $values = [$users_id];
+        $sql = "SELECT c.*, u.name as name, u.user as user, "
+                . " (SELECT count(id) FROM comments_likes as l where l.comments_id = c.id AND `like` = 1 ) as likes, "
+                . " (SELECT count(id) FROM comments_likes as l where l.comments_id = c.id AND `like` = -1 ) as dislikes ";
+        $sql .= ", (SELECT `like` FROM comments_likes as l where l.comments_id = c.id AND users_id = ? ) as myVote ";
+        $format .= 'i';
+        $values[] = $users_id;
+        $sql .= " FROM comments c LEFT JOIN users as u ON u.id = c.users_id LEFT JOIN videos as v ON v.id = c.videos_id";
+        $sql .= " WHERE c.users_id = ? AND u.status = 'a' AND c.comments_id_pai IS NULL ";
+        $sql .= BootGrid::getSqlFromPost(['name']);
+        $res = sqlDAL::readSql($sql, $format, $values);
+        $allData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        $comment = [];
+        if ($res != false) {
+            foreach ($allData as $row) {
+                $row = cleanUpRowFromDatabase($row);
+                $row['comment'] = str_replace('\n', "\n", $row['comment']);
+                $row['commentPlain'] = xss_esc_back($row['comment']);
+                $row['commentHTML'] = markDownToHTML(str_replace('`', "'", $row['commentPlain']));
+                $row['commentHTML'] = linkifyTimestamps($row['commentHTML']);
+                $row['responses'] = [];
+                if ($includeResponses) {
+                    $row['responses'] = self::getAllComments($row['videos_id'], $row['id'], 0, $includeResponses);
+                }
+                $comment[] = $row;
+            }
+        } else {
+            $comment = false;
+            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+        return $comment;
+    }
+
+    public static function getTotalMyPostedComments() {
+        global $global;
+        if (!User::isLogged()) {
+            return 0;
+        }
+        $users_id = User::getId();
+        $sql = "SELECT c.id FROM comments c LEFT JOIN users as u ON u.id = c.users_id LEFT JOIN videos as v ON v.id = c.videos_id WHERE c.users_id = ? AND u.status = 'a' AND c.comments_id_pai IS NULL ";
+        $sql .= BootGrid::getSqlSearchFromPost(['name']);
+        $res = sqlDAL::readSql($sql, "i", [$users_id]);
+        $countRow = sqlDAL::num_rows($res);
+        sqlDAL::close($res);
+        return $countRow;
+    }
+
+    public static function getCommentsOnMyVideos($includeResponses = false) {
+        global $global;
+        if (!User::isLogged()) {
+            return [];
+        }
+        $users_id = User::getId();
+        $format = 'i';
+        $values = [$users_id];
+        $sql = "SELECT c.*, u.name as name, u.user as user, "
+                . " (SELECT count(id) FROM comments_likes as l where l.comments_id = c.id AND `like` = 1 ) as likes, "
+                . " (SELECT count(id) FROM comments_likes as l where l.comments_id = c.id AND `like` = -1 ) as dislikes ";
+        $sql .= ", (SELECT `like` FROM comments_likes as l where l.comments_id = c.id AND users_id = ? ) as myVote ";
+        $format .= 'i';
+        $values[] = $users_id;
+        $sql .= " FROM comments c LEFT JOIN users as u ON u.id = c.users_id LEFT JOIN videos as v ON v.id = c.videos_id";
+        $sql .= " WHERE v.users_id = ? AND u.status = 'a' AND c.comments_id_pai IS NULL ";
+        $sql .= BootGrid::getSqlFromPost(['name']);
+        $res = sqlDAL::readSql($sql, $format, $values);
+        $allData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        $comment = [];
+        if ($res != false) {
+            foreach ($allData as $row) {
+                $row = cleanUpRowFromDatabase($row);
+                $row['comment'] = str_replace('\n', "\n", $row['comment']);
+                $row['commentPlain'] = xss_esc_back($row['comment']);
+                $row['commentHTML'] = markDownToHTML(str_replace('`', "'", $row['commentPlain']));
+                $row['commentHTML'] = linkifyTimestamps($row['commentHTML']);
+                $row['responses'] = [];
+                if ($includeResponses) {
+                    $row['responses'] = self::getAllComments($row['videos_id'], $row['id'], 0, $includeResponses);
+                }
+                $comment[] = $row;
+            }
+        } else {
+            $comment = false;
+            die($sql . '\nError : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+        return $comment;
+    }
+
+    public static function getTotalCommentsOnMyVideos() {
+        global $global;
+        if (!User::isLogged()) {
+            return 0;
+        }
+        $users_id = User::getId();
+        $sql = "SELECT c.id FROM comments c LEFT JOIN users as u ON u.id = c.users_id LEFT JOIN videos as v ON v.id = c.videos_id WHERE v.users_id = ? AND u.status = 'a' AND c.comments_id_pai IS NULL ";
+        $sql .= BootGrid::getSqlSearchFromPost(['name']);
+        $res = sqlDAL::readSql($sql, "i", [$users_id]);
+        $countRow = sqlDAL::num_rows($res);
+        sqlDAL::close($res);
+        return $countRow;
+    }
+
+    public static function getAllPostedComments($includeResponses = false) {
+        global $global;
+        if (!User::isAdmin()) {
+            return [];
+        }
+        $users_id = User::getId();
+        $format = 'i';
+        $values = [$users_id];
+        $sql = "SELECT c.*, u.name as name, u.user as user, "
+                . " (SELECT count(id) FROM comments_likes as l where l.comments_id = c.id AND `like` = 1 ) as likes, "
+                . " (SELECT count(id) FROM comments_likes as l where l.comments_id = c.id AND `like` = -1 ) as dislikes ";
+        $sql .= ", (SELECT `like` FROM comments_likes as l where l.comments_id = c.id AND users_id = ? ) as myVote ";
+        $format .= '';
+        $sql .= " FROM comments c LEFT JOIN users as u ON u.id = c.users_id LEFT JOIN videos as v ON v.id = c.videos_id";
+        $sql .= " WHERE u.status = 'a' AND c.comments_id_pai IS NULL ";
+        $sql .= BootGrid::getSqlFromPost(['name'], "", "", false, "", ['id', 'c.id', 'name', 'u.name', 'user', 'u.user', 'created', 'c.created', 'likes', 'dislikes']);
+        $res = sqlDAL::readSql($sql, $format, $values);
+        $allData = sqlDAL::fetchAllAssoc($res);
+        sqlDAL::close($res);
+        $comment = [];
+        if ($res != false) {
+            foreach ($allData as $row) {
+                $row = cleanUpRowFromDatabase($row);
+                $row['comment'] = str_replace('\n', "\n", $row['comment']);
+                $row['commentPlain'] = xss_esc_back($row['comment']);
+                $row['commentHTML'] = markDownToHTML(str_replace('`', "'", $row['commentPlain']));
+                $row['commentHTML'] = linkifyTimestamps($row['commentHTML']);
+                $row['responses'] = [];
+                if ($includeResponses) {
+                    $row['responses'] = self::getAllComments($row['videos_id'], $row['id'], 0, $includeResponses);
+                }
+                $comment[] = $row;
+            }
+        } else {
+            $comment = false;
+            _error_log($sql . ' Error : (' . $global['mysqli']->errno . ') ' . $global['mysqli']->error);
+        }
+        return $comment;
+    }
+
+    public static function getTotalAllPostedComments() {
+        if (!User::isAdmin()) {
+            return 0;
+        }
+        $sql = "SELECT c.id FROM comments c LEFT JOIN users as u ON u.id = c.users_id LEFT JOIN videos as v ON v.id = c.videos_id WHERE u.status = 'a' AND c.comments_id_pai IS NULL ";
+        $sql .= BootGrid::getSqlSearchFromPost(['name']);
+        $res = sqlDAL::readSql($sql, "", []);
+        $countRow = sqlDAL::num_rows($res);
+        sqlDAL::close($res);
         return $countRow;
     }
 
@@ -412,11 +578,12 @@ class Comment {
         if(empty($row['commentHTML'])){
             $row['comment'] = str_replace('\n', "\n", $row['comment']);
             $row['commentPlain'] = xss_esc_back($row['comment']);
-            $row['commentHTML'] = nl2br($row['commentPlain']);
+            $row['commentHTML'] = markDownToHTML(str_replace('`', "'", $row['commentPlain']));
         }
 
         $row['identification'] = User::getNameIdentificationById($row['users_id']);
         $row['commentWithLinks'] = self::fixCommentText(textToLink($row['commentHTML']));
+        $row['commentWithLinks'] = linkifyTimestamps($row['commentWithLinks']);
         $row['humanTiming'] = humanTiming(strtotime($row['created']));
         $row['channelLink'] = User::getChannelLink($row['users_id']);
         $row['photo'] = User::getPhoto($row['users_id']);
@@ -439,6 +606,13 @@ class Comment {
     static function fixCommentText($subject) {
         $search = ['\n'];
         $replace = ["<br/>"];
-        return stripslashes(str_replace($search, $replace, $subject));
+        // Preserve attributes already escaped by markDownToHTML(), including URL backslashes.
+        $parts = preg_split('/(<[^>]*>)/', $subject, -1, PREG_SPLIT_DELIM_CAPTURE);
+        foreach ($parts as $key => $part) {
+            if ($part !== '' && $part[0] !== '<') {
+                $parts[$key] = stripslashes(str_replace($search, $replace, $part));
+            }
+        }
+        return implode('', $parts);
     }
 }

@@ -9,7 +9,7 @@ require_once $global['systemRootPath'] . 'objects/functions.php';
 if (!User::canUpload() || empty($_POST['id'])) {
     die('{"error":"'.__("Permission denied").'"}');
 }
-
+forbidIfIsUntrustedRequest('videoRotate');
 $type = !empty($_POST['type']) ? $_POST['type'] : "";
 
 require_once 'video.php';
@@ -17,6 +17,11 @@ require_once 'video.php';
 $obj = new Video("", "", $_POST['id']);
 if (empty($obj)) {
     croak(["error" => "Video not found"]);
+}
+
+// Verify user can manage this specific video
+if (!Video::canEdit($_POST['id'])) {
+    die('{"error":"'.__("Permission denied").'"}');
 }
 
 $currentRotation = $obj->getRotation();

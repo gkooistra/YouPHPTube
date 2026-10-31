@@ -1,22 +1,53 @@
 <?php
 //error_reporting(0);
 header('Content-Type: application/json');
+// Allow the encoder to create the draft video cross-domain only when it sends
+// explicit credentials that we can validate right after configuration loads.
+$videoAddNewCrossDomainAuth = (
+    (!empty($_POST['user']) || !empty($_REQUEST['user'])) &&
+    (
+        !empty($_POST['pass']) ||
+        !empty($_POST['password']) ||
+        !empty($_REQUEST['pass']) ||
+        !empty($_REQUEST['password'])
+    )
+);
+if ($videoAddNewCrossDomainAuth) {
+    $global['skipAutoCSRFCheck'] = 1;
+}
 if (empty($global['systemRootPath'])) {
     $global['systemRootPath'] = '../';
 }
 require_once $global['systemRootPath'] . 'videos/configuration.php';
-allowOrigin();
+allowOrigin(true);
 require_once $global['systemRootPath'] . 'objects/user.php';
+if ($videoAddNewCrossDomainAuth) {
+    // A session that already existed before this request (e.g. a victim's own
+    // cookie riding along on a cross-site CSRF request) must NOT be treated as
+    // proof that the user/pass supplied in THIS request are valid - only a
+    // fresh login established by those credentials may bypass same-domain
+    // checks below, otherwise attacker-chosen junk credentials plus a victim's
+    // pre-existing session would silently disable the CSRF protection.
+    $wasAlreadyLoggedInBeforeThisRequest = User::isLogged();
+    User::loginFromRequestIfNotLogged();
+    if (!$wasAlreadyLoggedInBeforeThisRequest && User::isLogged()) {
+        $global['bypassSameDomainCheck'] = 1;
+    }
+}
 if (!User::canUpload()) {
     die('{"error":"1 ' . __("Permission denied") . '"}');
 }
+// Note: bypassSameDomainCheck is already set above for the legitimate encoder
+// cross-domain flow (explicit user/pass credentials), so this only enforces
+// same-origin for the normal browser session-based upload path.
+forbidIfIsUntrustedRequest('videoAddNew');
 
 $msg = '';
 $info = $infoObj = '';
 require_once 'video.php';
 
 if (!empty($_POST['id'])) {
-    if (!Video::canEdit($_POST['id']) && !Permissions::canModerateVideos()) {
+    if (!Video::canEdit($_POST['id'])) {
         die('{"error":"2 ' . __("Permission denied") . '"}');
     }
 }
@@ -28,6 +59,8 @@ if (!is_writable("{$global['systemRootPath']}vendor/ezyang/htmlpurifier/library/
  *
  */
 
+_error_log('videoAddNew.json.php: start '.getRealIpAddr().' '.$_SERVER['HTTP_USER_AGENT']);
+
 TimeLogStart(__FILE__);
 
 $obj = new Video($_POST['title'], "", @$_POST['id'], true);
@@ -38,131 +71,156 @@ $obj->setClean_Title(@$_POST['clean_title']);
 $audioLinks = ['mp3', 'ogg'];
 $videoLinks = ['mp4', 'webm', 'm3u8'];
 
+$startTime = microtime(true);
 $rowsPath = array();
 
+function getElapsedTime()
+{
+    global $startTime;
+    $nowTime = microtime(true);
+    $formatedTime = number_format($nowTime - $startTime, 2);
+    $startTime = $nowTime;
+    return $formatedTime;
+}
+
+$isNewVideo = empty($_POST['id']);
 TimeLogEnd(__FILE__, __LINE__);
 if (!_empty($_POST['videoLink'])) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     //var_dump($config->getEncoderURL()."getLinkInfo/". base64_encode($_POST['videoLink']));exit;
     $path_parts = pathinfo($_POST['videoLink']);
     //$extension = strtolower(@$path_parts["extension"]);
     $filebasename = explode('?', $path_parts['basename']);
     $extension = getExtension($_POST['videoLink']);
-    //var_dump($path_parts, $extension);exit;
-    if (empty($_POST['id']) && !(in_array($extension, $audioLinks) || in_array($extension, $videoLinks))) {
-        $rowsPath[] = __LINE__;
-        $getLinkInfo = $config->getEncoderURL() . "getLinkInfo/" . base64_encode($_POST['videoLink']);
-        _error_log('videoAddNew: ' . $getLinkInfo);
-        $info = url_get_contents($getLinkInfo, '', 180, true);
-        $infoObj = _json_decode($info);
-        $paths = Video::getNewVideoFilename();
-        $filename = $paths['filename'];
-        $filename = $obj->setFilename($filename);
-        if (is_object($infoObj)) {
-            $rowsPath[] = __LINE__;
-            $obj->setTitle($infoObj->title);
-            $obj->setClean_title($infoObj->title);
-            $obj->setDuration($infoObj->duration);
-            $obj->setDescription($infoObj->description);
-            $imgFile = $global['systemRootPath'] . "videos/{$filename}/{$filename}.jpg";
-            _error_log('videoAddNew save image: ' . $imgFile);
-            _file_put_contents($imgFile, base64_decode($infoObj->thumbs64));
-        }
-        $_POST['videoLinkType'] = Video::$videoTypeEmbed;
-    } elseif (empty($_POST['id'])) {
-        $rowsPath[] = __LINE__;
-        $paths = Video::getNewVideoFilename();
-        $filename = $paths['filename'];
-        $filename = $obj->setFilename($filename);
-        $obj->setTitle($path_parts["filename"]);
-        $obj->setClean_title($path_parts["filename"]);
-        $obj->setDuration("");
-        $obj->setDescription(@$_POST['description']);
-        $_POST['videoLinkType'] = Video::$videoTypeLinkVideo;
+
+    if (!$isNewVideo) {
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+        $title = $obj->getTitle();
+        $isNewVideo = empty($title) || preg_match('/^[a-f0-9]{13}$/', $title);
+        _error_log('videoAddNew: getTitle ' . $obj->getTitle());
+    } else {
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     }
-    $rowsPath[] = __LINE__;
+
+    //var_dump($path_parts, $extension);exit;
+
+
+    if ($isNewVideo) {
+        if (!in_array($extension, $audioLinks) && !in_array($extension, $videoLinks)) {
+            $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+            $getLinkInfo = $config->getEncoderURL() . "getLinkInfo/" . base64_encode($_POST['videoLink']);
+            _error_log('videoAddNew: ' . $getLinkInfo);
+            $info = url_get_contents($getLinkInfo, '', 180, true, false, false);
+            $infoObj = _json_decode($info);
+            $paths = Video::getNewVideoFilename();
+            $filename = $paths['filename'];
+            $filename = $obj->setFilename($filename);
+            if (is_object($infoObj)) {
+                $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+                $obj->setTitle($infoObj->title);
+                $obj->setClean_title($infoObj->title);
+                $obj->setDuration($infoObj->duration);
+                $obj->setDescription($infoObj->description);
+                $imgFile = $global['systemRootPath'] . "videos/{$filename}/{$filename}.jpg";
+                _error_log('videoAddNew save image: ' . $imgFile);
+                _file_put_contents($imgFile, base64_decode($infoObj->thumbs64));
+            }
+            $_POST['videoLinkType'] = Video::$videoTypeEmbed;
+        } else {
+            $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+            $paths = Video::getNewVideoFilename();
+            $filename = $paths['filename'];
+            $filename = $obj->setFilename($filename);
+            $obj->setTitle($path_parts["filename"]);
+            $obj->setClean_title($path_parts["filename"]);
+            $obj->setDuration("");
+            $obj->setDescription(@$_POST['description']);
+            $_POST['videoLinkType'] = Video::$videoTypeLinkVideo;
+        }
+    }
+
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setVideoLink($_POST['videoLink']);
-    if(isValidURL($_POST['videoLink'])){
-        $rowsPath[] = __LINE__;
+    if (isValidURL($_POST['videoLink'])) {
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         $obj->setType(Video::$videoTypeLinkVideo);
     }
     if (empty($_POST['epg_link']) || isValidURL($_POST['epg_link'])) {
-        $rowsPath[] = __LINE__;
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         $obj->setEpg_link($_POST['epg_link']);
     }
 
     if (in_array($extension, $audioLinks) || in_array($extension, $videoLinks)) {
         if (in_array($extension, $audioLinks)) {
-            $rowsPath[] = __LINE__;
+            $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
             $obj->setType(Video::$videoTypeLinkAudio);
         } else {
-            $rowsPath[] = __LINE__;
+            $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
             $obj->setType(Video::$videoTypeLinkVideo);
         }
     } elseif (!empty($obj->getType())) {
-        $rowsPath[] = __LINE__;
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         $obj->setType(Video::$videoTypeEmbed);
     }
 
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
 } elseif (!empty($obj->getType()) && ($obj->getType() == Video::$videoTypeVideo || $obj->getType() == Video::$videoTypeSerie || $obj->getType() == Video::$videoTypeAudio)) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setVideoLink("");
-}
-
-if (empty($_POST['id'])) {
-    if (!empty($_POST['videoLinkType'])) {
-        $rowsPath[] = __LINE__;
-        $obj->setType($_POST['videoLinkType']);
-    }
-    $rowsPath[] = __LINE__;
-    $obj->setAutoStatus(Video::$statusActive);
+    _error_log('videoAddNew videoAddNew.json.php: setVideoLink false');
 }
 
 TimeLogEnd(__FILE__, __LINE__);
 if (!empty($_POST['isArticle'])) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setType(Video::$videoTypeArticle);
-    if (empty($_POST['id'])) {
-        $obj->setAutoStatus(Video::$statusActive);
-    }
     $paths = Video::getNewVideoFilename();
     $filename = $paths['filename'];
     $filename = $obj->setFilename($filename);
 }
+
+if (empty($_POST['id'])) {
+    if (!empty($_POST['videoLinkType'])) {
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+        $obj->setType($_POST['videoLinkType']);
+    }
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+    $obj->setAutoStatus(Video::STATUS_DRAFT);
+}
+
 TimeLogEnd(__FILE__, __LINE__);
 $obj->setNext_videos_id($_POST['next_videos_id']);
 if (isset($_POST['description'])) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setDescription($_POST['description']);
 }
-if (empty($advancedCustomUser->userCanNotChangeCategory) || Permissions::canModerateVideos()) {
-    $rowsPath[] = __LINE__;
+if (empty($advancedCustomUser->userCanNotChangeCategory) || Permissions::canAdminVideos()) {
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setCategories_id($_POST['categories_id']);
 }
 
-if (empty($advancedCustomUser->userCanNotChangeUserGroup) || Permissions::canModerateVideos()) {
-    $rowsPath[] = __LINE__;
+if (empty($advancedCustomUser->userCanNotChangeUserGroup) || Permissions::canAdminVideos()) {
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     if (_empty($_REQUEST['public'])) {
-        $rowsPath[] = __LINE__;
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         $obj->setVideoGroups(empty($_POST['videoGroups']) ? [] : $_POST['videoGroups']);
     } else if (!empty($obj->getId())) {
-        $rowsPath[] = __LINE__;
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         UserGroups::deleteGroupsFromVideo($obj->getId());
         $obj->setVideoGroups([]);
         //var_dump($obj->getId(), Video::getUserGroups($obj->getId()));exit;
     }
 }
 
-$rowsPath[] = __LINE__;
+$rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
 $externalOptions = new stdClass();
 
 $externalOptionsOriginal = [];
 if (!empty($obj->getExternalOptions())) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $externalOptionsOriginal = json_decode($obj->getExternalOptions());
     if (!empty($externalOptionsOriginal) && is_object($externalOptionsOriginal)) {
-        $rowsPath[] = __LINE__;
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         foreach ($externalOptionsOriginal as $key => $value) {
             $externalOptions->$key = $value;
         }
@@ -171,7 +229,7 @@ if (!empty($obj->getExternalOptions())) {
 
 $externalOptionsPost = json_decode(@$_POST['externalOptions']);
 if (!empty($externalOptionsPost) && is_object($externalOptionsPost)) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     foreach ($externalOptionsPost as $key => $value) {
         $externalOptions->$key = $value;
     }
@@ -188,37 +246,67 @@ $obj->setMade_for_kids(@$_POST['made_for_kids']);
 $obj->setExternalOptions($externalOptions);
 
 if (!empty($_REQUEST['users_id_company'])) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setUsers_id_company(@$_REQUEST['users_id_company']);
 }
 
-if ($advancedCustomUser->userCanChangeVideoOwner || Permissions::canModerateVideos() || Users_affiliations::isUserAffiliateOrCompanyToEachOther($obj->getUsers_id(), $_POST['users_id'])) {
-    $rowsPath[] = __LINE__;
+if ($advancedCustomUser->userCanChangeVideoOwner || Permissions::canAdminVideos() || Users_affiliations::isUserAffiliateOrCompanyToEachOther($obj->getUsers_id(), $_POST['users_id'])) {
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->setUsers_id($_POST['users_id']);
 }
 if (Permissions::canAdminVideos()) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     if (!empty($_REQUEST['created'])) {
-        $rowsPath[] = __LINE__;
+        $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
         $obj->setCreated($_REQUEST['created']);
     }
 }
 
 TimeLogEnd(__FILE__, __LINE__);
 $resp = $obj->save(true);
+
+if (!empty($resp)) {
+    if (!empty($_POST['videoStatus'])) {
+        $found = false;
+        foreach ($statusThatTheUserCanUpdate as $key => $value) {
+            if ($_POST['videoStatus'] == $value[0]) {
+                $found = true;
+            }
+        }
+        if ($found) {
+            $obj = new Video('', '', @$_POST['id'], true);
+            $obj->setStatus(@$_POST['videoStatus']);
+        }
+    }
+}else{
+    $msg = $global['lastBeforeSaveVideoMessage'];
+}
+
+if (isset($_REQUEST['playlists_id'])) {
+    if (!PlayLists::canAddVideoOnPlaylist($resp)) {
+        Playlists::addVideo($resp, $_REQUEST['playlists_id']);
+    }
+}
+
 // if is a new embed video
 if (empty($_POST['id']) && ($obj->getType() == Video::$videoTypeEmbed || $obj->getType() == Video::$videoTypeLinkVideo)) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     AVideoPlugin::afterNewVideo($resp);
 }
 
+$rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
 if (Permissions::canAdminVideos()) {
-    $rowsPath[] = __LINE__;
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
     $obj->updateViewsCount($_REQUEST['views_count']);
 }
 
-AVideoPlugin::saveVideosAddNew($_POST, $resp);
+$rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
 
+_error_log('Saving video start');
+AVideoPlugin::saveVideosAddNew($_POST, $resp);
+_error_log('Saving video end');
+
+$rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
 TimeLogEnd(__FILE__, __LINE__);
 $obj = new stdClass();
 
@@ -228,11 +316,18 @@ $obj->info = json_encode($info);
 $obj->infoObj = json_encode($infoObj);
 $obj->videos_id = intval($resp);
 $obj->video = Video::getVideoLight($obj->videos_id, true);
-if ($obj->video['status'] == Video::$statusActive) {
-    $rowsPath[] = __LINE__;
+$obj->isNewVideo = $isNewVideo;
+if ($obj->video['status'] == Video::STATUS_ACTIVE) {
+    $rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
+    _error_log('clearFirstPageCache start');
     $obj->clearFirstPageCache = clearFirstPageCache();
+    _error_log('clearFirstPageCache end');
     //clearAllUsersSessionCache();
 }
+// it cannot clear async otherwise it will cause issues on the videos manager list.
+$obj->clearCache = Video::clearCache($obj->videos_id, false, false, false);
+$rowsPath[] = array('line' => __LINE__, 'ElapsedTime' => getElapsedTime());
 $obj->rowsPath = $rowsPath;
 TimeLogEnd(__FILE__, __LINE__);
+_error_log('video add new done end');
 echo json_encode($obj);

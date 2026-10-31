@@ -63,11 +63,23 @@ class ForwardingRule extends \Google\Collection
   /**
    * @var string
    */
+  public $externalManagedBackendBucketMigrationState;
+  /**
+   * @var float
+   */
+  public $externalManagedBackendBucketMigrationTestingPercentage;
+  /**
+   * @var string
+   */
   public $fingerprint;
   /**
    * @var string
    */
   public $id;
+  /**
+   * @var string
+   */
+  public $ipCollection;
   /**
    * @var string
    */
@@ -134,6 +146,10 @@ class ForwardingRule extends \Google\Collection
    * @var string
    */
   public $selfLink;
+  /**
+   * @var string
+   */
+  public $selfLinkWithId;
   protected $serviceDirectoryRegistrationsType = ForwardingRuleServiceDirectoryRegistration::class;
   protected $serviceDirectoryRegistrationsDataType = 'array';
   /**
@@ -286,6 +302,34 @@ class ForwardingRule extends \Google\Collection
   /**
    * @param string
    */
+  public function setExternalManagedBackendBucketMigrationState($externalManagedBackendBucketMigrationState)
+  {
+    $this->externalManagedBackendBucketMigrationState = $externalManagedBackendBucketMigrationState;
+  }
+  /**
+   * @return string
+   */
+  public function getExternalManagedBackendBucketMigrationState()
+  {
+    return $this->externalManagedBackendBucketMigrationState;
+  }
+  /**
+   * @param float
+   */
+  public function setExternalManagedBackendBucketMigrationTestingPercentage($externalManagedBackendBucketMigrationTestingPercentage)
+  {
+    $this->externalManagedBackendBucketMigrationTestingPercentage = $externalManagedBackendBucketMigrationTestingPercentage;
+  }
+  /**
+   * @return float
+   */
+  public function getExternalManagedBackendBucketMigrationTestingPercentage()
+  {
+    return $this->externalManagedBackendBucketMigrationTestingPercentage;
+  }
+  /**
+   * @param string
+   */
   public function setFingerprint($fingerprint)
   {
     $this->fingerprint = $fingerprint;
@@ -310,6 +354,20 @@ class ForwardingRule extends \Google\Collection
   public function getId()
   {
     return $this->id;
+  }
+  /**
+   * @param string
+   */
+  public function setIpCollection($ipCollection)
+  {
+    $this->ipCollection = $ipCollection;
+  }
+  /**
+   * @return string
+   */
+  public function getIpCollection()
+  {
+    return $this->ipCollection;
   }
   /**
    * @param string
@@ -548,6 +606,20 @@ class ForwardingRule extends \Google\Collection
   public function getSelfLink()
   {
     return $this->selfLink;
+  }
+  /**
+   * @param string
+   */
+  public function setSelfLinkWithId($selfLinkWithId)
+  {
+    $this->selfLinkWithId = $selfLinkWithId;
+  }
+  /**
+   * @return string
+   */
+  public function getSelfLinkWithId()
+  {
+    return $this->selfLinkWithId;
   }
   /**
    * @param ForwardingRuleServiceDirectoryRegistration[]

@@ -22,7 +22,7 @@ $liveTitle = $livet['title'];
 $liveDescription = $livet['description'];
 $liveUrl = Live::getLinkToLiveFromUsers_id($user_id);
 
-$img = "{$global['webSiteRootURL']}plugin/Live/getImage.php?u={$_GET['u']}&format=jpg";
+$img = "{$global['webSiteRootURL']}plugin/Live/getImage.php?u=" . urlencode($_GET['u']) . "&format=jpg";
 if (!empty($_REQUEST['live_schedule'])) {
     $img = addQueryStringParameter($img, 'live_schedule', intval($_REQUEST['live_schedule']));
 }
@@ -73,7 +73,7 @@ $_page->setIncludeNavbar(false);
                     </div>
                     <div class="col-sm-6">
                         <center>
-                            <form method="post" action="<?php echo $_SERVER['REQUEST_URI']; ?>">
+                            <form method="post" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <?php
                                 if (!empty($_POST['live_password'])) {
                                 ?>

@@ -8,8 +8,16 @@ $uuidJSCondition = implode(" && ", $rowId);
 $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
 ?>
 <style>
+    /* .pluginDescription uses white-space:nowrap for its ellipsis clipping, which (with the
+       default table-layout:auto) forces the whole column to the description's full unwrapped
+       width; table-layout:fixed makes the column widths declared on <th> authoritative instead */
+    #grid {
+        table-layout: fixed;
+    }
+
     td.wrapText {
         white-space: normal;
+        word-break: break-word;
     }
 
     .PluginActive,
@@ -63,123 +71,153 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
         <div class="panel-body">
             <div class="tab-content">
                 <div id="menu0" class="tab-pane fade in active">
-                    <div class="list-group-item">
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-default" id="upload">
-                                <i class="fas fa-plus"></i> <?php echo __("Upload a Plugin"); ?>
-                            </button>
-                        </div>
-                        <div style="text-align: right; padding: 5px;">
-                            <span class="badge" id="PluginTagsTotal">...</span>
-                            <button class="label label-default checked PluginTags PluginActive" pluginTag="all" id="PluginTagsAll" onclick="resetShowActiveInactiveOnly();PluginTagsReset();">
-                                <i class="fas fa-check-double"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("All"); ?></span>
-                            </button>
-                            <button class="label label-primary checked PluginActive" pluginTag="Installed" id="PluginTagsInstalled" onclick="showActivesOnly();">
-                                <i class="fas fa-check"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Installed"); ?></span>
-                            </button>
-                            <button class="label label-primary checked PluginActive" pluginTag="Uninstalled" id="PluginTagsUninstalled" onclick="showInactiveOnly();">
-                                <i class="fas fa-times"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Uninstalled"); ?></span>
-                            </button>
-                            <?php
-                            $class = new ReflectionClass('PluginTags');
-                            $staticProperties = $class->getStaticProperties();
-                            foreach ($staticProperties as $key => $value) {
-                            ?>
-                                <button class="label label-<?php echo $value[0]; ?> unchecked PluginTags" id="PluginTags<?php echo $value[3]; ?>" pluginTag="<?php echo $value[3]; ?>" onclick="PluginTagsToggle('<?php echo $value[3]; ?>')" data-toggle="tooltip" title="<?php echo __($value[1]); ?>">
-                                    <?php echo $value[2]; ?> <span class="hidden-md hidden-sm hidden-xs"><?php echo __($value[1]); ?></span>
+                    <div class="panel panel-default">
+                        <div class="panel-heading ">
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-default" id="upload">
+                                    <i class="fas fa-plus"></i> <?php echo __("Upload a Plugin"); ?>
                                 </button>
-                            <?php
-                            }
-                            ?>
+                                <button type="button" class="btn btn-primary" id="createPlugin" onclick="avideoModalIframeFull(webSiteRootURL + 'CreatePlugin/');">
+                                    <i class="fas fa-plus-circle"></i> <?php echo __("Create a Plugin"); ?>
+                                </button>
+                                <button type="button" class="btn btn-warning" id="updateAllPluginsBtn">
+                                    <i class="fa fa-wrench"></i> <?php echo __("Update All Plugins"); ?>
+                                </button>
+                            </div>
+                            <div style="text-align: right; padding: 5px;">
+                                <span class="badge" id="PluginTagsTotal">...</span>
+                                <button class="label label-default checked PluginTags PluginActive" pluginTag="all" id="PluginTagsAll" onclick="resetShowActiveInactiveOnly();PluginTagsReset();">
+                                    <i class="fas fa-check-double"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("All"); ?></span>
+                                </button>
+                                <button class="label label-primary checked PluginActive" pluginTag="Installed" id="PluginTagsInstalled" onclick="showActivesOnly();">
+                                    <i class="fas fa-check"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Installed"); ?></span>
+                                </button>
+                                <button class="label label-primary checked PluginActive" pluginTag="Uninstalled" id="PluginTagsUninstalled" onclick="showInactiveOnly();">
+                                    <i class="fas fa-times"></i> <span class="hidden-md hidden-sm hidden-xs"><?php echo __("Uninstalled"); ?></span>
+                                </button>
+                                <?php
+                                $class = new ReflectionClass('PluginTags');
+                                $staticProperties = $class->getStaticProperties();
+                                foreach ($staticProperties as $key => $value) {
+                                ?>
+                                    <button class="label label-<?php echo $value[0]; ?> unchecked PluginTags" id="PluginTags<?php echo $value[3]; ?>" pluginTag="<?php echo $value[3]; ?>" onclick="PluginTagsToggle('<?php echo $value[3]; ?>')" data-toggle="tooltip" title="<?php echo __($value[1]); ?>">
+                                        <?php echo $value[2]; ?> <span class="hidden-md hidden-sm hidden-xs"><?php echo __($value[1]); ?></span>
+                                    </button>
+                                <?php
+                                }
+                                ?>
+                            </div>
                         </div>
-                        <table id="grid" class="table table-condensed table-hover table-striped">
-                            <thead>
-                                <tr>
-                                    <th data-column-id="name" data-formatter="name" data-width="300px"><?php echo __("Name"); ?></th>
-                                    <th data-column-id="description" data-formatter="description" data-css-class="wrapText hidden-md hidden-sm hidden-xs" data-header-css-class="hidden-md hidden-sm hidden-xs"><?php echo __("description"); ?></th>
-                                    <th data-column-id="commands" data-formatter="commands" data-sortable="false" data-width="150px"></th>
-                                </tr>
-                            </thead>
-                        </table>
-                        <div id="pluginsFormModal" class="modal fade" tabindex="-1" role="dialog">
-                            <div class="modal-dialog" role="document">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                                        <h4 class="modal-title"><?php echo __("Plugin Form"); ?></h4>
-                                    </div>
-                                    <div class="modal-body">
-                                        <ul class="nav nav-tabs">
-                                            <li class="active"><a data-toggle="tab" href="#visual">Visual</a></li>
-                                            <li><a data-toggle="tab" href="#code">Code</a></li>
-                                            <li class="pull-right">
-                                                <label>
-                                                    <input type="checkbox" id="is_advanced" onclick="tooglePluginForceShow(this);">
-                                                    <?php echo __('Show Advanced Options'); ?>
-                                                    <span class="badge">0</span>
-                                                </label>
-                                                <div class="clearfix"></div>
-                                                <label>
-                                                    <input type="checkbox" id="is_deprecated" onclick="tooglePluginForceShow(this);">
-                                                    <?php echo __('Show Deprecated Options'); ?>
-                                                    <span class="badge">0</span>
-                                                </label>
-                                                <div class="clearfix"></div>
-                                                <label>
-                                                    <input type="checkbox" id="is_experimental" onclick="tooglePluginForceShow(this);">
-                                                    <?php echo __('Show Experimental Options'); ?>
-                                                    <span class="badge">0</span>
-                                                </label>
-                                            </li>
-                                        </ul>
-                                        <div class="tab-content">
-                                            <div id="visual" class="tab-pane fade in active">
-                                                <div class="row" id="jsonElements" style="padding: 10px;">Some content.</div>
-                                            </div>
-                                            <div id="code" class="tab-pane fade">
-                                                <form class="form-compact" id="updatePluginForm" onsubmit="">
-                                                    <input type="hidden" id="inputPluginId">
-                                                    <label for="inputData" class="sr-only">Object Data</label>
-                                                    <textarea class="form-control" id="inputData" rows="5" placeholder="Object Data"></textarea>
-                                                </form>
+                        <div class="panel-body ">
+                            <div class="table-responsive">
+                            <table id="grid" class="table table-condensed table-hover table-striped">
+                                <thead>
+                                    <tr>
+                                        <th data-column-id="name" class="" data-width="300px"><?php echo __("Name"); ?></th>
+                                        <th data-column-id="description" class="wrapText hidden-md hidden-sm hidden-xs"><?php echo __("description"); ?></th>
+                                        <th data-column-id="modified" class="hidden-sm hidden-xs" data-width="180px"><?php echo __("Modified"); ?></th>
+                                        <th data-column-id="commands" class="" data-sortable="false" data-width="150px"></th>
+                                    </tr>
+                                </thead>
+                            </table>
+                            </div>
+                            <div id="pluginsFormModal" class="modal fade" tabindex="-1" role="dialog">
+                                <div class="modal-dialog" role="document">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                            <h4 class="modal-title"><?php echo __("Plugin Form"); ?></h4>
+                                        </div>
+                                        <div class="modal-body">
+                                            <ul class="nav nav-tabs">
+                                                <li class="active"><a data-toggle="tab" href="#visual">Visual</a></li>
+                                                <li><a data-toggle="tab" href="#code">Code</a></li>
+                                                <li class="pull-right">
+                                                    <label>
+                                                        <input type="checkbox" id="is_advanced" onclick="tooglePluginForceShow(this);">
+                                                        <?php echo __('Show Advanced Options'); ?>
+                                                        <span class="badge">0</span>
+                                                    </label>
+                                                    <div class="clearfix"></div>
+                                                    <label>
+                                                        <input type="checkbox" id="is_deprecated" onclick="tooglePluginForceShow(this);">
+                                                        <?php echo __('Show Deprecated Options'); ?>
+                                                        <span class="badge">0</span>
+                                                    </label>
+                                                    <div class="clearfix"></div>
+                                                    <label>
+                                                        <input type="checkbox" id="is_experimental" onclick="tooglePluginForceShow(this);">
+                                                        <?php echo __('Show Experimental Options'); ?>
+                                                        <span class="badge">0</span>
+                                                    </label>
+                                                </li>
+                                            </ul>
+                                            <div class="tab-content">
+                                                <div id="visual" class="tab-pane fade in active">
+                                                    <div class="row" id="jsonElements" style="padding: 10px;">Some content.</div>
+                                                </div>
+                                                <div id="code" class="tab-pane fade">
+                                                    <form class="form-compact" id="updatePluginForm" onsubmit="">
+                                                        <input type="hidden" id="inputPluginId">
+                                                        <label for="inputData" class="sr-only">Object Data</label>
+                                                        <textarea class="form-control" id="inputData" rows="5" placeholder="Object Data"></textarea>
+                                                    </form>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo __("Close"); ?></button>
-                                        <button type="button" class="btn btn-primary" id="savePluginBtn"><?php echo __("Save changes"); ?></button>
-                                    </div>
-                                </div><!-- /.modal-content -->
-                            </div><!-- /.modal-dialog -->
-                        </div>
-                    </div>
-                </div>
-                <div id="menu1" class="tab-pane fade">
-                    <div class="list-group-item">
-                        <div class="panel panel-default">
-                            <div class="panel-heading"><a href="https://youphp.tube/marketplace/?tab=plugin" class="btn btn-default btn-xs"><i class="fa fa-plug"></i> Plugin Store </a></div>
-                            <div class="panel-body">
-                                <ul class="list-group" id="pluginStoreList">
-                                </ul>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo __("Close"); ?></button>
+                                            <button type="button" class="btn btn-primary" id="savePluginBtn"><?php echo __("Save changes"); ?></button>
+                                        </div>
+                                    </div><!-- /.modal-content -->
+                                </div><!-- /.modal-dialog -->
                             </div>
                         </div>
                     </div>
                 </div>
+                <div id="menu1" class="tab-pane fade">
+                    <div class="panel panel-default">
+                        <div class="panel-heading clearfix">
+                            <div class="btn-group pull-right" role="group" aria-label="Plugin Store Actions">
+                                <a href="https://tutorials.avideo.com/signUp" class="btn btn-success btn-sm" target="_top">
+                                    <i class="fa fa-user-plus"></i> Register
+                                </a>
+                                <a href="https://streamphp.com/marketplace/" class="btn btn-info btn-sm" target="_top">
+                                    <i class="fa fa-sign-in"></i> Log In
+                                </a>
+                                <a href="https://streamphp.com/marketplace/?tab=plugin" class="btn btn-primary btn-sm" target="_top">
+                                    <i class="fa fa-plug"></i> Visit Plugin Store
+                                </a>
+                            </div>
+                            <p>Access our Plugin Store to explore, purchase, or upgrade plugins for your AVideo platform.</p>
+                            <p>
+                                <strong>Need an account?</strong><br>
+                                Register a new account or log in to your existing one
+                            </p>
+
+                        </div>
+                        <div class="panel-body">
+
+                            <ul class="list-group" id="pluginStoreList">
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <li class="list-group-item hidden col-md-3" id="pluginStoreListModel">
-                <div class="panel panel-warning panel-sm">
+            <div class="hidden col-md-3" id="pluginStoreListModel">
+                <div class="panel panel-warning">
                     <div class="panel-heading">
                         <h3 class="panel-title"></h3>
                     </div>
-                    <div class="panel-body">
+                    <div class="panel-body" style="padding: 0;">
                         <div class="the-price">
                             <h1>
                                 USD $<span class="int">0</span>.<small class="cents">00</small>
                             </h1>
                         </div>
-                        <table class="table">
+                        <table class="table" style="margin: 0;">
                             <tr>
-                                <td>
+                                <td class="center" style="text-align: center; vertical-align: middle; height: 70px;">
                                     <img src="" class="img img-responsive img-rounded img-thumbnail zoom" style="height: 70px;">
                                 </td>
                             </tr>
@@ -189,10 +227,10 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                         </table>
                     </div>
                     <div class="panel-footer">
-                        <a href="https://youphp.tube/marketplace/?tab=plugin" class="btn btn-success btn-xs" role="button"><i class="fa fa-cart-plus"></i> <?php echo __("Buy This Plugin"); ?> </a>
+                        <a href="https://streamphp.com/marketplace/?tab=plugin" class="btn btn-success btn-xs" role="button"><i class="fa fa-cart-plus"></i> <?php echo __("Buy This Plugin"); ?> </a>
                     </div>
                 </div>
-            </li>
+            </div>
         </div>
     </div>
 </div><!--/.container-->
@@ -206,6 +244,8 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
 </div>
 <script src="<?php echo getURL('view/js/form2JSON.js'); ?>" type="text/javascript"></script>
 <script>
+    var globalToken = '<?php echo getToken(300); ?>';
+
     function showActivesOnly() {
         var id = "#PluginTagsUninstalled";
         $(id).removeClass('checked');
@@ -254,6 +294,12 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
         return true;
     }
 
+    // tbody-only data rows: excludes the thead row (a bare "#grid tr" selector matches it too,
+    // which used to hide the header itself) and any DataTables "no data available" placeholder row
+    function getGridDataRows() {
+        return $('#grid tbody tr').not(':has(td.dataTables_empty)');
+    }
+
     function processShowHideIfActive(tr) {
         if ($(tr).find(".pluginSwitch").is(":checked")) {
             if ($("#PluginTagsInstalled").hasClass('checked')) {
@@ -276,7 +322,7 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
         } else {
             var allItemsSeletors = getAllItemsSelector();
             //console.log(allItemsSeletors);
-            $("#grid tr").each(function(i, tr) {
+            getGridDataRows().each(function(i, tr) {
 
                 if (allItemsSeletors) {
                     if ($(tr).find(allItemsSeletors).length !== 0) {
@@ -316,12 +362,13 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
         $('.PluginTags').not('#PluginTagsAll').addClass('unchecked');
         $("#PluginTagsAll").removeClass('unchecked');
         $("#PluginTagsAll").addClass('checked');
-        $("#grid tr").show();
+        getGridDataRows().show();
         totalVisible();
     }
 
     function totalVisible() {
-        $('#PluginTagsTotal').text($("#grid tr:visible").length + ' / ' + $("#grid tr").length);
+        var rows = getGridDataRows();
+        $('#PluginTagsTotal').text(rows.filter(':visible').length + ' / ' + rows.length);
     }
 
     function PluginTagsToggle(type) {
@@ -354,7 +401,7 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
 
     function PluginTagsProcess() {
         var allItemsSeletors = getAllItemsSelector();
-        $("#grid tr").each(function(i, tr) {
+        getGridDataRows().each(function(i, tr) {
             if (!allItemsSeletors || $(tr).find(allItemsSeletors).length !== 0) {
                 $(tr).show();
             } else {
@@ -405,27 +452,10 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
 
 
         var myTextarea = document.getElementById("inputData");
-        var grid = $("#grid").bootgrid({
-            labels: {
-                noResults: "<?php echo __("No results found!"); ?>",
-                all: "<?php echo __("All"); ?>",
-                infos: "<?php echo __("Showing {{ctx.start}} to {{ctx.end}} of {{ctx.total}} entries"); ?>",
-                loading: "<?php echo __("Loading..."); ?>",
-                refresh: "<?php echo __("Refresh"); ?>",
-                search: "<?php echo __("Search"); ?>",
-            },
-            navigation: 0,
-            ajax: true,
-            url: "<?php echo $global['webSiteRootURL'] . "objects/pluginsAvailable.json.php"; ?>",
-            responseHandler: function(data) {
-                setTimeout(function() {
-                    processShow();
-                    totalVisible();
-                }, 1000);
-                return data;
+        // $('#grid').bootgrid('reload'|'getCurrentRows') calls below are translated onto this DataTable
+        // by the shared bridge in view/js/avideoDataTable.js (loaded via Page::loadBasicCSSAndJS()).
 
-            },
-            formatters: {
+        var pluginFormatters = {
                 "commands": function(column, row) {
                     var editBtn = '';
 
@@ -451,7 +481,7 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                             if (row.enabled) {
                                 checked = " checked='checked' ";
                             }
-                            switchBtn = '<div class="material-small material-switch pull-left"><input name="enable' + row.uuid + '" id="enable' + row.uuid + '" type="checkbox" value="0" class="pluginSwitch" data-pname="' + row.name + '" ' + checked + ' /><label for="enable' + row.uuid + '" class="label-success"></label></div>';
+                            switchBtn = '<div class="material-small material-switch pull-left"  style="direction: ltr;"><input name="enable' + row.uuid + '" id="enable' + row.uuid + '" type="checkbox" value="0" class="pluginSwitch" data-pname="' + row.name + '" ' + checked + ' /><label for="enable' + row.uuid + '" class="label-success"></label></div>';
                         }
 
                     } else {
@@ -462,7 +492,8 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                                     "uuid": row.uuid,
                                     "name": row.name,
                                     "dir": row.dir,
-                                    "enable": true
+                                    "enable": true,
+                                    "globalToken": globalToken
                                 },
                                 type: 'post',
                                 success: function(response) {}
@@ -509,7 +540,7 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                                 tags += '<span class="label label-' + row.tags[i][0] + ' plugin' + row.tags[i][3] + '">' + row.tags[i][2] + ' ' + row.tags[i][1] + '</span> ';
                             } else {
                                 if (row.tags[i] === 'update') {
-                                    tags += '<a class="label label-warning" href="https://youphp.tube/marketplace/" target="_blank">Update Available: v' + row.pluginversionMarketPlace + '</a> ';
+                                    tags += '<a class="label label-warning" href="https://streamphp.com/marketplace/" target="_blank">Update Available: v' + row.pluginversionMarketPlace + '</a> ';
                                 } else {
                                     var cl = "primary";
                                     if (row.tags[i] === 'free') {
@@ -526,10 +557,198 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                         }
                     }
                     txt += "<br>" + tags;
+                    txt += pluginFormatters.dependencyWarning(row);
                     return txt;
+                },
+                "dependencyWarning": function(row) {
+                    var iconSpan = function(iconHtml) { return '<span style="display:inline-block;width:14px;text-align:center;">' + iconHtml + '</span>'; };
+                    if (!row.dependencies || !row.dependencies.length) {
+                        return '<div class="pluginDependencyStatus text-muted"><small>' + iconSpan('<i class="fas fa-check-circle"></i>') + ' <?php echo __("No dependencies"); ?></small></div>';
+                    }
+                    // Required dependencies always warn when missing, regardless of this plugin's own
+                    // enabled state - "required" means it cannot work correctly without it. Optional
+                    // dependencies are shown separately, calmly - e.g. API works fine without every
+                    // optional integration, that endpoint just won't respond, nothing to alarm about.
+                    // Every line starts with the same fixed-width icon span so "Requires"/"Optional"
+                    // labels line up with each other regardless of which icon is used.
+                    var required = row.dependencies.filter(function(d) { return d.required; });
+                    var optional = row.dependencies.filter(function(d) { return !d.required; });
+                    var html = '';
+                    var requiredMissing = required.filter(function(d) { return !d.enabled; });
+                    if (requiredMissing.length) {
+                        var missingNames = requiredMissing.map(function(d) { return d.pluginName; }).join(', ');
+                        html += '<div class="pluginDependencyStatus" style="margin:3px 0;"><small class="text-danger">' + iconSpan('<i class="fas fa-exclamation-triangle"></i>') + ' <?php echo __("Requires"); ?>: <strong>' + missingNames + '</strong></small></div>';
+                    } else if (required.length) {
+                        var requiredNames = required.map(function(d) { return d.pluginName; }).join(', ');
+                        html += '<div class="pluginDependencyStatus text-muted"><small>' + iconSpan('<i class="fas fa-check-circle text-success"></i>') + ' <?php echo __("Requires"); ?>: ' + requiredNames + '</small></div>';
+                    }
+                    if (optional.length) {
+                        var optionalItems = optional.map(function(d) {
+                            var icon = d.enabled ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="far fa-circle text-muted"></i>';
+                            return icon + ' ' + d.pluginName;
+                        }).join(', ');
+                        html += '<div class="pluginDependencyStatus text-muted"><small>' + iconSpan('<i class="fas fa-info-circle"></i>') + ' <?php echo __("Optional"); ?>: ' + optionalItems + '</small></div>';
+                    }
+                    return html;
+                },
+                "modified": function(column, row) {
+                    if (!row.modified || row.modified == '' || row.modified == '0000-00-00 00:00:00') {
+                        return '<small class="text-muted"><i class="fas fa-minus"></i></small>';
+                    }
+                    var date = new Date(row.modified);
+                    var now = new Date();
+                    var diff = Math.floor((now - date) / 1000); // diferença em segundos
+                    var timeAgo = '';
+
+                    if (diff < 60) {
+                        timeAgo = '<?php echo __("just now"); ?>';
+                    } else if (diff < 3600) {
+                        var mins = Math.floor(diff / 60);
+                        timeAgo = mins + ' <?php echo __("min ago"); ?>';
+                    } else if (diff < 86400) {
+                        var hours = Math.floor(diff / 3600);
+                        timeAgo = hours + ' <?php echo __("hours ago"); ?>';
+                    } else if (diff < 2592000) {
+                        var days = Math.floor(diff / 86400);
+                        timeAgo = days + ' <?php echo __("days ago"); ?>';
+                    } else {
+                        timeAgo = date.toLocaleDateString();
+                    }
+
+                    var formattedDate = date.toLocaleString();
+                    return '<small title="' + formattedDate + '" data-toggle="tooltip"><i class="far fa-clock"></i> ' + timeAgo + '</small>';
                 }
-            }
-        }).on("loaded.rs.jquery.bootgrid", function() {
+        };
+
+        // objects/pluginsAvailable.json.php always returns every plugin in one shot (no real pagination/search/sort),
+        // and the tag-filter buttons (PluginTagsToggle/processShow/etc.) show/hide <tr> elements directly by hand,
+        // so every row must stay rendered in the DOM at once - matching the old bootgrid navigation:0 (paging: false).
+        avideoDataTable("#grid", {
+            paging: false,
+            dom: 't',
+            autoWidth: false,
+            columns: [
+                { data: null, className: '', width: '300px', render: function(data, type, row) { return pluginFormatters.name(null, row); } },
+                { data: null, className: 'wrapText hidden-md hidden-sm hidden-xs', render: function(data, type, row) { return pluginFormatters.description(null, row); } },
+                {
+                    data: 'modified', className: 'hidden-sm hidden-xs', width: '180px',
+                    render: function(data, type, row) {
+                        // sort/type need a real timestamp - the "X days ago" display text has no chronological meaning
+                        if (type === 'sort' || type === 'type') {
+                            if (!row.modified || row.modified === '' || row.modified === '0000-00-00 00:00:00') {
+                                return -1;
+                            }
+                            var t = new Date(row.modified).getTime();
+                            return isNaN(t) ? -1 : t;
+                        }
+                        return pluginFormatters.modified(null, row);
+                    }
+                },
+                { data: null, orderable: false, className: '', width: '150px', render: function(data, type, row) { return pluginFormatters.commands(null, row); } }
+            ],
+            ajax: function(data, callback, settings) {
+                $.ajax({
+                    url: "<?php echo $global['webSiteRootURL'] . "objects/pluginsAvailable.json.php"; ?>",
+                    dataType: 'json',
+                    success: function(json) {
+                        callback({ data: json.rows });
+                    }
+                });
+            },
+        });
+
+        // Delegated, one-time bindings (namespaced) instead of grid.find(...).on(...) inside draw.dt: DataTables
+        // reuses/reorders the same <tr> elements across sorts, so re-binding on every draw stacked a new handler
+        // each time, firing the AJAX call / opening the modal once per past sort for a single click.
+        var grid = $("#grid");
+        grid.off('change.pluginmgr', '.pluginSwitch').on('change.pluginmgr', '.pluginSwitch', function(e) {
+            var row = grid.DataTable().row($(this).closest('tr')).data();
+            var this_ = $(this);
+            modal.showPleaseWait();
+            $.ajax({
+                url: webSiteRootURL + 'objects/pluginSwitch.json.php',
+                data: {
+                    "uuid": row.uuid,
+                    "name": row.name,
+                    "dir": row.dir,
+                    "enable": $('#enable' + row.uuid).is(":checked"),
+                    "globalToken": globalToken
+                },
+                type: 'post',
+                success: function(response) {
+                    modal.hidePleaseWait();
+                    if (this_.data("pname") == "WWBNIndex") {
+                        $.ajax({
+                            url: "<?= $global['webSiteRootURL']; ?>plugin/WWBNIndex/ajax.php",
+                            data: {
+                                "action": "changePluginStatus",
+                                "enabled": this_.is(":checked")
+                            },
+                            type: "post",
+                            success: function(response) {
+                                window.location.reload();
+                            }
+                        });
+                    } else {
+                        $("#grid").bootgrid('reload');
+                    }
+                }
+            });
+        });
+        grid.off('click.pluginmgr', '.command-edit').on('click.pluginmgr', '.command-edit', function(e) {
+            var row = grid.DataTable().row($(this).closest('tr')).data();
+            $('#inputPluginId').val(row.id);
+            var json = JSON.stringify(row.data_object);
+            //console.log(json);
+            //console.log(row.data_object);
+            jsonToForm(row.data_object, row.data_object_helper, row.data_object_info);
+            $('#inputData').val(json);
+            $('#pluginsFormModal').modal();
+            $('#is_advanced').prop('checked', false);
+        });
+        grid.off('click.pluginmgr', '.command-sql').on('click.pluginmgr', '.command-sql', function(e) {
+            var row = grid.DataTable().row($(this).closest('tr')).data();
+            $('#inputPluginId').val(row.id);
+            $('#inputData').val(JSON.stringify(row.data_object));
+            modal.showPleaseWait();
+            $.ajax({
+                url: webSiteRootURL + 'objects/pluginRunDatabaseScript.json.php',
+                data: {
+                    "name": row.name,
+                    "globalToken": '<?php echo getToken(300); ?>'
+                },
+                type: 'post',
+                success: function(response) {
+                    if (response.error) {
+                        avideoAlertError(response.msg);
+                    } else {
+                        $("#grid").bootgrid('reload');
+                    }
+                    modal.hidePleaseWait();
+                }
+            });
+        });
+        grid.off('click.pluginmgr', '.command-update').on('click.pluginmgr', '.command-update', function(e) {
+            var row = grid.DataTable().row($(this).closest('tr')).data();
+            $('#inputPluginId').val(row.id);
+            $('#inputData').val(JSON.stringify(row.data_object));
+            modal.showPleaseWait();
+            $.ajax({
+                url: webSiteRootURL + 'objects/pluginRunUpdateScript.json.php',
+                data: {
+                    name: row.name,
+                    uuid: row.uuid
+                },
+                type: 'post',
+                success: function(response) {
+                    modal.hidePleaseWait();
+                    $("#grid").bootgrid('reload');
+                    avideoResponse(response);
+                }
+            });
+        });
+
+        grid.on("draw.dt", function() {
             try {
                 $('[data-toggle="tooltip"], .tooltip').tooltip("hide");
             } catch (error) {
@@ -541,95 +760,10 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                     html: true
                 });
             }, 500);
-            /* Executes after data is loaded and rendered */
-            grid.find(".pluginSwitch").on("change", function(e) {
-                var row_index = $(this).closest('tr').index();
-                var row = $("#grid").bootgrid("getCurrentRows")[row_index];
-                var this_ = $(this);
-                modal.showPleaseWait();
-                $.ajax({
-                    url: webSiteRootURL + 'objects/pluginSwitch.json.php',
-                    data: {
-                        "uuid": row.uuid,
-                        "name": row.name,
-                        "dir": row.dir,
-                        "enable": $('#enable' + row.uuid).is(":checked")
-                    },
-                    type: 'post',
-                    success: function(response) {
-                        modal.hidePleaseWait();
-                        if (this_.data("pname") == "WWBNIndex") {
-                            $.ajax({
-                                url: "<?= $global['webSiteRootURL']; ?>plugin/WWBNIndex/ajax.php",
-                                data: {
-                                    "action": "changePluginStatus",
-                                    "enabled": this_.is(":checked")
-                                },
-                                type: "post",
-                                success: function(response) {
-                                    window.location.reload();
-                                }
-                            });
-                        } else {
-                            $("#grid").bootgrid('reload');
-                        }
-                    }
-                });
-            });
-            grid.find(".command-edit").on("click", function(e) {
-                var row_index = $(this).closest('tr').index();
-                var row = $("#grid").bootgrid("getCurrentRows")[row_index];
-                $('#inputPluginId').val(row.id);
-                var json = JSON.stringify(row.data_object);
-                //console.log(json);
-                //console.log(row.data_object);
-                jsonToForm(row.data_object, row.data_object_helper, row.data_object_info);
-                $('#inputData').val(json);
-                $('#pluginsFormModal').modal();
-                $('#is_advanced').prop('checked', false);
-            });
-            grid.find(".command-sql").on("click", function(e) {
-                var row_index = $(this).closest('tr').index();
-                var row = $("#grid").bootgrid("getCurrentRows")[row_index];
-                $('#inputPluginId').val(row.id);
-                $('#inputData').val(JSON.stringify(row.data_object));
-                modal.showPleaseWait();
-                $.ajax({
-                    url: webSiteRootURL + 'objects/pluginRunDatabaseScript.json.php',
-                    data: {
-                        "name": row.name
-                    },
-                    type: 'post',
-                    success: function(response) {
-                        if (response.error) {
-                            avideoAlertError(response.msg);
-                        } else {
-                            $("#grid").bootgrid('reload');
-                        }
-                        modal.hidePleaseWait();
-                    }
-                });
-            });
-            grid.find(".command-update").on("click", function(e) {
-                var row_index = $(this).closest('tr').index();
-                var row = $("#grid").bootgrid("getCurrentRows")[row_index];
-                $('#inputPluginId').val(row.id);
-                $('#inputData').val(JSON.stringify(row.data_object));
-                modal.showPleaseWait();
-                $.ajax({
-                    url: webSiteRootURL + 'objects/pluginRunUpdateScript.json.php',
-                    data: {
-                        name: row.name,
-                        uuid: row.uuid
-                    },
-                    type: 'post',
-                    success: function(response) {
-                        modal.hidePleaseWait();
-                        $("#grid").bootgrid('reload');
-                        avideoResponse(response);
-                    }
-                });
-            });
+            // filters must be re-applied after every draw (sort/reload), not just once after the initial ajax load,
+            // otherwise a sort/reload could silently drop the currently active tag filter
+            processShow();
+            totalVisible();
 
             if ($(".command-edit[data-pname=WWBNIndex]").length > 0) {
                 $(".command-edit[data-pname=WWBNIndex]").remove();
@@ -653,6 +787,10 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
                 type: 'post',
                 success: function(response) {
                     modal.hidePleaseWait();
+                    if (response && response.error) {
+                        avideoAlertError(response.error);
+                        return;
+                    }
                     $("#grid").bootgrid('reload');
                     $('#pluginsFormModal').modal('hide');
                 }
@@ -662,8 +800,65 @@ $wwbnIndexPlugin = AVideoPlugin::isEnabledByName('WWBNIndex');
             //$('#pluginsImportFormModal').modal();
             avideoModalIframeSmall(webSiteRootURL + 'view/managerPluginUpload.php');
         });
+        function getPluginsNeedingUpdate() {
+            // paging is off on this grid, so every loaded row is always "current" - read the DataTable
+            // directly instead of the bootgrid bridge's page-scoped getCurrentRows() contract.
+            var rows = $('#grid').DataTable().rows().data().toArray();
+            return rows.filter(function(row) {
+                return row.hasOwnProperty('installedPlugin') && row.installedPlugin.hasOwnProperty('pluginversion') && row.installedPlugin.pluginversion != row.pluginversion;
+            });
+        }
+        function updatePluginsSequentially(rows, index, updated, failed) {
+            if (index >= rows.length) {
+                modal.hidePleaseWait();
+                $("#grid").bootgrid('reload');
+                if (failed.length) {
+                    avideoAlertError(updated.length + " <?php echo __("plugin(s) updated"); ?>, " + failed.length + " <?php echo __("failed"); ?>: " + failed.join(', '));
+                } else {
+                    avideoToastSuccess(updated.length + " <?php echo __("plugin(s) updated successfully!"); ?>");
+                }
+                return;
+            }
+            var row = rows[index];
+            modal.setText("<?php echo __("Updating"); ?> " + row.name + " (" + (index + 1) + "/" + rows.length + ")...");
+            modal.setProgress(Math.round((index / rows.length) * 100));
+            $.ajax({
+                url: webSiteRootURL + 'objects/pluginRunUpdateScript.json.php',
+                data: {
+                    name: row.name,
+                    uuid: row.uuid
+                },
+                type: 'post',
+                success: function(response) {
+                    if (response && response.error) {
+                        failed.push(row.name);
+                    } else {
+                        updated.push(row.name);
+                    }
+                },
+                error: function() {
+                    failed.push(row.name);
+                },
+                complete: function() {
+                    updatePluginsSequentially(rows, index + 1, updated, failed);
+                }
+            });
+        }
+        $('#updateAllPluginsBtn').click(async function(evt) {
+            var rows = getPluginsNeedingUpdate();
+            if (!rows.length) {
+                avideoToastSuccess("<?php echo __("All plugins are already up to date!"); ?>");
+                return;
+            }
+            var confirmed = await avideoConfirm(rows.length + " <?php echo __("plugin(s) will be updated. Continue?"); ?>");
+            if (!confirmed) {
+                return;
+            }
+            modal.showPleaseWait();
+            updatePluginsSequentially(rows, 0, [], []);
+        });
         $.ajax({
-            url: 'https://youphp.tube/marketplace/plugins.json?jsonp=1',
+            url: 'https://streamphp.com/marketplace/plugins.json?jsonp=1',
             dataType: 'jsonp',
             success: function(response) {
                 for (i = 0; i < response.rows.length; i++) {

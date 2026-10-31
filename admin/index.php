@@ -100,11 +100,14 @@ $itens[] = $menu;
 $menu = new MenuAdmin(__("Health Check"), "fas fa-notes-medical", "health_check");
 $itens[] = $menu;
 
-$_GET['page'] = xss_esc(@$_GET['page']);
+$menu = new MenuAdmin(__("FFmpeg Monitor"), "fas fa-film", "ffmpeg_monitor");
+$itens[] = $menu;
+
+$_GET['browse_page'] = xss_esc(@$_GET['browse_page']);
 
 $includeHead = '';
 $includeBody = '';
-switch ($_GET['page']) {
+switch ($_GET['browse_page']) {
     case "backup":
         $includeBody = $global['systemRootPath'] . 'admin/backup.php';
         break;
@@ -143,9 +146,14 @@ switch ($_GET['page']) {
         $includeBody = $global['systemRootPath'] . 'view/configurations_body.php';
         break;
     case "monetize_subscription":
-        $includeHead = $global['systemRootPath'] . 'plugin/Subscription/page/editor_head.php';
+        $subscriptionEditorPath = $global['systemRootPath'] . 'plugin/Subscription/page/';
+        // Subscription is distributed separately; older installations may use browse_page.
+        if (!file_exists($subscriptionEditorPath . 'editor_body.php') && file_exists($global['systemRootPath'] . 'plugin/Subscription/browse_page/editor_body.php')) {
+            $subscriptionEditorPath = $global['systemRootPath'] . 'plugin/Subscription/browse_page/';
+        }
+        $includeHead = $subscriptionEditorPath . 'editor_head.php';
         $includeBody = [];
-        $includeBody[] = $global['systemRootPath'] . 'plugin/Subscription/page/editor_body.php';
+        $includeBody[] = $subscriptionEditorPath . 'editor_body.php';
         $includeBody[] = $global['systemRootPath'] . 'admin/monetize_subscription.php';
         break;
     case "monetize_vast":
@@ -184,6 +192,9 @@ switch ($_GET['page']) {
     case "health_check":
         $includeBody = $global['systemRootPath'] . 'admin/health_check.php';
         break;
+    case "ffmpeg_monitor":
+        $includeBody = $global['systemRootPath'] . 'admin/ffmpegMonitor.php';
+        break;
     default:
         $includeHead = $global['systemRootPath'] . 'view/charts_head.php';
         $includeBody = $global['systemRootPath'] . 'view/charts_body.php';
@@ -191,140 +202,85 @@ switch ($_GET['page']) {
 }
 
 $_page = new Page(array('Administration'));
+// Embedded managers need the same table bridge as their standalone pages.
+$adminStyles = array('view/css/DataTables/datatables.min.css', 'view/css/adminLayout.css');
+$adminScripts = array('view/css/DataTables/datatables.min.js', 'view/js/avideoDataTable.js', 'view/js/adminSettings.js');
+if ($includeHead === $global['systemRootPath'] . 'view/charts_head.php') {
+    $adminStyles[] = 'view/css/reportDashboard.css';
+    $adminScripts[] = 'view/js/reportDashboard.js';
+}
+$_page->setExtraStyles($adminStyles);
+$_page->setExtraScripts($adminScripts);
 if (!empty($includeHead) && file_exists($includeHead)) {
     $_page->setIncludeInHead(array($includeHead));
 }
 
 ?>
-<style>
-@media (max-width: 767px) {
-    .affix {
-        position: static;
-    }
-}
-.leftMenu .panel-body {
-    padding: 0px;
-}
-.adminLeftMenu.panel-default i, .adminLeftMenu.panel-default{
-    -webkit-transition: opacity 0.5s ease-in-out;
-    -moz-transition: opacity 0.5s ease-in-out;
-    transition: opacity 0.5s ease-in-out;
-}
-.adminLeftMenu.panel-default i{
-    opacity: 0.2;
-}
-.adminLeftMenu:hover.panel-default i{
-    opacity: 1;
-}
-.adminLeftMenu.panel-default{
-    opacity: 0.6;
-}
-.adminLeftMenu:hover.panel-default{
-    opacity: 1;
-}
-</style>
-<div class="container-fluid">
-    <br>
-    <div class="row">
-        <div class=" col-lg-2 col-md-3 col-sm-3 fixed affix leftMenu">
-            <div class="panel-group" id="accordion">
+
+<div class="container-fluid admin-shell">
+    <header class="admin-page-heading">
+        <div>
+            <h1><?php echo __('Administration'); ?></h1>
+            <p class="text-muted"><?php echo __('Manage your site, content and settings.'); ?></p>
+        </div>
+        <a class="btn btn-default" href="<?php echo $global['webSiteRootURL']; ?>"><i class="fa fa-home" aria-hidden="true"></i> <?php echo __('View site'); ?></a>
+    </header>
+    <div class="row admin-layout">
+        <div class="col-lg-2 col-md-3 col-sm-3 col-xs-12 admin-sidebar">
+            <button class="btn btn-default btn-block visible-xs admin-navigation-button" type="button" data-toggle="collapse" data-target="#adminNavigation" aria-expanded="false" aria-controls="adminNavigation"><i class="fa fa-bars" aria-hidden="true"></i> <?php echo __('Administration'); ?></button>
+            <div class="collapse admin-navigation" id="adminNavigation">
+            <nav class="panel-group admin-accordion" id="accordion" aria-label="<?php echo __('Administration'); ?>">
                 <?php
-                $panel = 'panel-default';
-                if (empty($_REQUEST['page'])) {
-                    $panel = 'panel-primary';
-                }
+                $currentPage = empty($_GET['browse_page']) ? 'dashboard' : $_GET['browse_page'];
                 foreach ($itens as $key => $value) {
-                    $uid = uniqid();
-                    $href = 'data-toggle="collapse" data-parent="#accordion" href="#collapse' . $uid . '"';
-                    if (!empty($value->href)) {
-                        $href = 'href="' . $global['webSiteRootURL'] . 'admin/?page=' . $value->href . '"';
+                    $uid = 'collapseadmin-' . $key;
+                    $hasChildren = !empty($value->itens);
+                    $active = $currentPage === $value->href;
+                    foreach ($value->itens as $child) {
+                        $active = $active || $currentPage === $child->href;
                     }
-                    if (!empty($_REQUEST['page']) && $_REQUEST['page'] == $value->href) {
-                        $panel = 'panel-primary';
-                    } else {
-                        foreach ($value->itens as $key2 => $value2) {
-                            if (!empty($_REQUEST['page']) && $_REQUEST['page'] === $value2->href) {
-                                $panel = 'panel-primary';
-                            }
-                        }
-                    } ?>
-                    <div class="panel <?php echo $panel; ?> adminLeftMenu <?php echo getCSSAnimationClassAndStyle('animate__bounceInLeft', 'menu'); ?>">
+                    ?>
+                    <div class="panel <?php echo $active ? 'panel-primary' : 'panel-default'; ?> adminLeftMenu">
                         <div class="panel-heading">
                             <h4 class="panel-title">
-                                <a <?php echo $href; ?>>
-                                    <i class="<?php echo $value->icon; ?> "></i> <?php echo $value->title; ?>
+                                <?php if ($hasChildren) { ?>
+                                    <a class="admin-menu-toggle" data-toggle="collapse" data-parent="#accordion" href="#<?php echo $uid; ?>" role="button" aria-controls="<?php echo $uid; ?>" aria-expanded="<?php echo $active ? 'true' : 'false'; ?>">
+                                <?php } else { ?>
+                                    <a id="browse_page_<?php echo $value->href; ?>" href="<?php echo $global['webSiteRootURL'] . 'admin/?browse_page=' . $value->href; ?>" <?php echo $active ? 'aria-current="page"' : ''; ?>>
+                                <?php } ?>
+                                    <i class="<?php echo $value->icon; ?>" aria-hidden="true"></i>
+                                    <span class="admin-menu-label"><?php echo $value->title; ?></span>
+                                    <?php if ($hasChildren) { ?><i class="fa fa-chevron-down admin-menu-chevron" aria-hidden="true"></i><?php } ?>
                                 </a>
                             </h4>
                         </div>
-                        <?php
-                        if (!empty($value->itens)) {
-                            $in = '';
-                            if (!empty($_GET['page'])) {
-                                foreach ($value->itens as $search) {
-                                    if ($_GET['page'] === $search->href) {
-                                        $in = "in";
-                                        break;
-                                    }
-                                }
-                            } ?>
-                            <div id="collapse<?php echo $uid; ?>" class="panel-collapse collapse <?php echo $in; ?>">
+                        <?php if ($hasChildren) { ?>
+                            <div id="<?php echo $uid; ?>" class="panel-collapse collapse <?php echo $active ? 'in' : ''; ?>">
                                 <div class="panel-body">
-                                    <table class="table">
-                                        <?php
-                                        $active = '';
-                                        if (empty($_GET['page'])) {
-                                            $active = "active";
-                                        }
-                                        foreach ($value->itens as $key2 => $value2) {
-                                            if (!empty($_GET['page']) && $_GET['page'] === $value2->href) {
-                                                $active = "active";
-                                            } ?>
-                                            <tr>
-                                                <td class="<?php echo $active; ?>">
-                                                    <a href="<?php echo "{$global['webSiteRootURL']}admin/?page=" . $value2->href; ?>"><i class="<?php echo $value2->icon; ?>"></i> <?php echo $value2->title; ?></a>
-                                                </td>
-                                            </tr>
-                                        <?php
-                                            $active = '';
-                                        } ?>
-                                    </table>
+                                    <ul class="admin-submenu">
+                                        <?php foreach ($value->itens as $child) { ?>
+                                            <li>
+                                                <a href="<?php echo $global['webSiteRootURL'] . 'admin/?browse_page=' . $child->href; ?>" <?php echo $currentPage === $child->href ? 'aria-current="page"' : ''; ?>>
+                                                    <i class="<?php echo $child->icon; ?>" aria-hidden="true"></i> <?php echo $child->title; ?>
+                                                </a>
+                                            </li>
+                                        <?php } ?>
+                                    </ul>
                                 </div>
                             </div>
-                        <?php
-                        } ?>
+                        <?php } ?>
                     </div>
-                <?php
-                    $panel = 'panel-default';
-                }
-                ?>
+                <?php } ?>
+            </nav>
             </div>
         </div>
-        <div class=" col-lg-10 col-md-9 col-sm-9 col-sm-offset-3 col-md-offset-3 col-lg-offset-2 ">
+        <div class="col-lg-10 col-md-9 col-sm-9 col-xs-12 admin-content">
             <?php
             if (!empty($includeBody)) {
-                if (is_array($includeBody)) {
-                    foreach ($includeBody as $value) {
-                        if (file_exists($value)) {
-                            include $value;
-                        } else {
-            ?>
-                            <div class="alert alert-danger">
-                                <?php echo __('Please forgive us for bothering you, but unfortunately you do not have this plugin yet. But do not hesitate to purchase it in our online store'); ?>
-                                <a class="btn btn-danger" href="https://youphp.tube/marketplace/"><?php echo __('Plugin Store'); ?></a>
-                            </div>
-                        <?php
-                        }
-                    }
-                } else {
-                    if (file_exists($includeBody)) {
-                        include $includeBody;
-                    } else {
-                        ?>
-                        <div class="alert alert-danger">
-                            <?php echo __('Please forgive us for bothering you, but unfortunately you do not have this plugin yet. But do not hesitate to purchase it in our online store'); ?>
-                            <a class="btn btn-danger" href="https://youphp.tube/marketplace/"><?php echo __('Plugin Store'); ?></a>
-                        </div>
-            <?php
+                foreach ((array) $includeBody as $value) {
+                    echo getAdminPageWarningHTML($value);
+                    if (file_exists($value)) {
+                        include $value;
                     }
                 }
             }
@@ -333,36 +289,12 @@ if (!empty($includeHead) && file_exists($includeHead)) {
     </div>
 </div>
 <script>
-    $(document).ready(function() {
-        $('.adminOptionsForm').submit(function(e) {
-            e.preventDefault();
-            modal.showPleaseWait();
-            $.ajax({
-                url: webSiteRootURL + 'admin/save.json.php',
-                data: $(this).serialize(),
-                type: 'post',
-                success: function(response) {
-                    modal.hidePleaseWait();
-                }
-            });
-        });
-        $('.pluginSwitch').change(function(e) {
-            modal.showPleaseWait();
-            $.ajax({
-                url: webSiteRootURL + 'objects/pluginSwitch.json.php',
-                data: {
-                    "uuid": $(this).attr('uuid'),
-                    "name": $(this).attr('name'),
-                    "dir": $(this).attr('name'),
-                    "enable": $(this).is(":checked")
-                },
-                type: 'post',
-                success: function(response) {
-                    modal.hidePleaseWait();
-                }
-            });
-        });
-    });
+    var adminSaveToken = <?php echo json_encode(getToken()); ?>;
+    var adminSettingsMessages = {
+        saving: <?php echo json_encode(__('Saving')); ?>,
+        saved: <?php echo json_encode(__('Saved')); ?>,
+        error: <?php echo json_encode(__('An error occurred')); ?>
+    };
 </script>
 <?php
 $_page->print();

@@ -28,6 +28,8 @@ ini_set('max_execution_time', $_2hours);
 $sort = @$argv[1];
 if(empty($sort) || strtolower($sort) !== 'asc'){
     $sort = 'DESC';
+}else if(strtolower($sort) == 'asc'){
+    $alsoMoveUnlisted = 1;
 }
 
 $sql = "SELECT * FROM  videos WHERE 1=1 ORDER BY id $sort ";
@@ -39,12 +41,12 @@ $videos_dir = getVideosDir();
 $rows = [];
 
 $transferStatus = [];
-$transferStatus[] = Video::$statusActive;
-$transferStatus[] = Video::$statusFansOnly;
-$transferStatus[] = Video::$statusScheduledReleaseDate;
+$transferStatus[] = Video::STATUS_ACTIVE;
+$transferStatus[] = Video::STATUS_FANS_ONLY;
+$transferStatus[] = Video::STATUS_SCHEDULED_RELEASE_DATE;
 if($alsoMoveUnlisted){
-    $transferStatus[] = Video::$statusUnlisted;
-    $transferStatus[] = Video::$statusUnlistedButSearchable;
+    $transferStatus[] = Video::STATUS_UNLISTED;
+    $transferStatus[] = Video::STATUS_UNLISTED_BUT_SEARCHABLE;
 }
 
 $statusSkipped = array();
@@ -61,10 +63,10 @@ if ($res != false) {
                 echo "{$info} videos_id = {$row['id']} empty local files {$row['status']} {$row['filename']}". PHP_EOL;
                 continue;
             }
-            if ($last['acumulativeFilesize']<10000) {
-                echo "{$info} videos_id = {$row['id']} too small size status={$row['status']} {$last['acumulativeFilesize']} ". humanFileSize($last['acumulativeFilesize']). PHP_EOL;
+            if ($last['acumulativeFilesize']<500) {
+                echo "{$info} videos_id = {$row['id']} too small size status={$row['status']} acumulativeFilesize={$last['acumulativeFilesize']} ". humanFileSize($last['acumulativeFilesize']). PHP_EOL;
                 if($last['acumulativeFilesize']<50){
-                   CDNStorage::deleteLog($row['id']); 
+                   CDNStorage::deleteLog($row['id']);
                 }
                 //echo "SKIP videos_id = {$row['id']} sites_id is not empty {$row['sites_id']} [{$last['acumulativeFilesize']}] ".humanFileSize($last['acumulativeFilesize']) . PHP_EOL;
             } else {

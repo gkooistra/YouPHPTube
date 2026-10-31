@@ -39,6 +39,8 @@ class Step extends \Google\Model
    * @var string
    */
   public $description;
+  protected $directVpcEgressConnectionType = DirectVpcEgressConnectionInfo::class;
+  protected $directVpcEgressConnectionDataType = '';
   protected $dropType = DropInfo::class;
   protected $dropDataType = '';
   protected $endpointType = EndpointInfo::class;
@@ -69,8 +71,16 @@ class Step extends \Google\Model
   public $projectId;
   protected $proxyConnectionType = ProxyConnectionInfo::class;
   protected $proxyConnectionDataType = '';
+  protected $redisClusterType = RedisClusterInfo::class;
+  protected $redisClusterDataType = '';
+  protected $redisInstanceType = RedisInstanceInfo::class;
+  protected $redisInstanceDataType = '';
   protected $routeType = RouteInfo::class;
   protected $routeDataType = '';
+  protected $serverlessExternalConnectionType = ServerlessExternalConnectionInfo::class;
+  protected $serverlessExternalConnectionDataType = '';
+  protected $serverlessNegType = ServerlessNegInfo::class;
+  protected $serverlessNegDataType = '';
   /**
    * @var string
    */
@@ -195,6 +205,20 @@ class Step extends \Google\Model
   public function getDescription()
   {
     return $this->description;
+  }
+  /**
+   * @param DirectVpcEgressConnectionInfo
+   */
+  public function setDirectVpcEgressConnection(DirectVpcEgressConnectionInfo $directVpcEgressConnection)
+  {
+    $this->directVpcEgressConnection = $directVpcEgressConnection;
+  }
+  /**
+   * @return DirectVpcEgressConnectionInfo
+   */
+  public function getDirectVpcEgressConnection()
+  {
+    return $this->directVpcEgressConnection;
   }
   /**
    * @param DropInfo
@@ -393,6 +417,34 @@ class Step extends \Google\Model
     return $this->proxyConnection;
   }
   /**
+   * @param RedisClusterInfo
+   */
+  public function setRedisCluster(RedisClusterInfo $redisCluster)
+  {
+    $this->redisCluster = $redisCluster;
+  }
+  /**
+   * @return RedisClusterInfo
+   */
+  public function getRedisCluster()
+  {
+    return $this->redisCluster;
+  }
+  /**
+   * @param RedisInstanceInfo
+   */
+  public function setRedisInstance(RedisInstanceInfo $redisInstance)
+  {
+    $this->redisInstance = $redisInstance;
+  }
+  /**
+   * @return RedisInstanceInfo
+   */
+  public function getRedisInstance()
+  {
+    return $this->redisInstance;
+  }
+  /**
    * @param RouteInfo
    */
   public function setRoute(RouteInfo $route)
@@ -405,6 +457,34 @@ class Step extends \Google\Model
   public function getRoute()
   {
     return $this->route;
+  }
+  /**
+   * @param ServerlessExternalConnectionInfo
+   */
+  public function setServerlessExternalConnection(ServerlessExternalConnectionInfo $serverlessExternalConnection)
+  {
+    $this->serverlessExternalConnection = $serverlessExternalConnection;
+  }
+  /**
+   * @return ServerlessExternalConnectionInfo
+   */
+  public function getServerlessExternalConnection()
+  {
+    return $this->serverlessExternalConnection;
+  }
+  /**
+   * @param ServerlessNegInfo
+   */
+  public function setServerlessNeg(ServerlessNegInfo $serverlessNeg)
+  {
+    $this->serverlessNeg = $serverlessNeg;
+  }
+  /**
+   * @return ServerlessNegInfo
+   */
+  public function getServerlessNeg()
+  {
+    return $this->serverlessNeg;
   }
   /**
    * @param string

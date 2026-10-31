@@ -11,13 +11,17 @@ if (isMobile()) {
 if (defaultIsPortrait()) {
     $width = 540;
     $height = 800;
-    $path = $images->posterPortraitPath;
-    $portreait = 1;
+    // Get path directly for internal server-side use
+    $pathSource = Video::getSourceFile($video['filename'], '_portrait.jpg', false, true);
+    $path = $pathSource['path'];
+    $portrait = 1;
 } else {
     $width = 1280;
     $height = 720;
-    $path = empty($images->posterLandscapePath) ? ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH) : $images->posterLandscapePath;
-    $portreait = 0;
+    // Get path directly for internal server-side use
+    $pathSource = Video::getSourceFile($video['filename'], '.jpg', false, true);
+    $path = !empty($pathSource['path']) ? $pathSource['path'] : ImagesPlaceHolders::getVideoPlaceholder(ImagesPlaceHolders::$RETURN_PATH);
+    $portrait = 0;
 }
 
 $image = str_replace([$global['systemRootPath'], DIRECTORY_SEPARATOR], [$global['webSiteRootURL'], '/'], $path);
@@ -39,7 +43,7 @@ echo $croppie1['html'];
             data: {
                 videos_id: <?php echo $videos_id; ?>,
                 image: image,
-                portreait: <?php echo $portreait; ?>,
+                portrait: <?php echo $portrait; ?>,
             },
             type: 'post',
             success: function (response) {

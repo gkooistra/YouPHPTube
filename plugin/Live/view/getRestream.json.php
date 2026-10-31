@@ -35,6 +35,14 @@ if (empty($obj->restreams_id)) {
     forbiddenPage('restreams_id is empty');
 }
 
+if (!User::isAdmin()) {
+    require_once $global['systemRootPath'] . 'plugin/Live/Objects/Live_restreams.php';
+    $lr = new Live_restreams($obj->restreams_id);
+    if ($lr->getUsers_id() !== User::getId()) {
+        forbiddenPage(__("You have no access to this restream"));
+    }
+}
+
 debugLog(__LINE__);
 
 $obj->url = Live_restreams_logs::getURLFromTransmitionAndRestream($obj->live_transmitions_history_id, $obj->restreams_id, 'log');
@@ -45,7 +53,7 @@ if (empty($obj->url)) {
     $obj->log = false;
 } else {
     debugLog(__LINE__);
-    $content = url_get_contents($obj->url);
+    $content = url_get_contents($obj->url, '', 0, false, false, false);
     debugLog(__LINE__);
     $obj->log = json_decode($content);
     debugLog(__LINE__);
@@ -57,7 +65,7 @@ if (empty($obj->url)) {
 }
 
 debugLog(__LINE__);
-unset($obj->url);
+//unset($obj->url);
 
 $obj->end = number_format(microtime(true) - $obj->start, 2);
 die(json_encode($obj));
@@ -65,7 +73,7 @@ die(json_encode($obj));
 
 function debugLog($line){
     global $obj;
-    $debug = array('time'=>microtime(true), 'line'=>$line, 'takes'=>number_format(microtime(true)-$obj->lastTime, 2) );    
+    $debug = array('time'=>microtime(true), 'line'=>$line, 'takes'=>number_format(microtime(true)-$obj->lastTime, 2) );
     $debug['takesTooLong'] =  $debug['takes']>0.5;
     $obj->debug[] = $debug;
     $obj->lastTime = microtime(true);

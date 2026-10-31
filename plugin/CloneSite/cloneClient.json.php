@@ -18,6 +18,7 @@ require_once $global['systemRootPath'] . 'plugin/CloneSite/functions.php';
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
+ini_set('memory_limit', '512M');
 error_reporting(E_ALL);
 
 $totalSteps = 7;
@@ -47,13 +48,15 @@ if (empty($objClone->cloneSiteURL)) {
 
 $objClone->cloneSiteURL = rtrim($objClone->cloneSiteURL, "/") . '/';
 $objCloneOriginal = $objClone;
-$argv[1] = preg_replace("/[^A-Za-z0-9 ]/", '', empty($argv[1])?'':$argv[1]);
+$cliKey = '';
+if (isCommandLineInterface() && !empty($argv[1])) {
+    $cliKey = preg_replace("/[^A-Za-z0-9 ]/", '', $argv[1]);
+}
 
-if (empty($objClone) || empty($argv[1]) || $objClone->myKey !== $argv[1]) {
+if (empty($objClone) || empty($cliKey) || !hash_equals((string) $objClone->myKey, (string) $cliKey)) {
     if (!User::isAdmin()) {
         $resp->msg = "You can't do this";
         $log->add("Clone: {$resp->msg}");
-        echo "$objClone->myKey !== $argv[1]";
         die(json_encode($resp));
     }
 }
@@ -74,8 +77,10 @@ if (!file_exists($photosDir)) {
 $url = $objClone->cloneSiteURL . "plugin/CloneSite/cloneServer.json.php?url=" . urlencode($global['webSiteRootURL']) . "&key={$objClone->myKey}&useRsync=" . intval($objClone->useRsync);
 // check if it respond
 $log->add("Clone (1 of {$totalSteps}): Asking the Server the database and the files");
-$content = url_get_contents($url, "", 3600, true);
-_error_log("Clone: url_get_contents($url) respond: ($content)");
+// Off by default (self-signed clone servers); see shouldVerifySSLCertificates().
+$verifySSL = shouldVerifySSLCertificates();
+$content = url_get_contents($url, "", 3600, false, false, false, $verifySSL, true);
+_error_log("Clone: Server response received, bytes=" . strlen((string) $content));
 //var_dump($url, $content);exit;
 $json = _json_decode($content);
 
@@ -94,6 +99,8 @@ if (!empty($json->error)) {
 $log->add("Clone: Good start! the server has answered");
 
 $json->sqlFile = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $json->sqlFile)));
+// Security: sanitize videosDir from server response before it is used in the rsync shell command.
+$json->videosDir = preg_replace('/[^a-z0-9.\/\_\-]/i', '', $json->videosDir);
 foreach ($json->videoFiles as $key => $value) {
     $json->videoFiles[$key]->filename = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $value->filename)));
     $json->videoFiles[$key]->url = str_replace("'", '', escapeshellarg(preg_replace('/[^a-z0-9_.-]/i', '', $value->url)));
@@ -106,31 +113,28 @@ foreach ($json->photoFiles as $key => $value) {
     $json->photoFiles[$key]->filesize = intval($value->filesize);
     $json->photoFiles[$key]->filemtime = intval($value->filemtime);
 }
-$objClone->cloneSiteURL = str_replace("'", '', escapeshellarg($objClone->cloneSiteURL));
-
 // get dump file
 $sqlFile = "{$clonesDir}{$json->sqlFile}";
 $sqlURL = "{$objClone->cloneSiteURL}videos/clones/{$json->sqlFile}";
-$cmd = "wget -O {$sqlFile} {$sqlURL}";
-$log->add("Clone (2 of {$totalSteps}): Geting MySQL Dump file [$cmd]");
-exec($cmd . " 2>&1", $output, $return_val);
-if ($return_val !== 0) {
-    $log->add("Clone Error: " . print_r($output, true));
-}
-
-if(!file_exists($sqlFile) || empty(filesize($sqlFile))){
-    $log->add("Clone Error: on download file, trying again" . json_encode($output));
-    $content = url_get_contents($sqlURL);
-    if(!empty($content)){
-        _file_put_contents($sqlFile, $content);
+$log->add("Clone (2 of {$totalSteps}): Getting MySQL Dump file");
+// Never restore a stale or partial dump after a failed download.
+@unlink($sqlFile);
+if (!wget($sqlURL, $sqlFile, false, $verifySSL, true)) {
+    $content = url_get_contents($sqlURL, '', 3600, false, false, false, $verifySSL, true);
+    if ($content !== false && $content !== '') {
+        if (_file_put_contents($sqlFile, $content) !== strlen($content)) {
+            @unlink($sqlFile);
+        }
     }
 }
-
-if(!file_exists($sqlFile) || empty(filesize($sqlFile))){
-    $log->add("Clone Error: on download file we will continue anyway");
-}else{
-    $log->add("Clone: Nice! we got the MySQL Dump file [{$sqlURL}] " . humanFileSize(filesize($sqlFile)));
+clearstatcache(true, $sqlFile);
+if (!file_exists($sqlFile) || empty(filesize($sqlFile))) {
+    @unlink($sqlFile);
+    $resp->msg = 'Clone SQL download failed; database was not restored';
+    $log->add($resp->msg);
+    die(json_encode($resp));
 }
+$log->add("Clone: MySQL Dump received " . humanFileSize(filesize($sqlFile)));
 
 /*
 //$log->add("Clone: MySQL Dump $file");
@@ -179,6 +183,10 @@ foreach ($lines as $line) {
     ///*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
     ///*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */
     if (strpos($line, 'OLD_CHARACTER_SET_RESULT') !== false) {
+        continue;
+    }
+    // Skip mysqldump warnings (e.g. "mysqldump: [Warning] Using a password on the command line interface can be insecure.")
+    if (strpos($line, 'mysqldump:') === 0) {
         continue;
     }
     // Skip it if it's a comment
@@ -255,13 +263,24 @@ if (empty($objClone->useRsync)) {
     if (empty($port)) {
         $port = 22;
     }
-    $rsync = "sshpass -p '{password}' rsync -av -e 'ssh  -p {$port} -o StrictHostKeyChecking=no' --exclude '*.php' --exclude 'cache' --exclude '*.sql' --exclude '*.log' {$objClone->cloneSiteSSHUser}@{$objClone->cloneSiteSSHIP}:{$json->videosDir} " . Video::getStoragePath() . " --log-file='{$log->file}' ";
-    $cmd = str_replace("{password}", $objClone->cloneSiteSSHPassword->value, $rsync);
-    $log->add("Clone (4 of {$totalSteps}): execute rsync ({$rsync})");
+    // Security: strip shell-unsafe characters from admin-configured SSH fields and the
+    // server-supplied videosDir (already sanitized above) before building the shell command.
+    $sshUser = preg_replace('/[^a-z0-9._@\-]/i', '', $objClone->cloneSiteSSHUser);
+    $sshIP   = preg_replace('/[^a-z0-9.\-]/i', '', $objClone->cloneSiteSSHIP);
+    $rsync = "sshpass -p {password} rsync -av --partial --timeout=300 -e 'ssh -p {$port} -o StrictHostKeyChecking=no' --exclude '*.php' --exclude 'cache' --exclude '*.sql' --exclude '*.log' {$sshUser}@{$sshIP}:{$json->videosDir} " . Video::getStoragePath() . " --log-file='{$log->file}' ";
+    // Security: the password must be escaped, not just quoted - str_replace-ing it
+    // into an already-single-quoted word let a ' in the password break out into
+    // arbitrary shell.
+    $cmd = str_replace("{password}", escapeshellarg($objClone->cloneSiteSSHPassword->value), $rsync);
+    $log->add("Clone (4 of {$totalSteps}): execute rsync (" . str_replace('{password}', "'***'", $rsync) . ")");
 
     exec($cmd . " 2>&1", $output, $return_val);
+    // Log the output and the return value for debugging purposes
+    $log->add("Clone output: " . print_r($output, true));
+    $log->add("Clone return value: " . $return_val);
+
     if ($return_val !== 0) {
-        //$log->add("Clone Error: " . print_r($output, true));
+        $log->add("Clone Error: Command failed with return value {$return_val}");
     }
     $log->add("Clone (5 of {$totalSteps}): rsync finished");
 }
@@ -270,7 +289,7 @@ if (empty($objClone->useRsync)) {
 $url = $url . "&deleteDump={$json->sqlFile}";
 // check if it respond
 $log->add("Clone (6 of {$totalSteps}): Notify Server to Delete Dump");
-$content2 = url_get_contents($url);
+$content2 = url_get_contents($url, '', 0, false, false, false, $verifySSL, true);
 //var_dump($url, $content);exit;
 $json2 = _json_decode($content);
 if (!empty($json2->error)) {

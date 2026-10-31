@@ -117,17 +117,19 @@ $objLive = AVideoPlugin::getDataObject('Live');
         }).done(function(resposta) {
             if (resposta.error) {
                 avideoAlertError(resposta.msg);
-                modal.hidePleaseWait();
             } else {
                 if (close) {
                     avideoModalIframeCloseToastSuccess(resposta.msg);
                 } else {
-                    modal.hidePleaseWait();
                     avideoToastSuccess(resposta.msg);
                     listScheduledLives();
                     resetLiveSchedule();
                 }
             }
+        }).fail(function() {
+            avideoToastError(<?php echo json_encode(__('Could not save schedule. Please try again.')); ?>);
+        }).always(function() {
+            modal.hidePleaseWait();
         });
     }
 
@@ -141,12 +143,19 @@ $objLive = AVideoPlugin::getDataObject('Live');
 
     function listScheduledLives() {
         Schedule_plans = {};
+        $('#scheduleLiveStatus').removeClass('hidden').text(<?php echo json_encode(__('Loading...')); ?>);
         $.ajax({
             url: webSiteRootURL + "plugin/Live/view/Live_schedule/list.json.php?users_id=<?php echo User::getId(); ?>"
         }).done(
             function(resposta) {
+                if (!resposta || resposta.error || !Array.isArray(resposta.data)) {
+                    $('#scheduleLiveStatus').text(<?php echo json_encode(__('Could not load schedules. Please try again.')); ?>);
+                    return;
+                }
                 $('.savedScheduleTotals').text(resposta.data.length);
                 $("#schedule_live_list").empty();
+                $('#scheduleLiveStatus').toggleClass('hidden', resposta.data.length > 0)
+                    .text(<?php echo json_encode(__('No scheduled live streams yet. Use New Schedule to plan your next live.')); ?>);
                 for (x in resposta.data) {
                     var schedule = resposta.data[x];
                     if (typeof schedule != 'object') {
@@ -155,7 +164,7 @@ $objLive = AVideoPlugin::getDataObject('Live');
                     Schedule_plans[schedule.id] = schedule;
                     var $clone = $($('#Live_schedulebtnModelList').html());
                     var id = 'scheduled_' + schedule.id;
-                    var text = '<div class="pull-left" style="margin-right:10px;" ><img class="img img-responsive" src="' + schedule.posterURL + '" style="max-height:70px;" id="schedule_poster_' + schedule.id + '" /></div>' +
+                    var text = '<div class="pull-left" style="margin-right:10px;" ><img class="img img-responsive" src="' + schedule.posterURL + '" style="max-height:70px;" id="schedule_poster_' + schedule.id + '_0" /></div>' +
                         '<strong>' + schedule.title + '</strong>' +
                         '<div style="font-size: 0.9em;"> ' +
                         schedule.secondsIntervalHuman +
@@ -172,7 +181,9 @@ $objLive = AVideoPlugin::getDataObject('Live');
                 }
                 console.log(resposta.data);
             }
-        );
+        ).fail(function() {
+            $('#scheduleLiveStatus').removeClass('hidden').text(<?php echo json_encode(__('Could not load schedules. Please try again.')); ?>);
+        });
     }
 
 

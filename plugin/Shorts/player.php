@@ -27,6 +27,10 @@ if ($removeAnimation || !empty($advancedCustom->disableAnimations)) {
         overflow: hidden;
     }
 
+    body.playingShorts .hideOnPlayShorts {
+        display: none;
+    }
+
     #ShortsPlayerContent {
         position: fixed;
         top: 0;
@@ -196,7 +200,32 @@ if ($removeAnimation || !empty($advancedCustom->disableAnimations)) {
             <script>
                 function shareCarouselShorts() {
                     $('.ShortsPlayerOverlay').hide();
-                    iframe[0].contentWindow.postMessage('togglePlayerSocial', '*');
+                    if ($('.ShortsPlayerIframe').length) {
+                        $('.ShortsPlayerIframe')[0].contentWindow.postMessage('togglePlayerSocial', '*');
+                    } else {
+                        if (typeof togglePlayerSocial === 'function') {
+                            togglePlayerSocial();
+                        } else {
+                            console.warn('(togglePlayerSocial): iframe not available for postMessage');
+                            <?php
+                            $objP = AVideoPlugin::getObjectData('PlayerSkins');
+                            $videos_id = getVideos_id();
+                            if(!$objP->showShareSocial){
+                                echo 'console.warn("(togglePlayerSocial) PlayerSkins->showShareSocial is disabled");';
+                            }else{
+                                echo 'console.log("(togglePlayerSocial) PlayerSkins->showShareSocial is enabled");';
+                            }
+
+                            if(empty($videos_id)){
+                                echo 'console.warn("(togglePlayerSocial) videos_id is not set");';
+                            }else if(!CustomizeUser::canShareVideosFromVideo($videos_id)){
+                                echo 'console.warn("(togglePlayerSocial) CustomizeUser->canShareVideosFromVideo is false ['.$videos_id.']");';
+                            }else{
+                                echo 'console.log("(togglePlayerSocial) CustomizeUser->canShareVideosFromVideo is true ['.$videos_id.']");';
+                            }
+                            ?>
+                        }
+                    }
                 }
             </script>
         <?php
@@ -388,6 +417,7 @@ if ($removeAnimation || !empty($advancedCustom->disableAnimations)) {
                 var src = 'about:blank';
                 if (shortIsOpen) {
                     src = addQueryStringParameter(shortVideos[index2].embedlink, 'autoplay', 1);
+                    src = addQueryStringParameter(src, 'showBigButton', 1);
                 }
                 console.log('Flickity settled at ', index2, src);
                 iframe = $('<iframe/>', {
@@ -395,7 +425,12 @@ if ($removeAnimation || !empty($advancedCustom->disableAnimations)) {
                     width: '100vw',
                     height: '100vh',
                     frameborder: 0,
-                    src: src
+                    src: src,
+                    class: 'ShortsPlayerIframe',
+                    allow: 'autoplay; fullscreen',
+                    allowfullscreen: true,
+                    sandbox: 'allow-same-origin allow-scripts allow-popups allow-forms',
+                    id: 'ShortsPlayerIframe' + index2
                 });
                 var overlay = $('<div/>', {
                     // The attributes for the overlay

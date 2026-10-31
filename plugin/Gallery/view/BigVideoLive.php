@@ -1,27 +1,45 @@
 <?php
 if ($obj->BigVideoLiveForLoggedUsersOnly) {
-    if(!User::isLogged()){
+    if (!User::isLogged()) {
+        echo '<!-- BigVideoLive is disabled for non-logged users -->';
         return '';
     }
 }
 
 if ($obj->BigVideoLive->value == Gallery::BigVideoLiveDisabled) {
+    echo '<!-- BigVideoLive is disabled -->';
     return '';
 }
 
 if ($obj->BigVideoLiveOnFirstPageOnly && (!isFirstPage() || !empty($_GET['catName']) || !empty($_GET['showOnly']) || !empty($_GET['tags_id']))) {
+    echo '<!-- BigVideoLive is disabled on this page -->';
     return '';
 }
 
 if ($obj->BigVideoLive->value == Gallery::BigVideoLiveShowLiveOnly) {
-    $liveVideo = Live::getLatest(true);
+    // Inside a category page, validate the live of that category, not a global live
+    $bigVideoLiveCategories_id = 0;
+    if (!empty($_REQUEST['catName'])) {
+        $bigVideoLiveCat = Category::getCategoryByName($_REQUEST['catName']);
+        $bigVideoLiveCategories_id = intval(@$bigVideoLiveCat['id']);
+        if (empty($bigVideoLiveCategories_id)) {
+            echo '<!-- BigVideoLive is disabled because the category does not exist -->';
+            return '';
+        }
+    }
+    $liveVideo = Live::getLatest(true, 0, $bigVideoLiveCategories_id);
     if (empty($liveVideo)) {
+        echo '<!-- BigVideoLive is disabled because there is no live video -->';
         return '';
     }
 }
 $urlLiveNow = "{$global['webSiteRootURL']}liveNow?muted=1";
 $urlLiveNow = addQueryStringParameter($urlLiveNow, 'muted', 1);
 $urlLiveNow = addQueryStringParameter($urlLiveNow, 'isClosed', 1);
+// When displayed inside a category page, show only lives and videos from that category
+if (!empty($_REQUEST['catName'])) {
+    $urlLiveNow = addQueryStringParameter($urlLiveNow, 'catName', $_REQUEST['catName']);
+}
 ?>
 <style>
     #BigVideoLive {
@@ -87,7 +105,7 @@ $urlLiveNow = addQueryStringParameter($urlLiveNow, 'isClosed', 1);
 </style>
 <div class="container-fluid" id="BigVideoLive">
     <div id="BigVideoLiveOverlay"></div>
-    <iframe id="BigVideoLiveIFrame" class="embed-responsive-item" scrolling="no" style="border: none;" <?php echo Video::$iframeAllowAttributes; ?> src="<?php echo $urlLiveNow; ?>"></iframe>
+    <iframe id="BigVideoLiveIFrame" class="embed-responsive-item" scrolling="no" loading="lazy" style="border: none;" <?php echo Video::$iframeAllowAttributes; ?> src="<?php echo $urlLiveNow; ?>"></iframe>
     <div id="BigVideoLiveClose">
         <button type="button" class="btn btn-default btn-circle" onclick="BigVideoLiveFullscreen(false);" style="padding: 3px 0;">
             <i class="fas fa-times fa-2x"></i>
@@ -119,18 +137,18 @@ $urlLiveNow = addQueryStringParameter($urlLiveNow, 'isClosed', 1);
             BigVideoLiveFullscreen(true);
         });
     });
-    
-    window.addEventListener('message', event => {
-            switch (event.data.type) {
-                case 'showBigVideo':
-                    $('#BigVideoLive').slideDown();
-                    break;
-                case 'hideBigVideo':
-                    $('#BigVideoLive').slideUp();
-                    break;
 
-                default:
-                    break;
-            }
-        });
+    window.addEventListener('message', event => {
+        switch (event.data.type) {
+            case 'showBigVideo':
+                $('#BigVideoLive').slideDown();
+                break;
+            case 'hideBigVideo':
+                $('#BigVideoLive').slideUp();
+                break;
+
+            default:
+                break;
+        }
+    });
 </script>

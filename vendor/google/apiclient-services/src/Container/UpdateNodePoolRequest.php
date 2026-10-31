@@ -19,13 +19,17 @@ namespace Google\Service\Container;
 
 class UpdateNodePoolRequest extends \Google\Collection
 {
-  protected $collection_key = 'locations';
+  protected $collection_key = 'storagePools';
+  protected $acceleratorsType = AcceleratorConfig::class;
+  protected $acceleratorsDataType = 'array';
   /**
    * @var string
    */
   public $clusterId;
   protected $confidentialNodesType = ConfidentialNodes::class;
   protected $confidentialNodesDataType = '';
+  protected $containerdConfigType = ContainerdConfig::class;
+  protected $containerdConfigDataType = '';
   /**
    * @var string
    */
@@ -40,6 +44,10 @@ class UpdateNodePoolRequest extends \Google\Collection
   public $etag;
   protected $fastSocketType = FastSocket::class;
   protected $fastSocketDataType = '';
+  /**
+   * @var bool
+   */
+  public $flexStart;
   protected $gcfsConfigType = GcfsConfig::class;
   protected $gcfsConfigDataType = '';
   protected $gvnicType = VirtualNIC::class;
@@ -67,6 +75,10 @@ class UpdateNodePoolRequest extends \Google\Collection
   /**
    * @var string
    */
+  public $maxRunDuration;
+  /**
+   * @var string
+   */
   public $name;
   protected $nodeNetworkConfigType = NodeNetworkConfig::class;
   protected $nodeNetworkConfigDataType = '';
@@ -88,6 +100,10 @@ class UpdateNodePoolRequest extends \Google\Collection
   protected $resourceLabelsDataType = '';
   protected $resourceManagerTagsType = ResourceManagerTags::class;
   protected $resourceManagerTagsDataType = '';
+  /**
+   * @var string[]
+   */
+  public $storagePools;
   protected $tagsType = NetworkTags::class;
   protected $tagsDataType = '';
   protected $taintsType = NodeTaints::class;
@@ -103,6 +119,20 @@ class UpdateNodePoolRequest extends \Google\Collection
    */
   public $zone;
 
+  /**
+   * @param AcceleratorConfig[]
+   */
+  public function setAccelerators($accelerators)
+  {
+    $this->accelerators = $accelerators;
+  }
+  /**
+   * @return AcceleratorConfig[]
+   */
+  public function getAccelerators()
+  {
+    return $this->accelerators;
+  }
   /**
    * @param string
    */
@@ -130,6 +160,20 @@ class UpdateNodePoolRequest extends \Google\Collection
   public function getConfidentialNodes()
   {
     return $this->confidentialNodes;
+  }
+  /**
+   * @param ContainerdConfig
+   */
+  public function setContainerdConfig(ContainerdConfig $containerdConfig)
+  {
+    $this->containerdConfig = $containerdConfig;
+  }
+  /**
+   * @return ContainerdConfig
+   */
+  public function getContainerdConfig()
+  {
+    return $this->containerdConfig;
   }
   /**
    * @param string
@@ -186,6 +230,20 @@ class UpdateNodePoolRequest extends \Google\Collection
   public function getFastSocket()
   {
     return $this->fastSocket;
+  }
+  /**
+   * @param bool
+   */
+  public function setFlexStart($flexStart)
+  {
+    $this->flexStart = $flexStart;
+  }
+  /**
+   * @return bool
+   */
+  public function getFlexStart()
+  {
+    return $this->flexStart;
   }
   /**
    * @param GcfsConfig
@@ -316,6 +374,20 @@ class UpdateNodePoolRequest extends \Google\Collection
   /**
    * @param string
    */
+  public function setMaxRunDuration($maxRunDuration)
+  {
+    $this->maxRunDuration = $maxRunDuration;
+  }
+  /**
+   * @return string
+   */
+  public function getMaxRunDuration()
+  {
+    return $this->maxRunDuration;
+  }
+  /**
+   * @param string
+   */
   public function setName($name)
   {
     $this->name = $name;
@@ -424,6 +496,20 @@ class UpdateNodePoolRequest extends \Google\Collection
   public function getResourceManagerTags()
   {
     return $this->resourceManagerTags;
+  }
+  /**
+   * @param string[]
+   */
+  public function setStoragePools($storagePools)
+  {
+    $this->storagePools = $storagePools;
+  }
+  /**
+   * @return string[]
+   */
+  public function getStoragePools()
+  {
+    return $this->storagePools;
   }
   /**
    * @param NetworkTags

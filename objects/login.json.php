@@ -85,6 +85,9 @@ if (!empty($_GET['type'])) {
                 break;
             }
         }
+        // $_GET['type'] has already been sanitized by objects/security.php through
+        // videos/configuration.php before this branch runs, so rendering it here
+        // does not reflect raw HTML from the request.
         if (empty($id)) {
             die(sprintf(__("%s ERROR: You must set an ID on config"), $_GET['type']));
         }
@@ -135,7 +138,7 @@ if (!empty($_GET['type'])) {
         $name = $userProfile->displayName;
         $photoURL = $userProfile->photoURL;
         $email = $userProfile->email;
-        $pass = rand();
+        $pass = bin2hex(random_bytes(32)); // SECURITY: cryptographically random, never typed by the user
         //createUserIfNotExists($user, $pass, $name, $email, $photoURL, $isAdmin = false, $emailVerified = false);
         User::createUserIfNotExists($user, $pass, $name, $email, $photoURL, false, true);
         $userObject = new User(0, $user, $pass);
@@ -194,6 +197,14 @@ if (empty($_POST['user']) || empty($_POST['pass'])) {
     $object->error = __("User and Password can not be blank");
     die(json_encode($object));
 }
+// Encoder/Mobile App User-Agent is attacker-spoofable and skips the CAPTCHA check in
+// User::checkLoginAttempts(); real Encoder/Mobile App login volume is far below this cap.
+if (isAVideoMobileApp() || isAVideoEncoder()) {
+    enforceRateLimit('login_encoder_mobile_ua', 10, 300);
+}
+// Brute-force protection: cap credential-submission attempts per IP.
+// Sends HTTP 429 and stops once the threshold is exceeded within the window.
+enforceRateLimit('login', 30, 300);
 $user = new User(0, $_POST['user'], $_POST['pass']);
 if(!empty($user)){
     _error_log("login.json.php user found [{$_POST['user']}]");
@@ -203,6 +214,9 @@ if(!empty($user)){
 //_error_log("login.json.php trying to login");
 
 _session_start();
+if (!empty($_POST['encodedPass']) && $_POST['encodedPass'] !== 'false') {
+    _error_log('login.json.php encodedPass login attempt for user [' . @$_POST['user'] . '] from IP ' . getRealIpAddr(), AVideoLog::$SECURITY);
+}
 $resp = $user->login(false, @$_POST['encodedPass']);
 //_error_log("login.json.php login respond something");
 TimeLogEnd($timeLog, __LINE__);
@@ -225,6 +239,12 @@ if ($resp === User::CAPTCHA_ERROR) {
     die(json_encode($object));
 }
 
+if ($resp === User::TOO_MANY_FAILED_ATTEMPTS) {
+    // HTTP 200 like the other errors here: view/userLogin.php only handles the ajax success callback
+    $object->error = __("Too many failed login attempts. Try again later.");
+    die(json_encode($object));
+}
+
 if ($resp === User::REQUIRE2FA) {
     _error_log("login.json.php 2fa login is required");
     $object->error = __("2FA login is required");
@@ -240,8 +260,21 @@ $object->donationLink = User::donationLink();
 $object->name = User::getName();
 ////_error_log("login.json.php get name identification");
 $object->nameIdentification = User::getNameIdentification();
+// SECURITY NOTE (WON'T FIX — by design): the "pass" field below is NOT the raw
+// password nor the stored DB hash. It is an encrypted, time-limited, revocable
+// auth token (_user_hash_...) produced by User::getUserHash():
+//   - AES-encrypted with a server-only key (raw hash never exposed);
+//   - not permanent: this session copy (also handed to the admin-configured Encoder,
+//     see getCredentialsURL()) is valid 7 days; the login cookie copy 1 day / 1 year (remember-me);
+//   - bound to the current password hash, so a password change revokes it;
+//   - returned only to the user who just authenticated, over HTTPS.
+// It is functionally equivalent to a session/refresh token and is REQUIRED by the
+// native mobile/TV apps, the "remember me" cookie flow, and server-to-server auth.
+// Removing it breaks those clients. Automated scanners flag this as a password/hash
+// leak (e.g. CWE-522/CWE-836) — that is a FALSE POSITIVE. Do not "fix" by removing.
 $object->pass = User::getUserPass();
 $object->email = User::getMail();
+$object->emailVerified = !empty(User::_getEmailVerified());
 ////_error_log("login.json.php get channel name");
 $object->channelName = User::_getChannelName($object->id);
 $object->photo = User::getPhoto();
@@ -290,8 +323,9 @@ if (empty($advancedCustomUser->userCanNotChangeCategory) || User::isAdmin()) {
 }
 ////_error_log("login.json.php get user groups");
 TimeLogEnd($timeLog, __LINE__);
-//_error_log("login.json.php getAllUsersGroups");
+//_error_log("login.json.php get user groups");
 $object->userGroups = UserGroups::getAllUsersGroups();
+$object->allowedResolutions = UserGroups::getAllowedResolutionsForUser($object->id);
 TimeLogEnd($timeLog, __LINE__);
 $object->streamServerURL = '';
 $object->streamKey = '';
@@ -332,12 +366,25 @@ if ($object->isLogged) {
     $p = AVideoPlugin::loadPluginIfEnabled("Subscription");
     if (!empty($p)) {
         $object->Subscription = Subscription::getAllFromUser($object->id);
+        foreach ($object->Subscription as $key => $row) {
+            $unixTime = convertDatabaseDateToUnixTime($row['good_until'] ?? '');
+            $object->Subscription[$key]['good_until_utc'] = empty($unixTime) ? '' : gmdate('Y-m-d H:i:s', $unixTime);
+            $object->Subscription[$key]['good_until_unix'] = $unixTime;
+        }
     }
     TimeLogEnd($timeLog2, __LINE__);
     //_error_log("login.json.php get PayPerView");
     $p = AVideoPlugin::loadPluginIfEnabled("PayPerView");
     if (!empty($p) && class_exists('PayPerView')) {
         $object->PayPerView = PayPerView::getAllPPVFromUser($object->id);
+        foreach ($object->PayPerView as $key => $row) {
+            $unixTime = convertDatabaseDateToUnixTime($row['expiration'] ?? '');
+            $object->PayPerView[$key]['expiration_utc'] = empty($unixTime) ? '' : gmdate('Y-m-d H:i:s', $unixTime);
+            $object->PayPerView[$key]['expiration_unix'] = $unixTime;
+            // same names as in Subscription, so the app reads both lists the same way
+            $object->PayPerView[$key]['good_until_utc'] = $object->PayPerView[$key]['expiration_utc'];
+            $object->PayPerView[$key]['good_until_unix'] = $unixTime;
+        }
     }
     TimeLogEnd($timeLog2, __LINE__);
 } else {

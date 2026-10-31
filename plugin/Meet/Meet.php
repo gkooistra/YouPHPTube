@@ -11,10 +11,25 @@ require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_schedule_has_
 require_once $global['systemRootPath'] . 'plugin/Meet/Objects/Meet_join_log.php';
 User::loginFromRequestIfNotLogged();
 
+// SECURITY REVIEW: this key is intentionally public. meet.ypt.me is a shared/free
+// public Jitsi server; every AVideo install using it necessarily shares one JWT
+// secret, same as any other shared free service. It is NOT meant to provide real
+// access control or confidentiality for private/restricted/passworded meets.
+// Operators who need real privacy must configure server='custom' with their own
+// Jitsi deployment (getSecret() already derives a private, per-install secret in
+// that mode). Do not re-report this as a vulnerability to fix here.
+class PublicMeetServer{
+    const JWT_APP_SECRET = '540483222c1bd6f06c7024b590597a75';
+    const domain = 'meet.ypt.me';
+    const JWT_APP_ID = 'avideo';
+}
+
 //require_once $global['systemRootPath'] . 'objects/firebase/php-jwt/src/JWT.php';
 //use \Firebase\JWT\JWT;
 class Meet extends PluginAbstract
 {
+    const PERMISSION_CAN_CREATE_MEET = 0;
+
     public function getTags()
     {
         return [
@@ -78,11 +93,10 @@ Passcode: {password}
 
         $o = new stdClass();
         $o->type = [
-            'ca1.ypt.me' => "North America 1",
+            PublicMeetServer::domain => "Default public server",
             //'eu1.ypt.me' => "Europe 1",
-            'custom' => "Custom Jitsi",
-            'ca2.ypt.me' => "Test Server do not use it",];
-        $o->value = 'ca1.ypt.me';
+            'custom' => "Custom Jitsi"];
+        $o->value = PublicMeetServer::domain;
         $obj->server = $o;
 
         $obj->CUSTOM_JITSI_DOMAIN = "jitsi.ca1.ypt.me";
@@ -103,11 +117,15 @@ Passcode: {password}
         }
         $m = new Meet_schedule($meet_schedule_id);
         $room = $m->getCleanName();
-        
+
         $isModerator = self::isModerator($meet_schedule_id);
-        
+
         if (empty($users_id)) {
-            $user = ["affiliation"=> ($isModerator?'owner':'member')];
+            $user = [
+                "name" => '',
+                "email" => '',
+                "affiliation"=> ($isModerator?'owner':'member'),
+            ];
         } else {
             $u = new User($users_id);
             $user = [
@@ -118,6 +136,15 @@ Passcode: {password}
                 "affiliation"=> ($isModerator?'owner':'member'),
             ];
         }
+        if(!$isModerator){
+            $user['lobby'] = true;
+        }
+
+        if(!empty($_REQUEST['debug'])){
+            var_dump($user);
+            exit;
+        }
+        $room = rawurlencode($room);
 
         $jitsiPayload = [
             "context" => [
@@ -132,6 +159,7 @@ Passcode: {password}
             "nbf" => strtotime("-24 hours"),
             "moderator" => $isModerator,
         ];
+        //var_dump($jitsiPayload);exit;
         return $jitsiPayload; // HS256
     }
 
@@ -145,6 +173,8 @@ Passcode: {password}
         return JWT::encode($jitsiPayload, $key, 'HS256'); // HS256
     }
 
+    // Non-custom server = the shared public meet.ypt.me: intentionally the same
+    // known secret for every install (see PublicMeetServer note above).
     public static function getSecret()
     {
         $obj = AVideoPlugin::getDataObject("Meet");
@@ -155,7 +185,7 @@ Passcode: {password}
                 return $obj->JWT_APP_SECRET;
             }
         } else {
-            return $obj->secret;
+            return PublicMeetServer::JWT_APP_SECRET;
         }
     }
 
@@ -169,7 +199,7 @@ Passcode: {password}
                 return $obj->JWT_APP_ID;
             }
         } else {
-            return "avideo";
+            return PublicMeetServer::JWT_APP_ID;
         }
     }
 
@@ -197,7 +227,7 @@ Passcode: {password}
                 return $obj->JWT_APP_ID;
             }
         } else {
-            return "avideo";
+            return PublicMeetServer::JWT_APP_ID;;
         }
     }
 
@@ -213,95 +243,16 @@ Passcode: {password}
         return '<button onclick="avideoModalIframe(webSiteRootURL +\'plugin/Meet/checkServers.php\');" class="btn btn-primary btn-sm btn-xs btn-block"><i class="fas fa-network-wired"></i> Check Servers</button>';
     }
 
-    public static function getMeetServerStatus($cache = 30)
-    {
-        global $global;
-        $secret = self::getSecret();
-        $meetServer = self::getMeetServer();
-        
-        if(preg_match('/192.168.1/', $global['webSiteRootURL'])){
-            $json = new stdClass();
-            $json->error = false;
-            $json->url = $global['webSiteRootURL'];
-            $json->isInstalled = true;
-            $json->msg = $global['webSiteRootURL'];
-            $json->host = "custom";
-            $json->jibrisInfo = new stdClass();
-            $json->jibrisInfo->jibris = [];
-            return $json;
-        }
-        
-        if ($meetServer == "https://custom/") {
-            $obj = AVideoPlugin::getDataObject("Meet");
-            $json = new stdClass();
-            $json->error = false;
-            $json->url = $obj->CUSTOM_JITSI_DOMAIN;
-            $json->isInstalled = true;
-            $json->msg = $obj->CUSTOM_JITSI_DOMAIN;
-            $json->host = "custom";
-            $json->jibrisInfo = new stdClass();
-            $json->jibrisInfo->jibris = [];
-            return $json;
-        }
-        $name = "getMeetServerStatus{$global['webSiteRootURL']}{$secret}{$meetServer}";
-        $json = new stdClass();
-        $json->content = ObjectYPT::getCache($name, $cache);
-        if (!empty($json->content) && !empty($json->time)) {
-            $json = _json_decode($json->content);
-            $json->msg = "From Cache";
-        } else {
-            $url = $meetServer . "api/checkMeet.json.php?webSiteRootURL=" . urlencode($global['webSiteRootURL']) . "&secret=" . $secret;
-            _error_log("serverlabels getMeetServerStatus $url ");
-            $content = url_get_contents($url, '', 10, !empty($_REQUEST['debug']));
-            _error_log("serverlabels getMeetServerStatus done $url ");
-            
-            $json = _json_decode($content);
-            if (!empty($json)) {
-                $json->time = time();
-                $json->url = $url;
-                $json->content = $content;
-                if (empty($json->error) && $json->isInstalled) {
-                    ObjectYPT::setCache($name, json_encode($json));
-                    if (empty($json->msg)) {
-                        $json->msg = "Just create Cache";
-                    }
-                } else {
-                    if (empty($json->msg)) {
-                        $json->msg = "Error did not create Cache";
-                    }
-                }
-            } else {
-                $json = new stdClass();
-                $json->time = time();
-                $json->error = true;
-                $json->msg = "Error we could not check your server";
-            }
-        }
-        $json->when = humanTimingAgo($json->time);
-        return $json;
-    }
-
-    public static function getDomain()
-    {
-        $json = self::getMeetServerStatus();
-        if (empty($json) || empty($json->host) || empty($json->isInstalled)) {
-            return false;
-        }
-        if ($json->host == 'custom') {
-            return "custom";
-        }
-        $obj = AVideoPlugin::getDataObject("Meet");
-        return "{$json->host}.{$obj->server->value}";
-    }
-
     public static function getDomainURL()
     {
-        $meetDomain = self::getDomain();
+        $obj = AVideoPlugin::getDataObject("Meet");
+        $meetDomain = $obj->server->value;
         if ($meetDomain == 'custom') {
             $obj = AVideoPlugin::getDataObject("Meet");
             $domain = $obj->CUSTOM_JITSI_DOMAIN;
         } else {
-            $domain = $meetDomain;
+            //$domain = $meetDomain;
+            $domain = PublicMeetServer::domain;
         }
 
 
@@ -343,11 +294,8 @@ Passcode: {password}
 
     public static function isCustomJitsi()
     {
-        $json = self::getMeetServerStatus();
-        if (empty($json) || empty($json->host) || empty($json->isInstalled)) {
-            return true;
-        }
-        if ($json->host == 'custom') {
+        $obj = AVideoPlugin::getDataObject("Meet");
+        if ($obj->server->value == 'custom') {
             return true;
         }
         return false;
@@ -507,21 +455,28 @@ Passcode: {password}
          *
          */
         if (self::isModerator($meet_schedule_id)) {
-            if (self::hasJibris() || self::isCustomJitsi()) {
+            if (self::isCustomJitsi()) {
                 $return = [
                     'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
                     'fodeviceselection', 'hangup', 'profile', 'chat',
-                    'livestreaming', 'etherpad', 'settings', 'raisehand',
+                    'livestreaming', 'recording','etherpad', 'settings', 'raisehand',
                     'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
-                    'tileview', 'download', 'help', 'mute-everyone', 'videobackgroundblur','select-background',
+                    'tileview', 'download', 'help', 'mute-everyone', 'mute-video-everyone',
+                    'videobackgroundblur','select-background','whiteboard',
+                    'noisesuppression','participants-pane','reactions','toggle-camera',
+                    'invite', 'security', 'isCustomJitsi', 'shareaudio', 'sharedvideo'
                 ];
             } else {
                 $return = [
                     'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
                     'fodeviceselection', 'hangup', 'profile', 'chat',
+                    'livestreaming', 'recording',
                     'etherpad', 'settings', 'raisehand',
                     'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
-                    'tileview', 'download', 'help', 'mute-everyone', 'videobackgroundblur','select-background',
+                    'tileview', 'download', 'help', 'mute-everyone', 'mute-video-everyone',
+                    'videobackgroundblur','select-background','whiteboard',
+                    'noisesuppression','participants-pane','reactions','toggle-camera',
+                    'invite', 'security', 'isCustomJitsi', 'shareaudio', 'sharedvideo'
                 ];
             }
         } else {
@@ -529,22 +484,22 @@ Passcode: {password}
                 'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
                 'fodeviceselection', 'hangup', 'profile', 'chat', 'etherpad', 'settings', 'raisehand',
                 'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
-                'tileview', 'download', 'help', 'mute-everyone', 'videobackgroundblur','select-background',
+                'tileview', 'download', 'help', 'mute-everyone', 'mute-video-everyone',
+                'videobackgroundblur','select-background',
+                'noisesuppression','toggle-camera',
             ];
         }
-        
+
         foreach ($return as $key => $value) {
-            if(isset($_REQUEST[$value]) && (empty($_REQUEST[$value]) || strtolower($_REQUEST[$value]) === 'false')){
+            if(
+            !is_array($value) &&
+            isset($_REQUEST[$value]) &&
+            (empty($_REQUEST[$value]) ||
+            strtolower($_REQUEST[$value]) === 'false')){
                 unset($return[$key]);
             }
         }
         return array_values($return);
-    }
-
-    public static function hasJibris()
-    {
-        $serverStatus = Meet::getMeetServerStatus();
-        return count($serverStatus->jibrisInfo->jibris);
     }
 
     public static function userGroupMatch($meet_schedule_id, $users_id)
@@ -638,7 +593,7 @@ Passcode: {password}
         $invitation = preg_replace("/{meetLink}/i", $ms->getMeetLink(), $invitation);
         return $invitation;
     }
-    
+
     public static function getIframeURL($meet_schedule_id){
         $joinURL = self::getJoinURL();
         $joinURL = addLastSlash($joinURL);
@@ -646,7 +601,11 @@ Passcode: {password}
         return "{$joinURL}{$roomID}";
     }
 
-    public static function validatePassword($meet_schedule_id, $password)
+    public static function validatePassword(
+        $meet_schedule_id,
+        #[\SensitiveParameter]
+        $password
+    )
     {
         if (User::isAdmin() || self::isModerator($meet_schedule_id)) {
             return true;
@@ -676,5 +635,27 @@ Passcode: {password}
         $obj = $this->getDataObject();
         $buttonTitle = $obj->buttonTitle;
         include $global['systemRootPath'] . 'plugin/Meet/getUploadMenuButton.php';
+    }
+
+    function getPermissionsOptions()
+    {
+        $permissions = array();
+
+        $permissions[] = new PluginPermissionOption(self::PERMISSION_CAN_CREATE_MEET, __("Can create meetings"), "Members of the designated user group will have access create meetings", 'Meet');
+        return $permissions;
+    }
+
+    static function canCreateMeet()
+    {
+
+        if (User::isAdmin() || isCommandLineInterface()) {
+            return true;
+        }
+
+        if(!User::isLogged()){
+            return false;
+        }
+
+        return !empty($_SESSION['user']['canCreateMeet']) || Permissions::hasPermission(self::PERMISSION_CAN_CREATE_MEET, 'Meet');
     }
 }

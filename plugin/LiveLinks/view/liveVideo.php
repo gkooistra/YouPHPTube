@@ -1,4 +1,4 @@
-<!-- Live Link <?php echo $t['id']; ?> -->
+<!-- Live Link <?php echo htmlspecialchars($t['id'], ENT_QUOTES | ENT_HTML5); ?> -->
 <?php
 AVideoPlugin::loadPlugin('LiveLinks');
 if ($t['id'] > 0) {
@@ -13,23 +13,25 @@ if ($t['id'] > 0) {
         forbiddenPage('Live is private');
     }
 } else {
-    $liveLink = $t['link'];
+    // dynamic links (play.php?url=) carry the raw request URL; stored links are filtered by security.php
+    $liveLink = isValidURL($t['link']) ? $t['link'] : '';
 }
 $posterURL = LiveLinks::getImage($t['id']);
 
 $disableYoutubeIntegration = !PlayerSkins::isYoutubeIntegrationEnabled();
 $video['videoLink'] = $liveLink;
-if (isValidM3U8Link($liveLink)) {
+if (isValidM3U8Link($liveLink, false, 3, true)) {
 
     $htmlMediaTag = '<video poster="' . $posterURL . '" controls '.PlayerSkins::getPlaysinline().'
-                       class="embed-responsive-item video-js vjs-default-skin vjs-big-play-centered liveVideo vjs-16-9" 
+                       class="embed-responsive-item video-js vjs-default-skin vjs-big-play-centered liveVideo vjs-16-9"
                        id="mainVideo">
                     <source src="' . $liveLink . '" type="application/x-mpegURL">
                 </video>';
 } else {
 
     $isVideoTypeEmbed = 1;
-    if (($disableYoutubeIntegration) || ((strpos($liveLink, "youtu.be") == false) && (strpos($liveLink, "youtube.com") == false) && (strpos($liveLink, "vimeo.com") == false))) {
+    // Only YouTube has a Video.js tech here; Vimeo and other links play in the iframe below
+    if (($disableYoutubeIntegration) || ((strpos($liveLink, "youtu.be") == false) && (strpos($liveLink, "youtube.com") == false))) {
         $_GET['isEmbedded'] = "e";
         $isVideoTypeEmbed = 1;
         $url = parseVideos($liveLink);
@@ -46,8 +48,6 @@ if (isValidM3U8Link($liveLink)) {
         // youtube!
         if ((stripos($liveLink, "youtube.com") != false) || (stripos($liveLink, "youtu.be") != false)) {
             $_GET['isEmbedded'] = "y";
-        } else if ((stripos($liveLink, "vimeo.com") != false)) {
-            $_GET['isEmbedded'] = "v";
         }
         //$_GET['isMediaPlaySite'] = $video['id'];
         //PlayerSkins::playerJSCodeOnLoad($video['id'], @$video['url']);

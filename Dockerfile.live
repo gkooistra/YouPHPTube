@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:26.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -32,15 +32,18 @@ RUN apt-get install -y --no-install-recommends \
         wget
 
 # Install PHP packages
-RUN apt-get install -y --no-install-recommends \
-        php-fpm \
-        php-cli \
-        php-curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        php8.5-fpm \
+        php8.5-cli \
+        php8.5-curl
 
-# Install NGINX dependencies
+# Ubuntu 26.04 backports both CVE-2026-109618 / CVE-2026-109619 fixes.
+RUN dpkg --compare-versions \
+    "$(dpkg-query -W -f='${Version}' php8.5-common)" ge '8.5.4-0ubuntu1.5'
+
+# Install NGINX dependencies (PCRE2: libpcre3-dev no longer exists on Ubuntu 26.04)
 RUN apt-get install -y --no-install-recommends \
-        libpcre3 \
-        libpcre3-dev
+        libpcre2-dev
 
 # Install Git and Certbot
 RUN apt-get install -y --no-install-recommends \
@@ -53,18 +56,19 @@ RUN mkdir ~/build && \
       git clone https://github.com/arut/nginx-rtmp-module.git && \
       git clone https://github.com/nginx/nginx.git && \
       cd nginx && \
-      ./auto/configure --with-http_ssl_module --with-http_stub_status_module --add-module=../nginx-rtmp-module --with-cc-opt="-Wimplicit-fallthrough=0" && \
+      ./auto/configure --with-http_ssl_module --with-http_stub_status_module --with-http_auth_request_module --add-module=../nginx-rtmp-module --with-cc-opt="-Wimplicit-fallthrough=0" && \
       make && \
       make install
 
 # Download and configure NGINX
 RUN cd /usr/local/nginx/html && \
-      wget https://youphp.tube/docs/stat.xsl  --no-check-certificate && \
+      wget https://streamphp.com/docs/stat.xsl  --no-check-certificate && \
       mv /usr/local/nginx/conf/nginx.conf /usr/local/nginx/conf/nginx.conf.old && \
       cd /usr/local/nginx/conf/ && \
-      wget https://raw.githubusercontent.com/WWBN/AVideo/master/plugin/Live/install/nginx.conf  --no-check-certificate && \
+      # wget https://raw.githubusercontent.com/WWBN/AVideo/master/plugin/Live/install/nginx.conf  --no-check-certificate && \
       mkdir /HLS && \
       mkdir /HLS/live && \
+      mkdir /HLS/audio && \
       mkdir /HLS/low  && \
       mkdir /var/www/tmp/ && \
       chmod 777 /var/www/tmp
@@ -73,6 +77,8 @@ RUN cd /usr/local/nginx/html && \
 COPY deploy/nginx/docker-entrypoint-live /usr/local/bin/docker-entrypoint-live
 COPY deploy/nginx/nginx.conf /usr/local/nginx/conf/nginx.conf
 COPY deploy/nginx/crontab /etc/cron.d/crontab
+COPY deploy/nginx/sync-certificates.sh /usr/local/bin/nginx-sync-certificates.sh
+COPY deploy/nginx/reload-if-cert-changed.sh /usr/local/bin/reload-if-cert-changed.sh
 
 # Set permissions for crontab
 RUN dos2unix /etc/cron.d/crontab && \
@@ -85,6 +91,10 @@ RUN dos2unix /etc/cron.d/crontab && \
 RUN dos2unix /usr/local/bin/docker-entrypoint-live && \
     chmod 755 /usr/local/bin/docker-entrypoint-live && \
     chmod +x /usr/local/bin/docker-entrypoint-live
+
+RUN dos2unix /usr/local/bin/nginx-sync-certificates.sh /usr/local/bin/reload-if-cert-changed.sh && \
+    chmod 755 /usr/local/bin/nginx-sync-certificates.sh /usr/local/bin/reload-if-cert-changed.sh && \
+    chmod +x /usr/local/bin/nginx-sync-certificates.sh /usr/local/bin/reload-if-cert-changed.sh
 
 # Create directory and set permissions
 VOLUME /var/www/tmp

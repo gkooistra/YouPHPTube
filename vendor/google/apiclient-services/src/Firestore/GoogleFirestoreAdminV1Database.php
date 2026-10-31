@@ -23,6 +23,8 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
    * @var string
    */
   public $appEngineIntegrationMode;
+  protected $cmekConfigType = GoogleFirestoreAdminV1CmekConfig::class;
+  protected $cmekConfigDataType = '';
   /**
    * @var string
    */
@@ -34,7 +36,15 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
   /**
    * @var string
    */
+  public $databaseEdition;
+  /**
+   * @var string
+   */
   public $deleteProtectionState;
+  /**
+   * @var string
+   */
+  public $deleteTime;
   /**
    * @var string
    */
@@ -43,6 +53,10 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
    * @var string
    */
   public $etag;
+  /**
+   * @var bool
+   */
+  public $freeTier;
   /**
    * @var string
    */
@@ -59,6 +73,16 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
    * @var string
    */
   public $pointInTimeRecoveryEnablement;
+  /**
+   * @var string
+   */
+  public $previousId;
+  protected $sourceInfoType = GoogleFirestoreAdminV1SourceInfo::class;
+  protected $sourceInfoDataType = '';
+  /**
+   * @var string[]
+   */
+  public $tags;
   /**
    * @var string
    */
@@ -91,6 +115,20 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
     return $this->appEngineIntegrationMode;
   }
   /**
+   * @param GoogleFirestoreAdminV1CmekConfig
+   */
+  public function setCmekConfig(GoogleFirestoreAdminV1CmekConfig $cmekConfig)
+  {
+    $this->cmekConfig = $cmekConfig;
+  }
+  /**
+   * @return GoogleFirestoreAdminV1CmekConfig
+   */
+  public function getCmekConfig()
+  {
+    return $this->cmekConfig;
+  }
+  /**
    * @param string
    */
   public function setConcurrencyMode($concurrencyMode)
@@ -121,6 +159,20 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
   /**
    * @param string
    */
+  public function setDatabaseEdition($databaseEdition)
+  {
+    $this->databaseEdition = $databaseEdition;
+  }
+  /**
+   * @return string
+   */
+  public function getDatabaseEdition()
+  {
+    return $this->databaseEdition;
+  }
+  /**
+   * @param string
+   */
   public function setDeleteProtectionState($deleteProtectionState)
   {
     $this->deleteProtectionState = $deleteProtectionState;
@@ -131,6 +183,20 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
   public function getDeleteProtectionState()
   {
     return $this->deleteProtectionState;
+  }
+  /**
+   * @param string
+   */
+  public function setDeleteTime($deleteTime)
+  {
+    $this->deleteTime = $deleteTime;
+  }
+  /**
+   * @return string
+   */
+  public function getDeleteTime()
+  {
+    return $this->deleteTime;
   }
   /**
    * @param string
@@ -159,6 +225,20 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
   public function getEtag()
   {
     return $this->etag;
+  }
+  /**
+   * @param bool
+   */
+  public function setFreeTier($freeTier)
+  {
+    $this->freeTier = $freeTier;
+  }
+  /**
+   * @return bool
+   */
+  public function getFreeTier()
+  {
+    return $this->freeTier;
   }
   /**
    * @param string
@@ -215,6 +295,48 @@ class GoogleFirestoreAdminV1Database extends \Google\Model
   public function getPointInTimeRecoveryEnablement()
   {
     return $this->pointInTimeRecoveryEnablement;
+  }
+  /**
+   * @param string
+   */
+  public function setPreviousId($previousId)
+  {
+    $this->previousId = $previousId;
+  }
+  /**
+   * @return string
+   */
+  public function getPreviousId()
+  {
+    return $this->previousId;
+  }
+  /**
+   * @param GoogleFirestoreAdminV1SourceInfo
+   */
+  public function setSourceInfo(GoogleFirestoreAdminV1SourceInfo $sourceInfo)
+  {
+    $this->sourceInfo = $sourceInfo;
+  }
+  /**
+   * @return GoogleFirestoreAdminV1SourceInfo
+   */
+  public function getSourceInfo()
+  {
+    return $this->sourceInfo;
+  }
+  /**
+   * @param string[]
+   */
+  public function setTags($tags)
+  {
+    $this->tags = $tags;
+  }
+  /**
+   * @return string[]
+   */
+  public function getTags()
+  {
+    return $this->tags;
   }
   /**
    * @param string

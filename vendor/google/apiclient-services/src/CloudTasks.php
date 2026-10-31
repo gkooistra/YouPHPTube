@@ -41,6 +41,7 @@ class CloudTasks extends \Google\Service
   public $projects_locations;
   public $projects_locations_queues;
   public $projects_locations_queues_tasks;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the CloudTasks service.
@@ -53,6 +54,7 @@ class CloudTasks extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://cloudtasks.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://cloudtasks.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v2';
@@ -92,6 +94,11 @@ class CloudTasks extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',

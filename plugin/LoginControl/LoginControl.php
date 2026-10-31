@@ -20,10 +20,9 @@ class LoginControl extends PluginAbstract {
         $desc .= "<br><strong>Protect your account with 2-Factor Authentication</strong>: With 2-Factor Authentication, you add an extra layer of security to your account in case your password is stolen. After you set up 2-Step Verification, you'll sign in to your account in two steps using:
 
         <br> - Something you know, like your password
-        <br> - Something you have,access to your email";
+        <br> - Something you have, access to your email";
 
-        $desc .= "<br><strong>Single Device Login Limitation</strong>: If you are logged in on one device and then go to log in on another, your first session will expire and you will be logged out automatically. Only admins users are ignored on this rule";
-        //$desc .= $this->isReadyLabel(array('YPTWallet'));
+        $desc .= "<br><strong>Single Device Login Limitation</strong>: If enabled, logging in on a new device or browser will automatically log out any other active session for that same user. The disconnected session will see a message explaining which device/IP/location triggered it. Admin users are exempt from this rule.";
         return $desc;
     }
 
@@ -43,7 +42,11 @@ class LoginControl extends PluginAbstract {
         $obj = new stdClass();
 
         $obj->singleDeviceLogin = false; // will disconnect other devices
+        self::addDataObjectHelper('singleDeviceLogin', 'Allow login from a single device only', 'When a user logs in from a new device/browser, any other active session for that user is automatically logged out (except admin users). The disconnected user sees which device/IP/location triggered it.');
+
         $obj->enable2FA = false;
+        self::addDataObjectHelper('enable2FA', 'Enable e-mail 2FA', 'Require users to confirm a new device via a confirmation link sent to their e-mail before they can finish logging in.');
+
         $o = new stdClass();
         $obj->textFor2FASubject = "Confirm {siteName} log in from a new browser";
         $o->type = "textarea";
@@ -57,18 +60,6 @@ Best regards,
 
 {siteName}";
         $obj->textFor2FABody = $o;
-
-        /*
-          $obj->textSample = "text";
-          $obj->checkboxSample = true;
-          $obj->numberSample = 5;
-
-          $o = new stdClass();
-          $o->type = array(0=>__("Default"))+array(1,2,3);
-          $o->value = 0;
-          $obj->selectBoxSample = $o;
-
-         */
 
         $obj->enablePGP2FA = false;
         self::addDataObjectHelper('enablePGP2FA', 'Enable PGP 2FA, please <a target=\'_blank\' href=\'https://github.com/WWBN/AVideo/wiki/PGP-2FA-Login\'>read this</a>', '2-Factor-Authentication with a Pretty Good Privacy (PGP) challenge');
@@ -84,10 +75,6 @@ Best regards,
     }
 
     public function onUserSignIn($users_id) {
-        if (isAVideoEncoder()) {
-            _error_log("Login_control::onUserSignIn Login from encoder, do not do anything");
-            return false;
-        }
         if (empty($_REQUEST['confirmation'])) {
             // create the log
             self::createLog($users_id);
@@ -95,7 +82,7 @@ Best regards,
         // check if the user confirmed this device before
         if (!self::ignore2FA($users_id) && self::is2FAEnabled($users_id) && !self::is2FAConfirmed($users_id)) {
             header('Content-Type: application/json');
-            _error_log("Login_control::onUserSignIn 2FA is required for user ({$users_id}) (" . get_browser_name() . ") (" . getDeviceID() . ") (" . $_SERVER['HTTP_USER_AGENT'] . ")");
+            _error_log("LoginControl::onUserSignIn 2FA is required for user ({$users_id}) (" . get_browser_name() . ") (" . getDeviceID() . ") (" . $_SERVER['HTTP_USER_AGENT'] . ")");
             if (self::send2FAEmail($users_id)) {
                 User::logoff();
                 $object = new stdClass();
@@ -105,8 +92,12 @@ Best regards,
                 $object->error = __("Please check your email for 2FA confirmation ") . "<br>($hiddenemail)";
                 die(json_encode($object));
             } else {
-                _error_log("Login_control::onUserSignIn 2FA your email could not be sent ({$users_id})", AVideoLog::$ERROR);
-                setToastMessage(__("2FA email not sent"));
+                // fail closed: do not leave the session authenticated if 2FA cannot be delivered
+                _error_log("LoginControl::onUserSignIn 2FA your email could not be sent ({$users_id})", AVideoLog::$ERROR);
+                User::logoff();
+                $object = new stdClass();
+                $object->error = __("2FA is required but the confirmation email could not be sent, please contact the site administrator");
+                die(json_encode($object));
             }
         } else {
             /* Cannot use it due the first page cache. it may work with AJAX
@@ -119,9 +110,17 @@ Best regards,
         }
     }
 
+    // SECURITY REVIEW: isAVideoEncoder() is a spoofable User-Agent match (any client can send
+    // "User-Agent: AVideoEncoder" and skip 2FA with just a valid password). This is a KNOWN,
+    // DELIBERATE, ACCEPTED RISK, not an oversight — the real Encoder component authenticates
+    // statelessly with no persistent device ID, so is2FAConfirmed() (device-ID keyed) can never
+    // become true for it; removing this exemption permanently locks any 2FA-enabled account out
+    // of the Encoder with no workaround in the current architecture. Do not "fix" this again
+    // without first re-raising the tradeoff with the site maintainer. See repo memory
+    // avideo-encoder-2fa-exemption-accepted-risk.md for the full history/decision record.
     private static function ignore2FA($users_id = "") {
         if ($url = isAVideoEncoder()) {
-            _error_log("Login_control::ignore2FA is an Encoder ($url) login 2FA ignored");
+            _error_log("LoginControl::ignore2FA is an Encoder ($url) login 2FA ignored");
             return true;
         }
         return false;
@@ -182,7 +181,7 @@ Best regards,
                 _error_log("LoginControl::getConfirmationCode wrong modification is too old [{$row['modified']}] ");
             }
         }
-        return uniqid();
+        return _uniqid(); // SECURITY: CSPRNG value, not clock-based uniqid()
     }
 
     public static function is2FAEnabled($users_id) {
@@ -199,11 +198,11 @@ Best regards,
         return !empty(logincontrol_history::is2FAConfirmed($users_id, getDeviceID()));
     }
 
-    public static function getLastLoginOnDevice($users_id, $uniqidV4 = "") {
+    public static function getLastLoginOnDevice($users_id, $uniqidV4 = "", $refreshCache = false) {
         if (empty($uniqidV4)) {
             $uniqidV4 = getDeviceID();
         }
-        $row = logincontrol_history::getLastLoginAttempt($users_id, $uniqidV4);
+        $row = logincontrol_history::getLastLoginAttempt($users_id, $uniqidV4, $refreshCache);
         if (empty($row)) {
             _error_log("LoginControl::getLastLoginOnDevice Not found $users_id, " . $uniqidV4);
         }
@@ -270,7 +269,9 @@ Best regards,
         $lastLogin = self::getLastLoginOnDevice($users_id);
         if (empty($lastLogin)) {
             if (self::createLog($users_id)) {
-                $lastLogin = self::getLastLoginOnDevice($users_id);
+                // createLog() just wrote this same row; the identical SELECT above is cached
+                // as empty by sqlDAL::readSql for the rest of this request, so force a fresh read.
+                $lastLogin = self::getLastLoginOnDevice($users_id, "", true);
                 if (empty($lastLogin)) {
                     _error_log("LoginControl::getConfirmationCodeHash we could not find the last login for the user {$users_id}");
                     return false;
@@ -305,58 +306,70 @@ Best regards,
 
     public function getStart() {
         global $global;
+        // SECURITY REVIEW: same accepted-risk UA-based encoder exemption as ignore2FA() above —
+        // see avideo-encoder-2fa-exemption-accepted-risk.md before changing this.
         if (isAVideoEncoder()) {
-            _error_log("Login_control::getStart Login from encoder, do not do anything");
+            _error_log("LoginControl::getStart Login from encoder, do not do anything");
             return false;
         }
         $obj = $this->getDataObject();
-        if ($obj->singleDeviceLogin) {
-            if (!AVideoPlugin::isEnabledByName('YPTSocket')) {
-                $ignoreScriptList = ['/plugin/Live/stats.json.php'];
-                if (in_array($_SERVER['SCRIPT_NAME'], $ignoreScriptList)) {
-                    return false;
-                }
+        if ($obj->singleDeviceLogin && !AVideoPlugin::isEnabledByName('YPTSocket')) {
+            $ignoreScriptList = ['/plugin/Live/stats.json.php'];
+            if (in_array($_SERVER['SCRIPT_NAME'], $ignoreScriptList)) {
+                return false;
+            }
 
-                //_error_log("LoginControl::getStart singleDeviceLogin is enabled");
-                // check if the user is logged somewhere else and log him off
-                if (!User::isAdmin() && !self::isLoggedFromSameDevice()) {
-                    User::logoff();
-                    //$msg = "You were disconected by ({$row['device']}) <br>IP: {$row['ip']} <br>{$loc} <br>{$row['ago']}";
-                    $msg = "You were disconected";
-                    //setAlertMessage($msg);
-                    gotToLoginAndComeBackHere($msg);
-                    /*
-                      //_error_log("LoginControl::getStart the user logged somewhere else");
-                      if(self::isUser2FAEnabled(User::getId())){
-                      $row = self::getLastConfirmedLogin(User::getId());
-                      ///_error_log("LoginControl::getStart isUser2FAEnabled=true ". json_encode($row));
-                      }else{
-                      $row = self::getLastLogin(User::getId());
-                      //_error_log("LoginControl::getStart isUser2FAEnabled=false ". json_encode($row));
-                      }
-                      if (!empty($row)) {
-                      AVideoPlugin::loadPlugin('User_Location');
-                      $location = IP2Location::getLocation($row['ip']);
-                      $loc = "";
-                      if (!empty($location)) {
-                      $loc = "$location[country_name], $location[region_name], $location[city_name]";
-                      }
-                      if(!empty($row['created'])){
-                      $msg = "You were disconected by ({$row['device']}) <br>IP: {$row['ip']} <br>{$loc} <br>{$row['ago']}";
-                      setAlertMessage($msg);
-                      }
-                      }
-                     *
-                     */
-                }
+            // check if the user is logged somewhere else and log him off
+            if (!User::isAdmin() && !self::isLoggedFromSameDevice()) {
+                $users_id = User::getId();
+                // build the explanation BEFORE logoff(), it needs the still-authenticated user id
+                $msg = self::getSingleDeviceLogoutMessage($users_id);
+                _error_log("LoginControl::getStart disconnecting user ({$users_id}): singleDeviceLogin is enabled and a login from a different device was detected");
+                User::logoff();
+                gotToLoginAndComeBackHere($msg);
             }
         }
         if (self::challengeThisPage()) {
+            // JSON/API callers get a clean JSON rejection instead of the HTML challenge page
+            if (preg_match('/.json/i', $_SERVER["REQUEST_URI"]) || preg_match('/plugin\/API/', $_SERVER["REQUEST_URI"])) {
+                header('Content-Type: application/json');
+                die(json_encode(['error' => true, 'msg' => 'Please complete your pending Two-Factor (PGP) challenge']));
+            }
             include_once $global['systemRootPath'] . 'plugin/LoginControl/pgp/challenge.php';
             exit;
-            header("Loation: {$global['webSiteRootURL']}plugin/LoginControl/pgp/challenge.php?redirectUri=" . urlencode(getRedirectUri()));
-            exit;
         }
+    }
+
+    /**
+     * User-facing explanation for a singleDeviceLogin logout, so it doesn't look like a random
+     * session drop — tells the user which device/IP/location/time triggered the disconnect.
+     */
+    public static function getSingleDeviceLogoutMessage($users_id) {
+        $msg = __("You were disconnected because your account was used to log in from another device or location");
+        $row = self::isUser2FAEnabled($users_id) ? self::getLastConfirmedLogin($users_id) : self::getLastLogin($users_id);
+        if (empty($row)) {
+            return $msg;
+        }
+        $details = [];
+        if (!empty($row['device'])) {
+            $details[] = $row['device'];
+        }
+        if (!empty($row['ip'])) {
+            $details[] = "IP: {$row['ip']}";
+        }
+        if (AVideoPlugin::loadPluginIfEnabled('User_Location')) {
+            $location = IP2Location::getLocation($row['ip']);
+            if (!empty($location)) {
+                $details[] = "{$location['country_name']}, {$location['region_name']}, {$location['city_name']}";
+            }
+        }
+        if (!empty($row['ago'])) {
+            $details[] = $row['ago'];
+        }
+        if (!empty($details)) {
+            $msg .= '<br>' . implode(' &bull; ', $details);
+        }
+        return $msg;
     }
 
     public static function getLastLogin($users_id) {
@@ -531,9 +544,13 @@ Best regards,
     }
 
     public static function verifyChallenge($response) {
-        if ($response == $_SESSION['user']['challenge']['text']) {
+        // SECURITY FIX (2026-09-01): was a loose `==` against an unset session value, which let
+        // response=null/"" pass when no challenge had ever been issued. Do not revert to `==`.
+        // must reject when no challenge was ever issued, otherwise NULL response == NULL unset text passes
+        if (!empty($_SESSION['user']['challenge']['text']) && is_string($response) && hash_equals($_SESSION['user']['challenge']['text'], $response)) {
             _session_start();
             $_SESSION['user']['challenge']['isComplete'] = true;
+            unset($_SESSION['user']['challenge']['text']); // single-use, prevent replay of a captured response
             return true;
         }
         return false;
@@ -569,16 +586,33 @@ Best regards,
             if (isVideo()) {
                 return true;
             }
+            // SECURITY FIX (2026-09-01): .json/plugin\API used to be exempt for ALL methods, so a
+            // password-only session (PGP challenge still pending) could reach every mutating JSON/API
+            // endpoint - the 2FA only ever gated HTML page renders. Now split below: GET stays exempt,
+            // POST/mutating requests are blocked until the challenge is completed. Do not restore an
+            // unconditional .json/plugin\API exemption without re-introducing that gap.
+            // always exempt: the challenge flow itself, sockets, and external (non-browser) webhooks
             $pattersToWhitelist = [];
-            $pattersToWhitelist[] = '/.json/i';
             $pattersToWhitelist[] = '/WebSocket/i';
             $pattersToWhitelist[] = '/LoginControl\/pgp/i';
-            $pattersToWhitelist[] = '/plugin\/API/';
             $pattersToWhitelist[] = '/plugin\/Live/on_';
 
             foreach ($pattersToWhitelist as $value) {
                 if (preg_match($value, $_SERVER["REQUEST_URI"])) {
                     return false;
+                }
+            }
+
+            // read-only JSON/API GET requests stay exempt (mobile app/AJAX compatibility);
+            // POST/mutating requests must still complete the pending PGP challenge
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $pattersToWhitelistGetOnly = [];
+                $pattersToWhitelistGetOnly[] = '/.json/i';
+                $pattersToWhitelistGetOnly[] = '/plugin\/API/';
+                foreach ($pattersToWhitelistGetOnly as $value) {
+                    if (preg_match($value, $_SERVER["REQUEST_URI"])) {
+                        return false;
+                    }
                 }
             }
 
@@ -596,7 +630,7 @@ Best regards,
             return "";
         }
         if (User::isAdmin()) {
-            $btn = '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block" onclick="avideoAjax(webSiteRootURL+\\\'plugin/LoginControl/pgp/deletePublicKey.json.php?users_id=\'+ row.id + \'\\\', {});" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="' . __('This will disable the PGP 2FA') . '"><i class="fas fa-trash"></i> ' . __('Remove PGP Key') . '</button>';
+            $btn = '<button type="button" class="btn btn-default btn-light btn-sm btn-xs btn-block" onclick="avideoAjax(webSiteRootURL+\\\'plugin/LoginControl/pgp/deletePublicKey.json.php?users_id=\'+ row.id + \'\\\', {globalToken: getGlobalToken()});" data-row-id="right"  data-toggle="tooltip" data-placement="left" title="' . __('This will disable the PGP 2FA') . '"><i class="fas fa-trash"></i> ' . __('Remove PGP Key') . '</button>';
         }
         return $btn;
     }

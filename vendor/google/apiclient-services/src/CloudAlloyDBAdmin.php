@@ -55,6 +55,7 @@ class CloudAlloyDBAdmin extends \Google\Service
   public $projects_locations_clusters_users;
   public $projects_locations_operations;
   public $projects_locations_supportedDatabaseFlags;
+  public $rootUrlTemplate;
 
   /**
    * Constructs the internal representation of the CloudAlloyDBAdmin service.
@@ -67,6 +68,7 @@ class CloudAlloyDBAdmin extends \Google\Service
   {
     parent::__construct($clientOrConfig);
     $this->rootUrl = $rootUrl ?: 'https://alloydb.googleapis.com/';
+    $this->rootUrlTemplate = $rootUrl ?: 'https://alloydb.UNIVERSE_DOMAIN/';
     $this->servicePath = '';
     $this->batchPath = 'batch';
     $this->version = 'v1';
@@ -96,6 +98,11 @@ class CloudAlloyDBAdmin extends \Google\Service
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
+                ],
+                'extraLocationTypes' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'repeated' => true,
                 ],
                 'filter' => [
                   'location' => 'query',
@@ -306,11 +313,11 @@ class CloudAlloyDBAdmin extends \Google\Service
                   'type' => 'boolean',
                 ],
               ],
-            ],'generateClientCertificate' => [
-              'path' => 'v1/{+parent}:generateClientCertificate',
+            ],'export' => [
+              'path' => 'v1/{+name}:export',
               'httpMethod' => 'POST',
               'parameters' => [
-                'parent' => [
+                'name' => [
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
@@ -328,6 +335,16 @@ class CloudAlloyDBAdmin extends \Google\Service
                 'view' => [
                   'location' => 'query',
                   'type' => 'string',
+                ],
+              ],
+            ],'import' => [
+              'path' => 'v1/{+name}:import',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'name' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
                 ],
               ],
             ],'list' => [
@@ -397,6 +414,36 @@ class CloudAlloyDBAdmin extends \Google\Service
               'httpMethod' => 'POST',
               'parameters' => [
                 'parent' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'restoreFromCloudSQL' => [
+              'path' => 'v1/{+parent}/clusters:restoreFromCloudSQL',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'parent' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'switchover' => [
+              'path' => 'v1/{+name}:switchover',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'name' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'upgrade' => [
+              'path' => 'v1/{+name}:upgrade',
+              'httpMethod' => 'PATCH',
+              'parameters' => [
+                'name' => [
                   'location' => 'path',
                   'type' => 'string',
                   'required' => true,
@@ -786,6 +833,10 @@ class CloudAlloyDBAdmin extends \Google\Service
                   'type' => 'integer',
                 ],
                 'pageToken' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+                'scope' => [
                   'location' => 'query',
                   'type' => 'string',
                 ],

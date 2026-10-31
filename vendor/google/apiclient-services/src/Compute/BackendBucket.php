@@ -19,7 +19,7 @@ namespace Google\Service\Compute;
 
 class BackendBucket extends \Google\Collection
 {
-  protected $collection_key = 'customResponseHeaders';
+  protected $collection_key = 'usedBy';
   /**
    * @var string
    */
@@ -61,11 +61,17 @@ class BackendBucket extends \Google\Collection
   /**
    * @var string
    */
+  public $loadBalancingScheme;
+  /**
+   * @var string
+   */
   public $name;
   /**
    * @var string
    */
   public $selfLink;
+  protected $usedByType = BackendBucketUsedBy::class;
+  protected $usedByDataType = 'array';
 
   /**
    * @param string
@@ -210,6 +216,20 @@ class BackendBucket extends \Google\Collection
   /**
    * @param string
    */
+  public function setLoadBalancingScheme($loadBalancingScheme)
+  {
+    $this->loadBalancingScheme = $loadBalancingScheme;
+  }
+  /**
+   * @return string
+   */
+  public function getLoadBalancingScheme()
+  {
+    return $this->loadBalancingScheme;
+  }
+  /**
+   * @param string
+   */
   public function setName($name)
   {
     $this->name = $name;
@@ -234,6 +254,20 @@ class BackendBucket extends \Google\Collection
   public function getSelfLink()
   {
     return $this->selfLink;
+  }
+  /**
+   * @param BackendBucketUsedBy[]
+   */
+  public function setUsedBy($usedBy)
+  {
+    $this->usedBy = $usedBy;
+  }
+  /**
+   * @return BackendBucketUsedBy[]
+   */
+  public function getUsedBy()
+  {
+    return $this->usedBy;
   }
 }
 

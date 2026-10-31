@@ -75,6 +75,12 @@ class Network extends \Google\Collection
    * @var string
    */
   public $networkFirewallPolicyEnforcementOrder;
+  /**
+   * @var string
+   */
+  public $networkProfile;
+  protected $paramsType = NetworkParams::class;
+  protected $paramsDataType = '';
   protected $peeringsType = NetworkPeering::class;
   protected $peeringsDataType = 'array';
   protected $routingConfigType = NetworkRoutingConfig::class;
@@ -273,6 +279,34 @@ class Network extends \Google\Collection
   public function getNetworkFirewallPolicyEnforcementOrder()
   {
     return $this->networkFirewallPolicyEnforcementOrder;
+  }
+  /**
+   * @param string
+   */
+  public function setNetworkProfile($networkProfile)
+  {
+    $this->networkProfile = $networkProfile;
+  }
+  /**
+   * @return string
+   */
+  public function getNetworkProfile()
+  {
+    return $this->networkProfile;
+  }
+  /**
+   * @param NetworkParams
+   */
+  public function setParams(NetworkParams $params)
+  {
+    $this->params = $params;
+  }
+  /**
+   * @return NetworkParams
+   */
+  public function getParams()
+  {
+    return $this->params;
   }
   /**
    * @param NetworkPeering[]

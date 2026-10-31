@@ -49,6 +49,12 @@ $metadata = array(
     "recurrent" => @$_REQUEST['recurrent'],
     "singlePayment" => @$_REQUEST['singlePayment'],
 );
+if ($metadata['plugin'] === 'PayPerView' && !empty($metadata['singlePayment'])) {
+    $metadata['videos_id'] = intval($_REQUEST['videos_id'] ?? 0);
+}
+if ($metadata['plugin'] === 'PayPerViewLive' && !empty($metadata['singlePayment'])) {
+    $metadata['ppvlive_schedule_id'] = intval($_REQUEST['ppvlive_schedule_id'] ?? 0);
+}
 $obj->value = $value;
 $obj->currency = $currency;
 $obj->description = @$_REQUEST['description'];
@@ -58,7 +64,15 @@ $obj->future_usage = @$_REQUEST['future_usage'];
 
 $intent = $stripe->getIntent($value, $currency, @$_REQUEST['description'], $metadata, @$_REQUEST['customer'], @$_REQUEST['future_usage']);
 $obj->intent = $intent;
+$obj->description = $intent->description ?? $obj->description;
 $obj->client_secret = @$intent->client_secret;
 $obj->error = empty($obj->client_secret);
+$obj->already_paid = !empty($intent) && $intent->status === 'succeeded';
+if ($obj->already_paid) {
+    $obj->msg = __('Payment already processed. No new charge was made.');
+}
+if ($obj->error) {
+    $obj->msg = empty($getIntentErrorResponse) ? __('An error occurred') : __($getIntentErrorResponse);
+}
 die(json_encode($obj));
 ?>

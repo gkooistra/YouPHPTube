@@ -11,6 +11,8 @@ if (!AVideoPlugin::isEnabledByName('ImageGallery')) {
 $videos_id = getVideos_id();
 ImageGallery::dieIfIsInvalid($videos_id);
 
+forbiddenPageIfCannotWatchVideo($videos_id);
+
 $obj = new stdClass();
 $obj->videos_id = $videos_id;
 $obj->error = false;

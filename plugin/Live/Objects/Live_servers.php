@@ -18,7 +18,6 @@ class Live_servers extends ObjectYPT
     protected $getRemoteFile;
     protected $restreamerURL;
     protected $controlURL;
-    protected $webRTC_server;
 
     public static function getSearchFieldsNames()
     {
@@ -37,7 +36,8 @@ class Live_servers extends ObjectYPT
 
     public function setName($name)
     {
-        $this->name = $name;
+        // stored raw name reaches the admin DataTable unescaped, so sanitize on write
+        $this->name = xss_esc($name);
     }
 
     public function setUrl($url)
@@ -147,7 +147,7 @@ class Live_servers extends ObjectYPT
         return intval($this->protectLive);
     }
     /**
-     * 
+     *
      * @return string
      */
     public function getGetRemoteFile()
@@ -173,16 +173,6 @@ class Live_servers extends ObjectYPT
     public function setControlURL($controlURL)
     {
         $this->controlURL = $controlURL;
-    }
-
-    public function getwebRTC_server()
-    {
-        return $this->webRTC_server;
-    }
-
-    public function setwebRTC_server($webRTC_server)
-    {
-        $this->webRTC_server = addLastSlash($webRTC_server);
     }
 
     public static function getStatsFromId($live_servers_id, $force_recreate = false)
@@ -227,7 +217,7 @@ class Live_servers extends ObjectYPT
             foreach ($fullData as $row) {
                 $rows[] = $row;
             }
-        } 
+        }
         $liveServersgetAllActive = $rows;
         return $rows;
     }
@@ -238,20 +228,17 @@ class Live_servers extends ObjectYPT
         if (empty($obj->useLiveServers)) {
             return 0;
         }
-        global $global;
         $host = trim($rtmpHostURI);
         $parts = parse_url($host);
         $host = "rtmp://{$parts["host"]}{$parts["path"]}";
-        $sql = "SELECT * FROM  " . static::getTableName() . " WHERE rtmp_server LIKE '%{$host}%' AND status = 'a' ";
-        $res = sqlDAL::readSql($sql);
-        $data = sqlDAL::fetchAssoc($res);
+        // Escape LIKE wildcards so the host is matched literally, then pass
+        // it as a bound parameter via sqlDAL to prevent SQL injection.
+        $likeParam = '%' . strtr($host, ['%' => '\%', '_' => '\_']) . '%';
+        $sql = "SELECT * FROM " . static::getTableName() . " WHERE rtmp_server LIKE ? AND status = 'a'";
+        $res = sqlDAL::readSql($sql, 's', [$likeParam]);
+        $row = sqlDAL::fetchAssoc($res);
         sqlDAL::close($res);
-        if ($res) {
-            $row = $data;
-        } else {
-            $row = false;
-        }
-        return $row;
+        return $res ? $row : false;
     }
 
     public static function getServerIdFromRTMPHost($rtmpHostURI)

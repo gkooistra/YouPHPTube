@@ -87,6 +87,14 @@ class ApplicationPolicy extends \Google\Collection
   /**
    * @var string
    */
+  public $preferentialNetworkId;
+  /**
+   * @var string
+   */
+  public $userControlSettings;
+  /**
+   * @var string
+   */
   public $workProfileWidgets;
 
   /**
@@ -340,6 +348,34 @@ class ApplicationPolicy extends \Google\Collection
   public function getPermissionGrants()
   {
     return $this->permissionGrants;
+  }
+  /**
+   * @param string
+   */
+  public function setPreferentialNetworkId($preferentialNetworkId)
+  {
+    $this->preferentialNetworkId = $preferentialNetworkId;
+  }
+  /**
+   * @return string
+   */
+  public function getPreferentialNetworkId()
+  {
+    return $this->preferentialNetworkId;
+  }
+  /**
+   * @param string
+   */
+  public function setUserControlSettings($userControlSettings)
+  {
+    $this->userControlSettings = $userControlSettings;
+  }
+  /**
+   * @return string
+   */
+  public function getUserControlSettings()
+  {
+    return $this->userControlSettings;
   }
   /**
    * @param string
